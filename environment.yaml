@@ -24,6 +24,7 @@ channels:
 dependencies:
   - bioconductor-biomart
   - biopython
+  - pysam
   - python
   - r-base
   - rpy2

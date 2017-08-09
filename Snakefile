@@ -39,6 +39,7 @@ dir_bam = scratch + "sstmp-bam/"
 dir_bam_dedup = scratch + "sstmp-bam-dedup/"
 dir_bam_dedup_stats = scratch + "sstmp-bam-dedup-stats/"
 dir_counts = scratch + "sstmp-counts/"
+dir_totals = scratch + "sstmp-totals/"
 dir_id = dir_data + "id/"
 
 assert os.path.exists(dir_proj), "Project directory exists"
@@ -64,11 +65,14 @@ samples = glob_wildcards(dir_fq + "{samples}.fastq.gz").samples
 rule all:
     input: expand(dir_bam_dedup + "{sample}-dedup.bam", sample = samples)
 
+rule totals:
+    input: dir_data + "totals.txt"
+
 rule test_one:
-    input: dir_bam_dedup + "YG-PYT-03172017-D08_S428_L004_R1_001-dedup.bam"
+    input: dir_totals + "YG-PYT-03172017-D08_S428_L004_R1_001.txt"
 
 rule test_more:
-    input: expand(dir_bam_dedup + "{sample}-dedup.bam", sample = samples[:10])
+    input: expand(dir_totals + "{sample}.txt", sample = samples[:10])
 
 rule download_fasta:
     input: expand(dir_genome + "Caenorhabditis_elegans." + ensembl_genome_ce + \
@@ -192,3 +196,135 @@ rule dedup_umi:
             per_umi = dir_bam_dedup_stats + "{sample}_per_umi.tsv"
     params: stats = dir_bam_dedup_stats + "{sample}"
     shell: "umi_tools dedup -I {input.bam} --output-stats={params.stats} -S {output.bam}"
+
+rule count_totals:
+    input: fastq = dir_fq + "{sample}.fastq.gz",
+           bam = dir_bam + "{sample}-sort.bam",
+           dedup = dir_bam_dedup + "{sample}-dedup.bam"
+    output: dir_totals + "{sample}.txt"
+    run:
+        # Count the number of raw reads
+        import gzip
+        # http://biopython.org/DIST/docs/tutorial/Tutorial.html#htoc68
+        from Bio.SeqIO.QualityIO import FastqGeneralIterator
+        raw = 0
+        with gzip.open(input.fastq, "rt") as handle:
+            for title, seq, qual in FastqGeneralIterator(handle):
+                raw += 1
+
+        # Parse the BAM file to obtain:
+        #  * The number of reads with a valid UMI
+        #  * The number of mapped (and unmapped) reads
+        #  * The number of reads mapped to ce, dm, ercc, hs
+        # https://pysam.readthedocs.io/en/stable/api.html#pysam.AlignedSegment
+        import pysam
+        umi = 0
+        unmapped = 0
+        mapped = 0
+        ce = 0
+        dm = 0
+        ercc = 0
+        hs = 0
+        bam = pysam.AlignmentFile(input.bam, "rb")
+        for read in bam:
+            umi += 1
+            if read.is_unmapped:
+                unmapped += 1
+            else:
+                mapped += 1
+                ref = read.reference_name
+                if ref[:2] == "ce":
+                    ce += 1
+                elif ref[:2] == "dm":
+                    dm += 1
+                elif ref[:2] == "hs":
+                    hs += 1
+                else:
+                    ercc += 1
+        bam.close()
+
+        # Parse the deduplicated BAM file to obtain:
+        #  * The number of molecules
+        #  * The number of molecules mapped to ce, dm, ercc, hs
+        mol = 0
+        mol_ce = 0
+        mol_dm = 0
+        mol_ercc = 0
+        mol_hs = 0
+        dedup = pysam.AlignmentFile(input.dedup, "rb")
+        for read in dedup:
+            mol += 1
+            ref = read.reference_name
+            if ref[:2] == "ce":
+                mol_ce += 1
+            elif ref[:2] == "dm":
+                mol_dm += 1
+            elif ref[:2] == "hs":
+                mol_hs += 1
+            else:
+                mol_ercc += 1
+        dedup.close()
+
+        # Consistency checks
+        assert umi <= raw, \
+            "Reads with a UMI less than or equal to raw reads"
+        assert mapped + unmapped == umi, \
+            "Mapped and unmapped reads sum to reads with a UMI"
+        assert ce + dm + hs + ercc == mapped, \
+            "Reads mapped to specific genomes sum to mapped reads"
+        assert mol < mapped, \
+            "Molecules less than reads."
+        assert mol_ce + mol_dm + mol_ercc + mol_hs == mol, \
+            "Molecules mapped to specific genomes sum to molecules"
+
+        # Export total counts
+        outfile = open(output[0], "w")
+        outfile.write("\t".join([str(raw),
+                                 str(umi),
+                                 str(mapped),
+                                 str(unmapped),
+                                 str(ce),
+                                 str(dm),
+                                 str(ercc),
+                                 str(hs),
+                                 str(mol),
+                                 str(mol_ce),
+                                 str(mol_dm),
+                                 str(mol_ercc),
+                                 str(mol_hs)]
+                      ) + "\n")
+
+rule gather_totals:
+    input: expand(dir_totals + "{sample}.txt", sample = samples)
+    output: dir_data + "totals.txt"
+    run:
+        import os
+
+        outfile = open(output[0], "w")
+        header = "\t".join(["sample",
+                            "experiment",
+                            "well",
+                            "id",
+                            "lane",
+                            "raw",
+                            "umi",
+                            "mapped",
+                            "unmapped",
+                            "reads_ce",
+                            "reads_dm",
+                            "reads_ercc",
+                            "reads_hs",
+                            "molecules",
+                            "mol_ce",
+                            "mol_dm",
+                            "mol_ercc",
+                            "mol_hs"]) + "\n"
+        outfile.write(header)
+        for f in input:
+            sample = os.path.basename(f).lstrip("YG-PYT-").rstrip(".txt")
+            experiment, remaining = sample.split("-")
+            well, id, lane = remaining.split("_")[:3]
+            outfile.write("\t".join([sample, experiment, well, id, lane]) + "\t")
+            with open(f, "r") as handle:
+                outfile.write(handle.read())
+        outfile.close()
