@@ -1,0 +1,33 @@
+# Conda configuration file to reproduce computing environment
+#
+# Create the conda environment:
+# conda env create -n ssc --file environment.yaml
+#
+# Activate the conda environment:
+# source activate ssc
+#
+# Deactivate the conda environmnet:
+# source deactivate ssc
+#
+# https://snakemake.readthedocs.io/en/stable/snakefiles/deployment.html
+# https://conda.io/docs/using/envs.html#create-environment-file-by-hand
+# https://bioconda.github.io
+# https://anaconda.org/jdblischak/repo
+
+name: ssc
+channels:
+  - jdblischak
+  - bioconda
+  - conda-forge
+  - defaults
+  - r
+dependencies:
+  - bioconductor-biomart
+  - python
+  - r-base
+  - rpy2
+  - samtools
+  - snakemake
+  - subread
+  - umi_tools
+  - verifybamid

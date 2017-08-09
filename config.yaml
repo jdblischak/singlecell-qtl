@@ -1,0 +1,25 @@
+# Snakemake configuration file
+
+# Specify paths to data files
+#
+# Paths must end with forward slash
+dir_proj: /project2/gilad/jdblischak/sstmp/
+scratch: /scratch/midway2/jdblischak/
+# Make sure to also update path for log files in cluster.json
+dir_log: log/
+
+# Specify Ensembl release for genome sequence and annotation
+# http://feb2014.archive.ensembl.org/index.html
+ensembl_archive: feb2014.archive.ensembl.org
+ensembl_rel: 75
+ensembl_genome_ce: WBcel235.75
+ensembl_genome_dm: BDGP5.75
+ensembl_genome_hs: GRCh37.75
+
+
+chr_ce: ["I", "II", "III", "IV", "V", "X", "MtDNA"]
+chr_dm: ["2L", "2R", "3L", "3R", "4", "dmel_mitochondrion_genome", "X", "YHet"]
+chr_hs: ["1", "2", "3", "4", "5", "6", "7", "8", "9",
+         "10", "11", "12", "13", "14", "15", "16",
+         "17", "18", "19", "20", "21", "22",
+         "X", "Y", "MT"]

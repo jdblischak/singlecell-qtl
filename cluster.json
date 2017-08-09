@@ -1,0 +1,40 @@
+{
+    "__default__" :
+    {
+        "mem" : 2000,
+        "n" : 1,
+	"tasks" : 1,
+	"name" : "{rule}-{wildcards}",
+	"logfile": "log/snake-{rule}-{wildcards}-%j.out"
+    },
+    "subread_index" :
+    {
+	"mem" : 10000
+    },
+    "extract_umi" :
+    {
+	"mem" : 4000
+    },
+    "subjunc" :
+    {
+	"mem": 16000,
+	"tasks" : 8
+    },
+    "sort_bam" :
+    {
+	"mem": 8000
+    },
+    "dedup_umi" :
+    {
+	"mem": 8000
+    },
+    "featureCounts" :
+    {
+	"mem": 8000,
+	"tasks": 8
+    },
+    "verify_bam" :
+    {
+	"mem" : 16000
+    }
+}
