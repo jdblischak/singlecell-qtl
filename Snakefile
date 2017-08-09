@@ -135,13 +135,38 @@ rule subread_index:
     params: prefix = dir_genome + "genome"
     shell: "subread-buildindex -o {params.prefix} {input}"
 
-rule extract_umi:
+rule filter_umi:
     input: dir_fq + "{sample}.fastq.gz"
     output: temp(dir_fq_tmp + "{sample}.fastq.gz")
+    run:
+        from Bio import SeqIO
+        import gzip
+
+        path_in = input[0]
+        path_out = output[0]
+        handle_in = gzip.open(path_in, "rt")
+        handle_out = gzip.open(path_out, "wt")
+
+        fq = SeqIO.parse(handle_in, "fastq")
+        for read in fq:
+            if read.seq[6:9] == "GGG":
+                # Only export reads that have a G in positions 7, 8,
+                # and 9
+                handle_out.write(read.format("fastq"))
+                # Note: I didn't use SeqIO.write here b/c I couldn't
+                # find a way to write directly to a gzipped file.
+                # https://bioinformatics.stackexchange.com/q/892/1302
+
+        handle_in.close()
+        handle_out.close()
+
+rule extract_umi:
+    input: dir_fq_tmp + "{sample}.fastq.gz"
+    output: temp(dir_fq_tmp + "{sample}-umi.fastq.gz")
     shell: "umi_tools extract --bc-pattern=NNNNNNNNN -I {input} -S {output}"
 
 rule subjunc:
-    input: read = dir_fq_tmp + "{sample}.fastq.gz",
+    input: read = dir_fq_tmp + "{sample}-umi.fastq.gz",
            index = dir_genome + "genome.reads"
     output: temp(dir_bam + "{sample}.bam")
     params: prefix = dir_genome + "genome"
