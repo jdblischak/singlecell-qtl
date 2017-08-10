@@ -55,7 +55,7 @@ if not os.path.isdir(dir_log):
 chr_ce = config["chr_ce"]
 chr_dm = config["chr_dm"]
 chr_hs = config["chr_hs"]
-    
+
 # Input samples ----------------------------------------------------------------
 
 samples = glob_wildcards(dir_fq + "{samples}.fastq.gz").samples
@@ -73,6 +73,9 @@ rule test_one:
 
 rule test_more:
     input: expand(dir_totals + "{sample}.txt", sample = samples[:10])
+
+rule exons:
+    input: dir_genome + ensembl_exons
 
 rule download_fasta:
     input: expand(dir_genome + "Caenorhabditis_elegans." + ensembl_genome_ce + \
@@ -127,6 +130,31 @@ rule unzip_chromosome_fasta_hs:
                   ".dna_sm.chromosome.{chr}.fa.gz", chr = chr_hs)
     output: temp(dir_genome + "hs.fa")
     shell: "zcat {input} | sed 's/>/>hs/' > {output}"
+
+rule create_exons:
+    output: dir_genome + "{organism}.saf"
+    params: archive = ensembl_archive, organism = "{organism}",
+            # Hack to dynamically get the list of chromosomes for each organism
+            # https://stackoverflow.com/a/45585380/2483477
+            chroms = lambda wildcards: globals()["chr_" + "{organism}".format(**wildcards)]
+    shell: "Rscript code/create-exons.R {params.archive} {params.organism} \
+            {params.chroms} > {output}"
+
+rule download_ercc_gtf:
+    output: dir_genome + "ERCC92.gtf"
+    shell: "wget -O {output} http://media.invitrogen.com.edgesuite.net/softwares/ERCC92.gtf"
+
+rule create_exons_ercc:
+    input: dir_genome + "ERCC92.gtf"
+    output: dir_genome + "ercc.saf"
+    shell: "Rscript code/create-exons-ercc.R {input} > {output}"
+
+rule gather_exons:
+    input: expand(dir_genome + "{organism}.saf", \
+                  organism = ["ce", "dm", "ercc", "hs"])
+    output: dir_genome + ensembl_exons
+    shell: "cat {input[0]} | grep GeneID > {output}; \
+           cat {input} | grep -v GeneID >> {output}"
 
 # Quanitify expression with Subjunc/featureCounts ------------------------------
 
