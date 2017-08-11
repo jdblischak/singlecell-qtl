@@ -63,6 +63,11 @@ samples = glob_wildcards(dir_fq + "{samples}.fastq.gz").samples
 # Targets ----------------------------------------------------------------------
 
 rule all:
+    input: dir_data + "reads.txt.gz",
+           dir_data + "molecules.txt.gz",
+           dir_data + "totals.txt"
+
+rule run_dedup_umi:
     input: expand(dir_bam_dedup + "{sample}-dedup.bam", sample = samples)
 
 rule totals:
@@ -72,7 +77,10 @@ rule test_one:
     input: dir_totals + "YG-PYT-03172017-D08_S428_L004_R1_001.txt"
 
 rule test_more:
-    input: expand(dir_totals + "{sample}.txt", sample = samples[:10])
+    input: expand(dir_counts + "{sample}.genecounts.txt", sample = samples[:10])
+
+rule run_featurecounts:
+    input: expand(dir_counts + "{sample}.genecounts.txt", sample = samples)
 
 rule exons:
     input: dir_genome + ensembl_exons
@@ -224,6 +232,71 @@ rule dedup_umi:
             per_umi = dir_bam_dedup_stats + "{sample}_per_umi.tsv"
     params: stats = dir_bam_dedup_stats + "{sample}"
     shell: "umi_tools dedup -I {input.bam} --output-stats={params.stats} -S {output.bam}"
+
+rule feauturecounts:
+    input: bam = dir_bam + "{sample}-sort.bam",
+           dedup = dir_bam_dedup + "{sample}-dedup.bam",
+           exons = dir_genome + ensembl_exons
+    output: dir_counts + "{sample}.genecounts.txt"
+    threads: 8
+    shell: "featureCounts -a {input.exons} -F SAF -T {threads} -o {output} \
+            {input.bam} {input.dedup}"
+
+rule gather_counts:
+    input: expand(dir_counts + "{sample}.genecounts.txt", sample = samples)
+    output: reads = dir_data + "reads.txt.gz",
+            molecules = dir_data + "molecules.txt.gz"
+    run:
+        import gzip
+        import os
+
+        reads = gzip.open(output.reads, "wt")
+        molecules = gzip.open(output.molecules, "wt")
+
+        # Obtain the gene IDs from the first file
+        genes = []
+        f1 = open(input[0], "r")
+        for line in f1:
+            if line[0] == "#" or line[:6] == "Geneid":
+                continue
+            g = line.strip().split("\t")[0]
+            genes.append(g)
+        f1.close()
+
+        # Write header
+        header = "\t".join(["sample",
+                            "experiment",
+                            "well",
+                            "id",
+                            "lane"] + genes) + "\n"
+        reads.write(header)
+        molecules.write(header)
+
+        # Obtain and write gene counts for each sample
+        for f in input:
+            sample = os.path.basename(f).lstrip("YG-PYT-").rstrip(".genecounts.txt")
+            experiment, remaining = sample.split("-")
+            well, id, lane = remaining.split("_")[:3]
+            reads.write("\t".join([sample, experiment, well, id, lane]) + "\t")
+            molecules.write("\t".join([sample, experiment, well, id, lane]) + "\t")
+            with open(f, "r") as handle:
+                n_reads = [""] * len(genes)
+                n_molecules = [""] * len(genes)
+                i = 0
+                for line in handle:
+                    if line[0] == "#" or line[:6] == "Geneid":
+                        continue
+                    cols = line.strip().split("\t")
+                    assert int(cols[6]) >= int(cols[7]), \
+                        "Reads greater than or equal to molecules"
+                    n_reads[i] = cols[6]
+                    n_molecules[i] = cols[7]
+                    i += 1
+            reads.write("\t".join(n_reads) + "\n")
+            molecules.write("\t".join(n_molecules) + "\n")
+
+        reads.close()
+        molecules.close()
 
 rule count_totals:
     input: fastq = dir_fq + "{sample}.fastq.gz",
