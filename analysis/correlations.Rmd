@@ -1,0 +1,89 @@
+---
+title: "Correlations"
+author: "John Blischak"
+date: 2017-08-14
+output: html_document
+---
+
+<!-- The file analysis/chunks.R contains chunks that define default settings
+shared across the workflowr files. -->
+```{r read-chunk, include=FALSE, cache=FALSE}
+knitr::read_chunk("chunks.R")
+```
+
+<!-- Update knitr chunk options -->
+```{r knitr-opts-chunk, include=FALSE}
+```
+
+<!-- Insert the date the file was last updated -->
+```{r last-updated, echo=FALSE, results='asis'}
+```
+
+<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
+ package git2r is installed -->
+```{r code-version, echo=FALSE, results='asis'}
+```
+
+## Setup
+
+```{r packages, message=FALSE}
+library("cowplot")
+library("dplyr")
+library("ggplot2")
+library("readr")
+library("stringr")
+library("tidyr")
+theme_set(theme_cowplot())
+source("../code/functions.R")
+```
+
+Import molecules.
+
+```{r import-molecules, message=FALSE, cache=TRUE}
+molecules <- read_tsv(gzfile("../data/molecules.txt.gz"))
+dim(molecules)
+molecules[1:5, 1:10]
+colnames(molecules)[1:20]
+```
+
+Separate by source.
+
+```{r separate-by-source}
+mol_ce <- molecules %>% select(sample:lane, starts_with("WBGene"))
+mol_dm <- molecules %>% select(sample:lane, starts_with("FBGene"))
+mol_ercc <- molecules %>% select(sample:lane, starts_with("ERCC"))
+mol_hs <- molecules %>% select(sample:lane, starts_with("ENSG"))
+```
+
+## ERCC
+
+Remove dashes in column names.
+
+```{r dashes}
+colnames(mol_ercc) <- str_replace(colnames(mol_ercc), "-", "")
+```
+
+Remove zeros.
+
+```{r}
+mol_ercc <- mol_ercc %>%
+  select_if(function(col) is.character(col) || sum(col) > 0)
+dim(mol_ercc)
+```
+
+Convert to matrix.
+
+```{r}
+mol_ercc_mat <- mol_ercc %>%
+  select(starts_with("ERCC")) %>%
+  t
+cor_ercc <- cor(mol_ercc_mat)
+cor_ercc <- cor_ercc[upper.tri(cor_ercc)]
+boxplot(cor_ercc)
+```
+
+## Session information
+
+<!-- Insert the session information into the document -->
+```{r session-info}
+```
