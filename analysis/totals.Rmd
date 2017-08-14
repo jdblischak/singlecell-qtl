@@ -1,0 +1,178 @@
+---
+title: "Analysis of totals counts"
+author: "John Blischak"
+date: 2017-08-14
+output: html_document
+---
+
+<!-- The file analysis/chunks.R contains chunks that define default settings
+shared across the workflowr files. -->
+```{r read-chunk, include=FALSE, cache=FALSE}
+knitr::read_chunk("chunks.R")
+```
+
+<!-- Update knitr chunk options -->
+```{r knitr-opts-chunk, include=FALSE}
+```
+
+<!-- Insert the date the file was last updated -->
+```{r last-updated, echo=FALSE, results='asis'}
+```
+
+<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
+ package git2r is installed -->
+```{r code-version, echo=FALSE, results='asis'}
+```
+
+This analysis explores the total counts of reads and molecules mapped to each
+source (human, fly, worm, and ERCC).
+
+## Setup
+
+```{r packages, message=FALSE}
+library("cowplot")
+library("dplyr")
+library("ggplot2")
+library("readr")
+library("stringr")
+library("tidyr")
+theme_set(theme_cowplot())
+source("../code/functions.R")
+```
+
+Import totals counts.
+
+```{r read-totals, message=FALSE}
+totals <- read_tsv("../data/totals.txt")
+dim(totals)
+totals[1:5, 1:10]
+colnames(totals)
+```
+
+Import annotation.
+
+```{r read-anno, message=FALSE}
+anno <- read_tsv("../data/batch1_qc.txt",
+                 col_types = cols(ERCC = col_character()))
+# Cleanup ERCC column
+anno$ERCC <- ifelse(is.na(anno$ERCC), "Not added", anno$ERCC)
+anno$ERCC <- factor(anno$ERCC, levels = c("Not added", "1:100000", "1:50000"),
+                    labels = c("Not added", "100x dilution", "50x dilution"))
+dim(anno)
+colnames(anno)
+```
+
+Merge the data sets.
+
+```{r merge}
+totals_anno <- merge(totals, anno, by = c("experiment", "well"))
+stopifnot(nrow(totals_anno) == nrow(totals))
+```
+
+Remove samples with bad cell number or TRA-1-60.
+
+```{r filter}
+totals_anno <- totals_anno %>%
+  filter(cell_number == 1, tra1.60 == 1)
+dim(totals_anno)
+```
+
+## What percentage of reads are mapped to the genome?
+
+```{r}
+totals_long <- totals %>%
+  gather(key = "type", value = "count", raw:mol_hs) %>%
+  filter(type %in% c("raw", "umi", "mapped", "molecules")) %>%
+  mutate(type = factor(type, levels = c("raw", "umi", "mapped", "molecules"),
+                       labels = c("Raw reads", "Reads with UMI",
+                                  "Reads mapped\nto genome",
+                                  "Molecules mapped\nto genome")))
+head(totals_long)
+ggplot(totals_long, aes(x = type, y = count)) +
+  geom_boxplot() +
+  labs(x = "Classification", y = "Number of sequences",
+       title = "Processing of raw reads")
+```
+
+Category  | mean | sd | \% of raw (mean)
+------------- | ------------- | ------------- | -------------
+Raw reads  | `r mean(totals$raw)` | `r sd(totals$raw)` | `r specify_decimal(mean(totals$raw / totals$raw), k = 2)`
+Reads with UMI  | `r mean(totals$umi)` | `r sd(totals$umi)` | `r specify_decimal(mean(totals$umi / totals$raw), k = 2)`
+Reads mapped to genome  | `r mean(totals$mapped)` | `r sd(totals$mapped)` | `r specify_decimal(mean(totals$mapped / totals$raw), k = 2)`
+Molecules mapped to genome  | `r mean(totals$molecules)` | `r sd(totals$molecules)` | `r specify_decimal(mean(totals$molecules / totals$raw), k = 2)`
+
+## What is the conversion of reads to molecules?
+
+```{r reads-to-molecules, fig.width=10, fig.height=10}
+convert_all <- ggplot(totals, aes(x = mapped, y = molecules)) +
+  geom_point() +
+  labs(x = "Number of reads mapped to any genome",
+       y = "Number of molecules mapped to any genome",
+       title = "Conversion of reads to molecules")
+convert_hs <- ggplot(totals, aes(x = reads_hs, y = mol_hs)) +
+  geom_point() +
+  labs(x = "Number of reads mapped to human genome",
+       y = "Number of molecules mapped to human genome",
+       title = "Conversion of reads to molecules for human")
+convert_dm <- ggplot(totals, aes(x = reads_dm, y = mol_dm)) +
+  geom_point() +
+  labs(x = "Number of reads mapped to fly genome",
+       y = "Number of molecules mapped to fly genome",
+       title = "Conversion of reads to molecules for fly")
+convert_ce <- ggplot(totals, aes(x = reads_ce, y = mol_ce)) +
+  geom_point() +
+  labs(x = "Number of reads mapped to worm genome",
+       y = "Number of molecules mapped to worm genome",
+       title = "Conversion of reads to molecules for worm")
+
+plot_grid(convert_all, convert_hs, convert_dm, convert_ce,
+          labels = letters[1:4])
+```
+
+## Drosophila spike-in
+
+```{r totals-fly}
+p_reads_dm <- ggplot(totals_anno, aes(x = as.factor(fly), y = reads_dm / mapped * 100)) +
+  geom_boxplot() +
+  labs(x = "Fly spike-in concentration",
+       y = "Percentage of mapped reads that mapped to fly genome")
+p_mol_dm <- ggplot(totals_anno, aes(x = as.factor(fly), y = mol_dm / molecules * 100)) +
+  geom_boxplot() +
+  labs(x = "Fly spike-in concentration",
+       y = "Percentage of mapped molecules that mapped to fly genome")
+plot_grid(p_reads_dm, p_mol_dm, labels = letters[1:2])
+```
+
+## C. elegans spike-in
+
+```{r totals-worm}
+p_reads_ce <- ggplot(totals_anno, aes(x = as.factor(worm), y = reads_ce / mapped * 100)) +
+  geom_boxplot() +
+  labs(x = "Worm spike-in concentration",
+       y = "Percentage of mapped reads that mapped to worm genome")
+p_mol_ce <- ggplot(totals_anno, aes(x = as.factor(worm), y = mol_ce / molecules * 100)) +
+  geom_boxplot() +
+  labs(x = "Worm spike-in concentration",
+       y = "Percentage of mapped molecules that mapped to worm genome")
+plot_grid(p_reads_ce, p_mol_ce, labels = letters[1:2])
+```
+
+## ERCC spike-in
+
+```{r totals-ercc}
+p_reads_ercc <- ggplot(totals_anno, aes(x = as.factor(ERCC), y = reads_ercc / mapped * 100)) +
+  geom_boxplot() +
+  labs(x = "ERCC spike-in concentration",
+       y = "Percentage of mapped reads that mapped to ERCCs")
+p_mol_ercc <- ggplot(totals_anno, aes(x = as.factor(ERCC), y = mol_ercc / molecules * 100)) +
+  geom_boxplot() +
+  labs(x = "ERCC spike-in concentration",
+       y = "Percentage of mapped molecules that mapped to ERCCs")
+plot_grid(p_reads_ercc, p_mol_ercc, labels = letters[1:2])
+```
+
+## Session information
+
+<!-- Insert the session information into the document -->
+```{r session-info}
+```
