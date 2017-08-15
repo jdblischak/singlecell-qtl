@@ -1,20 +1,29 @@
 # Conda configuration file to reproduce computing environment
 #
 # Create the conda environment:
-# conda env create -n ssc --file environment.yaml
+#
+# conda env create --file environment.yaml
+#
+# Update the conda environment:
+#
+# conda env update --file environment.yaml
 #
 # Activate the conda environment:
-# source activate ssc
 #
-# Deactivate the conda environmnet:
-# source deactivate ssc
+# source activate scqtl
+#
+# Deactivate the conda environment:
+#
+# source deactivate scqtl
+#
+# Resources:
 #
 # https://snakemake.readthedocs.io/en/stable/snakefiles/deployment.html
 # https://conda.io/docs/using/envs.html#create-environment-file-by-hand
 # https://bioconda.github.io
 # https://anaconda.org/jdblischak/repo
 
-name: ssc
+name: scqtl
 channels:
   - jdblischak
   - bioconda
@@ -23,10 +32,26 @@ channels:
   - r
 dependencies:
   - bioconductor-biomart
+  - bioconductor-edger
   - biopython
+  - pandoc
   - pysam
   - python
   - r-base
+  - r-callr
+  - r-cowplot
+  - r-devtools
+  - r-dplyr
+  - r-git2r
+  - r-ggplot2
+  - r-readr
+  - r-rmarkdown >=0.9.6
+  - r-rprojroot
+  - r-rstudioapi
+  - r-stringr >=1.2.0
+  - r-tidyr
+  - r-whisker
+  - r-yaml
   - rpy2
   - samtools
   - snakemake
