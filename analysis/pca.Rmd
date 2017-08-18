@@ -124,27 +124,26 @@ mol_ercc_mat <- mol_ercc_mat[apply(mol_ercc_mat, 1, present), ]
 dim(mol_ercc_mat)
 ```
 
-```{r}
+```{r hist-ercc}
 mol_ercc_cpm <- cpm(mol_ercc_mat, log = TRUE)
 hist(rowMeans(mol_ercc_cpm))
 ```
 
-```{r}
-pca_ercc <- prcomp(t(mol_ercc_cpm), scale. = TRUE)
-pca_ercc <- cbind(mol_ercc %>% select(experiment:index), pca_ercc$x)
+```{r pca-ercc}
+pca_ercc <- run_pca(mol_ercc_cpm)
+plot_pca(pca_ercc$PCs, pcx = 1, pcy = 2, explained = pca_ercc$explained,
+         metadata = mol_ercc %>% select(experiment:index),
+         color = "experiment")
+plot_pca(pca_ercc$PCs, pcx = 3, pcy = 4, explained = pca_ercc$explained,
+         metadata = mol_ercc %>% select(experiment:index),
+         color = "experiment")
+plot_pca(pca_ercc$PCs, pcx = 5, pcy = 6, explained = pca_ercc$explained,
+         metadata = mol_ercc %>% select(experiment:index),
+         color = "experiment")
+plot_pca(pca_ercc$PCs, pcx = 5, pcy = 6, explained = pca_ercc$explained,
+         metadata = mol_ercc %>% select(experiment:index),
+         color = "annoERCC")
 ```
-
-```{r}
-ggplot(pca_ercc, aes(x = PC1, y = PC2, color = experiment)) +
-  geom_text(aes(label = id))
-ggplot(pca_ercc, aes(x = PC3, y = PC4, color = experiment)) +
-  geom_text(aes(label = id))
-ggplot(pca_ercc, aes(x = PC5, y = PC6, color = experiment)) +
-  geom_text(aes(label = id))
-ggplot(pca_ercc, aes(x = PC5, y = PC6, color = annoERCC)) +
-  geom_text(aes(label = id))
-```
-
 
 ## Drosophila
 
@@ -171,21 +170,19 @@ mol_dm_mat <- mol_dm_mat[apply(mol_dm_mat, 1, present), ]
 dim(mol_dm_mat)
 ```
 
-```{r}
+```{r hist-dm}
 mol_dm_cpm <- cpm(mol_dm_mat, log = TRUE)
 hist(rowMeans(mol_dm_cpm))
 ```
 
-```{r}
-pca_dm <- prcomp(t(mol_dm_cpm), scale. = TRUE)
-pca_dm <- cbind(mol_dm %>% select(experiment:index), pca_dm$x)
-```
-
-```{r}
-ggplot(pca_dm, aes(x = PC1, y = PC2, color = experiment)) +
-  geom_text(aes(label = id))
-ggplot(pca_dm, aes(x = PC1, y = PC2, color = as.factor(fly))) +
-  geom_text(aes(label = id))
+```{r pca-dm}
+pca_dm <- run_pca(mol_dm_cpm)
+plot_pca(pca_dm$PCs, pcx = 1, pcy = 2, explained = pca_dm$explained,
+         metadata = mol_dm %>% select(experiment:index),
+         color = "experiment")
+plot_pca(pca_dm$PCs, pcx = 1, pcy = 2, explained = pca_dm$explained,
+         metadata = mol_dm %>% select(experiment:index),
+         color = "fly", factors = "fly")
 ```
 
 ## C. elegans
@@ -213,7 +210,7 @@ mol_ce_mat <- mol_ce_mat[apply(mol_ce_mat, 1, present), ]
 dim(mol_ce_mat)
 ```
 
-```{r}
+```{r hist-ce}
 mol_ce_cpm <- cpm(mol_ce_mat, log = TRUE)
 # Remove samples with no observations for this subset
 zeros_ce <- colSums(mol_ce_mat) > 0
@@ -221,19 +218,15 @@ mol_ce_cpm <- mol_ce_cpm[, zeros_ce]
 hist(rowMeans(mol_ce_cpm))
 ```
 
-```{r}
-pca_ce <- prcomp(t(mol_ce_cpm), scale. = TRUE)
-pca_ce <- cbind(mol_ce %>% select(experiment:index) %>% filter(zeros_ce),
-                pca_ce$x)
+```{r pca-ce}
+pca_ce <- run_pca(mol_ce_cpm)
+plot_pca(pca_ce$PCs, pcx = 1, pcy = 2, explained = pca_ce$explained,
+         metadata = mol_ce %>% select(experiment:index) %>% filter(zeros_ce),
+         color = "experiment")
+plot_pca(pca_ce$PCs, pcx = 1, pcy = 2, explained = pca_ce$explained,
+         metadata = mol_ce %>% select(experiment:index) %>% filter(zeros_ce),
+         color = "worm", factors = "worm")
 ```
-
-```{r}
-ggplot(pca_ce, aes(x = PC1, y = PC2, color = experiment)) +
-  geom_text(aes(label = id))
-ggplot(pca_ce, aes(x = PC1, y = PC2, color = as.factor(worm))) +
-  geom_text(aes(label = id))
-```
-
 
 ## Human
 
@@ -260,21 +253,17 @@ mol_hs_mat <- mol_hs_mat[apply(mol_hs_mat, 1, present), ]
 dim(mol_hs_mat)
 ```
 
-```{r}
+```{r hist-hs}
 mol_hs_cpm <- cpm(mol_hs_mat, log = TRUE)
 hist(rowMeans(mol_hs_cpm))
 ```
 
-```{r}
-pca_hs <- prcomp(t(mol_hs_cpm), scale. = TRUE)
-pca_hs <- cbind(mol_hs %>% select(experiment:index), pca_hs$x)
-```
-
-```{r}
-ggplot(pca_hs, aes(x = PC1, y = PC2, color = experiment)) +
-  geom_text(aes(label = id))
-ggplot(pca_hs, aes(x = PC3, y = PC4, color = experiment)) +
-  geom_text(aes(label = id))
+```{r pca-hs}
+pca_hs <- run_pca(mol_hs_cpm)
+plot_pca(pca_hs$PCs, pcx = 1, pcy = 2, explained = pca_hs$explained,
+         metadata = mol_hs %>% select(experiment:index), color = "experiment")
+plot_pca(pca_hs$PCs, pcx = 3, pcy = 4, explained = pca_hs$explained,
+         metadata = mol_hs %>% select(experiment:index), color = "experiment")
 ```
 
 ## Session information
