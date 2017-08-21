@@ -185,6 +185,89 @@ plot_pca(pca_dm$PCs, pcx = 1, pcy = 2, explained = pca_dm$explained,
          color = "fly", factors = "fly")
 ```
 
+## Drosophila - 5 pg
+
+Select only samples that received 5 pg.
+
+```{r}
+mol_dm_5pg <- mol_dm %>%
+  filter(fly == 5000)
+dim(mol_dm_5pg)
+```
+
+Convert to matrix.
+
+```{r}
+mol_dm_mat_5pg <- mol_dm_5pg %>%
+  select(starts_with("FBgn")) %>%
+  t
+```
+
+Only keep fly genes which are observed in at least 50% of the samples.
+
+```{r}
+mol_dm_mat_5pg <- mol_dm_mat_5pg[apply(mol_dm_mat_5pg, 1, present), ]
+dim(mol_dm_mat_5pg)
+```
+
+```{r hist-dm-5pg}
+mol_dm_cpm_5pg <- cpm(mol_dm_mat_5pg, log = TRUE)
+hist(rowMeans(mol_dm_cpm_5pg))
+```
+
+```{r pca-dm-5pg}
+pca_dm_5pg <- run_pca(mol_dm_cpm_5pg)
+plot_pca(pca_dm_5pg$PCs, pcx = 1, pcy = 2, explained = pca_dm_5pg$explained,
+         metadata = mol_dm_5pg %>% select(experiment:index),
+         color = "experiment")
+plot_pca(pca_dm_5pg$PCs, pcx = 3, pcy = 4, explained = pca_dm_5pg$explained,
+         metadata = mol_dm_5pg %>% select(experiment:index),
+         color = "experiment")
+```
+
+## Drosophila - 50 pg
+
+Select only samples that received 50 pg.
+
+```{r}
+mol_dm_50pg <- mol_dm %>%
+  filter(fly == 50000)
+dim(mol_dm_50pg)
+```
+
+Convert to matrix.
+
+```{r}
+mol_dm_mat_50pg <- mol_dm_50pg %>%
+  select(starts_with("FBgn")) %>%
+  t
+```
+
+Only keep fly genes which are observed in at least 50% of the samples.
+
+```{r}
+mol_dm_mat_50pg <- mol_dm_mat_50pg[apply(mol_dm_mat_50pg, 1, present), ]
+dim(mol_dm_mat_50pg)
+```
+
+```{r hist-dm-50pg}
+mol_dm_cpm_50pg <- cpm(mol_dm_mat_50pg, log = TRUE)
+hist(rowMeans(mol_dm_cpm_50pg))
+```
+
+```{r pca-dm-50pg}
+pca_dm_50pg <- run_pca(mol_dm_cpm_50pg)
+plot_pca(pca_dm_50pg$PCs, pcx = 1, pcy = 2, explained = pca_dm_50pg$explained,
+         metadata = mol_dm_50pg %>% select(experiment:index),
+         color = "experiment")
+plot_pca(pca_dm_50pg$PCs, pcx = 3, pcy = 4, explained = pca_dm_50pg$explained,
+         metadata = mol_dm_50pg %>% select(experiment:index),
+         color = "experiment")
+plot_pca(pca_dm_50pg$PCs, pcx = 5, pcy = 6, explained = pca_dm_50pg$explained,
+         metadata = mol_dm_50pg %>% select(experiment:index),
+         color = "experiment")
+```
+
 ## C. elegans
 
 Remove zeros.
