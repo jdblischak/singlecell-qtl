@@ -155,6 +155,33 @@ p_mol_dm_counts <- ggplot(totals_anno, aes(x = as.factor(fly), y = mol_dm)) +
 plot_grid(p_reads_dm_counts, p_mol_dm_counts, labels = letters[1:2])
 ```
 
+```{r read-classification-per-sample}
+totals_percent <- totals_anno %>%
+  mutate(sample = factor(sample, levels = sample[order(reads_dm / raw)])) %>%
+  arrange(reads_dm / raw) %>%
+  group_by(experiment, sample, fly, worm, ERCC) %>%
+  summarize(p_reads_ce = reads_ce / raw * 100,
+            p_reads_dm = reads_dm / raw * 100,
+            p_reads_ercc = reads_ercc / raw * 100,
+            p_reads_hs = reads_hs / raw * 100,
+            p_unmapped = unmapped / raw * 100,
+            p_no_umi = (raw - unmapped - mapped) / raw * 100) %>%
+  gather(key = "type", value = "percent", p_reads_ce:p_no_umi) %>%
+  ungroup() %>%
+  mutate(type = factor(type, levels = c("p_no_umi", "p_unmapped", "p_reads_hs",
+                                        "p_reads_ercc", "p_reads_ce", "p_reads_dm"),
+                       labels = c("No UMI", "Unmapped", "H. sapiens", "ERCC",
+                                  "C. elegans", "D. melanogaster")),
+         fly = factor(fly, levels = c(5000, 50000), labels = c("5 pg fly spike-on",
+                                                               "50 pg fly spike-on")))
+
+ggplot(totals_percent, aes(x = sample, y = percent, fill = type)) +
+  geom_col() +
+  facet_wrap(~fly) +
+  labs(x = "Sample", y = "Percent", title = "Read classification per sample") +
+  theme(legend.title = element_blank())
+```
+
 ## C. elegans spike-in
 
 ```{r totals-worm-perc}
@@ -173,11 +200,11 @@ plot_grid(p_reads_ce, p_mol_ce, labels = letters[1:2])
 p_reads_ce_counts <- ggplot(totals_anno, aes(x = as.factor(worm), y = reads_ce)) +
   geom_boxplot() +
   labs(x = "Worm spike-in concentration",
-       y = "Percentage of mapped reads that mapped to worm genome")
+       y = "Number of mapped reads that mapped to worm genome")
 p_mol_ce_counts <- ggplot(totals_anno, aes(x = as.factor(worm), y = mol_ce)) +
   geom_boxplot() +
   labs(x = "Worm spike-in concentration",
-       y = "Percentage of mapped molecules that mapped to worm genome")
+       y = "Number of mapped molecules that mapped to worm genome")
 plot_grid(p_reads_ce_counts, p_mol_ce_counts, labels = letters[1:2])
 ```
 
