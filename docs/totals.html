@@ -288,7 +288,7 @@ div.tocify {
       </ul>
       <ul class="nav navbar-nav navbar-right">
         <li>
-  <a href="https://github.com/jdblischak/workflowr">
+  <a href="https://github.com/jdblischak/singlecell-qtl">
     <span class="fa fa-github"></span>
      
   </a>
@@ -313,10 +313,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2017-08-14</p>
+<p><strong>Last updated:</strong> 2017-08-21</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> e4d4030</p>
+<p><strong>Code version:</strong> bd35bd4</p>
 <p>This analysis explores the total counts of reads and molecules mapped to each source (human, fly, worm, and ERCC).</p>
 <div id="setup" class="section level2">
 <h2>Setup</h2>
@@ -349,13 +349,16 @@ dim(totals)</code></pre>
 [16] &quot;mol_dm&quot;     &quot;mol_ercc&quot;   &quot;mol_hs&quot;    </code></pre>
 <p>Import annotation.</p>
 <pre class="r"><code>anno &lt;- read_tsv(&quot;../data/batch1_qc.txt&quot;,
-                 col_types = cols(ERCC = col_character()))
-# Cleanup ERCC column
+                 col_types = cols(ERCC = col_character()))</code></pre>
+<pre><code>Warning: 1 parsing failure.
+row col   expected    actual
+961  -- 13 columns 1 columns</code></pre>
+<pre class="r"><code># Cleanup ERCC column
 anno$ERCC &lt;- ifelse(is.na(anno$ERCC), &quot;Not added&quot;, anno$ERCC)
 anno$ERCC &lt;- factor(anno$ERCC, levels = c(&quot;Not added&quot;, &quot;1:100000&quot;, &quot;1:50000&quot;),
                     labels = c(&quot;Not added&quot;, &quot;100x dilution&quot;, &quot;50x dilution&quot;))
 dim(anno)</code></pre>
-<pre><code>[1] 960  13</code></pre>
+<pre><code>[1] 961  13</code></pre>
 <pre class="r"><code>colnames(anno)</code></pre>
 <pre><code> [1] &quot;experiment&quot;    &quot;well&quot;          &quot;cell_number&quot;   &quot;concentration&quot;
  [5] &quot;tra1.60&quot;       &quot;individual.1&quot;  &quot;individual.2&quot;  &quot;individual.3&quot; 
@@ -481,6 +484,31 @@ p_mol_dm_counts &lt;- ggplot(totals_anno, aes(x = as.factor(fly), y = mol_dm)) +
        y = &quot;Number of molecules that mapped to fly genome&quot;)
 plot_grid(p_reads_dm_counts, p_mol_dm_counts, labels = letters[1:2])</code></pre>
 <p><img src="figure/totals.Rmd/totals-fly-counts-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>totals_percent &lt;- totals_anno %&gt;%
+  mutate(sample = factor(sample, levels = sample[order(reads_dm / raw)])) %&gt;%
+  arrange(reads_dm / raw) %&gt;%
+  group_by(experiment, sample, fly, worm, ERCC) %&gt;%
+  summarize(p_reads_ce = reads_ce / raw * 100,
+            p_reads_dm = reads_dm / raw * 100,
+            p_reads_ercc = reads_ercc / raw * 100,
+            p_reads_hs = reads_hs / raw * 100,
+            p_unmapped = unmapped / raw * 100,
+            p_no_umi = (raw - unmapped - mapped) / raw * 100) %&gt;%
+  gather(key = &quot;type&quot;, value = &quot;percent&quot;, p_reads_ce:p_no_umi) %&gt;%
+  ungroup() %&gt;%
+  mutate(type = factor(type, levels = c(&quot;p_no_umi&quot;, &quot;p_unmapped&quot;, &quot;p_reads_hs&quot;,
+                                        &quot;p_reads_ercc&quot;, &quot;p_reads_ce&quot;, &quot;p_reads_dm&quot;),
+                       labels = c(&quot;No UMI&quot;, &quot;Unmapped&quot;, &quot;H. sapiens&quot;, &quot;ERCC&quot;,
+                                  &quot;C. elegans&quot;, &quot;D. melanogaster&quot;)),
+         fly = factor(fly, levels = c(5000, 50000), labels = c(&quot;5 pg fly spike-on&quot;,
+                                                               &quot;50 pg fly spike-on&quot;)))
+
+ggplot(totals_percent, aes(x = sample, y = percent, fill = type)) +
+  geom_col() +
+  facet_wrap(~fly) +
+  labs(x = &quot;Sample&quot;, y = &quot;Percent&quot;, title = &quot;Read classification per sample&quot;) +
+  theme(legend.title = element_blank())</code></pre>
+<p><img src="figure/totals.Rmd/read-classification-per-sample-1.png" width="768" style="display: block; margin: auto;" /></p>
 </div>
 <div id="c.-elegans-spike-in" class="section level2">
 <h2>C. elegans spike-in</h2>
@@ -497,11 +525,11 @@ plot_grid(p_reads_ce, p_mol_ce, labels = letters[1:2])</code></pre>
 <pre class="r"><code>p_reads_ce_counts &lt;- ggplot(totals_anno, aes(x = as.factor(worm), y = reads_ce)) +
   geom_boxplot() +
   labs(x = &quot;Worm spike-in concentration&quot;,
-       y = &quot;Percentage of mapped reads that mapped to worm genome&quot;)
+       y = &quot;Number of mapped reads that mapped to worm genome&quot;)
 p_mol_ce_counts &lt;- ggplot(totals_anno, aes(x = as.factor(worm), y = mol_ce)) +
   geom_boxplot() +
   labs(x = &quot;Worm spike-in concentration&quot;,
-       y = &quot;Percentage of mapped molecules that mapped to worm genome&quot;)
+       y = &quot;Number of mapped molecules that mapped to worm genome&quot;)
 plot_grid(p_reads_ce_counts, p_mol_ce_counts, labels = letters[1:2])</code></pre>
 <p><img src="figure/totals.Rmd/totals-worm-counts-1.png" width="768" style="display: block; margin: auto;" /></p>
 </div>
@@ -532,8 +560,8 @@ plot_grid(p_reads_ercc_counts, p_mol_ercc_counts, labels = letters[1:2])</code><
 <h2>Session information</h2>
 <!-- Insert the session information into the document -->
 <pre class="r"><code>sessionInfo()</code></pre>
-<pre><code>R version 3.3.3 (2017-03-06)
-Platform: x86_64-redhat-linux-gnu (64-bit)
+<pre><code>R version 3.3.2 (2016-10-31)
+Platform: x86_64-pc-linux-gnu (64-bit)
 Running under: Scientific Linux 7.2 (Nitrogen)
 
 locale:
@@ -548,17 +576,17 @@ attached base packages:
 [1] stats     graphics  grDevices utils     datasets  methods   base     
 
 other attached packages:
-[1] tidyr_0.6.1   stringr_1.2.0 readr_1.1.0   dplyr_0.5.0   cowplot_0.7.0
+[1] tidyr_0.6.1   stringr_1.2.0 readr_0.2.2   dplyr_0.5.0   cowplot_0.7.0
 [6] ggplot2_2.2.1
 
 loaded via a namespace (and not attached):
- [1] Rcpp_0.12.12     knitr_1.17       magrittr_1.5     hms_0.3         
- [5] munsell_0.4.3    colorspace_1.3-2 R6_2.2.2         plyr_1.8.4      
- [9] tools_3.3.3      grid_3.3.3       gtable_0.2.0     DBI_0.6-1       
-[13] git2r_0.19.0     htmltools_0.3.6  yaml_2.1.14      lazyeval_0.2.0  
-[17] rprojroot_1.2    digest_0.6.12    assertthat_0.2.0 tibble_1.3.0    
-[21] evaluate_0.10.1  rmarkdown_1.6    labeling_0.3     stringi_1.1.5   
-[25] scales_0.4.1     backports_1.0.5 </code></pre>
+ [1] Rcpp_0.12.10     knitr_1.16       magrittr_1.5     munsell_0.4.3   
+ [5] colorspace_1.3-2 R6_2.2.0         plyr_1.8.4       tools_3.3.2     
+ [9] grid_3.3.2       gtable_0.2.0     DBI_0.6-1        git2r_0.19.0    
+[13] htmltools_0.3.6  yaml_2.1.13      lazyeval_0.2.0   rprojroot_1.2   
+[17] digest_0.6.12    assertthat_0.1   tibble_1.2       evaluate_0.10   
+[21] rmarkdown_1.6    labeling_0.3     stringi_1.1.5    scales_0.4.1    
+[25] backports_1.0.5 </code></pre>
 </div>
 
 <hr>

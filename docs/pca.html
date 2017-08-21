@@ -313,10 +313,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2017-08-16</p>
+<p><strong>Last updated:</strong> 2017-08-21</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> 4777c8a</p>
+<p><strong>Code version:</strong> bd35bd4</p>
 <div id="setup" class="section level2">
 <h2>Setup</h2>
 <pre class="r"><code>library(&quot;Biobase&quot;)
@@ -404,21 +404,24 @@ dim(mol_ercc_mat)</code></pre>
 <pre><code>[1]  30 518</code></pre>
 <pre class="r"><code>mol_ercc_cpm &lt;- cpm(mol_ercc_mat, log = TRUE)
 hist(rowMeans(mol_ercc_cpm))</code></pre>
-<p><img src="figure/pca.Rmd/unnamed-chunk-4-1.png" width="768" style="display: block; margin: auto;" /></p>
-<pre class="r"><code>pca_ercc &lt;- prcomp(t(mol_ercc_cpm), scale. = TRUE)
-pca_ercc &lt;- cbind(mol_ercc %&gt;% select(experiment:index), pca_ercc$x)</code></pre>
-<pre class="r"><code>ggplot(pca_ercc, aes(x = PC1, y = PC2, color = experiment)) +
-  geom_text(aes(label = id))</code></pre>
-<p><img src="figure/pca.Rmd/unnamed-chunk-6-1.png" width="768" style="display: block; margin: auto;" /></p>
-<pre class="r"><code>ggplot(pca_ercc, aes(x = PC3, y = PC4, color = experiment)) +
-  geom_text(aes(label = id))</code></pre>
-<p><img src="figure/pca.Rmd/unnamed-chunk-6-2.png" width="768" style="display: block; margin: auto;" /></p>
-<pre class="r"><code>ggplot(pca_ercc, aes(x = PC5, y = PC6, color = experiment)) +
-  geom_text(aes(label = id))</code></pre>
-<p><img src="figure/pca.Rmd/unnamed-chunk-6-3.png" width="768" style="display: block; margin: auto;" /></p>
-<pre class="r"><code>ggplot(pca_ercc, aes(x = PC5, y = PC6, color = annoERCC)) +
-  geom_text(aes(label = id))</code></pre>
-<p><img src="figure/pca.Rmd/unnamed-chunk-6-4.png" width="768" style="display: block; margin: auto;" /></p>
+<p><img src="figure/pca.Rmd/hist-ercc-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>pca_ercc &lt;- run_pca(mol_ercc_cpm)
+plot_pca(pca_ercc$PCs, pcx = 1, pcy = 2, explained = pca_ercc$explained,
+         metadata = mol_ercc %&gt;% select(experiment:index),
+         color = &quot;experiment&quot;)</code></pre>
+<p><img src="figure/pca.Rmd/pca-ercc-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>plot_pca(pca_ercc$PCs, pcx = 3, pcy = 4, explained = pca_ercc$explained,
+         metadata = mol_ercc %&gt;% select(experiment:index),
+         color = &quot;experiment&quot;)</code></pre>
+<p><img src="figure/pca.Rmd/pca-ercc-2.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>plot_pca(pca_ercc$PCs, pcx = 5, pcy = 6, explained = pca_ercc$explained,
+         metadata = mol_ercc %&gt;% select(experiment:index),
+         color = &quot;experiment&quot;)</code></pre>
+<p><img src="figure/pca.Rmd/pca-ercc-3.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>plot_pca(pca_ercc$PCs, pcx = 5, pcy = 6, explained = pca_ercc$explained,
+         metadata = mol_ercc %&gt;% select(experiment:index),
+         color = &quot;annoERCC&quot;)</code></pre>
+<p><img src="figure/pca.Rmd/pca-ercc-4.png" width="768" style="display: block; margin: auto;" /></p>
 </div>
 <div id="drosophila" class="section level2">
 <h2>Drosophila</h2>
@@ -437,15 +440,76 @@ dim(mol_dm_mat)</code></pre>
 <pre><code>[1]  212 1129</code></pre>
 <pre class="r"><code>mol_dm_cpm &lt;- cpm(mol_dm_mat, log = TRUE)
 hist(rowMeans(mol_dm_cpm))</code></pre>
-<p><img src="figure/pca.Rmd/unnamed-chunk-10-1.png" width="768" style="display: block; margin: auto;" /></p>
-<pre class="r"><code>pca_dm &lt;- prcomp(t(mol_dm_cpm), scale. = TRUE)
-pca_dm &lt;- cbind(mol_dm %&gt;% select(experiment:index), pca_dm$x)</code></pre>
-<pre class="r"><code>ggplot(pca_dm, aes(x = PC1, y = PC2, color = experiment)) +
-  geom_text(aes(label = id))</code></pre>
-<p><img src="figure/pca.Rmd/unnamed-chunk-12-1.png" width="768" style="display: block; margin: auto;" /></p>
-<pre class="r"><code>ggplot(pca_dm, aes(x = PC1, y = PC2, color = as.factor(fly))) +
-  geom_text(aes(label = id))</code></pre>
-<p><img src="figure/pca.Rmd/unnamed-chunk-12-2.png" width="768" style="display: block; margin: auto;" /></p>
+<p><img src="figure/pca.Rmd/hist-dm-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>pca_dm &lt;- run_pca(mol_dm_cpm)
+plot_pca(pca_dm$PCs, pcx = 1, pcy = 2, explained = pca_dm$explained,
+         metadata = mol_dm %&gt;% select(experiment:index),
+         color = &quot;experiment&quot;)</code></pre>
+<p><img src="figure/pca.Rmd/pca-dm-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>plot_pca(pca_dm$PCs, pcx = 1, pcy = 2, explained = pca_dm$explained,
+         metadata = mol_dm %&gt;% select(experiment:index),
+         color = &quot;fly&quot;, factors = &quot;fly&quot;)</code></pre>
+<p><img src="figure/pca.Rmd/pca-dm-2.png" width="768" style="display: block; margin: auto;" /></p>
+</div>
+<div id="drosophila---5-pg" class="section level2">
+<h2>Drosophila - 5 pg</h2>
+<p>Select only samples that received 5 pg.</p>
+<pre class="r"><code>mol_dm_5pg &lt;- mol_dm %&gt;%
+  filter(fly == 5000)
+dim(mol_dm_5pg)</code></pre>
+<pre><code>[1]   427 10900</code></pre>
+<p>Convert to matrix.</p>
+<pre class="r"><code>mol_dm_mat_5pg &lt;- mol_dm_5pg %&gt;%
+  select(starts_with(&quot;FBgn&quot;)) %&gt;%
+  t</code></pre>
+<p>Only keep fly genes which are observed in at least 50% of the samples.</p>
+<pre class="r"><code>mol_dm_mat_5pg &lt;- mol_dm_mat_5pg[apply(mol_dm_mat_5pg, 1, present), ]
+dim(mol_dm_mat_5pg)</code></pre>
+<pre><code>[1]  57 427</code></pre>
+<pre class="r"><code>mol_dm_cpm_5pg &lt;- cpm(mol_dm_mat_5pg, log = TRUE)
+hist(rowMeans(mol_dm_cpm_5pg))</code></pre>
+<p><img src="figure/pca.Rmd/hist-dm-5pg-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>pca_dm_5pg &lt;- run_pca(mol_dm_cpm_5pg)
+plot_pca(pca_dm_5pg$PCs, pcx = 1, pcy = 2, explained = pca_dm_5pg$explained,
+         metadata = mol_dm_5pg %&gt;% select(experiment:index),
+         color = &quot;experiment&quot;)</code></pre>
+<p><img src="figure/pca.Rmd/pca-dm-5pg-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>plot_pca(pca_dm_5pg$PCs, pcx = 3, pcy = 4, explained = pca_dm_5pg$explained,
+         metadata = mol_dm_5pg %&gt;% select(experiment:index),
+         color = &quot;experiment&quot;)</code></pre>
+<p><img src="figure/pca.Rmd/pca-dm-5pg-2.png" width="768" style="display: block; margin: auto;" /></p>
+</div>
+<div id="drosophila---50-pg" class="section level2">
+<h2>Drosophila - 50 pg</h2>
+<p>Select only samples that received 50 pg.</p>
+<pre class="r"><code>mol_dm_50pg &lt;- mol_dm %&gt;%
+  filter(fly == 50000)
+dim(mol_dm_50pg)</code></pre>
+<pre><code>[1]   702 10900</code></pre>
+<p>Convert to matrix.</p>
+<pre class="r"><code>mol_dm_mat_50pg &lt;- mol_dm_50pg %&gt;%
+  select(starts_with(&quot;FBgn&quot;)) %&gt;%
+  t</code></pre>
+<p>Only keep fly genes which are observed in at least 50% of the samples.</p>
+<pre class="r"><code>mol_dm_mat_50pg &lt;- mol_dm_mat_50pg[apply(mol_dm_mat_50pg, 1, present), ]
+dim(mol_dm_mat_50pg)</code></pre>
+<pre><code>[1] 308 702</code></pre>
+<pre class="r"><code>mol_dm_cpm_50pg &lt;- cpm(mol_dm_mat_50pg, log = TRUE)
+hist(rowMeans(mol_dm_cpm_50pg))</code></pre>
+<p><img src="figure/pca.Rmd/hist-dm-50pg-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>pca_dm_50pg &lt;- run_pca(mol_dm_cpm_50pg)
+plot_pca(pca_dm_50pg$PCs, pcx = 1, pcy = 2, explained = pca_dm_50pg$explained,
+         metadata = mol_dm_50pg %&gt;% select(experiment:index),
+         color = &quot;experiment&quot;)</code></pre>
+<p><img src="figure/pca.Rmd/pca-dm-50pg-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>plot_pca(pca_dm_50pg$PCs, pcx = 3, pcy = 4, explained = pca_dm_50pg$explained,
+         metadata = mol_dm_50pg %&gt;% select(experiment:index),
+         color = &quot;experiment&quot;)</code></pre>
+<p><img src="figure/pca.Rmd/pca-dm-50pg-2.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>plot_pca(pca_dm_50pg$PCs, pcx = 5, pcy = 6, explained = pca_dm_50pg$explained,
+         metadata = mol_dm_50pg %&gt;% select(experiment:index),
+         color = &quot;experiment&quot;)</code></pre>
+<p><img src="figure/pca.Rmd/pca-dm-50pg-3.png" width="768" style="display: block; margin: auto;" /></p>
 </div>
 <div id="c.-elegans" class="section level2">
 <h2>C. elegans</h2>
@@ -467,16 +531,16 @@ dim(mol_ce_mat)</code></pre>
 zeros_ce &lt;- colSums(mol_ce_mat) &gt; 0
 mol_ce_cpm &lt;- mol_ce_cpm[, zeros_ce]
 hist(rowMeans(mol_ce_cpm))</code></pre>
-<p><img src="figure/pca.Rmd/unnamed-chunk-16-1.png" width="768" style="display: block; margin: auto;" /></p>
-<pre class="r"><code>pca_ce &lt;- prcomp(t(mol_ce_cpm), scale. = TRUE)
-pca_ce &lt;- cbind(mol_ce %&gt;% select(experiment:index) %&gt;% filter(zeros_ce),
-                pca_ce$x)</code></pre>
-<pre class="r"><code>ggplot(pca_ce, aes(x = PC1, y = PC2, color = experiment)) +
-  geom_text(aes(label = id))</code></pre>
-<p><img src="figure/pca.Rmd/unnamed-chunk-18-1.png" width="768" style="display: block; margin: auto;" /></p>
-<pre class="r"><code>ggplot(pca_ce, aes(x = PC1, y = PC2, color = as.factor(worm))) +
-  geom_text(aes(label = id))</code></pre>
-<p><img src="figure/pca.Rmd/unnamed-chunk-18-2.png" width="768" style="display: block; margin: auto;" /></p>
+<p><img src="figure/pca.Rmd/hist-ce-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>pca_ce &lt;- run_pca(mol_ce_cpm)
+plot_pca(pca_ce$PCs, pcx = 1, pcy = 2, explained = pca_ce$explained,
+         metadata = mol_ce %&gt;% select(experiment:index) %&gt;% filter(zeros_ce),
+         color = &quot;experiment&quot;)</code></pre>
+<p><img src="figure/pca.Rmd/pca-ce-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>plot_pca(pca_ce$PCs, pcx = 1, pcy = 2, explained = pca_ce$explained,
+         metadata = mol_ce %&gt;% select(experiment:index) %&gt;% filter(zeros_ce),
+         color = &quot;worm&quot;, factors = &quot;worm&quot;)</code></pre>
+<p><img src="figure/pca.Rmd/pca-ce-2.png" width="768" style="display: block; margin: auto;" /></p>
 </div>
 <div id="human" class="section level2">
 <h2>Human</h2>
@@ -495,15 +559,14 @@ dim(mol_hs_mat)</code></pre>
 <pre><code>[1] 4226 1129</code></pre>
 <pre class="r"><code>mol_hs_cpm &lt;- cpm(mol_hs_mat, log = TRUE)
 hist(rowMeans(mol_hs_cpm))</code></pre>
-<p><img src="figure/pca.Rmd/unnamed-chunk-22-1.png" width="768" style="display: block; margin: auto;" /></p>
-<pre class="r"><code>pca_hs &lt;- prcomp(t(mol_hs_cpm), scale. = TRUE)
-pca_hs &lt;- cbind(mol_hs %&gt;% select(experiment:index), pca_hs$x)</code></pre>
-<pre class="r"><code>ggplot(pca_hs, aes(x = PC1, y = PC2, color = experiment)) +
-  geom_text(aes(label = id))</code></pre>
-<p><img src="figure/pca.Rmd/unnamed-chunk-24-1.png" width="768" style="display: block; margin: auto;" /></p>
-<pre class="r"><code>ggplot(pca_hs, aes(x = PC3, y = PC4, color = experiment)) +
-  geom_text(aes(label = id))</code></pre>
-<p><img src="figure/pca.Rmd/unnamed-chunk-24-2.png" width="768" style="display: block; margin: auto;" /></p>
+<p><img src="figure/pca.Rmd/hist-hs-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>pca_hs &lt;- run_pca(mol_hs_cpm)
+plot_pca(pca_hs$PCs, pcx = 1, pcy = 2, explained = pca_hs$explained,
+         metadata = mol_hs %&gt;% select(experiment:index), color = &quot;experiment&quot;)</code></pre>
+<p><img src="figure/pca.Rmd/pca-hs-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>plot_pca(pca_hs$PCs, pcx = 3, pcy = 4, explained = pca_hs$explained,
+         metadata = mol_hs %&gt;% select(experiment:index), color = &quot;experiment&quot;)</code></pre>
+<p><img src="figure/pca.Rmd/pca-hs-2.png" width="768" style="display: block; margin: auto;" /></p>
 </div>
 <div id="session-information" class="section level2">
 <h2>Session information</h2>
@@ -526,10 +589,10 @@ attached base packages:
 [8] base     
 
 other attached packages:
- [1] tidyr_0.6.1         stringr_1.2.0       readr_0.2.2        
- [4] edgeR_3.16.5        limma_3.30.13       dplyr_0.5.0        
- [7] cowplot_0.7.0       ggplot2_2.2.1       Biobase_2.34.0     
-[10] BiocGenerics_0.20.0
+ [1] testit_0.6          tidyr_0.6.1         stringr_1.2.0      
+ [4] readr_0.2.2         edgeR_3.16.5        limma_3.30.13      
+ [7] dplyr_0.5.0         cowplot_0.7.0       ggplot2_2.2.1      
+[10] Biobase_2.34.0      BiocGenerics_0.20.0
 
 loaded via a namespace (and not attached):
  [1] Rcpp_0.12.10     knitr_1.16       magrittr_1.5     munsell_0.4.3   

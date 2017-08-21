@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+
+
+<meta name="author" content="John Blischak" />
+
+<meta name="date" content="2017-08-14" />
+
+<title>Correlations</title>
+
+<script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<script src="site_libs/jqueryui-1.11.4/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-1.1/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-1.1/highlight.js"></script>
+<link href="site_libs/font-awesome-4.5.0/css/font-awesome.min.css" rel="stylesheet" />
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+  pre:not([class]) {
+    background-color: white;
+  }
+</style>
+<script type="text/javascript">
+if (window.hljs && document.readyState && document.readyState === "complete") {
+   window.setTimeout(function() {
+      hljs.initHighlighting();
+   }, 0);
+}
+</script>
+
+
+
+<style type="text/css">
+h1 {
+  font-size: 34px;
+}
+h1.title {
+  font-size: 38px;
+}
+h2 {
+  font-size: 30px;
+}
+h3 {
+  font-size: 24px;
+}
+h4 {
+  font-size: 18px;
+}
+h5 {
+  font-size: 16px;
+}
+h6 {
+  font-size: 12px;
+}
+.table th:not([align]) {
+  text-align: left;
+}
+</style>
+
+
+</head>
+
+<body>
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+code {
+  color: inherit;
+  background-color: rgba(0, 0, 0, 0.04);
+}
+img {
+  max-width:100%;
+  height: auto;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+</style>
+
+
+<style type="text/css">
+/* padding for bootstrap navbar */
+body {
+  padding-top: 51px;
+  padding-bottom: 40px;
+}
+/* offset scroll position for anchor links (for fixed navbar)  */
+.section h1 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+
+.section h2 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h3 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h4 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h5 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h6 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+</style>
+
+<script>
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark it active
+  menuAnchor.parent().addClass('active');
+
+  // if it's got a parent navbar menu mark it active as well
+  menuAnchor.closest('li.dropdown').addClass('active');
+});
+</script>
+
+
+<div class="container-fluid main-container">
+
+<!-- tabsets -->
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+</script>
+
+<!-- code folding -->
+
+
+
+
+<script>
+$(document).ready(function ()  {
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_').toLowerCase();
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+  padding-left: 25px;
+  text-indent: 0;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row-fluid">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">singlecell-qtl</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li>
+  <a href="about.html">About</a>
+</li>
+<li>
+  <a href="license.html">License</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/jdblischak/singlecell-qtl">
+    <span class="fa fa-github"></span>
+     
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div class="fluid-row" id="header">
+
+
+
+<h1 class="title toc-ignore">Correlations</h1>
+<h4 class="author"><em>John Blischak</em></h4>
+<h4 class="date"><em>2017-08-14</em></h4>
+
+</div>
+
+
+<!-- The file analysis/chunks.R contains chunks that define default settings
+shared across the workflowr files. -->
+<!-- Update knitr chunk options -->
+<!-- Insert the date the file was last updated -->
+<p><strong>Last updated:</strong> 2017-08-21</p>
+<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
+ package git2r is installed -->
+<p><strong>Code version:</strong> bd35bd4</p>
+<div id="setup" class="section level2">
+<h2>Setup</h2>
+<pre class="r"><code>library(&quot;dplyr&quot;)
+library(&quot;edgeR&quot;)
+library(&quot;readr&quot;)
+library(&quot;stringr&quot;)</code></pre>
+<p>Import molecules.</p>
+<pre class="r"><code>molecules &lt;- read_tsv(gzfile(&quot;../data/molecules.txt.gz&quot;))
+dim(molecules)</code></pre>
+<pre><code>[1]  1247 54797</code></pre>
+<pre class="r"><code>molecules[1:5, 1:10]</code></pre>
+<pre><code># A tibble: 5 × 10
+                         sample experiment  well    id  lane
+                          &lt;chr&gt;      &lt;chr&gt; &lt;chr&gt; &lt;chr&gt; &lt;chr&gt;
+1 03172017-D08_S428_L004_R1_001   03172017   D08  S428  L004
+2 03312017-B03_S975_L007_R1_001   03312017   B03  S975  L007
+3 03232017-F05_S641_L005_R1_001   03232017   F05  S641  L005
+4 04072017-E08_S536_L008_R1_001   04072017   E08  S536  L008
+5 03172017-D12_S432_L008_R1_001   03172017   D12  S432  L008
+# ... with 5 more variables: WBGene00022277 &lt;int&gt;, WBGene00022276 &lt;int&gt;,
+#   WBGene00022278 &lt;int&gt;, WBGene00022279 &lt;int&gt;, WBGene00022275 &lt;int&gt;</code></pre>
+<pre class="r"><code>colnames(molecules)[1:20]</code></pre>
+<pre><code> [1] &quot;sample&quot;         &quot;experiment&quot;     &quot;well&quot;           &quot;id&quot;            
+ [5] &quot;lane&quot;           &quot;WBGene00022277&quot; &quot;WBGene00022276&quot; &quot;WBGene00022278&quot;
+ [9] &quot;WBGene00022279&quot; &quot;WBGene00022275&quot; &quot;WBGene00044345&quot; &quot;WBGene00021677&quot;
+[13] &quot;WBGene00021678&quot; &quot;WBGene00000812&quot; &quot;WBGene00021683&quot; &quot;WBGene00021679&quot;
+[17] &quot;WBGene00021684&quot; &quot;WBGene00021682&quot; &quot;WBGene00021676&quot; &quot;WBGene00189949&quot;</code></pre>
+<p>Import annotation.</p>
+<pre class="r"><code>anno &lt;- read_tsv(&quot;../data/batch1_qc.txt&quot;,
+                 col_types = cols(ERCC = col_character()))</code></pre>
+<pre><code>Warning: 1 parsing failure.
+row col   expected    actual
+961  -- 13 columns 1 columns</code></pre>
+<pre class="r"><code># Cleanup ERCC column
+anno$ERCC &lt;- ifelse(is.na(anno$ERCC), &quot;Not added&quot;, anno$ERCC)
+anno$ERCC &lt;- factor(anno$ERCC, levels = c(&quot;Not added&quot;, &quot;1:100000&quot;, &quot;1:50000&quot;),
+                    labels = c(&quot;Not added&quot;, &quot;100x dilution&quot;, &quot;50x dilution&quot;))
+anno$ERCC &lt;- as.character(anno$ERCC)
+dim(anno)</code></pre>
+<pre><code>[1] 961  13</code></pre>
+<pre class="r"><code>colnames(anno)</code></pre>
+<pre><code> [1] &quot;experiment&quot;    &quot;well&quot;          &quot;cell_number&quot;   &quot;concentration&quot;
+ [5] &quot;tra1.60&quot;       &quot;individual.1&quot;  &quot;individual.2&quot;  &quot;individual.3&quot; 
+ [9] &quot;individual.4&quot;  &quot;fly&quot;           &quot;worm&quot;          &quot;ERCC&quot;         
+[13] &quot;index&quot;        </code></pre>
+<p>Merge the data sets.</p>
+<pre class="r"><code>mol_anno &lt;- merge(molecules, anno, by = c(&quot;experiment&quot;, &quot;well&quot;))
+stopifnot(nrow(mol_anno) == nrow(molecules))</code></pre>
+<p>Remove samples with bad cell number or TRA-1-60.</p>
+<pre class="r"><code>mol_anno &lt;- mol_anno %&gt;%
+  filter(cell_number == 1, tra1.60 == 1)
+dim(mol_anno)</code></pre>
+<pre><code>[1]  1129 54808</code></pre>
+<p>Separate by source.</p>
+<pre class="r"><code>mol_ce &lt;- mol_anno %&gt;% select(experiment:lane, cell_number:index, starts_with(&quot;WBGene&quot;))
+mol_dm &lt;- mol_anno %&gt;% select(experiment:lane, cell_number:index, starts_with(&quot;FBGn&quot;))
+mol_ercc &lt;- mol_anno %&gt;% select(experiment:lane, cell_number:index, starts_with(&quot;ERCC&quot;))
+mol_hs &lt;- mol_anno %&gt;% select(experiment:lane, cell_number:index, starts_with(&quot;ENSG&quot;))</code></pre>
+</div>
+<div id="ercc" class="section level2">
+<h2>ERCC</h2>
+<p>Remove dashes in column names.</p>
+<pre class="r"><code>colnames(mol_ercc) &lt;- str_replace(colnames(mol_ercc), &quot;-&quot;, &quot;&quot;)</code></pre>
+<p>Remove samples that did not receive ERCC spike-in and change the name.</p>
+<pre class="r"><code>mol_ercc &lt;- mol_ercc %&gt;% filter(ERCC != &quot;Not added&quot;) %&gt;% rename(annoERCC = ERCC)</code></pre>
+<p>Remove zeros.</p>
+<pre class="r"><code>mol_ercc &lt;- mol_ercc %&gt;%
+  select_if(function(col) is.character(col) || sum(col) &gt; 0)
+dim(mol_ercc)</code></pre>
+<pre><code>[1] 518 101</code></pre>
+<p>Convert to matrix.</p>
+<pre class="r"><code>mol_ercc_mat &lt;- mol_ercc %&gt;%
+  select(starts_with(&quot;ERCC&quot;)) %&gt;%
+  t</code></pre>
+<p>Only keep ERCC which are observed in at least 50% of the samples.</p>
+<pre class="r"><code>present &lt;- function(x, percent = 0.50) mean(x &gt; 0) &gt;= percent
+mol_ercc_mat &lt;- mol_ercc_mat[apply(mol_ercc_mat, 1, present), ]
+dim(mol_ercc_mat)</code></pre>
+<pre><code>[1]  30 518</code></pre>
+<pre class="r"><code>mol_ercc_cpm &lt;- cpm(mol_ercc_mat, log = TRUE)</code></pre>
+<p>Calculate pairwise correlations.</p>
+<pre class="r"><code>cor_ercc &lt;- cor(mol_ercc_cpm)
+cor_ercc &lt;- cor_ercc[upper.tri(cor_ercc)]
+summary(cor_ercc)</code></pre>
+<pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+ 0.3347  0.8400  0.8869  0.8766  0.9263  0.9988 </code></pre>
+</div>
+<div id="drosophila" class="section level2">
+<h2>Drosophila</h2>
+<p>Remove zeros.</p>
+<pre class="r"><code>mol_dm &lt;- mol_dm %&gt;%
+  select_if(function(col) is.character(col) || sum(col) &gt; 0)
+dim(mol_dm)</code></pre>
+<pre><code>[1]  1129 10900</code></pre>
+<p>Convert to matrix.</p>
+<pre class="r"><code>mol_dm_mat &lt;- mol_dm %&gt;%
+  select(starts_with(&quot;FBgn&quot;)) %&gt;%
+  t</code></pre>
+<p>Only keep fly genes which are observed in at least 50% of the samples.</p>
+<pre class="r"><code>mol_dm_mat &lt;- mol_dm_mat[apply(mol_dm_mat, 1, present), ]
+dim(mol_dm_mat)</code></pre>
+<pre><code>[1]  212 1129</code></pre>
+<pre class="r"><code>mol_dm_cpm &lt;- cpm(mol_dm_mat, log = TRUE)</code></pre>
+<p>Calculate pairwise correlations.</p>
+<pre class="r"><code>cor_dm &lt;- cor(mol_dm_cpm)
+cor_dm &lt;- cor_dm[upper.tri(cor_dm)]
+summary(cor_dm)</code></pre>
+<pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+-0.1305  0.2340  0.3103  0.3154  0.3923  0.9696 </code></pre>
+</div>
+<div id="drosophila---5-pg" class="section level2">
+<h2>Drosophila - 5 pg</h2>
+<p>Select only samples that received 5 pg.</p>
+<pre class="r"><code>mol_dm_5pg &lt;- mol_dm %&gt;%
+  filter(fly == 5000)
+dim(mol_dm_5pg)</code></pre>
+<pre><code>[1]   427 10900</code></pre>
+<p>Convert to matrix.</p>
+<pre class="r"><code>mol_dm_mat_5pg &lt;- mol_dm_5pg %&gt;%
+  select(starts_with(&quot;FBgn&quot;)) %&gt;%
+  t</code></pre>
+<p>Only keep fly genes which are observed in at least 50% of the samples.</p>
+<pre class="r"><code>mol_dm_mat_5pg &lt;- mol_dm_mat_5pg[apply(mol_dm_mat_5pg, 1, present), ]
+dim(mol_dm_mat_5pg)</code></pre>
+<pre><code>[1]  57 427</code></pre>
+<pre class="r"><code>mol_dm_cpm_5pg &lt;- cpm(mol_dm_mat_5pg, log = TRUE)</code></pre>
+<p>Calculate pairwise correlations.</p>
+<pre class="r"><code>cor_dm_5pg &lt;- cor(mol_dm_cpm_5pg)
+cor_dm_5pg &lt;- cor_dm_5pg[upper.tri(cor_dm_5pg)]
+summary(cor_dm_5pg)</code></pre>
+<pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+-0.3148  0.1654  0.2618  0.2572  0.3534  0.9581 </code></pre>
+</div>
+<div id="drosophila---50-pg" class="section level2">
+<h2>Drosophila - 50 pg</h2>
+<p>Select only samples that received 50 pg.</p>
+<pre class="r"><code>mol_dm_50pg &lt;- mol_dm %&gt;%
+  filter(fly == 50000)
+dim(mol_dm_50pg)</code></pre>
+<pre><code>[1]   702 10900</code></pre>
+<p>Convert to matrix.</p>
+<pre class="r"><code>mol_dm_mat_50pg &lt;- mol_dm_50pg %&gt;%
+  select(starts_with(&quot;FBgn&quot;)) %&gt;%
+  t</code></pre>
+<p>Only keep fly genes which are observed in at least 50% of the samples.</p>
+<pre class="r"><code>mol_dm_mat_50pg &lt;- mol_dm_mat_50pg[apply(mol_dm_mat_50pg, 1, present), ]
+dim(mol_dm_mat_50pg)</code></pre>
+<pre><code>[1] 308 702</code></pre>
+<pre class="r"><code>mol_dm_cpm_50pg &lt;- cpm(mol_dm_mat_50pg, log = TRUE)</code></pre>
+<p>Calculate pairwise correlations.</p>
+<pre class="r"><code>cor_dm_50pg &lt;- cor(mol_dm_cpm_50pg)
+cor_dm_50pg &lt;- cor_dm_50pg[upper.tri(cor_dm_50pg)]
+summary(cor_dm_50pg)</code></pre>
+<pre><code>    Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
+-0.05884  0.37460  0.42340  0.42360  0.47570  0.97300 </code></pre>
+</div>
+<div id="c.-elegans" class="section level2">
+<h2>C. elegans</h2>
+<p>Remove zeros.</p>
+<pre class="r"><code>mol_ce &lt;- mol_ce %&gt;%
+  select_if(function(col) is.character(col) || sum(col) &gt; 0)
+dim(mol_ce)</code></pre>
+<pre><code>[1]  1129 11110</code></pre>
+<p>Convert to matrix.</p>
+<pre class="r"><code>mol_ce_mat &lt;- mol_ce %&gt;%
+  select(starts_with(&quot;WBGene&quot;)) %&gt;%
+  t</code></pre>
+<p>Only keep worm genes which are observed in at least 50% of the samples.</p>
+<pre class="r"><code>mol_ce_mat &lt;- mol_ce_mat[apply(mol_ce_mat, 1, present), ]
+dim(mol_ce_mat)</code></pre>
+<pre><code>[1]    3 1129</code></pre>
+<pre class="r"><code>mol_ce_cpm &lt;- cpm(mol_ce_mat, log = TRUE)
+# Remove samples with no observations for this subset
+zeros_ce &lt;- colSums(mol_ce_mat) &gt; 0
+mol_ce_cpm &lt;- mol_ce_cpm[, zeros_ce]</code></pre>
+<p>Calculate pairwise correlations.</p>
+<pre class="r"><code>cor_ce &lt;- cor(mol_ce_cpm)</code></pre>
+<pre><code>Warning in cor(mol_ce_cpm): the standard deviation is zero</code></pre>
+<pre class="r"><code>cor_ce &lt;- cor_ce[upper.tri(cor_ce)]
+summary(cor_ce)</code></pre>
+<pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA&#39;s 
+ -1.000   0.070   0.669   0.426   0.932   1.000    8980 </code></pre>
+</div>
+<div id="human" class="section level2">
+<h2>Human</h2>
+<p>Remove zeros.</p>
+<pre class="r"><code>mol_hs &lt;- mol_hs %&gt;%
+  select_if(function(col) is.character(col) || sum(col) &gt; 0)
+dim(mol_hs)</code></pre>
+<pre><code>[1]  1129 18344</code></pre>
+<p>Convert to matrix.</p>
+<pre class="r"><code>mol_hs_mat &lt;- mol_hs %&gt;%
+  select(starts_with(&quot;ENSG&quot;)) %&gt;%
+  t</code></pre>
+<p>Only keep human genes which are observed in at least 50% of the samples.</p>
+<pre class="r"><code>mol_hs_mat &lt;- mol_hs_mat[apply(mol_hs_mat, 1, present), ]
+dim(mol_hs_mat)</code></pre>
+<pre><code>[1] 4226 1129</code></pre>
+<pre class="r"><code>mol_hs_cpm &lt;- cpm(mol_hs_mat, log = TRUE)</code></pre>
+<p>Calculate pairwise correlations.</p>
+<pre class="r"><code>cor_hs &lt;- cor(mol_hs_cpm)
+cor_hs &lt;- cor_hs[upper.tri(cor_hs)]
+summary(cor_hs)</code></pre>
+<pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+ 0.1202  0.3578  0.4979  0.4675  0.5638  0.9554 </code></pre>
+</div>
+<div id="summary-plot" class="section level2">
+<h2>Summary plot</h2>
+<p>Below are the pairwise correlations for each source of RNA. The numbers along the bottom are the number of pairwise correlations included in each boxplot (not all samples received the same spike-ins).</p>
+<pre class="r"><code>boxplot(cor_ercc, cor_hs, cor_dm_50pg, cor_dm, cor_dm_5pg, cor_ce,
+        names = c(&quot;ERCC&quot;, &quot;Human&quot;, &quot;Fly (50 pg)&quot;, &quot;Fly (all)&quot;,
+                  &quot;Fly (5 pg)&quot;, &quot;worm&quot;),
+        xlab = &quot;Source&quot;, ylab = &quot;Pearson correlation&quot;,
+        main = &quot;Pairwise correlations&quot;)
+text(x = 1:6, y = -1, labels = sapply(list(cor_ercc, cor_hs, cor_dm_50pg, cor_dm, cor_dm_5pg, cor_ce), length))</code></pre>
+<p><img src="figure/correlations.Rmd/pairwise-correlations-1.png" width="768" style="display: block; margin: auto;" /></p>
+</div>
+<div id="session-information" class="section level2">
+<h2>Session information</h2>
+<!-- Insert the session information into the document -->
+<pre class="r"><code>sessionInfo()</code></pre>
+<pre><code>R version 3.3.2 (2016-10-31)
+Platform: x86_64-pc-linux-gnu (64-bit)
+Running under: Scientific Linux 7.2 (Nitrogen)
+
+locale:
+ [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
+ [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
+ [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
+ [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
+ [9] LC_ADDRESS=C               LC_TELEPHONE=C            
+[11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+[1] stringr_1.2.0 readr_0.2.2   edgeR_3.16.5  limma_3.30.13 dplyr_0.5.0  
+
+loaded via a namespace (and not attached):
+ [1] locfit_1.5-9.1  Rcpp_0.12.10    lattice_0.20-34 digest_0.6.12  
+ [5] rprojroot_1.2   assertthat_0.1  grid_3.3.2      R6_2.2.0       
+ [9] DBI_0.6-1       backports_1.0.5 git2r_0.19.0    magrittr_1.5   
+[13] evaluate_0.10   stringi_1.1.5   lazyeval_0.2.0  rmarkdown_1.6  
+[17] tools_3.3.2     yaml_2.1.13     htmltools_0.3.6 knitr_1.16     
+[21] tibble_1.2     </code></pre>
+</div>
+
+<hr>
+<p>
+    This <a href="http://rmarkdown.rstudio.com">R Markdown</a> site was created with <a href="https://github.com/jdblischak/workflowr">workflowr</a>
+</p>
+<hr>
+
+<!-- To enable disqus, uncomment the section below and provide your disqus_shortname -->
+
+<!-- disqus
+  <div id="disqus_thread"></div>
+    <script type="text/javascript">
+        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+        var disqus_shortname = 'rmarkdown'; // required: replace example with your forum shortname
+
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+    <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+    <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+-->
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.header').parent('thead').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
