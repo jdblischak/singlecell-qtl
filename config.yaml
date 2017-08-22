@@ -3,7 +3,7 @@
 # Specify paths to data files
 #
 # Paths must end with forward slash
-dir_proj: /project2/gilad/jdblischak/sstmp/
+dir_proj: /project2/gilad/jdblischak/singlecell-qtl/
 scratch: /scratch/midway2/jdblischak/
 # Make sure to also update path for log files in cluster.json
 dir_log: log/

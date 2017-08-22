@@ -32,14 +32,17 @@ ensembl_genome_hs = config["ensembl_genome_hs"]
 dir_proj = config["dir_proj"]
 dir_data = dir_proj + "data/"
 dir_fq = dir_data + "fastq/"
+dir_fq_combin = dir_data + "fastq-combined/"
 scratch = config["scratch"]
 dir_genome = scratch + "genome-ensembl-release-" + str(ensembl_rel) + "/"
-dir_fq_tmp = scratch + "sstmp-fastq/"
-dir_bam = scratch + "sstmp-bam/"
-dir_bam_dedup = scratch + "sstmp-bam-dedup/"
-dir_bam_dedup_stats = scratch + "sstmp-bam-dedup-stats/"
-dir_counts = scratch + "sstmp-counts/"
-dir_totals = scratch + "sstmp-totals/"
+dir_fq_filter = scratch + "scqtl-fastq-filter/"
+dir_fq_extract = scratch + "scqtl-fastq-extract/"
+dir_bam = scratch + "scqtl-bam/"
+dir_bam_sort = scratch + "scqtl-bam-sort/"
+dir_bam_dedup = scratch + "scqtl-bam-dedup/"
+dir_bam_dedup_stats = scratch + "scqtl-bam-dedup-stats/"
+dir_counts = scratch + "scqtl-counts/"
+dir_totals = scratch + "scqtl-totals/"
 dir_id = dir_data + "id/"
 
 assert os.path.exists(dir_proj), "Project directory exists"
@@ -58,7 +61,9 @@ chr_hs = config["chr_hs"]
 
 # Input samples ----------------------------------------------------------------
 
-samples = glob_wildcards(dir_fq + "{samples}.fastq.gz").samples
+samples = glob_wildcards(dir_fq + "YG-PYT-{samples}_L00{lane}_R1_001.fastq.gz").samples
+# Keep only unique values
+samples = list(set(samples))
 
 # Targets ----------------------------------------------------------------------
 
@@ -68,19 +73,23 @@ rule all:
            dir_data + "totals.txt"
 
 rule run_dedup_umi:
-    input: expand(dir_bam_dedup + "{sample}-dedup.bam", sample = samples)
+    input: expand(dir_bam_dedup + "{sample}.bam", sample = samples)
 
 rule totals:
     input: dir_data + "totals.txt"
 
 rule test_one:
-    input: dir_totals + "YG-PYT-03172017-D08_S428_L004_R1_001.txt"
+    input: dir_totals + "03172017-D08_S428.txt"
 
 rule test_more:
     input: expand(dir_counts + "{sample}.genecounts.txt", sample = samples[:10])
 
 rule run_featurecounts:
     input: expand(dir_counts + "{sample}.genecounts.txt", sample = samples)
+
+rule target_fastq:
+    input: expand(dir_fq_combin + "{sample}.fastq.gz", \
+                  sample = ["03162017-A01_S193", "03172017-B08_S404"])
 
 rule exons:
     input: dir_genome + ensembl_exons
@@ -93,6 +102,18 @@ rule download_fasta:
            expand(dir_genome + "Homo_sapiens." + ensembl_genome_hs + \
                   ".dna_sm.chromosome.{chr}.fa.gz", chr = chr_hs),
            dir_genome + "ercc.fa"
+
+# Functions --------------------------------------------------------------------
+
+# Find all fastq.gz files for a given sample.
+# Inspired by this post on the Snakemake Google Group:
+# https://groups.google.com/forum/#!searchin/snakemake/multiple$20input$20files%7Csort:relevance/snakemake/bpTnr7FgDuQ/ybacyom6BQAJ
+def merge_fastq(wc):
+    unknowns = glob_wildcards(dir_fq +
+                              "YG-PYT-{s}_L{{lane}}_R1_001.fastq.gz".format(s = wc.sample))
+    files = expand(dir_fq + "YG-PYT-{s}_L{{lane}}_R1_001.fastq.gz".format(s = wc.sample),
+                   zip, lane = unknowns.lane)
+    return files
 
 # Prepare genome annotation ----------------------------------------------------
 
@@ -175,9 +196,14 @@ rule subread_index:
     params: prefix = dir_genome + "genome"
     shell: "subread-buildindex -o {params.prefix} {input}"
 
+rule combine_fastq:
+    input: merge_fastq
+    output: dir_fq_combin + "{sample}.fastq.gz"
+    shell: "zcat {input} | gzip -c > {output}"
+
 rule filter_umi:
-    input: dir_fq + "{sample}.fastq.gz"
-    output: temp(dir_fq_tmp + "{sample}.fastq.gz")
+    input: dir_fq_combin + "{sample}.fastq.gz"
+    output: temp(dir_fq_filter + "{sample}.fastq.gz")
     run:
         from Bio import SeqIO
         import gzip
@@ -201,12 +227,12 @@ rule filter_umi:
         handle_out.close()
 
 rule extract_umi:
-    input: dir_fq_tmp + "{sample}.fastq.gz"
-    output: temp(dir_fq_tmp + "{sample}-umi.fastq.gz")
+    input: dir_fq_filter + "{sample}.fastq.gz"
+    output: temp(dir_fq_extract + "{sample}.fastq.gz")
     shell: "umi_tools extract --bc-pattern=NNNNNNNNN -I {input} -S {output}"
 
 rule subjunc:
-    input: read = dir_fq_tmp + "{sample}-umi.fastq.gz",
+    input: read = dir_fq_extract + "{sample}.fastq.gz",
            index = dir_genome + "genome.reads"
     output: temp(dir_bam + "{sample}.bam")
     params: prefix = dir_genome + "genome"
@@ -215,18 +241,18 @@ rule subjunc:
 
 rule sort_bam:
     input: dir_bam + "{sample}.bam"
-    output: dir_bam + "{sample}-sort.bam"
+    output: dir_bam_sort + "{sample}.bam"
     shell: "samtools sort -o {output} {input}"
 
 rule index_bam:
-    input: dir_bam + "{sample}-sort.bam"
-    output: dir_bam + "{sample}-sort.bam.bai"
+    input: dir_bam_sort + "{sample}.bam"
+    output: dir_bam_sort + "{sample}.bam.bai"
     shell: "samtools index {input}"
 
 rule dedup_umi:
-    input: bam = dir_bam + "{sample}-sort.bam",
-           index = dir_bam + "{sample}-sort.bam.bai"
-    output: bam = dir_bam_dedup + "{sample}-dedup.bam",
+    input: bam = dir_bam_sort + "{sample}.bam",
+           index = dir_bam_sort + "{sample}.bam.bai"
+    output: bam = dir_bam_dedup + "{sample}.bam",
             edit_distance = dir_bam_dedup_stats + "{sample}_edit_distance.tsv",
             per_umi_per_position = dir_bam_dedup_stats + "{sample}_per_umi_per_position.tsv",
             per_umi = dir_bam_dedup_stats + "{sample}_per_umi.tsv"
@@ -234,8 +260,8 @@ rule dedup_umi:
     shell: "umi_tools dedup -I {input.bam} --output-stats={params.stats} -S {output.bam}"
 
 rule feauturecounts:
-    input: bam = dir_bam + "{sample}-sort.bam",
-           dedup = dir_bam_dedup + "{sample}-dedup.bam",
+    input: bam = dir_bam_sort + "{sample}.bam",
+           dedup = dir_bam_dedup + "{sample}.bam",
            exons = dir_genome + ensembl_exons
     output: dir_counts + "{sample}.genecounts.txt"
     threads: 8
@@ -267,18 +293,17 @@ rule gather_counts:
         header = "\t".join(["sample",
                             "experiment",
                             "well",
-                            "id",
-                            "lane"] + genes) + "\n"
+                            "id"] + genes) + "\n"
         reads.write(header)
         molecules.write(header)
 
         # Obtain and write gene counts for each sample
         for f in input:
-            sample = os.path.basename(f).lstrip("YG-PYT-").rstrip(".genecounts.txt")
+            sample = os.path.basename(f).rstrip(".genecounts.txt")
             experiment, remaining = sample.split("-")
-            well, id, lane = remaining.split("_")[:3]
-            reads.write("\t".join([sample, experiment, well, id, lane]) + "\t")
-            molecules.write("\t".join([sample, experiment, well, id, lane]) + "\t")
+            well, id = remaining.split("_")
+            reads.write("\t".join([sample, experiment, well, id]) + "\t")
+            molecules.write("\t".join([sample, experiment, well, id]) + "\t")
             with open(f, "r") as handle:
                 n_reads = [""] * len(genes)
                 n_molecules = [""] * len(genes)
@@ -299,9 +324,9 @@ rule gather_counts:
         molecules.close()
 
 rule count_totals:
-    input: fastq = dir_fq + "{sample}.fastq.gz",
-           bam = dir_bam + "{sample}-sort.bam",
-           dedup = dir_bam_dedup + "{sample}-dedup.bam"
+    input: fastq = dir_fq_combin + "{sample}.fastq.gz",
+           bam = dir_bam_sort + "{sample}.bam",
+           dedup = dir_bam_dedup + "{sample}.bam"
     output: dir_totals + "{sample}.txt"
     run:
         # Count the number of raw reads
@@ -406,7 +431,6 @@ rule gather_totals:
                             "experiment",
                             "well",
                             "id",
-                            "lane",
                             "raw",
                             "umi",
                             "mapped",
@@ -422,10 +446,10 @@ rule gather_totals:
                             "mol_hs"]) + "\n"
         outfile.write(header)
         for f in input:
-            sample = os.path.basename(f).lstrip("YG-PYT-").rstrip(".txt")
+            sample = os.path.basename(f).rstrip(".txt")
             experiment, remaining = sample.split("-")
-            well, id, lane = remaining.split("_")[:3]
-            outfile.write("\t".join([sample, experiment, well, id, lane]) + "\t")
+            well, id = remaining.split("_")
+            outfile.write("\t".join([sample, experiment, well, id]) + "\t")
             with open(f, "r") as handle:
                 outfile.write(handle.read())
         outfile.close()

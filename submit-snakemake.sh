@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source activate ssc
+source activate scqtl
 
 snakemake \
     -kp \
