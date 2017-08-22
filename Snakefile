@@ -38,7 +38,6 @@ dir_genome = scratch + "genome-ensembl-release-" + str(ensembl_rel) + "/"
 dir_fq_filter = scratch + "scqtl-fastq-filter/"
 dir_fq_extract = scratch + "scqtl-fastq-extract/"
 dir_bam = scratch + "scqtl-bam/"
-dir_bam_sort = scratch + "scqtl-bam-sort/"
 dir_bam_dedup = scratch + "scqtl-bam-dedup/"
 dir_bam_dedup_stats = scratch + "scqtl-bam-dedup-stats/"
 dir_counts = scratch + "scqtl-counts/"
@@ -65,6 +64,11 @@ samples = glob_wildcards(dir_fq + "YG-PYT-{samples}_L00{lane}_R1_001.fastq.gz").
 # Keep only unique values
 samples = list(set(samples))
 
+# Constrain sample wildcard to always be all numbers. Necessary to
+# resolve some of the complex rules.
+# https://docs.python.org/3/howto/regex.html
+wildcard_constraints: sample = "[0-9]{8,8}-[A-H][0-1][0-9]_S[0-9]{2,4}"
+
 # Targets ----------------------------------------------------------------------
 
 rule all:
@@ -73,7 +77,8 @@ rule all:
            dir_data + "totals.txt"
 
 rule run_dedup_umi:
-    input: expand(dir_bam_dedup + "{sample}.bam", sample = samples)
+    input: expand(dir_bam_dedup + "{sample}-sort.bam", sample = samples),
+           expand(dir_bam_dedup + "{sample}-sort.bam.bai", sample = samples)
 
 rule totals:
     input: dir_data + "totals.txt"
@@ -239,20 +244,23 @@ rule subjunc:
     threads: 8
     shell: "subjunc -i {params.prefix} -r {input.read} -T {threads} > {output}"
 
+# The following rules to sort and index a BAM file are written
+# generically so that they can be applied to both the originally
+# mapped BAM file and also the BAM file post-UMI-deduplication.
 rule sort_bam:
-    input: dir_bam + "{sample}.bam"
-    output: dir_bam_sort + "{sample}.bam"
+    input: "{dir}/{sample}.bam"
+    output: "{dir}/{sample}-sort.bam"
     shell: "samtools sort -o {output} {input}"
 
 rule index_bam:
-    input: dir_bam_sort + "{sample}.bam"
-    output: dir_bam_sort + "{sample}.bam.bai"
+    input: "{dir}/{sample}-sort.bam"
+    output: "{dir}/{sample}-sort.bam.bai"
     shell: "samtools index {input}"
 
 rule dedup_umi:
-    input: bam = dir_bam_sort + "{sample}.bam",
-           index = dir_bam_sort + "{sample}.bam.bai"
-    output: bam = dir_bam_dedup + "{sample}.bam",
+    input: bam = dir_bam + "{sample}-sort.bam",
+           index = dir_bam + "{sample}-sort.bam.bai"
+    output: bam = temp(dir_bam_dedup + "{sample}.bam"),
             edit_distance = dir_bam_dedup_stats + "{sample}_edit_distance.tsv",
             per_umi_per_position = dir_bam_dedup_stats + "{sample}_per_umi_per_position.tsv",
             per_umi = dir_bam_dedup_stats + "{sample}_per_umi.tsv"
@@ -260,8 +268,8 @@ rule dedup_umi:
     shell: "umi_tools dedup -I {input.bam} --output-stats={params.stats} -S {output.bam}"
 
 rule feauturecounts:
-    input: bam = dir_bam_sort + "{sample}.bam",
-           dedup = dir_bam_dedup + "{sample}.bam",
+    input: bam = dir_bam + "{sample}-sort.bam",
+           dedup = dir_bam_dedup + "{sample}-sort.bam",
            exons = dir_genome + ensembl_exons
     output: dir_counts + "{sample}.genecounts.txt"
     threads: 8
@@ -325,8 +333,10 @@ rule gather_counts:
 
 rule count_totals:
     input: fastq = dir_fq_combin + "{sample}.fastq.gz",
-           bam = dir_bam_sort + "{sample}.bam",
-           dedup = dir_bam_dedup + "{sample}.bam"
+           bam = dir_bam + "{sample}-sort.bam",
+           bam_index = dir_bam + "{sample}-sort.bam.bai",
+           dedup = dir_bam_dedup + "{sample}-sort.bam",
+           dedup_index = dir_bam_dedup + "{sample}-sort.bam.bai"
     output: dir_totals + "{sample}.txt"
     run:
         # Count the number of raw reads
