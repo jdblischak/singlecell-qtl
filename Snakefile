@@ -40,6 +40,7 @@ dir_fq_extract = scratch + "scqtl-fastq-extract/"
 dir_bam = scratch + "scqtl-bam/"
 dir_bam_dedup = scratch + "scqtl-bam-dedup/"
 dir_bam_dedup_stats = scratch + "scqtl-bam-dedup-stats/"
+dir_bam_verify = scratch + "scqtl-bam-verify/"
 dir_counts = scratch + "scqtl-counts/"
 dir_totals = scratch + "scqtl-totals/"
 dir_id = dir_data + "id/"
@@ -463,3 +464,38 @@ rule gather_totals:
             with open(f, "r") as handle:
                 outfile.write(handle.read())
         outfile.close()
+
+# Identify individuals with verifyBamID ----------------------------------------
+
+rule verify:
+    input: dir_id + "03162017-A01_S193.bestSM"
+
+# The VCF file doesn't contain mitochondrial SNPs, thus it is easy to
+# convert from UCSC chromsome names to Ensembl by just removing the
+# "chr".
+rule prepare_genos:
+    input: dir_data + "snps.hg19.exons.vcf.gz"
+    output: dir_data + "snps.grch37.exons.vcf.gz"
+    shell: "zcat {input} | sed 's/chr//g' | gzip -c > {output}"
+
+# Prepare BAM files. verifyBamID only accepts chromsome names such as
+# "1" or "chr1" so that it can filter non-autosomal chromsomes. Mine
+# are "hs1" to distinguish from the other species.
+rule prepare_bam:
+    input: bam = dir_bam_dedup + "{sample}-sort.bam",
+           index = dir_bam_dedup + "{sample}-sort.bam.bai"
+    output: bam = temp(dir_bam_verify + "{sample}-sort.bam")
+    shell: "samtools view -H {input.bam} | \
+            sed -e 's/SN:hs/SN:/g' | \
+            samtools reheader - {input.bam} > {output.bam}"
+
+# Run verifyBamID to obtain the best individual match for the BAM file
+rule verify_bam:
+    input: vcf =  dir_data + "snps.grch37.exons.vcf.gz",
+           bam = dir_bam_verify + "{sample}-sort.bam",
+           index = dir_bam_verify + "{sample}-sort.bam.bai"
+    output: bestSM = dir_id + "{sample}.bestSM",
+            depthSM = dir_id + "{sample}.depthSM"
+    params: prefix = dir_id + "{sample}",
+            individual = "{sample}"
+    shell: "verifyBamID --vcf {input.vcf} --bam {input.bam} --best --ignoreRG --out {params.prefix}"
