@@ -468,7 +468,7 @@ rule gather_totals:
 # Identify individuals with verifyBamID ----------------------------------------
 
 rule verify:
-    input: dir_id + "03162017-A01_S193.bestSM"
+    input: dir_data + "verify.txt"
 
 # The VCF file doesn't contain mitochondrial SNPs, thus it is easy to
 # convert from UCSC chromsome names to Ensembl by just removing the
@@ -495,7 +495,72 @@ rule verify_bam:
            bam = dir_bam_verify + "{sample}-sort.bam",
            index = dir_bam_verify + "{sample}-sort.bam.bai"
     output: bestSM = dir_id + "{sample}.bestSM",
-            depthSM = dir_id + "{sample}.depthSM"
+            depthSM = dir_id + "{sample}.depthSM",
+            selfSM = temp(dir_id + "{sample}.selfSM"),
+            log = dir_id + "{sample}.log"
     params: prefix = dir_id + "{sample}",
             individual = "{sample}"
     shell: "verifyBamID --vcf {input.vcf} --bam {input.bam} --best --ignoreRG --out {params.prefix}"
+
+rule parse_verify:
+    input: bestSM = dir_id + "{sample}.bestSM",
+           depthSM = dir_id + "{sample}.depthSM"
+    output: dir_id + "{sample}-results.txt"
+    params: id = "{sample}"
+    run:
+        bestSM = open(input.bestSM, "rt")
+        depthSM = open(input.depthSM, "rt")
+        results = open(output[0], "w")
+
+        for line in bestSM:
+            # Confirm the header columns
+            if line[0] == "#":
+                cols = line.strip().split("\t")
+                assert cols[0] == "#SEQ_ID" and cols[2] == "CHIP_ID" and \
+                       cols[3] == "#SNPS" and cols[4] == "#READS" and \
+                       cols[5] == "AVG_DP" and cols[6] == "FREEMIX" and \
+                       cols[11] == "CHIPMIX", "bestSM columns are as expected"
+            else:
+                cols = line.strip().split("\t")
+                chip_id = cols[2]
+                snps = cols[3]
+                reads = cols[4]
+                avg_dp = cols[5]
+                freemix = cols[6]
+                chipmix = cols[11]
+
+        # Report the number of SNPs that had more than a minimum read depth
+        depth_min = 1
+        snps_w_min = 0
+        for line in depthSM:
+            # Confirm the header columns
+            if line[0] == "#":
+                cols = line.strip().split("\t")
+                assert cols[1] == "DEPTH" and cols[2] == "#SNPs", \
+                       "depthSM columns are as expected"
+            else:
+                cols = line.strip().split("\t")
+                depth = int(cols[1])
+                n_snps = int(cols[2])
+                if depth >= depth_min:
+                    snps_w_min = snps_w_min + n_snps
+
+        out_header = ["sample", "chip_id", "chipmix", "freemix",
+                      "snps", "reads", "avg_dp",
+                      "min_dp", "snps_w_min"]
+        out_cols = [params.id, chip_id, chipmix, freemix,
+                    snps, reads, avg_dp,
+                    str(depth_min), str(snps_w_min)]
+        results.write("\t".join(out_header) + "\n")
+        results.write("\t".join(out_cols) + "\n")
+
+        bestSM.close()
+        depthSM.close()
+        results.close()
+
+rule combine_verify:
+    input: expand(dir_id + "{sample}-results.txt", sample = samples)
+    output: dir_data + "verify.txt"
+    shell:
+        "head -n 1 {input[0]} > {output};"
+        "cat {input} | grep -v \"id\" | sort -k1n >> {output}"
