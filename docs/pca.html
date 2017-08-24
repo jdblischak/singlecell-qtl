@@ -313,10 +313,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2017-08-21</p>
+<p><strong>Last updated:</strong> 2017-08-24</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> bd35bd4</p>
+<p><strong>Code version:</strong> 662627c</p>
 <div id="setup" class="section level2">
 <h2>Setup</h2>
 <pre class="r"><code>library(&quot;Biobase&quot;)
@@ -332,37 +332,34 @@ source(&quot;../code/functions.R&quot;)</code></pre>
 <p>Import molecules.</p>
 <pre class="r"><code>molecules &lt;- read_tsv(gzfile(&quot;../data/molecules.txt.gz&quot;))
 dim(molecules)</code></pre>
-<pre><code>[1]  1247 54797</code></pre>
+<pre><code>[1]   959 54796</code></pre>
 <pre class="r"><code>molecules[1:5, 1:10]</code></pre>
 <pre><code># A tibble: 5 × 10
-                         sample experiment  well    id  lane
-                          &lt;chr&gt;      &lt;chr&gt; &lt;chr&gt; &lt;chr&gt; &lt;chr&gt;
-1 03172017-D08_S428_L004_R1_001   03172017   D08  S428  L004
-2 03312017-B03_S975_L007_R1_001   03312017   B03  S975  L007
-3 03232017-F05_S641_L005_R1_001   03232017   F05  S641  L005
-4 04072017-E08_S536_L008_R1_001   04072017   E08  S536  L008
-5 03172017-D12_S432_L008_R1_001   03172017   D12  S432  L008
-# ... with 5 more variables: WBGene00022277 &lt;int&gt;, WBGene00022276 &lt;int&gt;,
-#   WBGene00022278 &lt;int&gt;, WBGene00022279 &lt;int&gt;, WBGene00022275 &lt;int&gt;</code></pre>
+              sample experiment  well    id WBGene00022277 WBGene00022276
+               &lt;chr&gt;      &lt;chr&gt; &lt;chr&gt; &lt;chr&gt;          &lt;int&gt;          &lt;int&gt;
+1  04052017-H08_S380   04052017   H08  S380              0              0
+2  04132017-A09_S873   04132017   A09  S873              0              0
+3  04072017-A07_S487   04072017   A07  S487              0              0
+4  04072017-E08_S536   04072017   E08  S536              0              0
+5 04202017-B09_S1077   04202017   B09 S1077              0              0
+# ... with 4 more variables: WBGene00022278 &lt;int&gt;, WBGene00022279 &lt;int&gt;,
+#   WBGene00022275 &lt;int&gt;, WBGene00044345 &lt;int&gt;</code></pre>
 <pre class="r"><code>colnames(molecules)[1:20]</code></pre>
 <pre><code> [1] &quot;sample&quot;         &quot;experiment&quot;     &quot;well&quot;           &quot;id&quot;            
- [5] &quot;lane&quot;           &quot;WBGene00022277&quot; &quot;WBGene00022276&quot; &quot;WBGene00022278&quot;
- [9] &quot;WBGene00022279&quot; &quot;WBGene00022275&quot; &quot;WBGene00044345&quot; &quot;WBGene00021677&quot;
-[13] &quot;WBGene00021678&quot; &quot;WBGene00000812&quot; &quot;WBGene00021683&quot; &quot;WBGene00021679&quot;
-[17] &quot;WBGene00021684&quot; &quot;WBGene00021682&quot; &quot;WBGene00021676&quot; &quot;WBGene00189949&quot;</code></pre>
+ [5] &quot;WBGene00022277&quot; &quot;WBGene00022276&quot; &quot;WBGene00022278&quot; &quot;WBGene00022279&quot;
+ [9] &quot;WBGene00022275&quot; &quot;WBGene00044345&quot; &quot;WBGene00021677&quot; &quot;WBGene00021678&quot;
+[13] &quot;WBGene00000812&quot; &quot;WBGene00021683&quot; &quot;WBGene00021679&quot; &quot;WBGene00021684&quot;
+[17] &quot;WBGene00021682&quot; &quot;WBGene00021676&quot; &quot;WBGene00189949&quot; &quot;WBGene00206367&quot;</code></pre>
 <p>Import annotation.</p>
 <pre class="r"><code>anno &lt;- read_tsv(&quot;../data/batch1_qc.txt&quot;,
-                 col_types = cols(ERCC = col_character()))</code></pre>
-<pre><code>Warning: 1 parsing failure.
-row col   expected    actual
-961  -- 13 columns 1 columns</code></pre>
-<pre class="r"><code># Cleanup ERCC column
+                 col_types = cols(ERCC = col_character()))
+# Cleanup ERCC column
 anno$ERCC &lt;- ifelse(is.na(anno$ERCC), &quot;Not added&quot;, anno$ERCC)
 anno$ERCC &lt;- factor(anno$ERCC, levels = c(&quot;Not added&quot;, &quot;1:100000&quot;, &quot;1:50000&quot;),
                     labels = c(&quot;Not added&quot;, &quot;100x dilution&quot;, &quot;50x dilution&quot;))
 anno$ERCC &lt;- as.character(anno$ERCC)
 dim(anno)</code></pre>
-<pre><code>[1] 961  13</code></pre>
+<pre><code>[1] 960  13</code></pre>
 <pre class="r"><code>colnames(anno)</code></pre>
 <pre><code> [1] &quot;experiment&quot;    &quot;well&quot;          &quot;cell_number&quot;   &quot;concentration&quot;
  [5] &quot;tra1.60&quot;       &quot;individual.1&quot;  &quot;individual.2&quot;  &quot;individual.3&quot; 
@@ -375,12 +372,12 @@ stopifnot(nrow(mol_anno) == nrow(molecules))</code></pre>
 <pre class="r"><code>mol_anno &lt;- mol_anno %&gt;%
   filter(cell_number == 1, tra1.60 == 1)
 dim(mol_anno)</code></pre>
-<pre><code>[1]  1129 54808</code></pre>
+<pre><code>[1]   868 54807</code></pre>
 <p>Separate by source.</p>
-<pre class="r"><code>mol_ce &lt;- mol_anno %&gt;% select(experiment:lane, cell_number:index, starts_with(&quot;WBGene&quot;))
-mol_dm &lt;- mol_anno %&gt;% select(experiment:lane, cell_number:index, starts_with(&quot;FBGn&quot;))
-mol_ercc &lt;- mol_anno %&gt;% select(experiment:lane, cell_number:index, starts_with(&quot;ERCC&quot;))
-mol_hs &lt;- mol_anno %&gt;% select(experiment:lane, cell_number:index, starts_with(&quot;ENSG&quot;))</code></pre>
+<pre class="r"><code>mol_ce &lt;- mol_anno %&gt;% select(experiment:id, cell_number:index, starts_with(&quot;WBGene&quot;))
+mol_dm &lt;- mol_anno %&gt;% select(experiment:id, cell_number:index, starts_with(&quot;FBGn&quot;))
+mol_ercc &lt;- mol_anno %&gt;% select(experiment:id, cell_number:index, starts_with(&quot;ERCC&quot;))
+mol_hs &lt;- mol_anno %&gt;% select(experiment:id, cell_number:index, starts_with(&quot;ENSG&quot;))</code></pre>
 </div>
 <div id="ercc" class="section level2">
 <h2>ERCC</h2>
@@ -392,7 +389,7 @@ mol_hs &lt;- mol_anno %&gt;% select(experiment:lane, cell_number:index, starts_w
 <pre class="r"><code>mol_ercc &lt;- mol_ercc %&gt;%
   select_if(function(col) is.character(col) || sum(col) &gt; 0)
 dim(mol_ercc)</code></pre>
-<pre><code>[1] 518 101</code></pre>
+<pre><code>[1] 347 100</code></pre>
 <p>Convert to matrix.</p>
 <pre class="r"><code>mol_ercc_mat &lt;- mol_ercc %&gt;%
   select(starts_with(&quot;ERCC&quot;)) %&gt;%
@@ -401,7 +398,7 @@ dim(mol_ercc)</code></pre>
 <pre class="r"><code>present &lt;- function(x, percent = 0.50) mean(x &gt; 0) &gt;= percent
 mol_ercc_mat &lt;- mol_ercc_mat[apply(mol_ercc_mat, 1, present), ]
 dim(mol_ercc_mat)</code></pre>
-<pre><code>[1]  30 518</code></pre>
+<pre><code>[1]  30 347</code></pre>
 <pre class="r"><code>mol_ercc_cpm &lt;- cpm(mol_ercc_mat, log = TRUE)
 hist(rowMeans(mol_ercc_cpm))</code></pre>
 <p><img src="figure/pca.Rmd/hist-ercc-1.png" width="768" style="display: block; margin: auto;" /></p>
@@ -429,7 +426,7 @@ plot_pca(pca_ercc$PCs, pcx = 1, pcy = 2, explained = pca_ercc$explained,
 <pre class="r"><code>mol_dm &lt;- mol_dm %&gt;%
   select_if(function(col) is.character(col) || sum(col) &gt; 0)
 dim(mol_dm)</code></pre>
-<pre><code>[1]  1129 10900</code></pre>
+<pre><code>[1]   868 10899</code></pre>
 <p>Convert to matrix.</p>
 <pre class="r"><code>mol_dm_mat &lt;- mol_dm %&gt;%
   select(starts_with(&quot;FBgn&quot;)) %&gt;%
@@ -437,7 +434,7 @@ dim(mol_dm)</code></pre>
 <p>Only keep fly genes which are observed in at least 50% of the samples.</p>
 <pre class="r"><code>mol_dm_mat &lt;- mol_dm_mat[apply(mol_dm_mat, 1, present), ]
 dim(mol_dm_mat)</code></pre>
-<pre><code>[1]  212 1129</code></pre>
+<pre><code>[1] 219 868</code></pre>
 <pre class="r"><code>mol_dm_cpm &lt;- cpm(mol_dm_mat, log = TRUE)
 hist(rowMeans(mol_dm_cpm))</code></pre>
 <p><img src="figure/pca.Rmd/hist-dm-1.png" width="768" style="display: block; margin: auto;" /></p>
@@ -457,7 +454,7 @@ plot_pca(pca_dm$PCs, pcx = 1, pcy = 2, explained = pca_dm$explained,
 <pre class="r"><code>mol_dm_5pg &lt;- mol_dm %&gt;%
   filter(fly == 5000)
 dim(mol_dm_5pg)</code></pre>
-<pre><code>[1]   427 10900</code></pre>
+<pre><code>[1]   343 10899</code></pre>
 <p>Convert to matrix.</p>
 <pre class="r"><code>mol_dm_mat_5pg &lt;- mol_dm_5pg %&gt;%
   select(starts_with(&quot;FBgn&quot;)) %&gt;%
@@ -465,7 +462,7 @@ dim(mol_dm_5pg)</code></pre>
 <p>Only keep fly genes which are observed in at least 50% of the samples.</p>
 <pre class="r"><code>mol_dm_mat_5pg &lt;- mol_dm_mat_5pg[apply(mol_dm_mat_5pg, 1, present), ]
 dim(mol_dm_mat_5pg)</code></pre>
-<pre><code>[1]  57 427</code></pre>
+<pre><code>[1]  73 343</code></pre>
 <pre class="r"><code>mol_dm_cpm_5pg &lt;- cpm(mol_dm_mat_5pg, log = TRUE)
 hist(rowMeans(mol_dm_cpm_5pg))</code></pre>
 <p><img src="figure/pca.Rmd/hist-dm-5pg-1.png" width="768" style="display: block; margin: auto;" /></p>
@@ -485,7 +482,7 @@ plot_pca(pca_dm_5pg$PCs, pcx = 1, pcy = 2, explained = pca_dm_5pg$explained,
 <pre class="r"><code>mol_dm_50pg &lt;- mol_dm %&gt;%
   filter(fly == 50000)
 dim(mol_dm_50pg)</code></pre>
-<pre><code>[1]   702 10900</code></pre>
+<pre><code>[1]   525 10899</code></pre>
 <p>Convert to matrix.</p>
 <pre class="r"><code>mol_dm_mat_50pg &lt;- mol_dm_50pg %&gt;%
   select(starts_with(&quot;FBgn&quot;)) %&gt;%
@@ -493,7 +490,7 @@ dim(mol_dm_50pg)</code></pre>
 <p>Only keep fly genes which are observed in at least 50% of the samples.</p>
 <pre class="r"><code>mol_dm_mat_50pg &lt;- mol_dm_mat_50pg[apply(mol_dm_mat_50pg, 1, present), ]
 dim(mol_dm_mat_50pg)</code></pre>
-<pre><code>[1] 308 702</code></pre>
+<pre><code>[1] 314 525</code></pre>
 <pre class="r"><code>mol_dm_cpm_50pg &lt;- cpm(mol_dm_mat_50pg, log = TRUE)
 hist(rowMeans(mol_dm_cpm_50pg))</code></pre>
 <p><img src="figure/pca.Rmd/hist-dm-50pg-1.png" width="768" style="display: block; margin: auto;" /></p>
@@ -517,7 +514,7 @@ plot_pca(pca_dm_50pg$PCs, pcx = 1, pcy = 2, explained = pca_dm_50pg$explained,
 <pre class="r"><code>mol_ce &lt;- mol_ce %&gt;%
   select_if(function(col) is.character(col) || sum(col) &gt; 0)
 dim(mol_ce)</code></pre>
-<pre><code>[1]  1129 11110</code></pre>
+<pre><code>[1]   868 11109</code></pre>
 <p>Convert to matrix.</p>
 <pre class="r"><code>mol_ce_mat &lt;- mol_ce %&gt;%
   select(starts_with(&quot;WBGene&quot;)) %&gt;%
@@ -525,7 +522,7 @@ dim(mol_ce)</code></pre>
 <p>Only keep worm genes which are observed in at least 50% of the samples.</p>
 <pre class="r"><code>mol_ce_mat &lt;- mol_ce_mat[apply(mol_ce_mat, 1, present), ]
 dim(mol_ce_mat)</code></pre>
-<pre><code>[1]    3 1129</code></pre>
+<pre><code>[1]   3 868</code></pre>
 <pre class="r"><code>mol_ce_cpm &lt;- cpm(mol_ce_mat, log = TRUE)
 # Remove samples with no observations for this subset
 zeros_ce &lt;- colSums(mol_ce_mat) &gt; 0
@@ -548,7 +545,7 @@ plot_pca(pca_ce$PCs, pcx = 1, pcy = 2, explained = pca_ce$explained,
 <pre class="r"><code>mol_hs &lt;- mol_hs %&gt;%
   select_if(function(col) is.character(col) || sum(col) &gt; 0)
 dim(mol_hs)</code></pre>
-<pre><code>[1]  1129 18344</code></pre>
+<pre><code>[1]   868 18343</code></pre>
 <p>Convert to matrix.</p>
 <pre class="r"><code>mol_hs_mat &lt;- mol_hs %&gt;%
   select(starts_with(&quot;ENSG&quot;)) %&gt;%
@@ -556,7 +553,7 @@ dim(mol_hs)</code></pre>
 <p>Only keep human genes which are observed in at least 50% of the samples.</p>
 <pre class="r"><code>mol_hs_mat &lt;- mol_hs_mat[apply(mol_hs_mat, 1, present), ]
 dim(mol_hs_mat)</code></pre>
-<pre><code>[1] 4226 1129</code></pre>
+<pre><code>[1] 4434  868</code></pre>
 <pre class="r"><code>mol_hs_cpm &lt;- cpm(mol_hs_mat, log = TRUE)
 hist(rowMeans(mol_hs_cpm))</code></pre>
 <p><img src="figure/pca.Rmd/hist-hs-1.png" width="768" style="display: block; margin: auto;" /></p>
