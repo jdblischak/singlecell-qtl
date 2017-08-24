@@ -80,10 +80,10 @@ dim(mol_anno)
 Separate by source.
 
 ```{r separate-by-source}
-mol_ce <- mol_anno %>% select(experiment:lane, cell_number:index, starts_with("WBGene"))
-mol_dm <- mol_anno %>% select(experiment:lane, cell_number:index, starts_with("FBGn"))
-mol_ercc <- mol_anno %>% select(experiment:lane, cell_number:index, starts_with("ERCC"))
-mol_hs <- mol_anno %>% select(experiment:lane, cell_number:index, starts_with("ENSG"))
+mol_ce <- mol_anno %>% select(experiment:id, cell_number:index, starts_with("WBGene"))
+mol_dm <- mol_anno %>% select(experiment:id, cell_number:index, starts_with("FBGn"))
+mol_ercc <- mol_anno %>% select(experiment:id, cell_number:index, starts_with("ERCC"))
+mol_hs <- mol_anno %>% select(experiment:id, cell_number:index, starts_with("ENSG"))
 ```
 
 ## ERCC
