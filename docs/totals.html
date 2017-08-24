@@ -313,10 +313,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2017-08-21</p>
+<p><strong>Last updated:</strong> 2017-08-24</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> bd35bd4</p>
+<p><strong>Code version:</strong> cd8355c</p>
 <p>This analysis explores the total counts of reads and molecules mapped to each source (human, fly, worm, and ERCC).</p>
 <div id="setup" class="section level2">
 <h2>Setup</h2>
@@ -331,34 +331,31 @@ source(&quot;../code/functions.R&quot;)</code></pre>
 <p>Import totals counts.</p>
 <pre class="r"><code>totals &lt;- read_tsv(&quot;../data/totals.txt&quot;)
 dim(totals)</code></pre>
-<pre><code>[1] 1247   18</code></pre>
+<pre><code>[1] 959  17</code></pre>
 <pre class="r"><code>totals[1:5, 1:10]</code></pre>
 <pre><code># A tibble: 5 × 10
-                         sample experiment  well    id  lane    raw    umi
-                          &lt;chr&gt;      &lt;chr&gt; &lt;chr&gt; &lt;chr&gt; &lt;chr&gt;  &lt;int&gt;  &lt;int&gt;
-1 03172017-D08_S428_L004_R1_001   03172017   D08  S428  L004 195934 128384
-2 03312017-B03_S975_L007_R1_001   03312017   B03  S975  L007 454791 234840
-3 03232017-F05_S641_L005_R1_001   03232017   F05  S641  L005 923445 519375
-4 04072017-E08_S536_L008_R1_001   04072017   E08  S536  L008 589561 311766
-5 03172017-D12_S432_L008_R1_001   03172017   D12  S432  L008 566193 361756
-# ... with 3 more variables: mapped &lt;int&gt;, unmapped &lt;int&gt;, reads_ce &lt;int&gt;</code></pre>
+             sample experiment  well    id    raw    umi mapped unmapped
+              &lt;chr&gt;      &lt;chr&gt; &lt;chr&gt; &lt;chr&gt;  &lt;int&gt;  &lt;int&gt;  &lt;int&gt;    &lt;int&gt;
+1 03302017-D10_S814   03302017   D10  S814  33968  18296  16111     2185
+2 03172017-A11_S395   03172017   A11  S395 919300 587356 460302   127054
+3 04132017-B03_S879   04132017   B03  S879 786849 479560 393533    86027
+4 03172017-H12_S480   03172017   H12  S480 829154 536921 431628   105293
+5 04132017-G07_S943   04132017   G07  S943 478981 299414 236353    63061
+# ... with 2 more variables: reads_ce &lt;int&gt;, reads_dm &lt;int&gt;</code></pre>
 <pre class="r"><code>colnames(totals)</code></pre>
-<pre><code> [1] &quot;sample&quot;     &quot;experiment&quot; &quot;well&quot;       &quot;id&quot;         &quot;lane&quot;      
- [6] &quot;raw&quot;        &quot;umi&quot;        &quot;mapped&quot;     &quot;unmapped&quot;   &quot;reads_ce&quot;  
-[11] &quot;reads_dm&quot;   &quot;reads_ercc&quot; &quot;reads_hs&quot;   &quot;molecules&quot;  &quot;mol_ce&quot;    
-[16] &quot;mol_dm&quot;     &quot;mol_ercc&quot;   &quot;mol_hs&quot;    </code></pre>
+<pre><code> [1] &quot;sample&quot;     &quot;experiment&quot; &quot;well&quot;       &quot;id&quot;         &quot;raw&quot;       
+ [6] &quot;umi&quot;        &quot;mapped&quot;     &quot;unmapped&quot;   &quot;reads_ce&quot;   &quot;reads_dm&quot;  
+[11] &quot;reads_ercc&quot; &quot;reads_hs&quot;   &quot;molecules&quot;  &quot;mol_ce&quot;     &quot;mol_dm&quot;    
+[16] &quot;mol_ercc&quot;   &quot;mol_hs&quot;    </code></pre>
 <p>Import annotation.</p>
 <pre class="r"><code>anno &lt;- read_tsv(&quot;../data/batch1_qc.txt&quot;,
-                 col_types = cols(ERCC = col_character()))</code></pre>
-<pre><code>Warning: 1 parsing failure.
-row col   expected    actual
-961  -- 13 columns 1 columns</code></pre>
-<pre class="r"><code># Cleanup ERCC column
+                 col_types = cols(ERCC = col_character()))
+# Cleanup ERCC column
 anno$ERCC &lt;- ifelse(is.na(anno$ERCC), &quot;Not added&quot;, anno$ERCC)
 anno$ERCC &lt;- factor(anno$ERCC, levels = c(&quot;Not added&quot;, &quot;1:100000&quot;, &quot;1:50000&quot;),
                     labels = c(&quot;Not added&quot;, &quot;100x dilution&quot;, &quot;50x dilution&quot;))
 dim(anno)</code></pre>
-<pre><code>[1] 961  13</code></pre>
+<pre><code>[1] 960  13</code></pre>
 <pre class="r"><code>colnames(anno)</code></pre>
 <pre><code> [1] &quot;experiment&quot;    &quot;well&quot;          &quot;cell_number&quot;   &quot;concentration&quot;
  [5] &quot;tra1.60&quot;       &quot;individual.1&quot;  &quot;individual.2&quot;  &quot;individual.3&quot; 
@@ -371,7 +368,7 @@ stopifnot(nrow(totals_anno) == nrow(totals))</code></pre>
 <pre class="r"><code>totals_anno &lt;- totals_anno %&gt;%
   filter(cell_number == 1, tra1.60 == 1)
 dim(totals_anno)</code></pre>
-<pre><code>[1] 1129   29</code></pre>
+<pre><code>[1] 868  28</code></pre>
 </div>
 <div id="what-percentage-of-reads-are-mapped-to-the-genome" class="section level2">
 <h2>What percentage of reads are mapped to the genome?</h2>
@@ -383,16 +380,15 @@ dim(totals_anno)</code></pre>
                                   &quot;Reads mapped\nto genome&quot;,
                                   &quot;Molecules mapped\nto genome&quot;)))
 head(totals_long)</code></pre>
-<pre><code># A tibble: 6 × 7
-                          sample experiment  well    id  lane      type
-                           &lt;chr&gt;      &lt;chr&gt; &lt;chr&gt; &lt;chr&gt; &lt;chr&gt;    &lt;fctr&gt;
-1  03172017-D08_S428_L004_R1_001   03172017   D08  S428  L004 Raw reads
-2  03312017-B03_S975_L007_R1_001   03312017   B03  S975  L007 Raw reads
-3  03232017-F05_S641_L005_R1_001   03232017   F05  S641  L005 Raw reads
-4  04072017-E08_S536_L008_R1_001   04072017   E08  S536  L008 Raw reads
-5  03172017-D12_S432_L008_R1_001   03172017   D12  S432  L008 Raw reads
-6 04202017-A06_S1062_L007_R1_001   04202017   A06 S1062  L007 Raw reads
-# ... with 1 more variables: count &lt;int&gt;</code></pre>
+<pre><code># A tibble: 6 × 6
+             sample experiment  well    id      type  count
+              &lt;chr&gt;      &lt;chr&gt; &lt;chr&gt; &lt;chr&gt;    &lt;fctr&gt;  &lt;int&gt;
+1 03302017-D10_S814   03302017   D10  S814 Raw reads  33968
+2 03172017-A11_S395   03172017   A11  S395 Raw reads 919300
+3 04132017-B03_S879   04132017   B03  S879 Raw reads 786849
+4 03172017-H12_S480   03172017   H12  S480 Raw reads 829154
+5 04132017-G07_S943   04132017   G07  S943 Raw reads 478981
+6 03232017-H04_S664   03232017   H04  S664 Raw reads 542965</code></pre>
 <pre class="r"><code>ggplot(totals_long, aes(x = type, y = count)) +
   geom_boxplot() +
   labs(x = &quot;Classification&quot;, y = &quot;Number of sequences&quot;,
@@ -410,27 +406,27 @@ head(totals_long)</code></pre>
 <tbody>
 <tr class="odd">
 <td>Raw reads</td>
-<td>5.274081210^{5}</td>
-<td>2.976690210^{5}</td>
+<td>6.857955410^{5}</td>
+<td>3.804929510^{5}</td>
 <td>1.00</td>
 </tr>
 <tr class="even">
 <td>Reads with UMI</td>
-<td>3.211071610^{5}</td>
-<td>1.826817210^{5}</td>
+<td>4.175397610^{5}</td>
+<td>2.297170410^{5}</td>
 <td>0.61</td>
 </tr>
 <tr class="odd">
 <td>Reads mapped to genome</td>
-<td>2.525623310^{5}</td>
-<td>1.446057110^{5}</td>
+<td>3.284125310^{5}</td>
+<td>1.81030310^{5}</td>
 <td>0.48</td>
 </tr>
 <tr class="even">
 <td>Molecules mapped to genome</td>
-<td>3.393012310^{4}</td>
-<td>1.763866710^{4}</td>
-<td>0.07</td>
+<td>3.689815610^{4}</td>
+<td>1.942899510^{4}</td>
+<td>0.06</td>
 </tr>
 </tbody>
 </table>
