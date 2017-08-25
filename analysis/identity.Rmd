@@ -64,6 +64,15 @@ anno <- anno %>% mutate(individual.1 = paste0("NA", individual.1),
                         individual.2 = paste0("NA", individual.2),
                         individual.3 = paste0("NA", individual.3),
                         individual.4 = paste0("NA", individual.4))
+# Change individual NA18522 to NA 18852
+anno <- anno %>% mutate(individual.1 = ifelse(individual.1 == "NA18522",
+                                              "NA18852", individual.1),
+                        individual.2 = ifelse(individual.2 == "NA18522",
+                                              "NA18852", individual.2),
+                        individual.3 = ifelse(individual.3 == "NA18522",
+                                              "NA18852", individual.3),
+                        individual.4 = ifelse(individual.4 == "NA18522",
+                                              "NA18852", individual.4))
 dim(anno)
 colnames(anno)
 ```
@@ -152,6 +161,13 @@ ggplot(df_obs, aes(x = count.exp, y = count.obs)) +
   labs(x = "Expected number of cells per individual",
        y = "Observed number of cells per individual",
        title = "Observed versus expected number of cells")
+```
+
+## Unexpectedly high counts
+
+```{r unexpectedly-high-counts}
+observed %>% filter(count > 10, !(ind %in% expected$ind)) %>%
+  arrange(desc(count))
 ```
 
 ## Potential reasons for failure
