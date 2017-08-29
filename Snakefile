@@ -274,8 +274,8 @@ rule feauturecounts:
            exons = dir_genome + ensembl_exons
     output: dir_counts + "{sample}.genecounts.txt"
     threads: 8
-    shell: "featureCounts -a {input.exons} -F SAF -T {threads} -o {output} \
-            {input.bam} {input.dedup}"
+    shell: "featureCounts -a {input.exons} -F SAF -s 1 --read2pos 5 \
+            -T {threads} -o {output} {input.bam} {input.dedup}"
 
 rule gather_counts:
     input: expand(dir_counts + "{sample}.genecounts.txt", sample = samples)
