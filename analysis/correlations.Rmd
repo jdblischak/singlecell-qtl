@@ -24,13 +24,20 @@ knitr::read_chunk("chunks.R")
 ```{r code-version, echo=FALSE, results='asis'}
 ```
 
+Calculate pairwise correlations between single cells.
+
 ## Setup
 
 ```{r packages, message=FALSE}
+library("cowplot")
 library("dplyr")
 library("edgeR")
+library("ggplot2")
 library("readr")
 library("stringr")
+library("tidyr")
+source("../code/functions.R")
+theme_set(theme_cowplot())
 ```
 
 Import molecules.
@@ -98,7 +105,7 @@ Remove zeros.
 
 ```{r}
 mol_ercc <- mol_ercc %>%
-  select_if(function(col) is.character(col) || sum(col) > 0)
+  select_if(function(col) is.character(col) || sum(col, na.rm = TRUE) > 0)
 dim(mol_ercc)
 ```
 
@@ -108,6 +115,7 @@ Convert to matrix.
 mol_ercc_mat <- mol_ercc %>%
   select(starts_with("ERCC")) %>%
   t
+colnames(mol_ercc_mat) <- paste(mol_ercc$experiment, mol_ercc$well, sep = "_")
 ```
 
 Only keep ERCC which are observed in at least 50% of the samples.
@@ -133,7 +141,7 @@ Remove zeros.
 
 ```{r}
 mol_dm <- mol_dm %>%
-  select_if(function(col) is.character(col) || sum(col) > 0)
+  select_if(function(col) is.character(col) || sum(col, na.rm = TRUE) > 0)
 dim(mol_dm)
 ```
 
@@ -143,6 +151,7 @@ Convert to matrix.
 mol_dm_mat <- mol_dm %>%
   select(starts_with("FBgn")) %>%
   t
+colnames(mol_dm_mat) <- paste(mol_dm$experiment, mol_dm$well, sep = "_")
 ```
 
 Only keep fly genes which are observed in at least 50% of the samples.
@@ -174,23 +183,24 @@ dim(mol_dm_5pg)
 Convert to matrix.
 
 ```{r}
-mol_dm_mat_5pg <- mol_dm_5pg %>%
+mol_dm_5pg_mat <- mol_dm_5pg %>%
   select(starts_with("FBgn")) %>%
   t
+colnames(mol_dm_5pg_mat) <- paste(mol_dm_5pg$experiment, mol_dm_5pg$well, sep = "_")
 ```
 
 Only keep fly genes which are observed in at least 50% of the samples.
 
 ```{r}
-mol_dm_mat_5pg <- mol_dm_mat_5pg[apply(mol_dm_mat_5pg, 1, present), ]
-dim(mol_dm_mat_5pg)
-mol_dm_cpm_5pg <- cpm(mol_dm_mat_5pg, log = TRUE)
+mol_dm_5pg_mat <- mol_dm_5pg_mat[apply(mol_dm_5pg_mat, 1, present), ]
+dim(mol_dm_5pg_mat)
+mol_dm_5pg_cpm <- cpm(mol_dm_5pg_mat, log = TRUE)
 ```
 
 Calculate pairwise correlations.
 
 ```{r cor-dm-5pg}
-cor_dm_5pg <- cor(mol_dm_cpm_5pg)
+cor_dm_5pg <- cor(mol_dm_5pg_cpm)
 cor_dm_5pg <- cor_dm_5pg[upper.tri(cor_dm_5pg)]
 summary(cor_dm_5pg)
 ```
@@ -208,23 +218,24 @@ dim(mol_dm_50pg)
 Convert to matrix.
 
 ```{r}
-mol_dm_mat_50pg <- mol_dm_50pg %>%
+mol_dm_50pg_mat <- mol_dm_50pg %>%
   select(starts_with("FBgn")) %>%
   t
+colnames(mol_dm_50pg_mat) <- paste(mol_dm_50pg$experiment, mol_dm_50pg$well, sep = "_")
 ```
 
 Only keep fly genes which are observed in at least 50% of the samples.
 
 ```{r}
-mol_dm_mat_50pg <- mol_dm_mat_50pg[apply(mol_dm_mat_50pg, 1, present), ]
-dim(mol_dm_mat_50pg)
-mol_dm_cpm_50pg <- cpm(mol_dm_mat_50pg, log = TRUE)
+mol_dm_50pg_mat <- mol_dm_50pg_mat[apply(mol_dm_50pg_mat, 1, present), ]
+dim(mol_dm_50pg_mat)
+mol_dm_50pg_cpm <- cpm(mol_dm_50pg_mat, log = TRUE)
 ```
 
 Calculate pairwise correlations.
 
 ```{r cor-dm-50pg}
-cor_dm_50pg <- cor(mol_dm_cpm_50pg)
+cor_dm_50pg <- cor(mol_dm_50pg_cpm)
 cor_dm_50pg <- cor_dm_50pg[upper.tri(cor_dm_50pg)]
 summary(cor_dm_50pg)
 ```
@@ -235,7 +246,7 @@ Remove zeros.
 
 ```{r}
 mol_ce <- mol_ce %>%
-  select_if(function(col) is.character(col) || sum(col) > 0)
+  select_if(function(col) is.character(col) || sum(col, na.rm = TRUE) > 0)
 dim(mol_ce)
 ```
 
@@ -245,6 +256,7 @@ Convert to matrix.
 mol_ce_mat <- mol_ce %>%
   select(starts_with("WBGene")) %>%
   t
+colnames(mol_ce_mat) <- paste(mol_ce$experiment, mol_ce$well, sep = "_")
 ```
 
 Only keep worm genes which are observed in at least 50% of the samples.
@@ -275,7 +287,7 @@ Remove zeros.
 
 ```{r}
 mol_hs <- mol_hs %>%
-  select_if(function(col) is.character(col) || sum(col) > 0)
+  select_if(function(col) is.character(col) || sum(col, na.rm = TRUE) > 0)
 dim(mol_hs)
 ```
 
@@ -285,6 +297,7 @@ Convert to matrix.
 mol_hs_mat <- mol_hs %>%
   select(starts_with("ENSG")) %>%
   t
+colnames(mol_hs_mat) <- paste(mol_hs$experiment, mol_hs$well, sep = "_")
 ```
 
 Only keep human genes which are observed in at least 50% of the samples.
@@ -317,6 +330,87 @@ boxplot(cor_ercc, cor_hs, cor_dm_50pg, cor_dm, cor_dm_5pg, cor_ce,
         main = "Pairwise correlations")
 text(x = 1:6, y = -1, labels = sapply(list(cor_ercc, cor_hs, cor_dm_50pg, cor_dm, cor_dm_5pg, cor_ce), length))
 ```
+
+## Pairwise correlations per C1 chip
+
+Do the pairwise correlations change when looking within a chip versus between chips?
+
+```{r calc_cor_pairs}
+# Calculate pairwise correlations
+# 
+# x - matrix produced by edger::cpm(). Column names should be of the form
+# 03162017_A01
+# 
+# id - optional character vector column
+#
+# method - a valid method to pass to cor()
+calc_cor_pairs <- function(x, id = NULL, method = "pearson") {
+  stopifnot(is.matrix(x),
+            is.null(id) || (is.character(id) && length(id) == 1),
+            method %in% c("pearson", "kendall", "spearman"))
+  result <- x %>%
+    cor(method = method) %>%
+    as.data.frame %>%
+    mutate(sample1 = colnames(x)) %>%
+    gather(key = "sample2", value = "r", -sample1) %>%
+    mutate(sample2 = as.character(sample2)) %>%
+    filter(sample1 < sample2) %>% # only keep 1 of 2 duplicate entries
+    arrange(sample1, sample2) %>%
+    extract(col = sample1, into = c("experiment1", "well1"),
+            regex = "([[:digit:]]+)_([[:alnum:]]+)") %>%
+    extract(col = sample2, into = c("experiment2", "well2"),
+            regex = "([[:digit:]]+)_([[:alnum:]]+)")
+  n <- ncol(x)
+  stopifnot(result$r < 1,
+            nrow(result) == (n * n - n) / 2)
+  if (!is.null(id)) {
+    result$id <- id
+  }
+  return(result)
+}
+```
+
+Cacluate pairwise correlations for each feature type and then combine them.
+
+```{r cor-long}
+cor_long_dm <- calc_cor_pairs(mol_dm_cpm, id = "Fly")
+cor_long_dm_5pg <- calc_cor_pairs(mol_dm_5pg_cpm, id = "Fly 5 pg")
+cor_long_dm_50pg <- calc_cor_pairs(mol_dm_50pg_cpm, id = "Fly 50 pg")
+cor_long_ercc <- calc_cor_pairs(mol_ercc_cpm, id = "ERCC")
+cor_long_hs <- calc_cor_pairs(mol_hs_cpm, id = "Human")
+cor_long <- rbind(cor_long_dm, cor_long_dm_5pg, cor_long_dm_50pg,
+                  cor_long_ercc, cor_long_hs)
+```
+
+The pairwise correlations are only slightly higher within a chip versus between a chip.
+
+```{r cor-within-v-between}
+cor_within_v_between <- cor_long %>%
+  mutate(within = ifelse(experiment1 == experiment2,
+                         "Within", "Between"))
+ggplot(cor_within_v_between, aes(x = within, y = r)) +
+  geom_boxplot() +
+  facet_wrap(~id) +
+  labs(title = "Pairwise correlations within versus between chips",
+       x = "", y = "Correlation")
+```
+
+The pairwise correlations for a given RNA input source is similar across chips.
+
+```{r cor-per-chip}
+cor_per_chip <- cor_long %>%
+  filter(experiment1 == experiment2)
+ggplot(cor_per_chip, aes(x = id, y = r)) +
+  geom_boxplot() +
+  facet_wrap(~ experiment1) +
+  labs(title = "Pairwise correlations per C1 chip",
+       x = "", y = "Correlation") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+```
+
+Note that the boxplots for Fly and Fly 5 or 50 pg are not identical even though
+each chip has only 1 because these were processed separately above when
+filtering genes which are present in at least 50% of samples.
 
 ## Session information
 

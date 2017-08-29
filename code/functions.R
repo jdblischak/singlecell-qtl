@@ -5,20 +5,36 @@
 specify_decimal <- function(x, k) format(round(x, k), nsmall = k)
 
 # Show the upper left corner of a table
-lcorner <- function(x, row = 5, col = 5) {
+headl <- function(x, nr = 6, nc = 6) {
   stopifnot(class(x)[1] %in% c("data.frame", "data.table", "matrix", "tbl_df"),
-            row > 0, col > 0)
-  x[seq(row), seq(col)]
+            nr > 0, nc > 0)
+  x[seq(nr), seq(nc)]
 }
 
 # Show the upper right corner of a table
-rcorner <- function(x, row = 5, col = 5) {
+headr <- function(x, nr = 6, nc = 6) {
   stopifnot(class(x)[1] %in% c("data.frame", "data.table", "matrix", "tbl_df"),
-            row > 0, col > 0)
-  n <- ncol(x)
-  x[seq(row), seq(n - col, n)]
+            nr > 0, nc > 0)
+  xc <- ncol(x)
+  x[seq(nr), seq(xc - nc + 1, xc)]
 }
 
+# Show the lower left corner of a table
+taill <- function(x, nr = 6, nc = 6) {
+  stopifnot(class(x)[1] %in% c("data.frame", "data.table", "matrix", "tbl_df"),
+            nr > 0, nc > 0)
+  xr <- nrow(x)
+  x[seq(xr - nr + 1, xr), seq(nc)]
+}
+
+# Show the lower right corner of a table
+tailr <- function(x, nr = 6, nc = 6) {
+  stopifnot(class(x)[1] %in% c("data.frame", "data.table", "matrix", "tbl_df"),
+            nr > 0, nc > 0)
+  xr <- nrow(x)
+  xc <- ncol(x)
+  x[seq(xr - nr + 1, xr), seq(xc - nc + 1, xc)]
+}
 
 # Perform Principal Components Analysis (PCA).
 #
