@@ -313,10 +313,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2017-08-24</p>
+<p><strong>Last updated:</strong> 2017-08-29</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> cd8355c</p>
+<p><strong>Code version:</strong> 1268b1a</p>
 <p>This analysis explores the total counts of reads and molecules mapped to each source (human, fly, worm, and ERCC).</p>
 <div id="setup" class="section level2">
 <h2>Setup</h2>
@@ -427,6 +427,81 @@ head(totals_long)</code></pre>
 <td>3.689815610^{4}</td>
 <td>1.942899510^{4}</td>
 <td>0.06</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="how-does-the-number-of-mapped-reads-vary-by-c1-chip" class="section level2">
+<h2>How does the number of mapped reads vary by C1 chip?</h2>
+<pre class="r"><code>mapped &lt;- totals_long %&gt;%
+  filter(type == &quot;Reads mapped\nto genome&quot;)
+ggplot(mapped, aes(x = experiment, y = count)) +
+  geom_boxplot() +
+  labs(x = &quot;C1 chip&quot;, y = &quot;Number of mapped reads&quot;,
+       title = &quot;Mapped reads per C1 chip&quot;) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))</code></pre>
+<p><img src="figure/totals.Rmd/mapped-per-chip-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>mapped_sum &lt;- mapped %&gt;%
+  group_by(experiment) %&gt;%
+  summarize(total = sum(count))
+ggplot(mapped_sum, aes(x = experiment, y = total)) +
+  geom_bar(stat= &quot;identity&quot;) +
+  labs(x = &quot;C1 chip&quot;, y = &quot;Total number of mapped reads&quot;,
+       title = &quot;Total mapped reads per C1 chip&quot;) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))</code></pre>
+<p><img src="figure/totals.Rmd/total-mapped-per-chip-1.png" width="768" style="display: block; margin: auto;" /></p>
+<p>Sorted by total number of mapped reads (in millions).</p>
+<pre class="r"><code>mapped_sum %&gt;%
+  arrange(total) %&gt;%
+  mutate(total = total / 10^6) %&gt;%
+  knitr::kable()</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left">experiment</th>
+<th align="right">total</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">04202017</td>
+<td align="right">19.51013</td>
+</tr>
+<tr class="even">
+<td align="left">03232017</td>
+<td align="right">26.50713</td>
+</tr>
+<tr class="odd">
+<td align="left">04052017</td>
+<td align="right">26.64422</td>
+</tr>
+<tr class="even">
+<td align="left">03302017</td>
+<td align="right">26.84352</td>
+</tr>
+<tr class="odd">
+<td align="left">04132017</td>
+<td align="right">28.59480</td>
+</tr>
+<tr class="even">
+<td align="left">03162017</td>
+<td align="right">29.47492</td>
+</tr>
+<tr class="odd">
+<td align="left">04142017</td>
+<td align="right">32.82519</td>
+</tr>
+<tr class="even">
+<td align="left">03312017</td>
+<td align="right">38.32959</td>
+</tr>
+<tr class="odd">
+<td align="left">04072017</td>
+<td align="right">40.87394</td>
+</tr>
+<tr class="even">
+<td align="left">03172017</td>
+<td align="right">45.34417</td>
 </tr>
 </tbody>
 </table>
@@ -577,12 +652,12 @@ other attached packages:
 
 loaded via a namespace (and not attached):
  [1] Rcpp_0.12.10     knitr_1.16       magrittr_1.5     munsell_0.4.3   
- [5] colorspace_1.3-2 R6_2.2.0         plyr_1.8.4       tools_3.3.2     
- [9] grid_3.3.2       gtable_0.2.0     DBI_0.6-1        git2r_0.19.0    
-[13] htmltools_0.3.6  yaml_2.1.13      lazyeval_0.2.0   rprojroot_1.2   
-[17] digest_0.6.12    assertthat_0.1   tibble_1.2       evaluate_0.10   
-[21] rmarkdown_1.6    labeling_0.3     stringi_1.1.5    scales_0.4.1    
-[25] backports_1.0.5 </code></pre>
+ [5] colorspace_1.3-2 R6_2.2.0         highr_0.6        plyr_1.8.4      
+ [9] tools_3.3.2      grid_3.3.2       gtable_0.2.0     DBI_0.6-1       
+[13] git2r_0.19.0     htmltools_0.3.6  yaml_2.1.13      lazyeval_0.2.0  
+[17] rprojroot_1.2    digest_0.6.12    assertthat_0.1   tibble_1.2      
+[21] evaluate_0.10    rmarkdown_1.6    labeling_0.3     stringi_1.1.2   
+[25] scales_0.4.1     backports_1.0.5 </code></pre>
 </div>
 
 <hr>

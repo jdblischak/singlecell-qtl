@@ -313,16 +313,22 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2017-08-24</p>
+<p><strong>Last updated:</strong> 2017-08-29</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> 662627c</p>
+<p><strong>Code version:</strong> 1268b1a</p>
+<p>Calculate pairwise correlations between single cells.</p>
 <div id="setup" class="section level2">
 <h2>Setup</h2>
-<pre class="r"><code>library(&quot;dplyr&quot;)
+<pre class="r"><code>library(&quot;cowplot&quot;)
+library(&quot;dplyr&quot;)
 library(&quot;edgeR&quot;)
+library(&quot;ggplot2&quot;)
 library(&quot;readr&quot;)
-library(&quot;stringr&quot;)</code></pre>
+library(&quot;stringr&quot;)
+library(&quot;tidyr&quot;)
+source(&quot;../code/functions.R&quot;)
+theme_set(theme_cowplot())</code></pre>
 <p>Import molecules.</p>
 <pre class="r"><code>molecules &lt;- read_tsv(gzfile(&quot;../data/molecules.txt.gz&quot;))
 dim(molecules)</code></pre>
@@ -381,13 +387,14 @@ mol_hs &lt;- mol_anno %&gt;% select(experiment:id, cell_number:index, starts_wit
 <pre class="r"><code>mol_ercc &lt;- mol_ercc %&gt;% filter(ERCC != &quot;Not added&quot;) %&gt;% rename(annoERCC = ERCC)</code></pre>
 <p>Remove zeros.</p>
 <pre class="r"><code>mol_ercc &lt;- mol_ercc %&gt;%
-  select_if(function(col) is.character(col) || sum(col) &gt; 0)
+  select_if(function(col) is.character(col) || sum(col, na.rm = TRUE) &gt; 0)
 dim(mol_ercc)</code></pre>
 <pre><code>[1] 347 100</code></pre>
 <p>Convert to matrix.</p>
 <pre class="r"><code>mol_ercc_mat &lt;- mol_ercc %&gt;%
   select(starts_with(&quot;ERCC&quot;)) %&gt;%
-  t</code></pre>
+  t
+colnames(mol_ercc_mat) &lt;- paste(mol_ercc$experiment, mol_ercc$well, sep = &quot;_&quot;)</code></pre>
 <p>Only keep ERCC which are observed in at least 50% of the samples.</p>
 <pre class="r"><code>present &lt;- function(x, percent = 0.50) mean(x &gt; 0) &gt;= percent
 mol_ercc_mat &lt;- mol_ercc_mat[apply(mol_ercc_mat, 1, present), ]
@@ -405,13 +412,14 @@ summary(cor_ercc)</code></pre>
 <h2>Drosophila</h2>
 <p>Remove zeros.</p>
 <pre class="r"><code>mol_dm &lt;- mol_dm %&gt;%
-  select_if(function(col) is.character(col) || sum(col) &gt; 0)
+  select_if(function(col) is.character(col) || sum(col, na.rm = TRUE) &gt; 0)
 dim(mol_dm)</code></pre>
 <pre><code>[1]   868 10899</code></pre>
 <p>Convert to matrix.</p>
 <pre class="r"><code>mol_dm_mat &lt;- mol_dm %&gt;%
   select(starts_with(&quot;FBgn&quot;)) %&gt;%
-  t</code></pre>
+  t
+colnames(mol_dm_mat) &lt;- paste(mol_dm$experiment, mol_dm$well, sep = &quot;_&quot;)</code></pre>
 <p>Only keep fly genes which are observed in at least 50% of the samples.</p>
 <pre class="r"><code>mol_dm_mat &lt;- mol_dm_mat[apply(mol_dm_mat, 1, present), ]
 dim(mol_dm_mat)</code></pre>
@@ -432,16 +440,17 @@ summary(cor_dm)</code></pre>
 dim(mol_dm_5pg)</code></pre>
 <pre><code>[1]   343 10899</code></pre>
 <p>Convert to matrix.</p>
-<pre class="r"><code>mol_dm_mat_5pg &lt;- mol_dm_5pg %&gt;%
+<pre class="r"><code>mol_dm_5pg_mat &lt;- mol_dm_5pg %&gt;%
   select(starts_with(&quot;FBgn&quot;)) %&gt;%
-  t</code></pre>
+  t
+colnames(mol_dm_5pg_mat) &lt;- paste(mol_dm_5pg$experiment, mol_dm_5pg$well, sep = &quot;_&quot;)</code></pre>
 <p>Only keep fly genes which are observed in at least 50% of the samples.</p>
-<pre class="r"><code>mol_dm_mat_5pg &lt;- mol_dm_mat_5pg[apply(mol_dm_mat_5pg, 1, present), ]
-dim(mol_dm_mat_5pg)</code></pre>
+<pre class="r"><code>mol_dm_5pg_mat &lt;- mol_dm_5pg_mat[apply(mol_dm_5pg_mat, 1, present), ]
+dim(mol_dm_5pg_mat)</code></pre>
 <pre><code>[1]  73 343</code></pre>
-<pre class="r"><code>mol_dm_cpm_5pg &lt;- cpm(mol_dm_mat_5pg, log = TRUE)</code></pre>
+<pre class="r"><code>mol_dm_5pg_cpm &lt;- cpm(mol_dm_5pg_mat, log = TRUE)</code></pre>
 <p>Calculate pairwise correlations.</p>
-<pre class="r"><code>cor_dm_5pg &lt;- cor(mol_dm_cpm_5pg)
+<pre class="r"><code>cor_dm_5pg &lt;- cor(mol_dm_5pg_cpm)
 cor_dm_5pg &lt;- cor_dm_5pg[upper.tri(cor_dm_5pg)]
 summary(cor_dm_5pg)</code></pre>
 <pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
@@ -455,16 +464,17 @@ summary(cor_dm_5pg)</code></pre>
 dim(mol_dm_50pg)</code></pre>
 <pre><code>[1]   525 10899</code></pre>
 <p>Convert to matrix.</p>
-<pre class="r"><code>mol_dm_mat_50pg &lt;- mol_dm_50pg %&gt;%
+<pre class="r"><code>mol_dm_50pg_mat &lt;- mol_dm_50pg %&gt;%
   select(starts_with(&quot;FBgn&quot;)) %&gt;%
-  t</code></pre>
+  t
+colnames(mol_dm_50pg_mat) &lt;- paste(mol_dm_50pg$experiment, mol_dm_50pg$well, sep = &quot;_&quot;)</code></pre>
 <p>Only keep fly genes which are observed in at least 50% of the samples.</p>
-<pre class="r"><code>mol_dm_mat_50pg &lt;- mol_dm_mat_50pg[apply(mol_dm_mat_50pg, 1, present), ]
-dim(mol_dm_mat_50pg)</code></pre>
+<pre class="r"><code>mol_dm_50pg_mat &lt;- mol_dm_50pg_mat[apply(mol_dm_50pg_mat, 1, present), ]
+dim(mol_dm_50pg_mat)</code></pre>
 <pre><code>[1] 314 525</code></pre>
-<pre class="r"><code>mol_dm_cpm_50pg &lt;- cpm(mol_dm_mat_50pg, log = TRUE)</code></pre>
+<pre class="r"><code>mol_dm_50pg_cpm &lt;- cpm(mol_dm_50pg_mat, log = TRUE)</code></pre>
 <p>Calculate pairwise correlations.</p>
-<pre class="r"><code>cor_dm_50pg &lt;- cor(mol_dm_cpm_50pg)
+<pre class="r"><code>cor_dm_50pg &lt;- cor(mol_dm_50pg_cpm)
 cor_dm_50pg &lt;- cor_dm_50pg[upper.tri(cor_dm_50pg)]
 summary(cor_dm_50pg)</code></pre>
 <pre><code>    Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
@@ -474,13 +484,14 @@ summary(cor_dm_50pg)</code></pre>
 <h2>C. elegans</h2>
 <p>Remove zeros.</p>
 <pre class="r"><code>mol_ce &lt;- mol_ce %&gt;%
-  select_if(function(col) is.character(col) || sum(col) &gt; 0)
+  select_if(function(col) is.character(col) || sum(col, na.rm = TRUE) &gt; 0)
 dim(mol_ce)</code></pre>
 <pre><code>[1]   868 11109</code></pre>
 <p>Convert to matrix.</p>
 <pre class="r"><code>mol_ce_mat &lt;- mol_ce %&gt;%
   select(starts_with(&quot;WBGene&quot;)) %&gt;%
-  t</code></pre>
+  t
+colnames(mol_ce_mat) &lt;- paste(mol_ce$experiment, mol_ce$well, sep = &quot;_&quot;)</code></pre>
 <p>Only keep worm genes which are observed in at least 50% of the samples.</p>
 <pre class="r"><code>mol_ce_mat &lt;- mol_ce_mat[apply(mol_ce_mat, 1, present), ]
 dim(mol_ce_mat)</code></pre>
@@ -501,13 +512,14 @@ summary(cor_ce)</code></pre>
 <h2>Human</h2>
 <p>Remove zeros.</p>
 <pre class="r"><code>mol_hs &lt;- mol_hs %&gt;%
-  select_if(function(col) is.character(col) || sum(col) &gt; 0)
+  select_if(function(col) is.character(col) || sum(col, na.rm = TRUE) &gt; 0)
 dim(mol_hs)</code></pre>
 <pre><code>[1]   868 18343</code></pre>
 <p>Convert to matrix.</p>
 <pre class="r"><code>mol_hs_mat &lt;- mol_hs %&gt;%
   select(starts_with(&quot;ENSG&quot;)) %&gt;%
-  t</code></pre>
+  t
+colnames(mol_hs_mat) &lt;- paste(mol_hs$experiment, mol_hs$well, sep = &quot;_&quot;)</code></pre>
 <p>Only keep human genes which are observed in at least 50% of the samples.</p>
 <pre class="r"><code>mol_hs_mat &lt;- mol_hs_mat[apply(mol_hs_mat, 1, present), ]
 dim(mol_hs_mat)</code></pre>
@@ -531,6 +543,71 @@ summary(cor_hs)</code></pre>
 text(x = 1:6, y = -1, labels = sapply(list(cor_ercc, cor_hs, cor_dm_50pg, cor_dm, cor_dm_5pg, cor_ce), length))</code></pre>
 <p><img src="figure/correlations.Rmd/pairwise-correlations-1.png" width="768" style="display: block; margin: auto;" /></p>
 </div>
+<div id="pairwise-correlations-per-c1-chip" class="section level2">
+<h2>Pairwise correlations per C1 chip</h2>
+<p>Do the pairwise correlations change when looking within a chip versus between chips?</p>
+<pre class="r"><code># Calculate pairwise correlations
+# 
+# x - matrix produced by edger::cpm(). Column names should be of the form
+# 03162017_A01
+# 
+# id - optional character vector column
+#
+# method - a valid method to pass to cor()
+calc_cor_pairs &lt;- function(x, id = NULL, method = &quot;pearson&quot;) {
+  stopifnot(is.matrix(x),
+            is.null(id) || (is.character(id) &amp;&amp; length(id) == 1),
+            method %in% c(&quot;pearson&quot;, &quot;kendall&quot;, &quot;spearman&quot;))
+  result &lt;- x %&gt;%
+    cor(method = method) %&gt;%
+    as.data.frame %&gt;%
+    mutate(sample1 = colnames(x)) %&gt;%
+    gather(key = &quot;sample2&quot;, value = &quot;r&quot;, -sample1) %&gt;%
+    mutate(sample2 = as.character(sample2)) %&gt;%
+    filter(sample1 &lt; sample2) %&gt;% # only keep 1 of 2 duplicate entries
+    arrange(sample1, sample2) %&gt;%
+    extract(col = sample1, into = c(&quot;experiment1&quot;, &quot;well1&quot;),
+            regex = &quot;([[:digit:]]+)_([[:alnum:]]+)&quot;) %&gt;%
+    extract(col = sample2, into = c(&quot;experiment2&quot;, &quot;well2&quot;),
+            regex = &quot;([[:digit:]]+)_([[:alnum:]]+)&quot;)
+  n &lt;- ncol(x)
+  stopifnot(result$r &lt; 1,
+            nrow(result) == (n * n - n) / 2)
+  if (!is.null(id)) {
+    result$id &lt;- id
+  }
+  return(result)
+}</code></pre>
+<p>Cacluate pairwise correlations for each feature type and then combine them.</p>
+<pre class="r"><code>cor_long_dm &lt;- calc_cor_pairs(mol_dm_cpm, id = &quot;Fly&quot;)
+cor_long_dm_5pg &lt;- calc_cor_pairs(mol_dm_5pg_cpm, id = &quot;Fly 5 pg&quot;)
+cor_long_dm_50pg &lt;- calc_cor_pairs(mol_dm_50pg_cpm, id = &quot;Fly 50 pg&quot;)
+cor_long_ercc &lt;- calc_cor_pairs(mol_ercc_cpm, id = &quot;ERCC&quot;)
+cor_long_hs &lt;- calc_cor_pairs(mol_hs_cpm, id = &quot;Human&quot;)
+cor_long &lt;- rbind(cor_long_dm, cor_long_dm_5pg, cor_long_dm_50pg,
+                  cor_long_ercc, cor_long_hs)</code></pre>
+<p>The pairwise correlations are only slightly higher within a chip versus between a chip.</p>
+<pre class="r"><code>cor_within_v_between &lt;- cor_long %&gt;%
+  mutate(within = ifelse(experiment1 == experiment2,
+                         &quot;Within&quot;, &quot;Between&quot;))
+ggplot(cor_within_v_between, aes(x = within, y = r)) +
+  geom_boxplot() +
+  facet_wrap(~id) +
+  labs(title = &quot;Pairwise correlations within versus between chips&quot;,
+       x = &quot;&quot;, y = &quot;Correlation&quot;)</code></pre>
+<p><img src="figure/correlations.Rmd/cor-within-v-between-1.png" width="768" style="display: block; margin: auto;" /></p>
+<p>The pairwise correlations for a given RNA input source is similar across chips.</p>
+<pre class="r"><code>cor_per_chip &lt;- cor_long %&gt;%
+  filter(experiment1 == experiment2)
+ggplot(cor_per_chip, aes(x = id, y = r)) +
+  geom_boxplot() +
+  facet_wrap(~ experiment1) +
+  labs(title = &quot;Pairwise correlations per C1 chip&quot;,
+       x = &quot;&quot;, y = &quot;Correlation&quot;) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))</code></pre>
+<p><img src="figure/correlations.Rmd/cor-per-chip-1.png" width="768" style="display: block; margin: auto;" /></p>
+<p>Note that the boxplots for Fly and Fly 5 or 50 pg are not identical even though each chip has only 1 because these were processed separately above when filtering genes which are present in at least 50% of samples.</p>
+</div>
 <div id="session-information" class="section level2">
 <h2>Session information</h2>
 <!-- Insert the session information into the document -->
@@ -551,15 +628,17 @@ attached base packages:
 [1] stats     graphics  grDevices utils     datasets  methods   base     
 
 other attached packages:
-[1] stringr_1.2.0 readr_0.2.2   edgeR_3.16.5  limma_3.30.13 dplyr_0.5.0  
+[1] tidyr_0.6.1   stringr_1.2.0 readr_0.2.2   edgeR_3.16.5  limma_3.30.13
+[6] dplyr_0.5.0   cowplot_0.7.0 ggplot2_2.2.1
 
 loaded via a namespace (and not attached):
- [1] locfit_1.5-9.1  Rcpp_0.12.10    lattice_0.20-34 digest_0.6.12  
- [5] rprojroot_1.2   assertthat_0.1  grid_3.3.2      R6_2.2.0       
- [9] DBI_0.6-1       backports_1.0.5 git2r_0.19.0    magrittr_1.5   
-[13] evaluate_0.10   stringi_1.1.5   lazyeval_0.2.0  rmarkdown_1.6  
-[17] tools_3.3.2     yaml_2.1.13     htmltools_0.3.6 knitr_1.16     
-[21] tibble_1.2     </code></pre>
+ [1] Rcpp_0.12.10     knitr_1.16       magrittr_1.5     munsell_0.4.3   
+ [5] lattice_0.20-34  colorspace_1.3-2 R6_2.2.0         plyr_1.8.4      
+ [9] tools_3.3.2      grid_3.3.2       gtable_0.2.0     DBI_0.6-1       
+[13] git2r_0.19.0     htmltools_0.3.6  yaml_2.1.13      lazyeval_0.2.0  
+[17] rprojroot_1.2    digest_0.6.12    assertthat_0.1   tibble_1.2      
+[21] evaluate_0.10    rmarkdown_1.6    labeling_0.3     stringi_1.1.2   
+[25] scales_0.4.1     backports_1.0.5  locfit_1.5-9.1  </code></pre>
 </div>
 
 <hr>
