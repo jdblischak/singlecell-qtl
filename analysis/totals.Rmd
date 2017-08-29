@@ -101,6 +101,38 @@ Reads with UMI  | `r mean(totals$umi)` | `r sd(totals$umi)` | `r specify_decimal
 Reads mapped to genome  | `r mean(totals$mapped)` | `r sd(totals$mapped)` | `r specify_decimal(mean(totals$mapped / totals$raw), k = 2)`
 Molecules mapped to genome  | `r mean(totals$molecules)` | `r sd(totals$molecules)` | `r specify_decimal(mean(totals$molecules / totals$raw), k = 2)`
 
+## How does the number of mapped reads vary by C1 chip?
+
+```{r mapped-per-chip}
+mapped <- totals_long %>%
+  filter(type == "Reads mapped\nto genome")
+ggplot(mapped, aes(x = experiment, y = count)) +
+  geom_boxplot() +
+  labs(x = "C1 chip", y = "Number of mapped reads",
+       title = "Mapped reads per C1 chip") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+```
+
+```{r total-mapped-per-chip}
+mapped_sum <- mapped %>%
+  group_by(experiment) %>%
+  summarize(total = sum(count))
+ggplot(mapped_sum, aes(x = experiment, y = total)) +
+  geom_bar(stat= "identity") +
+  labs(x = "C1 chip", y = "Total number of mapped reads",
+       title = "Total mapped reads per C1 chip") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+```
+
+Sorted by total number of mapped reads (in millions).
+
+```{r total-mapped-table}
+mapped_sum %>%
+  arrange(total) %>%
+  mutate(total = total / 10^6) %>%
+  knitr::kable()
+```
+
 ## What is the conversion of reads to molecules?
 
 ```{r reads-to-molecules, fig.width=10, fig.height=10}
