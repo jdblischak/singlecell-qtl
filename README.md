@@ -29,14 +29,6 @@ various other software packages. When you are done working on this project, you
 can either logout of the current session or deactivate the environment by
 running `source deactivate`.
 
-1. Download and install the R package [workflowr][] from source (unfortunately
-you can't use `devtools::install_github()` because of incompatibilities
-introduced in the conda environment)
-    ```
-    wget -O /tmp/workflowr-v0.7.0.tar.gz https://github.com/jdblischak/workflowr/archive/v0.7.0.tar.gz
-    R CMD INSTALL /tmp/workflowr-v0.7.0.tar.gz
-    ```
-
 If there are updates to `environment.yaml`, you can update the "scqtl"
 environment by running `conda env udpate --file environment.yaml`.
 
