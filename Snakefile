@@ -1,6 +1,6 @@
 # Snakefile
 #
-# This Snakefile runs the single cell analysis starting from the fastq files.
+# This Snakefile runs the single cell analysis starting from the FASTQ files.
 #
 # To configure the paths to data files and other settings, edit
 # config.yaml.
@@ -31,7 +31,7 @@ ensembl_genome_hs = config["ensembl_genome_hs"]
 # Paths to data (must end with forward slash)
 dir_proj = config["dir_proj"]
 dir_data = dir_proj + "data/"
-dir_fq = dir_data + "fastq/"
+dir_fq = config["dir_fq"]
 dir_fq_combin = dir_data + "fastq-combined/"
 scratch = config["scratch"]
 dir_genome = scratch + "genome-ensembl-release-" + str(ensembl_rel) + "/"
@@ -61,53 +61,83 @@ chr_hs = config["chr_hs"]
 
 # Input samples ----------------------------------------------------------------
 
+chips = config["chips"]
+rows = config["rows"]
+cols = config["cols"]
+
 samples = glob_wildcards(dir_fq + "YG-PYT-{samples}_L00{lane}_R1_001.fastq.gz").samples
 # Keep only unique values
 samples = list(set(samples))
 
-# Constrain sample wildcard to always be all numbers. Necessary to
+# Constrain wildcards. Necessary to
 # resolve some of the complex rules.
 # https://docs.python.org/3/howto/regex.html
-wildcard_constraints: sample = "[0-9]{8,8}-[A-H][0-1][0-9]_S[0-9]{2,4}"
+wildcard_constraints: chip = "[0-9]{8,8}", row = "[A-H]", col = "[0-1][0-9]"
 
 # Targets ----------------------------------------------------------------------
 
-rule all:
-    input: dir_data + "reads.txt.gz",
-           dir_data + "molecules.txt.gz",
-           dir_data + "totals.txt"
+rule chip_03232017:
+    input: totals = dir_data + "totals/03232017.txt",
+           reads = dir_data + "reads/03232017.txt.gz",
+           molecules = dir_data + "molecules/03232017.txt.gz",
+           verify = dir_data + "verify/03232017.txt"
 
-rule run_dedup_umi:
-    input: expand(dir_bam_dedup + "{sample}-sort.bam", sample = samples),
-           expand(dir_bam_dedup + "{sample}-sort.bam.bai", sample = samples)
+rule chip_04202017:
+    input: totals = dir_data + "totals/04202017.txt",
+           reads = dir_data + "reads/04202017.txt.gz",
+           molecules = dir_data + "molecules/04202017.txt.gz",
+           verify = dir_data + "verify/04202017.txt"
 
-rule totals:
-    input: dir_data + "totals.txt"
+rule target_counts:
+    input: bam = expand(dir_counts + "{chip}/{chip}-{row}{col}.genecounts.txt", \
+                        chip = chips, row = rows, col = cols)
 
-rule test_one:
-    input: dir_totals + "03172017-D08_S428.txt"
-
-rule test_more:
-    input: expand(dir_counts + "{sample}.genecounts.txt", sample = samples[:10])
-
-rule run_featurecounts:
-    input: expand(dir_counts + "{sample}.genecounts.txt", sample = samples)
+rule target_bam:
+    input: bam = expand(dir_bam + "{chip}/{chip}-{row}{col}-sort.bam", \
+                        chip = chips, row = rows, col = cols),
+           index = expand(dir_bam + "{chip}/{chip}-{row}{col}-sort.bam.bai", \
+                          chip = chips, row = rows, col = cols)
 
 rule target_fastq:
-    input: expand(dir_fq_combin + "{sample}.fastq.gz", \
-                  sample = ["03162017-A01_S193", "03172017-B08_S404"])
+    input: expand(dir_fq_combin + "{chip}/{chip}-{row}{col}.fastq.gz", \
+                  chip = chips, row = rows, col = cols)
 
-rule exons:
-    input: dir_genome + ensembl_exons
+# rule all:
+#     input: dir_data + "reads.txt.gz",
+#            dir_data + "molecules.txt.gz",
+#            dir_data + "totals.txt"
 
-rule download_fasta:
-    input: expand(dir_genome + "Caenorhabditis_elegans." + ensembl_genome_ce + \
-                  ".dna_sm.chromosome.{chr}.fa.gz", chr = chr_ce),
-           expand(dir_genome + "Drosophila_melanogaster." + ensembl_genome_dm + \
-                  ".dna_sm.chromosome.{chr}.fa.gz", chr = chr_dm),
-           expand(dir_genome + "Homo_sapiens." + ensembl_genome_hs + \
-                  ".dna_sm.chromosome.{chr}.fa.gz", chr = chr_hs),
-           dir_genome + "ercc.fa"
+# rule run_dedup_umi:
+#     input: expand(dir_bam_dedup + "{sample}-sort.bam", sample = samples),
+#            expand(dir_bam_dedup + "{sample}-sort.bam.bai", sample = samples)
+
+# rule totals:
+#     input: dir_data + "totals.txt"
+
+# rule test_one:
+#     input: dir_totals + "03172017-D08_S428.txt"
+
+# rule test_more:
+#     input: expand(dir_counts + "{sample}.genecounts.txt", sample = samples[:10])
+
+# rule run_featurecounts:
+#     input: expand(dir_counts + "{sample}.genecounts.txt", sample = samples)
+
+# rule target_fastq:
+#     input: expand(dir_fq_combin + "{sample}.fastq.gz", \
+#                   sample = ["03162017-A01_S193", "03172017-B08_S404"])
+
+# rule exons:
+#     input: dir_genome + ensembl_exons
+
+# rule download_fasta:
+#     input: expand(dir_genome + "Caenorhabditis_elegans." + ensembl_genome_ce + \
+#                   ".dna_sm.chromosome.{chr}.fa.gz", chr = chr_ce),
+#            expand(dir_genome + "Drosophila_melanogaster." + ensembl_genome_dm + \
+#                   ".dna_sm.chromosome.{chr}.fa.gz", chr = chr_dm),
+#            expand(dir_genome + "Homo_sapiens." + ensembl_genome_hs + \
+#                   ".dna_sm.chromosome.{chr}.fa.gz", chr = chr_hs),
+#            dir_genome + "ercc.fa"
 
 # Functions --------------------------------------------------------------------
 
@@ -116,9 +146,14 @@ rule download_fasta:
 # https://groups.google.com/forum/#!searchin/snakemake/multiple$20input$20files%7Csort:relevance/snakemake/bpTnr7FgDuQ/ybacyom6BQAJ
 def merge_fastq(wc):
     unknowns = glob_wildcards(dir_fq +
-                              "YG-PYT-{s}_L{{lane}}_R1_001.fastq.gz".format(s = wc.sample))
-    files = expand(dir_fq + "YG-PYT-{s}_L{{lane}}_R1_001.fastq.gz".format(s = wc.sample),
-                   zip, lane = unknowns.lane)
+        "YG-PYT-{chip}-{row}{col}_S{{s}}_L{{lane}}_R1_001.fastq.gz".format(chip = wc.chip,
+                                                                           row = wc.row,
+                                                                           col = wc.col))
+    files = expand(dir_fq +
+        "YG-PYT-{chip}-{row}{col}_S{{s}}_L{{lane}}_R1_001.fastq.gz".format(chip = wc.chip,
+                                                                           row = wc.row,
+                                                                           col = wc.col),
+                   zip, s = unknowns.s, lane = unknowns.lane)
     return files
 
 # Prepare genome annotation ----------------------------------------------------
@@ -204,12 +239,12 @@ rule subread_index:
 
 rule combine_fastq:
     input: merge_fastq
-    output: dir_fq_combin + "{sample}.fastq.gz"
+    output: dir_fq_combin + "{chip}/{chip}-{row}{col}.fastq.gz"
     shell: "zcat {input} | gzip -c > {output}"
 
 rule filter_umi:
-    input: dir_fq_combin + "{sample}.fastq.gz"
-    output: temp(dir_fq_filter + "{sample}.fastq.gz")
+    input: dir_fq_combin + "{chip}/{chip}-{row}{col}.fastq.gz"
+    output: temp(dir_fq_filter + "{chip}/{chip}-{row}{col}.fastq.gz")
     run:
         from Bio import SeqIO
         import gzip
@@ -233,14 +268,14 @@ rule filter_umi:
         handle_out.close()
 
 rule extract_umi:
-    input: dir_fq_filter + "{sample}.fastq.gz"
-    output: temp(dir_fq_extract + "{sample}.fastq.gz")
+    input: dir_fq_filter + "{chip}/{chip}-{row}{col}.fastq.gz"
+    output: temp(dir_fq_extract + "{chip}/{chip}-{row}{col}.fastq.gz")
     shell: "umi_tools extract --bc-pattern=NNNNNNNNN -I {input} -S {output}"
 
 rule subjunc:
-    input: read = dir_fq_extract + "{sample}.fastq.gz",
+    input: read = dir_fq_extract + "{chip}/{chip}-{row}{col}.fastq.gz",
            index = dir_genome + "genome.reads"
-    output: temp(dir_bam + "{sample}.bam")
+    output: temp(dir_bam + "{chip}/{chip}-{row}{col}.bam")
     params: prefix = dir_genome + "genome"
     threads: 8
     shell: "subjunc -i {params.prefix} -r {input.read} -T {threads} > {output}"
@@ -249,41 +284,56 @@ rule subjunc:
 # generically so that they can be applied to both the originally
 # mapped BAM file and also the BAM file post-UMI-deduplication.
 rule sort_bam:
-    input: "{dir}/{sample}.bam"
-    output: "{dir}/{sample}-sort.bam"
+    input: "{dir}/{chip}/{chip}-{row}{col}.bam"
+    output: "{dir}/{chip}/{chip}-{row}{col}-sort.bam"
     shell: "samtools sort -o {output} {input}"
 
+localrules: index_bam
+
 rule index_bam:
-    input: "{dir}/{sample}-sort.bam"
-    output: "{dir}/{sample}-sort.bam.bai"
+    input: "{dir}/{chip}/{chip}-{row}{col}-sort.bam"
+    output: "{dir}/{chip}/{chip}-{row}{col}-sort.bam.bai"
     shell: "samtools index {input}"
 
 rule dedup_umi:
-    input: bam = dir_bam + "{sample}-sort.bam",
-           index = dir_bam + "{sample}-sort.bam.bai"
-    output: bam = temp(dir_bam_dedup + "{sample}.bam"),
-            edit_distance = dir_bam_dedup_stats + "{sample}_edit_distance.tsv",
-            per_umi_per_position = dir_bam_dedup_stats + "{sample}_per_umi_per_position.tsv",
-            per_umi = dir_bam_dedup_stats + "{sample}_per_umi.tsv"
-    params: stats = dir_bam_dedup_stats + "{sample}"
+    input: bam = dir_bam + "{chip}/{chip}-{row}{col}-sort.bam",
+           index = dir_bam + "{chip}/{chip}-{row}{col}-sort.bam.bai"
+    output: bam = temp(dir_bam_dedup + "{chip}/{chip}-{row}{col}.bam"),
+            edit_distance = dir_bam_dedup_stats + "{chip}/{chip}-{row}{col}_edit_distance.tsv",
+            per_umi_per_position = dir_bam_dedup_stats + "{chip}/{chip}-{row}{col}_per_umi_per_position.tsv",
+            per_umi = dir_bam_dedup_stats + "{chip}/{chip}-{row}{col}_per_umi.tsv"
+    params: stats = dir_bam_dedup_stats + "{chip}/{chip}-{row}{col}"
     shell: "umi_tools dedup -I {input.bam} --output-stats={params.stats} -S {output.bam}"
 
 rule feauturecounts:
-    input: bam = dir_bam + "{sample}-sort.bam",
-           dedup = dir_bam_dedup + "{sample}-sort.bam",
+    input: bam = dir_bam + "{chip}/{chip}-{row}{col}-sort.bam",
+           dedup = dir_bam_dedup + "{chip}/{chip}-{row}{col}-sort.bam",
            exons = dir_genome + ensembl_exons
-    output: dir_counts + "{sample}.genecounts.txt"
+    output: dir_counts + "{chip}/{chip}-{row}{col}.genecounts.txt"
     threads: 8
     shell: "featureCounts -a {input.exons} -F SAF -s 1 --read2pos 5 \
             -T {threads} -o {output} {input.bam} {input.dedup}"
 
+rule target_counts_test:
+    input: dir_data + "reads/04202017.txt.gz",
+           dir_data + "molecules/04202017.txt.gz"
+
+def merge_counts(wc):
+    pattern = dir_counts + "{chip}/{chip}-{{row}}{{col}}.genecounts.txt"
+    unknowns = glob_wildcards(pattern.format(chip = wc.chip))
+    files = expand(pattern.format(chip = wc.chip),
+                   zip, row = unknowns.row, col = unknowns.col)
+    return files
+
 rule gather_counts:
-    input: expand(dir_counts + "{sample}.genecounts.txt", sample = samples)
-    output: reads = dir_data + "reads.txt.gz",
-            molecules = dir_data + "molecules.txt.gz"
+    input: merge_counts
+    output: reads = dir_data + "reads/{chip}.txt.gz",
+            molecules = dir_data + "molecules/{chip}.txt.gz"
     run:
         import gzip
         import os
+
+        input.sort()
 
         reads = gzip.open(output.reads, "wt")
         molecules = gzip.open(output.molecules, "wt")
@@ -301,18 +351,16 @@ rule gather_counts:
         # Write header
         header = "\t".join(["sample",
                             "experiment",
-                            "well",
-                            "id"] + genes) + "\n"
+                            "well"] + genes) + "\n"
         reads.write(header)
         molecules.write(header)
 
         # Obtain and write gene counts for each sample
         for f in input:
             sample = os.path.basename(f).rstrip(".genecounts.txt")
-            experiment, remaining = sample.split("-")
-            well, id = remaining.split("_")
-            reads.write("\t".join([sample, experiment, well, id]) + "\t")
-            molecules.write("\t".join([sample, experiment, well, id]) + "\t")
+            experiment, well = sample.split("-")
+            reads.write("\t".join([sample, experiment, well]) + "\t")
+            molecules.write("\t".join([sample, experiment, well]) + "\t")
             with open(f, "r") as handle:
                 n_reads = [""] * len(genes)
                 n_molecules = [""] * len(genes)
@@ -333,12 +381,12 @@ rule gather_counts:
         molecules.close()
 
 rule count_totals:
-    input: fastq = dir_fq_combin + "{sample}.fastq.gz",
-           bam = dir_bam + "{sample}-sort.bam",
-           bam_index = dir_bam + "{sample}-sort.bam.bai",
-           dedup = dir_bam_dedup + "{sample}-sort.bam",
-           dedup_index = dir_bam_dedup + "{sample}-sort.bam.bai"
-    output: dir_totals + "{sample}.txt"
+    input: fastq = dir_fq_combin + "{chip}/{chip}-{row}{col}.fastq.gz",
+           bam = dir_bam + "{chip}/{chip}-{row}{col}-sort.bam",
+           bam_index = dir_bam + "{chip}/{chip}-{row}{col}-sort.bam.bai",
+           dedup = dir_bam_dedup + "{chip}/{chip}-{row}{col}-sort.bam",
+           dedup_index = dir_bam_dedup + "{chip}/{chip}-{row}{col}-sort.bam.bai"
+    output: dir_totals + "{chip}/{chip}-{row}{col}.txt"
     run:
         # Count the number of raw reads
         import gzip
@@ -431,17 +479,28 @@ rule count_totals:
                                  str(mol_hs)]
                       ) + "\n")
 
+rule target_totals_test:
+    input: dir_data + "totals/04202017.txt"
+
+def merge_totals(wc):
+    pattern = dir_totals + "{chip}/{chip}-{{row}}{{col}}.txt"
+    unknowns = glob_wildcards(pattern.format(chip = wc.chip))
+    files = expand(pattern.format(chip = wc.chip),
+                   zip, row = unknowns.row, col = unknowns.col)
+    return files
+
 rule gather_totals:
-    input: expand(dir_totals + "{sample}.txt", sample = samples)
-    output: dir_data + "totals.txt"
+    input: merge_totals
+    output: dir_data + "totals/{chip}.txt"
     run:
         import os
+
+        input.sort()
 
         outfile = open(output[0], "w")
         header = "\t".join(["sample",
                             "experiment",
                             "well",
-                            "id",
                             "raw",
                             "umi",
                             "mapped",
@@ -456,11 +515,11 @@ rule gather_totals:
                             "mol_ercc",
                             "mol_hs"]) + "\n"
         outfile.write(header)
+
         for f in input:
             sample = os.path.basename(f).rstrip(".txt")
-            experiment, remaining = sample.split("-")
-            well, id = remaining.split("_")
-            outfile.write("\t".join([sample, experiment, well, id]) + "\t")
+            experiment, well = sample.split("-")
+            outfile.write("\t".join([sample, experiment, well]) + "\t")
             with open(f, "r") as handle:
                 outfile.write(handle.read())
         outfile.close()
@@ -482,9 +541,9 @@ rule prepare_genos:
 # "1" or "chr1" so that it can filter non-autosomal chromsomes. Mine
 # are "hs1" to distinguish from the other species.
 rule prepare_bam:
-    input: bam = dir_bam_dedup + "{sample}-sort.bam",
-           index = dir_bam_dedup + "{sample}-sort.bam.bai"
-    output: bam = temp(dir_bam_verify + "{sample}-sort.bam")
+    input: bam = dir_bam_dedup + "{chip}/{chip}-{row}{col}-sort.bam",
+           index = dir_bam_dedup + "{chip}/{chip}-{row}{col}-sort.bam.bai"
+    output: bam = temp(dir_bam_verify + "{chip}/{chip}-{row}{col}-sort.bam")
     shell: "samtools view -H {input.bam} | \
             sed -e 's/SN:hs/SN:/g' | \
             samtools reheader - {input.bam} > {output.bam}"
@@ -492,21 +551,20 @@ rule prepare_bam:
 # Run verifyBamID to obtain the best individual match for the BAM file
 rule verify_bam:
     input: vcf =  dir_data + "snps.grch37.exons.vcf.gz",
-           bam = dir_bam_verify + "{sample}-sort.bam",
-           index = dir_bam_verify + "{sample}-sort.bam.bai"
-    output: bestSM = dir_id + "{sample}.bestSM",
-            depthSM = dir_id + "{sample}.depthSM",
-            selfSM = temp(dir_id + "{sample}.selfSM"),
-            log = dir_id + "{sample}.log"
-    params: prefix = dir_id + "{sample}",
-            individual = "{sample}"
+           bam = dir_bam_verify + "{chip}/{chip}-{row}{col}-sort.bam",
+           index = dir_bam_verify + "{chip}/{chip}-{row}{col}-sort.bam.bai"
+    output: bestSM = dir_id + "{chip}/{chip}-{row}{col}.bestSM",
+            depthSM = dir_id + "{chip}/{chip}-{row}{col}.depthSM",
+            selfSM = temp(dir_id + "{chip}/{chip}-{row}{col}.selfSM"),
+            log = dir_id + "{chip}/{chip}-{row}{col}.log"
+    params: prefix = dir_id + "{chip}/{chip}-{row}{col}"
     shell: "verifyBamID --vcf {input.vcf} --bam {input.bam} --best --ignoreRG --out {params.prefix}"
 
 rule parse_verify:
-    input: bestSM = dir_id + "{sample}.bestSM",
-           depthSM = dir_id + "{sample}.depthSM"
-    output: dir_id + "{sample}-results.txt"
-    params: id = "{sample}"
+    input: bestSM = dir_id + "{chip}/{chip}-{row}{col}.bestSM",
+           depthSM = dir_id + "{chip}/{chip}-{row}{col}.depthSM"
+    output: dir_id + "{chip}/{chip}-{row}{col}-results.txt"
+    params: id = "{chip}-{row}{col}"
     run:
         bestSM = open(input.bestSM, "rt")
         depthSM = open(input.depthSM, "rt")
@@ -558,9 +616,19 @@ rule parse_verify:
         depthSM.close()
         results.close()
 
+rule target_verify_test:
+    input: dir_data + "verify/04202017.txt"
+
+def merge_verify(wc):
+    pattern = dir_id + "{chip}/{chip}-{{row}}{{col}}.txt"
+    unknowns = glob_wildcards(pattern.format(chip = wc.chip))
+    files = expand(pattern.format(chip = wc.chip),
+                   zip, row = unknowns.row, col = unknowns.col)
+    return files
+
 rule combine_verify:
-    input: expand(dir_id + "{sample}-results.txt", sample = samples)
-    output: dir_data + "verify.txt"
+    input: merge_verify
+    output: dir_data + "verify/{chip}.txt"
     shell:
         "head -n 1 {input[0]} > {output};"
-        "cat {input} | grep -v \"id\" | sort -k1n >> {output}"
+        "cat {input} | grep -v \"id\" | sort -k1 >> {output}"

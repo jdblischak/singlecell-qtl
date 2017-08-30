@@ -5,7 +5,7 @@ source activate scqtl
 snakemake \
     -kp \
     --ri \
-    -j 500 \
+    -j 100 \
     --cluster-config cluster.json \
     -c "sbatch \
         --mem={cluster.mem} \
