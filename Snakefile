@@ -8,7 +8,27 @@
 # To configure job submission settings for your cluster, edit
 # cluster.json and submit-snakemake.sh.
 #
-# To run on RCC Midway2 use `bash submit-snakemake.sh`
+# To run on RCC Midway2, follow these steps:
+#
+# 1. Start an interactive session. The example command below starts an
+#    interactive session on a Midway2 compute node with 4 GB of RAM, 4 CPUs for
+#    multithreading, and a time limit of 24 hours.
+#
+#    sinteractive --mem=4G --tasks-per-node=4 --partition=broadwl --time=24:00:00
+#
+# 2. Run the following command from the root of the project directory. nohup
+#    prevents the job from dying if you lose connection with the session. The
+#    script submit-snakemake.sh activates the conda environment and then runs
+#    snakemake with reasonable defaults.
+#
+#    nohup bash submit-snakemake.sh &
+#
+# 3. Monitor progress using any of the following:
+#
+#    tail nohup.out
+#    grep % nohup.out | tail
+#    ls log/ | wc -l
+#
 
 import glob
 import os
@@ -188,10 +208,10 @@ rule gather_exons:
 
 # Quantify expression with Subjunc/featureCounts -------------------------------
 
-localrules: index_bam
+localrules: index_bam, index_bam_dedup
 
 rule target_counts:
-    input: bam = expand(dir_counts + "{chip}/{chip}-{row}{col}.genecounts.txt", \
+    input: bam = expand(dir_counts + "{chip}/{chip}-{row}{col}.txt", \
                         chip = chips, row = rows, col = cols)
 
 rule target_bam:
@@ -256,17 +276,14 @@ rule subjunc:
     threads: 8
     shell: "subjunc -i {params.prefix} -r {input.read} -T {threads} > {output}"
 
-# The following rules to sort and index a BAM file are written
-# generically so that they can be applied to both the originally
-# mapped BAM file and also the BAM file post-UMI-deduplication.
 rule sort_bam:
-    input: "{dir}/{chip}/{chip}-{row}{col}.bam"
-    output: "{dir}/{chip}/{chip}-{row}{col}-sort.bam"
+    input: dir_bam + "{chip}/{chip}-{row}{col}.bam"
+    output: dir_bam + "{chip}/{chip}-{row}{col}-sort.bam"
     shell: "samtools sort -o {output} {input}"
 
 rule index_bam:
-    input: "{dir}/{chip}/{chip}-{row}{col}-sort.bam"
-    output: "{dir}/{chip}/{chip}-{row}{col}-sort.bam.bai"
+    input: dir_bam + "{chip}/{chip}-{row}{col}-sort.bam"
+    output: dir_bam + "{chip}/{chip}-{row}{col}-sort.bam.bai"
     shell: "samtools index {input}"
 
 rule dedup_umi:
@@ -278,6 +295,26 @@ rule dedup_umi:
             per_umi = dir_bam_dedup_stats + "{chip}/{chip}-{row}{col}_per_umi.tsv"
     params: stats = dir_bam_dedup_stats + "{chip}/{chip}-{row}{col}"
     shell: "umi_tools dedup -I {input.bam} --output-stats={params.stats} -S {output.bam}"
+
+# These are copied and modified from the above rules for sorting and indexing a
+# BAM file because they the deduplicated BAM files are saved in a separate
+# directory. I could put them all in the same directory and change the suffix of
+# the filename to distinguish them, but that would result in many files in one
+# directory. I had tried combining the rules by have the directory as a
+# wildcard. This worked great when run sequentially, but my batch submission
+# pipeline inserts the wildcards into the job name and log files so that they
+# are interpretable. Inserting a path with forward slashes into the log files
+# caused them to run for a second and then instantly die without producing a log
+# file.
+rule sort_bam_dedup:
+    input: dir_bam_dedup + "{chip}/{chip}-{row}{col}.bam"
+    output: dir_bam_dedup + "{chip}/{chip}-{row}{col}-sort.bam"
+    shell: "samtools sort -o {output} {input}"
+
+rule index_bam_dedup:
+    input: dir_bam_dedup + "{chip}/{chip}-{row}{col}-sort.bam"
+    output: dir_bam_dedup + "{chip}/{chip}-{row}{col}-sort.bam.bai"
+    shell: "samtools index {input}"
 
 rule feauturecounts:
     input: bam = dir_bam + "{chip}/{chip}-{row}{col}-sort.bam",
@@ -321,7 +358,7 @@ rule gather_counts:
 
         # Obtain and write gene counts for each sample
         for f in input:
-            sample = os.path.basename(f).rstrip(".genecounts.txt")
+            sample = os.path.basename(f).rstrip(".txt")
             experiment, well = sample.split("-")
             reads.write("\t".join([sample, experiment, well]) + "\t")
             molecules.write("\t".join([sample, experiment, well]) + "\t")
@@ -489,7 +526,7 @@ rule gather_totals:
 
 # Identify individuals with verifyBamID ----------------------------------------
 
-localrules: parse_verify, combine_verify
+localrules: index_bam_verify, parse_verify, combine_verify
 
 rule target_verify:
     input: expand(dir_data + "verify/{chip}.txt", chip = chips)
@@ -512,6 +549,17 @@ rule prepare_bam:
     shell: "samtools view -H {input.bam} | \
             sed -e 's/SN:hs/SN:/g' | \
             samtools reheader - {input.bam} > {output.bam}"
+
+# Copied and modified from earlier rules. See note above for explanation.
+rule sort_bam_verify:
+    input: dir_bam_verify + "{chip}/{chip}-{row}{col}.bam"
+    output: dir_bam_verify + "{chip}/{chip}-{row}{col}-sort.bam"
+    shell: "samtools sort -o {output} {input}"
+
+rule index_bam_verify:
+    input: dir_bam_verify + "{chip}/{chip}-{row}{col}-sort.bam"
+    output: dir_bam_verify + "{chip}/{chip}-{row}{col}-sort.bam.bai"
+    shell: "samtools index {input}"
 
 # Run verifyBamID to obtain the best individual match for the BAM file
 rule verify_bam:
