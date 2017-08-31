@@ -65,16 +65,17 @@ chips = config["chips"]
 rows = config["rows"]
 cols = config["cols"]
 
-samples = glob_wildcards(dir_fq + "YG-PYT-{samples}_L00{lane}_R1_001.fastq.gz").samples
-# Keep only unique values
-samples = list(set(samples))
-
-# Constrain wildcards. Necessary to
-# resolve some of the complex rules.
+# Constrain wildcards. Necessary to resolve some of the complex rules.
 # https://docs.python.org/3/howto/regex.html
 wildcard_constraints: chip = "[0-9]{8,8}", row = "[A-H]", col = "[0-1][0-9]"
 
 # Targets ----------------------------------------------------------------------
+
+rule all:
+    input: totals = expand(dir_data + "totals/{chip}.txt", chip = chips),
+           reads = expand(dir_data + "reads/{chip}.txt.gz", chip = chips),
+           molecules = expand(dir_data + "molecules/{chip}.txt.gz", chip = chips),
+           verify = expand(dir_data + "verify/{chip}.txt", chip = chips)
 
 rule chip_03232017:
     input: totals = dir_data + "totals/03232017.txt",
@@ -88,75 +89,34 @@ rule chip_04202017:
            molecules = dir_data + "molecules/04202017.txt.gz",
            verify = dir_data + "verify/04202017.txt"
 
-rule target_counts:
-    input: bam = expand(dir_counts + "{chip}/{chip}-{row}{col}.genecounts.txt", \
-                        chip = chips, row = rows, col = cols)
-
-rule target_bam:
-    input: bam = expand(dir_bam + "{chip}/{chip}-{row}{col}-sort.bam", \
-                        chip = chips, row = rows, col = cols),
-           index = expand(dir_bam + "{chip}/{chip}-{row}{col}-sort.bam.bai", \
-                          chip = chips, row = rows, col = cols)
-
-rule target_fastq:
-    input: expand(dir_fq_combin + "{chip}/{chip}-{row}{col}.fastq.gz", \
-                  chip = chips, row = rows, col = cols)
-
-# rule all:
-#     input: dir_data + "reads.txt.gz",
-#            dir_data + "molecules.txt.gz",
-#            dir_data + "totals.txt"
-
-# rule run_dedup_umi:
-#     input: expand(dir_bam_dedup + "{sample}-sort.bam", sample = samples),
-#            expand(dir_bam_dedup + "{sample}-sort.bam.bai", sample = samples)
-
-# rule totals:
-#     input: dir_data + "totals.txt"
-
-# rule test_one:
-#     input: dir_totals + "03172017-D08_S428.txt"
-
-# rule test_more:
-#     input: expand(dir_counts + "{sample}.genecounts.txt", sample = samples[:10])
-
-# rule run_featurecounts:
-#     input: expand(dir_counts + "{sample}.genecounts.txt", sample = samples)
-
-# rule target_fastq:
-#     input: expand(dir_fq_combin + "{sample}.fastq.gz", \
-#                   sample = ["03162017-A01_S193", "03172017-B08_S404"])
-
-# rule exons:
-#     input: dir_genome + ensembl_exons
-
-# rule download_fasta:
-#     input: expand(dir_genome + "Caenorhabditis_elegans." + ensembl_genome_ce + \
-#                   ".dna_sm.chromosome.{chr}.fa.gz", chr = chr_ce),
-#            expand(dir_genome + "Drosophila_melanogaster." + ensembl_genome_dm + \
-#                   ".dna_sm.chromosome.{chr}.fa.gz", chr = chr_dm),
-#            expand(dir_genome + "Homo_sapiens." + ensembl_genome_hs + \
-#                   ".dna_sm.chromosome.{chr}.fa.gz", chr = chr_hs),
-#            dir_genome + "ercc.fa"
-
 # Functions --------------------------------------------------------------------
 
 # Find all fastq.gz files for a given sample.
 # Inspired by this post on the Snakemake Google Group:
 # https://groups.google.com/forum/#!searchin/snakemake/multiple$20input$20files%7Csort:relevance/snakemake/bpTnr7FgDuQ/ybacyom6BQAJ
 def merge_fastq(wc):
-    unknowns = glob_wildcards(dir_fq +
-        "YG-PYT-{chip}-{row}{col}_S{{s}}_L{{lane}}_R1_001.fastq.gz".format(chip = wc.chip,
-                                                                           row = wc.row,
-                                                                           col = wc.col))
-    files = expand(dir_fq +
-        "YG-PYT-{chip}-{row}{col}_S{{s}}_L{{lane}}_R1_001.fastq.gz".format(chip = wc.chip,
-                                                                           row = wc.row,
-                                                                           col = wc.col),
+    pattern = dir_fq + "YG-PYT-{chip}-{row}{col}_S{{s}}_L{{lane}}_R1_001.fastq.gz"
+    unknowns = glob_wildcards(pattern.format(chip = wc.chip, row = wc.row,
+                                             col = wc.col))
+    files = expand(pattern.format(chip = wc.chip, row = wc.row, col = wc.col),
                    zip, s = unknowns.s, lane = unknowns.lane)
     return files
 
 # Prepare genome annotation ----------------------------------------------------
+
+localrules: download_ercc, download_ercc_gtf, gather_exons
+
+rule target_exons:
+    input: dir_genome + ensembl_exons
+
+rule target_fasta:
+    input: expand(dir_genome + "Caenorhabditis_elegans." + ensembl_genome_ce + \
+                  ".dna_sm.chromosome.{chr}.fa.gz", chr = chr_ce),
+           expand(dir_genome + "Drosophila_melanogaster." + ensembl_genome_dm + \
+                  ".dna_sm.chromosome.{chr}.fa.gz", chr = chr_dm),
+           expand(dir_genome + "Homo_sapiens." + ensembl_genome_hs + \
+                  ".dna_sm.chromosome.{chr}.fa.gz", chr = chr_hs),
+           dir_genome + "ercc.fa"
 
 rule download_genome_ce:
     output: dir_genome + "Caenorhabditis_elegans." + ensembl_genome_ce + \
@@ -226,7 +186,23 @@ rule gather_exons:
     shell: "cat {input[0]} | grep GeneID > {output}; \
            cat {input} | grep -v GeneID >> {output}"
 
-# Quanitify expression with Subjunc/featureCounts ------------------------------
+# Quantify expression with Subjunc/featureCounts -------------------------------
+
+localrules: index_bam
+
+rule target_counts:
+    input: bam = expand(dir_counts + "{chip}/{chip}-{row}{col}.genecounts.txt", \
+                        chip = chips, row = rows, col = cols)
+
+rule target_bam:
+    input: bam = expand(dir_bam + "{chip}/{chip}-{row}{col}-sort.bam", \
+                        chip = chips, row = rows, col = cols),
+           index = expand(dir_bam + "{chip}/{chip}-{row}{col}-sort.bam.bai", \
+                          chip = chips, row = rows, col = cols)
+
+rule target_fastq:
+    input: expand(dir_fq_combin + "{chip}/{chip}-{row}{col}.fastq.gz", \
+                  chip = chips, row = rows, col = cols)
 
 rule subread_index:
     input: dir_genome + "ce.fa",
@@ -288,8 +264,6 @@ rule sort_bam:
     output: "{dir}/{chip}/{chip}-{row}{col}-sort.bam"
     shell: "samtools sort -o {output} {input}"
 
-localrules: index_bam
-
 rule index_bam:
     input: "{dir}/{chip}/{chip}-{row}{col}-sort.bam"
     output: "{dir}/{chip}/{chip}-{row}{col}-sort.bam.bai"
@@ -309,24 +283,14 @@ rule feauturecounts:
     input: bam = dir_bam + "{chip}/{chip}-{row}{col}-sort.bam",
            dedup = dir_bam_dedup + "{chip}/{chip}-{row}{col}-sort.bam",
            exons = dir_genome + ensembl_exons
-    output: dir_counts + "{chip}/{chip}-{row}{col}.genecounts.txt"
+    output: dir_counts + "{chip}/{chip}-{row}{col}.txt"
     threads: 8
     shell: "featureCounts -a {input.exons} -F SAF -s 1 --read2pos 5 \
             -T {threads} -o {output} {input.bam} {input.dedup}"
 
-rule target_counts_test:
-    input: dir_data + "reads/04202017.txt.gz",
-           dir_data + "molecules/04202017.txt.gz"
-
-def merge_counts(wc):
-    pattern = dir_counts + "{chip}/{chip}-{{row}}{{col}}.genecounts.txt"
-    unknowns = glob_wildcards(pattern.format(chip = wc.chip))
-    files = expand(pattern.format(chip = wc.chip),
-                   zip, row = unknowns.row, col = unknowns.col)
-    return files
-
 rule gather_counts:
-    input: merge_counts
+    input: expand(dir_counts + "{{chip}}/{{chip}}-{row}{col}.txt", \
+                  row = rows, col = cols)
     output: reads = dir_data + "reads/{chip}.txt.gz",
             molecules = dir_data + "molecules/{chip}.txt.gz"
     run:
@@ -379,6 +343,14 @@ rule gather_counts:
 
         reads.close()
         molecules.close()
+
+# Calculate total counts -------------------------------------------------------
+
+localrules: gather_totals
+
+rule target_totals:
+    input: expand(dir_data + "totals/{chip}.txt", \
+                  chip = chips, row = rows, col = cols)
 
 rule count_totals:
     input: fastq = dir_fq_combin + "{chip}/{chip}-{row}{col}.fastq.gz",
@@ -479,18 +451,9 @@ rule count_totals:
                                  str(mol_hs)]
                       ) + "\n")
 
-rule target_totals_test:
-    input: dir_data + "totals/04202017.txt"
-
-def merge_totals(wc):
-    pattern = dir_totals + "{chip}/{chip}-{{row}}{{col}}.txt"
-    unknowns = glob_wildcards(pattern.format(chip = wc.chip))
-    files = expand(pattern.format(chip = wc.chip),
-                   zip, row = unknowns.row, col = unknowns.col)
-    return files
-
 rule gather_totals:
-    input: merge_totals
+    input: expand(dir_totals + "{{chip}}/{{chip}}-{row}{col}.txt", \
+                  row = rows, col = cols)
     output: dir_data + "totals/{chip}.txt"
     run:
         import os
@@ -526,8 +489,10 @@ rule gather_totals:
 
 # Identify individuals with verifyBamID ----------------------------------------
 
-rule verify:
-    input: dir_data + "verify.txt"
+localrules: parse_verify, combine_verify
+
+rule target_verify:
+    input: expand(dir_data + "verify/{chip}.txt", chip = chips)
 
 # The VCF file doesn't contain mitochondrial SNPs, thus it is easy to
 # convert from UCSC chromsome names to Ensembl by just removing the
@@ -560,6 +525,8 @@ rule verify_bam:
     params: prefix = dir_id + "{chip}/{chip}-{row}{col}"
     shell: "verifyBamID --vcf {input.vcf} --bam {input.bam} --best --ignoreRG --out {params.prefix}"
 
+# Parse the various verifyBamID output files into one tab-separated file. Each
+# sample has one file with a header row and a data row.
 rule parse_verify:
     input: bestSM = dir_id + "{chip}/{chip}-{row}{col}.bestSM",
            depthSM = dir_id + "{chip}/{chip}-{row}{col}.depthSM"
@@ -616,18 +583,10 @@ rule parse_verify:
         depthSM.close()
         results.close()
 
-rule target_verify_test:
-    input: dir_data + "verify/04202017.txt"
-
-def merge_verify(wc):
-    pattern = dir_id + "{chip}/{chip}-{{row}}{{col}}.txt"
-    unknowns = glob_wildcards(pattern.format(chip = wc.chip))
-    files = expand(pattern.format(chip = wc.chip),
-                   zip, row = unknowns.row, col = unknowns.col)
-    return files
-
+# Combine all the samples for a given chip into one file.
 rule combine_verify:
-    input: merge_verify
+    input: expand(dir_id + "{{chip}}/{{chip}}-{row}{col}-results.txt", \
+                  row = rows, col = cols)
     output: dir_data + "verify/{chip}.txt"
     shell:
         "head -n 1 {input[0]} > {output};"

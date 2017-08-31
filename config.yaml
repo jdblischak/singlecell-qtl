@@ -29,7 +29,7 @@ dir_log: log/
 # and testing the pipeline.
 
 # C1 chips
-chips: ["03232017", "04202017"]
+chips: ["03232017", "03302017", "04202017"]
 
 # rows of chips
 rows: ["A", "B", "C", "D", "E", "F", "G", "H"]
