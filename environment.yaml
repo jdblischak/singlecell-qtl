@@ -31,6 +31,7 @@ channels:
   - defaults
   - r
 dependencies:
+  - bioconductor-biobase
   - bioconductor-biomart
   - bioconductor-edger
   - biopython
@@ -40,6 +41,7 @@ dependencies:
   - python
   - r-base
   - r-cowplot
+  - r-data.table
   - r-devtools
   - r-dplyr
   - r-ggplot2
