@@ -95,6 +95,12 @@ rownames(metadata) <- c(colnames(pheno))
 pheno_anno <- new("AnnotatedDataFrame", data = pheno, varMetadata = metadata)
 # Add back leading zero for experiment ID
 pheno_anno$experiment <- paste0("0", pheno_anno$experiment)
+# ERCC column must be character, even if all NA, so that it can be combined with
+# other ExpressionSet objects
+pheno_anno$ERCC <- as.character(pheno_anno$ERCC)
+# concentration column must be numeric, even if all NA, so that it can be
+# combined with other ExpressionSet objects
+pheno_anno$concentration <- as.numeric(pheno_anno$concentration)
 
 # Access info:
 # sampleNames(pheno_anno)
