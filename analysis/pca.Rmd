@@ -27,161 +27,119 @@ knitr::read_chunk("chunks.R")
 ## Setup
 
 ```{r packages, message=FALSE}
-library("Biobase")
 library("cowplot")
 library("dplyr")
 library("edgeR")
 library("ggplot2")
-library("readr")
 library("stringr")
 library("tidyr")
 theme_set(theme_cowplot())
 source("../code/functions.R")
+library("Biobase") # has to be loaded last to use `combine`
 ```
 
-Import molecules.
+Import data.
 
-```{r import-molecules, message=FALSE, cache=FALSE}
-molecules <- read_tsv(gzfile("../data/molecules.txt.gz"))
-dim(molecules)
-molecules[1:5, 1:10]
-colnames(molecules)[1:20]
-```
-
-Import annotation.
-
-```{r read-anno, message=FALSE}
-anno <- read_tsv("../data/batch1_qc.txt",
-                 col_types = cols(ERCC = col_character()))
-# Cleanup ERCC column
-anno$ERCC <- ifelse(is.na(anno$ERCC), "Not added", anno$ERCC)
-anno$ERCC <- factor(anno$ERCC, levels = c("Not added", "1:100000", "1:50000"),
-                    labels = c("Not added", "100x dilution", "50x dilution"))
-anno$ERCC <- as.character(anno$ERCC)
-dim(anno)
-colnames(anno)
-```
-
-Merge the data sets.
-
-```{r merge}
-mol_anno <- merge(molecules, anno, by = c("experiment", "well"))
-stopifnot(nrow(mol_anno) == nrow(molecules))
+```{r import}
+fname <- Sys.glob("../data/eset/*.rds")
+eset <- Reduce(combine, Map(readRDS, fname))
+eset
 ```
 
 Remove samples with bad cell number or TRA-1-60.
 
 ```{r filter}
-mol_anno <- mol_anno %>%
-  filter(cell_number == 1, tra1.60 == 1)
-dim(mol_anno)
+eset_quality <- eset[, eset$cell_number == 1 & eset$tra1.60]
+dim(eset_quality)
 ```
 
 Separate by source.
 
 ```{r separate-by-source}
-mol_ce <- mol_anno %>% select(experiment:id, cell_number:index, starts_with("WBGene"))
-mol_dm <- mol_anno %>% select(experiment:id, cell_number:index, starts_with("FBGn"))
-mol_ercc <- mol_anno %>% select(experiment:id, cell_number:index, starts_with("ERCC"))
-mol_hs <- mol_anno %>% select(experiment:id, cell_number:index, starts_with("ENSG"))
+eset_ce <- eset_quality[fData(eset_quality)$source == "C. elegans", ]
+head(featureNames(eset_ce))
+eset_dm <- eset_quality[fData(eset_quality)$source == "D. melanogaster", ]
+head(featureNames(eset_dm))
+eset_ercc <- eset_quality[fData(eset_quality)$source == "ERCC",
+                          eset_quality$ERCC != "Not added"]
+head(featureNames(eset_ercc))
+eset_hs <- eset_quality[fData(eset_quality)$source == "H. sapiens", ]
+head(featureNames(eset_hs))
+```
+
+Define a function for filtering by percentage of cells in which a gene is detected.
+
+```{r function-present}
+present <- function(x, percent = 0.50) mean(x > 0) >= percent
 ```
 
 ## ERCC
 
-Remove dashes in column names.
-
-```{r dashes}
-colnames(mol_ercc) <- str_replace(colnames(mol_ercc), "-", "")
-```
-
-Remove samples that did not receive ERCC spike-in and change the name.
-
-```{r ercc-not-added}
-mol_ercc <- mol_ercc %>% filter(ERCC != "Not added") %>% rename(annoERCC = ERCC)
-```
-
 Remove zeros.
 
-```{r}
-mol_ercc <- mol_ercc %>%
-  select_if(function(col) is.character(col) || sum(col) > 0)
-dim(mol_ercc)
+```{r remove-zeros-ercc}
+eset_ercc_clean <- eset_ercc[rowSums(exprs(eset_ercc)) != 0, ]
+dim(eset_ercc_clean)
 ```
 
-Convert to matrix.
+Only keep genes which are observed in at least 50% of the samples.
 
-```{r}
-mol_ercc_mat <- mol_ercc %>%
-  select(starts_with("ERCC")) %>%
-  t
-```
-
-Only keep ERCC which are observed in at least 50% of the samples.
-
-```{r}
-present <- function(x, percent = 0.50) mean(x > 0) >= percent
-mol_ercc_mat <- mol_ercc_mat[apply(mol_ercc_mat, 1, present), ]
-dim(mol_ercc_mat)
+```{r present-ercc}
+eset_ercc_clean <- eset_ercc_clean[apply(exprs(eset_ercc_clean), 1, present), ]
+dim(eset_ercc_clean)
 ```
 
 ```{r hist-ercc}
-mol_ercc_cpm <- cpm(mol_ercc_mat, log = TRUE)
+mol_ercc_cpm <- cpm(exprs(eset_ercc_clean), log = TRUE)
 hist(rowMeans(mol_ercc_cpm))
 ```
 
 ```{r pca-ercc}
 pca_ercc <- run_pca(mol_ercc_cpm)
 plot_pca(pca_ercc$PCs, pcx = 1, pcy = 2, explained = pca_ercc$explained,
-         metadata = mol_ercc %>% select(experiment:index),
+         metadata = pData(eset_ercc_clean),
          color = "experiment")
 plot_pca(pca_ercc$PCs, pcx = 3, pcy = 4, explained = pca_ercc$explained,
-         metadata = mol_ercc %>% select(experiment:index),
+         metadata = pData(eset_ercc_clean),
          color = "experiment")
 plot_pca(pca_ercc$PCs, pcx = 5, pcy = 6, explained = pca_ercc$explained,
-         metadata = mol_ercc %>% select(experiment:index),
+         metadata = pData(eset_ercc_clean),
          color = "experiment")
 plot_pca(pca_ercc$PCs, pcx = 5, pcy = 6, explained = pca_ercc$explained,
-         metadata = mol_ercc %>% select(experiment:index),
-         color = "annoERCC")
+         metadata = pData(eset_ercc_clean),
+         color = "ERCC")
 ```
 
 ## Drosophila
 
 Remove zeros.
 
-```{r}
-mol_dm <- mol_dm %>%
-  select_if(function(col) is.character(col) || sum(col) > 0)
-dim(mol_dm)
+```{r remove-zeros-dm}
+eset_dm_clean <- eset_dm[rowSums(exprs(eset_dm)) != 0, ]
+dim(eset_dm_clean)
 ```
 
-Convert to matrix.
+Only keep genes which are observed in at least 50% of the samples.
 
-```{r}
-mol_dm_mat <- mol_dm %>%
-  select(starts_with("FBgn")) %>%
-  t
+```{r present-dm}
+eset_dm_clean <- eset_dm_clean[apply(exprs(eset_dm_clean), 1, present), ]
+dim(eset_dm_clean)
 ```
 
-Only keep fly genes which are observed in at least 50% of the samples.
-
-```{r}
-mol_dm_mat <- mol_dm_mat[apply(mol_dm_mat, 1, present), ]
-dim(mol_dm_mat)
-```
+Convert to log2 counts per million.
 
 ```{r hist-dm}
-mol_dm_cpm <- cpm(mol_dm_mat, log = TRUE)
+mol_dm_cpm <- cpm(exprs(eset_dm_clean), log = TRUE)
 hist(rowMeans(mol_dm_cpm))
 ```
 
 ```{r pca-dm}
 pca_dm <- run_pca(mol_dm_cpm)
 plot_pca(pca_dm$PCs, pcx = 1, pcy = 2, explained = pca_dm$explained,
-         metadata = mol_dm %>% select(experiment:index),
+         metadata = pData(eset_dm_clean),
          color = "experiment")
 plot_pca(pca_dm$PCs, pcx = 1, pcy = 2, explained = pca_dm$explained,
-         metadata = mol_dm %>% select(experiment:index),
+         metadata = pData(eset_dm_clean),
          color = "fly", factors = "fly")
 ```
 
@@ -189,39 +147,39 @@ plot_pca(pca_dm$PCs, pcx = 1, pcy = 2, explained = pca_dm$explained,
 
 Select only samples that received 5 pg.
 
-```{r}
-mol_dm_5pg <- mol_dm %>%
-  filter(fly == 5000)
-dim(mol_dm_5pg)
+```{r dm-5000}
+eset_dm_5pg <- eset_dm[, eset_dm$fly == 5000]
+dim(eset_dm_5pg)
 ```
 
-Convert to matrix.
+Remove zeros.
 
-```{r}
-mol_dm_mat_5pg <- mol_dm_5pg %>%
-  select(starts_with("FBgn")) %>%
-  t
+```{r remove-zeros-dm_5pg}
+eset_dm_5pg_clean <- eset_dm_5pg[rowSums(exprs(eset_dm_5pg)) != 0, ]
+dim(eset_dm_5pg_clean)
 ```
 
-Only keep fly genes which are observed in at least 50% of the samples.
+Only keep genes which are observed in at least 50% of the samples.
 
-```{r}
-mol_dm_mat_5pg <- mol_dm_mat_5pg[apply(mol_dm_mat_5pg, 1, present), ]
-dim(mol_dm_mat_5pg)
+```{r present-dm_5pg}
+eset_dm_5pg_clean <- eset_dm_5pg_clean[apply(exprs(eset_dm_5pg_clean), 1, present), ]
+dim(eset_dm_5pg_clean)
 ```
+
+Convert to log2 counts per million.
 
 ```{r hist-dm-5pg}
-mol_dm_cpm_5pg <- cpm(mol_dm_mat_5pg, log = TRUE)
+mol_dm_cpm_5pg <- cpm(exprs(eset_dm_5pg_clean), log = TRUE)
 hist(rowMeans(mol_dm_cpm_5pg))
 ```
 
 ```{r pca-dm-5pg}
 pca_dm_5pg <- run_pca(mol_dm_cpm_5pg)
 plot_pca(pca_dm_5pg$PCs, pcx = 1, pcy = 2, explained = pca_dm_5pg$explained,
-         metadata = mol_dm_5pg %>% select(experiment:index),
+         metadata = pData(eset_dm_5pg_clean),
          color = "experiment")
 plot_pca(pca_dm_5pg$PCs, pcx = 3, pcy = 4, explained = pca_dm_5pg$explained,
-         metadata = mol_dm_5pg %>% select(experiment:index),
+         metadata = pData(eset_dm_5pg_clean),
          color = "experiment")
 ```
 
@@ -229,42 +187,42 @@ plot_pca(pca_dm_5pg$PCs, pcx = 3, pcy = 4, explained = pca_dm_5pg$explained,
 
 Select only samples that received 50 pg.
 
-```{r}
-mol_dm_50pg <- mol_dm %>%
-  filter(fly == 50000)
-dim(mol_dm_50pg)
+```{r dm-50000}
+eset_dm_50pg <- eset_dm[, eset_dm$fly == 50000]
+dim(eset_dm_50pg)
 ```
 
-Convert to matrix.
+Remove zeros.
 
-```{r}
-mol_dm_mat_50pg <- mol_dm_50pg %>%
-  select(starts_with("FBgn")) %>%
-  t
+```{r remove-zeros-dm_50pg}
+eset_dm_50pg_clean <- eset_dm_50pg[rowSums(exprs(eset_dm_50pg)) != 0, ]
+dim(eset_dm_50pg_clean)
 ```
 
-Only keep fly genes which are observed in at least 50% of the samples.
+Only keep genes which are observed in at least 50% of the samples.
 
-```{r}
-mol_dm_mat_50pg <- mol_dm_mat_50pg[apply(mol_dm_mat_50pg, 1, present), ]
-dim(mol_dm_mat_50pg)
+```{r present-dm_50pg}
+eset_dm_50pg_clean <- eset_dm_50pg_clean[apply(exprs(eset_dm_50pg_clean), 1, present), ]
+dim(eset_dm_50pg_clean)
 ```
+
+Convert to log2 counts per million.
 
 ```{r hist-dm-50pg}
-mol_dm_cpm_50pg <- cpm(mol_dm_mat_50pg, log = TRUE)
+mol_dm_cpm_50pg <- cpm(exprs(eset_dm_50pg_clean), log = TRUE)
 hist(rowMeans(mol_dm_cpm_50pg))
 ```
 
 ```{r pca-dm-50pg}
 pca_dm_50pg <- run_pca(mol_dm_cpm_50pg)
 plot_pca(pca_dm_50pg$PCs, pcx = 1, pcy = 2, explained = pca_dm_50pg$explained,
-         metadata = mol_dm_50pg %>% select(experiment:index),
+         metadata = pData(eset_dm_50pg_clean),
          color = "experiment")
 plot_pca(pca_dm_50pg$PCs, pcx = 3, pcy = 4, explained = pca_dm_50pg$explained,
-         metadata = mol_dm_50pg %>% select(experiment:index),
+         metadata = pData(eset_dm_50pg_clean),
          color = "experiment")
 plot_pca(pca_dm_50pg$PCs, pcx = 5, pcy = 6, explained = pca_dm_50pg$explained,
-         metadata = mol_dm_50pg %>% select(experiment:index),
+         metadata = pData(eset_dm_50pg_clean),
          color = "experiment")
 ```
 
@@ -272,31 +230,25 @@ plot_pca(pca_dm_50pg$PCs, pcx = 5, pcy = 6, explained = pca_dm_50pg$explained,
 
 Remove zeros.
 
-```{r}
-mol_ce <- mol_ce %>%
-  select_if(function(col) is.character(col) || sum(col) > 0)
-dim(mol_ce)
+```{r remove-zeros-ce}
+eset_ce_clean <- eset_ce[rowSums(exprs(eset_ce)) != 0, ]
+dim(eset_ce_clean)
 ```
 
-Convert to matrix.
+Only keep genes which are observed in at least 50% of the samples.
 
-```{r}
-mol_ce_mat <- mol_ce %>%
-  select(starts_with("WBGene")) %>%
-  t
+```{r present-ce}
+eset_ce_clean <- eset_ce_clean[apply(exprs(eset_ce_clean), 1, present), ]
+dim(eset_ce_clean)
 ```
 
-Only keep worm genes which are observed in at least 50% of the samples.
-
-```{r}
-mol_ce_mat <- mol_ce_mat[apply(mol_ce_mat, 1, present), ]
-dim(mol_ce_mat)
-```
+Convert to log2 counts per million.
 
 ```{r hist-ce}
-mol_ce_cpm <- cpm(mol_ce_mat, log = TRUE)
+mol_ce_cpm <- cpm(exprs(eset_ce_clean), log = TRUE)
 # Remove samples with no observations for this subset
-zeros_ce <- colSums(mol_ce_mat) > 0
+zeros_ce <- colSums(exprs(eset_ce_clean)) > 0
+eset_ce_clean <- eset_ce_clean[, zeros_ce]
 mol_ce_cpm <- mol_ce_cpm[, zeros_ce]
 hist(rowMeans(mol_ce_cpm))
 ```
@@ -304,10 +256,10 @@ hist(rowMeans(mol_ce_cpm))
 ```{r pca-ce}
 pca_ce <- run_pca(mol_ce_cpm)
 plot_pca(pca_ce$PCs, pcx = 1, pcy = 2, explained = pca_ce$explained,
-         metadata = mol_ce %>% select(experiment:index) %>% filter(zeros_ce),
+         metadata = pData(eset_ce_clean),
          color = "experiment")
 plot_pca(pca_ce$PCs, pcx = 1, pcy = 2, explained = pca_ce$explained,
-         metadata = mol_ce %>% select(experiment:index) %>% filter(zeros_ce),
+         metadata = pData(eset_ce_clean),
          color = "worm", factors = "worm")
 ```
 
@@ -315,38 +267,31 @@ plot_pca(pca_ce$PCs, pcx = 1, pcy = 2, explained = pca_ce$explained,
 
 Remove zeros.
 
-```{r}
-mol_hs <- mol_hs %>%
-  select_if(function(col) is.character(col) || sum(col) > 0)
-dim(mol_hs)
+```{r remove-zeros-hs}
+eset_hs_clean <- eset_hs[rowSums(exprs(eset_hs)) != 0, ]
+dim(eset_hs_clean)
 ```
 
-Convert to matrix.
+Only keep genes which are observed in at least 50% of the samples.
 
-```{r}
-mol_hs_mat <- mol_hs %>%
-  select(starts_with("ENSG")) %>%
-  t
+```{r present-hs}
+eset_hs_clean <- eset_hs_clean[apply(exprs(eset_hs_clean), 1, present), ]
+dim(eset_hs_clean)
 ```
 
-Only keep human genes which are observed in at least 50% of the samples.
-
-```{r}
-mol_hs_mat <- mol_hs_mat[apply(mol_hs_mat, 1, present), ]
-dim(mol_hs_mat)
-```
+Convert to log2 counts per million.
 
 ```{r hist-hs}
-mol_hs_cpm <- cpm(mol_hs_mat, log = TRUE)
+mol_hs_cpm <- cpm(exprs(eset_hs_clean), log = TRUE)
 hist(rowMeans(mol_hs_cpm))
 ```
 
 ```{r pca-hs}
 pca_hs <- run_pca(mol_hs_cpm)
 plot_pca(pca_hs$PCs, pcx = 1, pcy = 2, explained = pca_hs$explained,
-         metadata = mol_hs %>% select(experiment:index), color = "experiment")
+         metadata = pData(eset_hs_clean), color = "experiment")
 plot_pca(pca_hs$PCs, pcx = 3, pcy = 4, explained = pca_hs$explained,
-         metadata = mol_hs %>% select(experiment:index), color = "experiment")
+         metadata = pData(eset_hs_clean), color = "experiment")
 ```
 
 ## Session information
