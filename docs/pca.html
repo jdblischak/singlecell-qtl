@@ -283,6 +283,9 @@ div.tocify {
   <a href="about.html">About</a>
 </li>
 <li>
+  <a href="contributing.html">Contributing</a>
+</li>
+<li>
   <a href="license.html">License</a>
 </li>
       </ul>
@@ -313,256 +316,244 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2017-08-24</p>
+<p><strong>Last updated:</strong> 2017-09-05</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> 662627c</p>
+<p><strong>Code version:</strong> 3ca06bb</p>
 <div id="setup" class="section level2">
 <h2>Setup</h2>
-<pre class="r"><code>library(&quot;Biobase&quot;)
-library(&quot;cowplot&quot;)
+<pre class="r"><code>library(&quot;cowplot&quot;)
 library(&quot;dplyr&quot;)
 library(&quot;edgeR&quot;)
 library(&quot;ggplot2&quot;)
-library(&quot;readr&quot;)
 library(&quot;stringr&quot;)
 library(&quot;tidyr&quot;)
 theme_set(theme_cowplot())
-source(&quot;../code/functions.R&quot;)</code></pre>
-<p>Import molecules.</p>
-<pre class="r"><code>molecules &lt;- read_tsv(gzfile(&quot;../data/molecules.txt.gz&quot;))
-dim(molecules)</code></pre>
-<pre><code>[1]   959 54796</code></pre>
-<pre class="r"><code>molecules[1:5, 1:10]</code></pre>
-<pre><code># A tibble: 5 × 10
-              sample experiment  well    id WBGene00022277 WBGene00022276
-               &lt;chr&gt;      &lt;chr&gt; &lt;chr&gt; &lt;chr&gt;          &lt;int&gt;          &lt;int&gt;
-1  04052017-H08_S380   04052017   H08  S380              0              0
-2  04132017-A09_S873   04132017   A09  S873              0              0
-3  04072017-A07_S487   04072017   A07  S487              0              0
-4  04072017-E08_S536   04072017   E08  S536              0              0
-5 04202017-B09_S1077   04202017   B09 S1077              0              0
-# ... with 4 more variables: WBGene00022278 &lt;int&gt;, WBGene00022279 &lt;int&gt;,
-#   WBGene00022275 &lt;int&gt;, WBGene00044345 &lt;int&gt;</code></pre>
-<pre class="r"><code>colnames(molecules)[1:20]</code></pre>
-<pre><code> [1] &quot;sample&quot;         &quot;experiment&quot;     &quot;well&quot;           &quot;id&quot;            
- [5] &quot;WBGene00022277&quot; &quot;WBGene00022276&quot; &quot;WBGene00022278&quot; &quot;WBGene00022279&quot;
- [9] &quot;WBGene00022275&quot; &quot;WBGene00044345&quot; &quot;WBGene00021677&quot; &quot;WBGene00021678&quot;
-[13] &quot;WBGene00000812&quot; &quot;WBGene00021683&quot; &quot;WBGene00021679&quot; &quot;WBGene00021684&quot;
-[17] &quot;WBGene00021682&quot; &quot;WBGene00021676&quot; &quot;WBGene00189949&quot; &quot;WBGene00206367&quot;</code></pre>
-<p>Import annotation.</p>
-<pre class="r"><code>anno &lt;- read_tsv(&quot;../data/batch1_qc.txt&quot;,
-                 col_types = cols(ERCC = col_character()))
-# Cleanup ERCC column
-anno$ERCC &lt;- ifelse(is.na(anno$ERCC), &quot;Not added&quot;, anno$ERCC)
-anno$ERCC &lt;- factor(anno$ERCC, levels = c(&quot;Not added&quot;, &quot;1:100000&quot;, &quot;1:50000&quot;),
-                    labels = c(&quot;Not added&quot;, &quot;100x dilution&quot;, &quot;50x dilution&quot;))
-anno$ERCC &lt;- as.character(anno$ERCC)
-dim(anno)</code></pre>
-<pre><code>[1] 960  13</code></pre>
-<pre class="r"><code>colnames(anno)</code></pre>
-<pre><code> [1] &quot;experiment&quot;    &quot;well&quot;          &quot;cell_number&quot;   &quot;concentration&quot;
- [5] &quot;tra1.60&quot;       &quot;individual.1&quot;  &quot;individual.2&quot;  &quot;individual.3&quot; 
- [9] &quot;individual.4&quot;  &quot;fly&quot;           &quot;worm&quot;          &quot;ERCC&quot;         
-[13] &quot;index&quot;        </code></pre>
-<p>Merge the data sets.</p>
-<pre class="r"><code>mol_anno &lt;- merge(molecules, anno, by = c(&quot;experiment&quot;, &quot;well&quot;))
-stopifnot(nrow(mol_anno) == nrow(molecules))</code></pre>
+source(&quot;../code/functions.R&quot;)
+library(&quot;Biobase&quot;) # has to be loaded last to use `combine`</code></pre>
+<p>Import data.</p>
+<pre class="r"><code>fname &lt;- Sys.glob(&quot;../data/eset/*.rds&quot;)
+eset &lt;- Reduce(combine, Map(readRDS, fname))
+eset</code></pre>
+<pre><code>ExpressionSet (storageMode: lockedEnvironment)
+assayData: 54792 features, 960 samples 
+  element names: exprs 
+protocolData: none
+phenoData
+  sampleNames: 03162017-A01 03162017-A02 ... 04202017-H12 (960
+    total)
+  varLabels: experiment well ... valid_id (35 total)
+  varMetadata: labelDescription
+featureData
+  featureNames: ENSG00000000003 ENSG00000000005 ... WBGene00235374
+    (54792 total)
+  fvarLabels: chr start ... source (6 total)
+  fvarMetadata: labelDescription
+experimentData: use &#39;experimentData(object)&#39;
+Annotation:  </code></pre>
 <p>Remove samples with bad cell number or TRA-1-60.</p>
-<pre class="r"><code>mol_anno &lt;- mol_anno %&gt;%
-  filter(cell_number == 1, tra1.60 == 1)
-dim(mol_anno)</code></pre>
-<pre><code>[1]   868 54807</code></pre>
+<pre class="r"><code>eset_quality &lt;- eset[, eset$cell_number == 1 &amp; eset$tra1.60]
+dim(eset_quality)</code></pre>
+<pre><code>Features  Samples 
+   54792      869 </code></pre>
 <p>Separate by source.</p>
-<pre class="r"><code>mol_ce &lt;- mol_anno %&gt;% select(experiment:id, cell_number:index, starts_with(&quot;WBGene&quot;))
-mol_dm &lt;- mol_anno %&gt;% select(experiment:id, cell_number:index, starts_with(&quot;FBGn&quot;))
-mol_ercc &lt;- mol_anno %&gt;% select(experiment:id, cell_number:index, starts_with(&quot;ERCC&quot;))
-mol_hs &lt;- mol_anno %&gt;% select(experiment:id, cell_number:index, starts_with(&quot;ENSG&quot;))</code></pre>
+<pre class="r"><code>eset_ce &lt;- eset_quality[fData(eset_quality)$source == &quot;C. elegans&quot;, ]
+head(featureNames(eset_ce))</code></pre>
+<pre><code>[1] &quot;WBGene00000001&quot; &quot;WBGene00000002&quot; &quot;WBGene00000003&quot; &quot;WBGene00000004&quot;
+[5] &quot;WBGene00000005&quot; &quot;WBGene00000006&quot;</code></pre>
+<pre class="r"><code>eset_dm &lt;- eset_quality[fData(eset_quality)$source == &quot;D. melanogaster&quot;, ]
+head(featureNames(eset_dm))</code></pre>
+<pre><code>[1] &quot;FBgn0000008&quot; &quot;FBgn0000014&quot; &quot;FBgn0000015&quot; &quot;FBgn0000017&quot; &quot;FBgn0000018&quot;
+[6] &quot;FBgn0000022&quot;</code></pre>
+<pre class="r"><code>eset_ercc &lt;- eset_quality[fData(eset_quality)$source == &quot;ERCC&quot;,
+                          eset_quality$ERCC != &quot;Not added&quot;]
+head(featureNames(eset_ercc))</code></pre>
+<pre><code>[1] &quot;ERCC-00002&quot; &quot;ERCC-00003&quot; &quot;ERCC-00004&quot; &quot;ERCC-00009&quot; &quot;ERCC-00012&quot;
+[6] &quot;ERCC-00013&quot;</code></pre>
+<pre class="r"><code>eset_hs &lt;- eset_quality[fData(eset_quality)$source == &quot;H. sapiens&quot;, ]
+head(featureNames(eset_hs))</code></pre>
+<pre><code>[1] &quot;ENSG00000000003&quot; &quot;ENSG00000000005&quot; &quot;ENSG00000000419&quot; &quot;ENSG00000000457&quot;
+[5] &quot;ENSG00000000460&quot; &quot;ENSG00000000938&quot;</code></pre>
+<p>Define a function for filtering by percentage of cells in which a gene is detected.</p>
+<pre class="r"><code>present &lt;- function(x, percent = 0.50) mean(x &gt; 0) &gt;= percent</code></pre>
 </div>
 <div id="ercc" class="section level2">
 <h2>ERCC</h2>
-<p>Remove dashes in column names.</p>
-<pre class="r"><code>colnames(mol_ercc) &lt;- str_replace(colnames(mol_ercc), &quot;-&quot;, &quot;&quot;)</code></pre>
-<p>Remove samples that did not receive ERCC spike-in and change the name.</p>
-<pre class="r"><code>mol_ercc &lt;- mol_ercc %&gt;% filter(ERCC != &quot;Not added&quot;) %&gt;% rename(annoERCC = ERCC)</code></pre>
 <p>Remove zeros.</p>
-<pre class="r"><code>mol_ercc &lt;- mol_ercc %&gt;%
-  select_if(function(col) is.character(col) || sum(col) &gt; 0)
-dim(mol_ercc)</code></pre>
-<pre><code>[1] 347 100</code></pre>
-<p>Convert to matrix.</p>
-<pre class="r"><code>mol_ercc_mat &lt;- mol_ercc %&gt;%
-  select(starts_with(&quot;ERCC&quot;)) %&gt;%
-  t</code></pre>
-<p>Only keep ERCC which are observed in at least 50% of the samples.</p>
-<pre class="r"><code>present &lt;- function(x, percent = 0.50) mean(x &gt; 0) &gt;= percent
-mol_ercc_mat &lt;- mol_ercc_mat[apply(mol_ercc_mat, 1, present), ]
-dim(mol_ercc_mat)</code></pre>
-<pre><code>[1]  30 347</code></pre>
-<pre class="r"><code>mol_ercc_cpm &lt;- cpm(mol_ercc_mat, log = TRUE)
+<pre class="r"><code>eset_ercc_clean &lt;- eset_ercc[rowSums(exprs(eset_ercc)) != 0, ]
+dim(eset_ercc_clean)</code></pre>
+<pre><code>Features  Samples 
+      85      347 </code></pre>
+<p>Only keep genes which are observed in at least 50% of the samples.</p>
+<pre class="r"><code>eset_ercc_clean &lt;- eset_ercc_clean[apply(exprs(eset_ercc_clean), 1, present), ]
+dim(eset_ercc_clean)</code></pre>
+<pre><code>Features  Samples 
+      30      347 </code></pre>
+<pre class="r"><code>mol_ercc_cpm &lt;- cpm(exprs(eset_ercc_clean), log = TRUE)
 hist(rowMeans(mol_ercc_cpm))</code></pre>
 <p><img src="figure/pca.Rmd/hist-ercc-1.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>pca_ercc &lt;- run_pca(mol_ercc_cpm)
 plot_pca(pca_ercc$PCs, pcx = 1, pcy = 2, explained = pca_ercc$explained,
-         metadata = mol_ercc %&gt;% select(experiment:index),
+         metadata = pData(eset_ercc_clean),
          color = &quot;experiment&quot;)</code></pre>
 <p><img src="figure/pca.Rmd/pca-ercc-1.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>plot_pca(pca_ercc$PCs, pcx = 3, pcy = 4, explained = pca_ercc$explained,
-         metadata = mol_ercc %&gt;% select(experiment:index),
+         metadata = pData(eset_ercc_clean),
          color = &quot;experiment&quot;)</code></pre>
 <p><img src="figure/pca.Rmd/pca-ercc-2.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>plot_pca(pca_ercc$PCs, pcx = 5, pcy = 6, explained = pca_ercc$explained,
-         metadata = mol_ercc %&gt;% select(experiment:index),
+         metadata = pData(eset_ercc_clean),
          color = &quot;experiment&quot;)</code></pre>
 <p><img src="figure/pca.Rmd/pca-ercc-3.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>plot_pca(pca_ercc$PCs, pcx = 5, pcy = 6, explained = pca_ercc$explained,
-         metadata = mol_ercc %&gt;% select(experiment:index),
-         color = &quot;annoERCC&quot;)</code></pre>
+         metadata = pData(eset_ercc_clean),
+         color = &quot;ERCC&quot;)</code></pre>
 <p><img src="figure/pca.Rmd/pca-ercc-4.png" width="768" style="display: block; margin: auto;" /></p>
 </div>
 <div id="drosophila" class="section level2">
 <h2>Drosophila</h2>
 <p>Remove zeros.</p>
-<pre class="r"><code>mol_dm &lt;- mol_dm %&gt;%
-  select_if(function(col) is.character(col) || sum(col) &gt; 0)
-dim(mol_dm)</code></pre>
-<pre><code>[1]   868 10899</code></pre>
-<p>Convert to matrix.</p>
-<pre class="r"><code>mol_dm_mat &lt;- mol_dm %&gt;%
-  select(starts_with(&quot;FBgn&quot;)) %&gt;%
-  t</code></pre>
-<p>Only keep fly genes which are observed in at least 50% of the samples.</p>
-<pre class="r"><code>mol_dm_mat &lt;- mol_dm_mat[apply(mol_dm_mat, 1, present), ]
-dim(mol_dm_mat)</code></pre>
-<pre><code>[1] 219 868</code></pre>
-<pre class="r"><code>mol_dm_cpm &lt;- cpm(mol_dm_mat, log = TRUE)
+<pre class="r"><code>eset_dm_clean &lt;- eset_dm[rowSums(exprs(eset_dm)) != 0, ]
+dim(eset_dm_clean)</code></pre>
+<pre><code>Features  Samples 
+   10310      869 </code></pre>
+<p>Only keep genes which are observed in at least 50% of the samples.</p>
+<pre class="r"><code>eset_dm_clean &lt;- eset_dm_clean[apply(exprs(eset_dm_clean), 1, present), ]
+dim(eset_dm_clean)</code></pre>
+<pre><code>Features  Samples 
+     201      869 </code></pre>
+<p>Convert to log2 counts per million.</p>
+<pre class="r"><code>mol_dm_cpm &lt;- cpm(exprs(eset_dm_clean), log = TRUE)
 hist(rowMeans(mol_dm_cpm))</code></pre>
 <p><img src="figure/pca.Rmd/hist-dm-1.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>pca_dm &lt;- run_pca(mol_dm_cpm)
 plot_pca(pca_dm$PCs, pcx = 1, pcy = 2, explained = pca_dm$explained,
-         metadata = mol_dm %&gt;% select(experiment:index),
+         metadata = pData(eset_dm_clean),
          color = &quot;experiment&quot;)</code></pre>
 <p><img src="figure/pca.Rmd/pca-dm-1.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>plot_pca(pca_dm$PCs, pcx = 1, pcy = 2, explained = pca_dm$explained,
-         metadata = mol_dm %&gt;% select(experiment:index),
+         metadata = pData(eset_dm_clean),
          color = &quot;fly&quot;, factors = &quot;fly&quot;)</code></pre>
 <p><img src="figure/pca.Rmd/pca-dm-2.png" width="768" style="display: block; margin: auto;" /></p>
 </div>
 <div id="drosophila---5-pg" class="section level2">
 <h2>Drosophila - 5 pg</h2>
 <p>Select only samples that received 5 pg.</p>
-<pre class="r"><code>mol_dm_5pg &lt;- mol_dm %&gt;%
-  filter(fly == 5000)
-dim(mol_dm_5pg)</code></pre>
-<pre><code>[1]   343 10899</code></pre>
-<p>Convert to matrix.</p>
-<pre class="r"><code>mol_dm_mat_5pg &lt;- mol_dm_5pg %&gt;%
-  select(starts_with(&quot;FBgn&quot;)) %&gt;%
-  t</code></pre>
-<p>Only keep fly genes which are observed in at least 50% of the samples.</p>
-<pre class="r"><code>mol_dm_mat_5pg &lt;- mol_dm_mat_5pg[apply(mol_dm_mat_5pg, 1, present), ]
-dim(mol_dm_mat_5pg)</code></pre>
-<pre><code>[1]  73 343</code></pre>
-<pre class="r"><code>mol_dm_cpm_5pg &lt;- cpm(mol_dm_mat_5pg, log = TRUE)
+<pre class="r"><code>eset_dm_5pg &lt;- eset_dm[, eset_dm$fly == 5000]
+dim(eset_dm_5pg)</code></pre>
+<pre><code>Features  Samples 
+   13832      343 </code></pre>
+<p>Remove zeros.</p>
+<pre class="r"><code>eset_dm_5pg_clean &lt;- eset_dm_5pg[rowSums(exprs(eset_dm_5pg)) != 0, ]
+dim(eset_dm_5pg_clean)</code></pre>
+<pre><code>Features  Samples 
+    8235      343 </code></pre>
+<p>Only keep genes which are observed in at least 50% of the samples.</p>
+<pre class="r"><code>eset_dm_5pg_clean &lt;- eset_dm_5pg_clean[apply(exprs(eset_dm_5pg_clean), 1, present), ]
+dim(eset_dm_5pg_clean)</code></pre>
+<pre><code>Features  Samples 
+      68      343 </code></pre>
+<p>Convert to log2 counts per million.</p>
+<pre class="r"><code>mol_dm_cpm_5pg &lt;- cpm(exprs(eset_dm_5pg_clean), log = TRUE)
 hist(rowMeans(mol_dm_cpm_5pg))</code></pre>
 <p><img src="figure/pca.Rmd/hist-dm-5pg-1.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>pca_dm_5pg &lt;- run_pca(mol_dm_cpm_5pg)
 plot_pca(pca_dm_5pg$PCs, pcx = 1, pcy = 2, explained = pca_dm_5pg$explained,
-         metadata = mol_dm_5pg %&gt;% select(experiment:index),
+         metadata = pData(eset_dm_5pg_clean),
          color = &quot;experiment&quot;)</code></pre>
 <p><img src="figure/pca.Rmd/pca-dm-5pg-1.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>plot_pca(pca_dm_5pg$PCs, pcx = 3, pcy = 4, explained = pca_dm_5pg$explained,
-         metadata = mol_dm_5pg %&gt;% select(experiment:index),
+         metadata = pData(eset_dm_5pg_clean),
          color = &quot;experiment&quot;)</code></pre>
 <p><img src="figure/pca.Rmd/pca-dm-5pg-2.png" width="768" style="display: block; margin: auto;" /></p>
 </div>
 <div id="drosophila---50-pg" class="section level2">
 <h2>Drosophila - 50 pg</h2>
 <p>Select only samples that received 50 pg.</p>
-<pre class="r"><code>mol_dm_50pg &lt;- mol_dm %&gt;%
-  filter(fly == 50000)
-dim(mol_dm_50pg)</code></pre>
-<pre><code>[1]   525 10899</code></pre>
-<p>Convert to matrix.</p>
-<pre class="r"><code>mol_dm_mat_50pg &lt;- mol_dm_50pg %&gt;%
-  select(starts_with(&quot;FBgn&quot;)) %&gt;%
-  t</code></pre>
-<p>Only keep fly genes which are observed in at least 50% of the samples.</p>
-<pre class="r"><code>mol_dm_mat_50pg &lt;- mol_dm_mat_50pg[apply(mol_dm_mat_50pg, 1, present), ]
-dim(mol_dm_mat_50pg)</code></pre>
-<pre><code>[1] 314 525</code></pre>
-<pre class="r"><code>mol_dm_cpm_50pg &lt;- cpm(mol_dm_mat_50pg, log = TRUE)
+<pre class="r"><code>eset_dm_50pg &lt;- eset_dm[, eset_dm$fly == 50000]
+dim(eset_dm_50pg)</code></pre>
+<pre><code>Features  Samples 
+   13832      526 </code></pre>
+<p>Remove zeros.</p>
+<pre class="r"><code>eset_dm_50pg_clean &lt;- eset_dm_50pg[rowSums(exprs(eset_dm_50pg)) != 0, ]
+dim(eset_dm_50pg_clean)</code></pre>
+<pre><code>Features  Samples 
+   10045      526 </code></pre>
+<p>Only keep genes which are observed in at least 50% of the samples.</p>
+<pre class="r"><code>eset_dm_50pg_clean &lt;- eset_dm_50pg_clean[apply(exprs(eset_dm_50pg_clean), 1, present), ]
+dim(eset_dm_50pg_clean)</code></pre>
+<pre><code>Features  Samples 
+     300      526 </code></pre>
+<p>Convert to log2 counts per million.</p>
+<pre class="r"><code>mol_dm_cpm_50pg &lt;- cpm(exprs(eset_dm_50pg_clean), log = TRUE)
 hist(rowMeans(mol_dm_cpm_50pg))</code></pre>
 <p><img src="figure/pca.Rmd/hist-dm-50pg-1.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>pca_dm_50pg &lt;- run_pca(mol_dm_cpm_50pg)
 plot_pca(pca_dm_50pg$PCs, pcx = 1, pcy = 2, explained = pca_dm_50pg$explained,
-         metadata = mol_dm_50pg %&gt;% select(experiment:index),
+         metadata = pData(eset_dm_50pg_clean),
          color = &quot;experiment&quot;)</code></pre>
 <p><img src="figure/pca.Rmd/pca-dm-50pg-1.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>plot_pca(pca_dm_50pg$PCs, pcx = 3, pcy = 4, explained = pca_dm_50pg$explained,
-         metadata = mol_dm_50pg %&gt;% select(experiment:index),
+         metadata = pData(eset_dm_50pg_clean),
          color = &quot;experiment&quot;)</code></pre>
 <p><img src="figure/pca.Rmd/pca-dm-50pg-2.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>plot_pca(pca_dm_50pg$PCs, pcx = 5, pcy = 6, explained = pca_dm_50pg$explained,
-         metadata = mol_dm_50pg %&gt;% select(experiment:index),
+         metadata = pData(eset_dm_50pg_clean),
          color = &quot;experiment&quot;)</code></pre>
 <p><img src="figure/pca.Rmd/pca-dm-50pg-3.png" width="768" style="display: block; margin: auto;" /></p>
 </div>
 <div id="c.-elegans" class="section level2">
 <h2>C. elegans</h2>
 <p>Remove zeros.</p>
-<pre class="r"><code>mol_ce &lt;- mol_ce %&gt;%
-  select_if(function(col) is.character(col) || sum(col) &gt; 0)
-dim(mol_ce)</code></pre>
-<pre><code>[1]   868 11109</code></pre>
-<p>Convert to matrix.</p>
-<pre class="r"><code>mol_ce_mat &lt;- mol_ce %&gt;%
-  select(starts_with(&quot;WBGene&quot;)) %&gt;%
-  t</code></pre>
-<p>Only keep worm genes which are observed in at least 50% of the samples.</p>
-<pre class="r"><code>mol_ce_mat &lt;- mol_ce_mat[apply(mol_ce_mat, 1, present), ]
-dim(mol_ce_mat)</code></pre>
-<pre><code>[1]   3 868</code></pre>
-<pre class="r"><code>mol_ce_cpm &lt;- cpm(mol_ce_mat, log = TRUE)
+<pre class="r"><code>eset_ce_clean &lt;- eset_ce[rowSums(exprs(eset_ce)) != 0, ]
+dim(eset_ce_clean)</code></pre>
+<pre><code>Features  Samples 
+    9165      869 </code></pre>
+<p>Only keep genes which are observed in at least 50% of the samples.</p>
+<pre class="r"><code>eset_ce_clean &lt;- eset_ce_clean[apply(exprs(eset_ce_clean), 1, present), ]
+dim(eset_ce_clean)</code></pre>
+<pre><code>Features  Samples 
+       3      869 </code></pre>
+<p>Convert to log2 counts per million.</p>
+<pre class="r"><code>mol_ce_cpm &lt;- cpm(exprs(eset_ce_clean), log = TRUE)
 # Remove samples with no observations for this subset
-zeros_ce &lt;- colSums(mol_ce_mat) &gt; 0
+zeros_ce &lt;- colSums(exprs(eset_ce_clean)) &gt; 0
+eset_ce_clean &lt;- eset_ce_clean[, zeros_ce]
 mol_ce_cpm &lt;- mol_ce_cpm[, zeros_ce]
 hist(rowMeans(mol_ce_cpm))</code></pre>
 <p><img src="figure/pca.Rmd/hist-ce-1.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>pca_ce &lt;- run_pca(mol_ce_cpm)
 plot_pca(pca_ce$PCs, pcx = 1, pcy = 2, explained = pca_ce$explained,
-         metadata = mol_ce %&gt;% select(experiment:index) %&gt;% filter(zeros_ce),
+         metadata = pData(eset_ce_clean),
          color = &quot;experiment&quot;)</code></pre>
 <p><img src="figure/pca.Rmd/pca-ce-1.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>plot_pca(pca_ce$PCs, pcx = 1, pcy = 2, explained = pca_ce$explained,
-         metadata = mol_ce %&gt;% select(experiment:index) %&gt;% filter(zeros_ce),
+         metadata = pData(eset_ce_clean),
          color = &quot;worm&quot;, factors = &quot;worm&quot;)</code></pre>
 <p><img src="figure/pca.Rmd/pca-ce-2.png" width="768" style="display: block; margin: auto;" /></p>
 </div>
 <div id="human" class="section level2">
 <h2>Human</h2>
 <p>Remove zeros.</p>
-<pre class="r"><code>mol_hs &lt;- mol_hs %&gt;%
-  select_if(function(col) is.character(col) || sum(col) &gt; 0)
-dim(mol_hs)</code></pre>
-<pre><code>[1]   868 18343</code></pre>
-<p>Convert to matrix.</p>
-<pre class="r"><code>mol_hs_mat &lt;- mol_hs %&gt;%
-  select(starts_with(&quot;ENSG&quot;)) %&gt;%
-  t</code></pre>
-<p>Only keep human genes which are observed in at least 50% of the samples.</p>
-<pre class="r"><code>mol_hs_mat &lt;- mol_hs_mat[apply(mol_hs_mat, 1, present), ]
-dim(mol_hs_mat)</code></pre>
-<pre><code>[1] 4434  868</code></pre>
-<pre class="r"><code>mol_hs_cpm &lt;- cpm(mol_hs_mat, log = TRUE)
+<pre class="r"><code>eset_hs_clean &lt;- eset_hs[rowSums(exprs(eset_hs)) != 0, ]
+dim(eset_hs_clean)</code></pre>
+<pre><code>Features  Samples 
+   17579      869 </code></pre>
+<p>Only keep genes which are observed in at least 50% of the samples.</p>
+<pre class="r"><code>eset_hs_clean &lt;- eset_hs_clean[apply(exprs(eset_hs_clean), 1, present), ]
+dim(eset_hs_clean)</code></pre>
+<pre><code>Features  Samples 
+    4364      869 </code></pre>
+<p>Convert to log2 counts per million.</p>
+<pre class="r"><code>mol_hs_cpm &lt;- cpm(exprs(eset_hs_clean), log = TRUE)
 hist(rowMeans(mol_hs_cpm))</code></pre>
 <p><img src="figure/pca.Rmd/hist-hs-1.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>pca_hs &lt;- run_pca(mol_hs_cpm)
 plot_pca(pca_hs$PCs, pcx = 1, pcy = 2, explained = pca_hs$explained,
-         metadata = mol_hs %&gt;% select(experiment:index), color = &quot;experiment&quot;)</code></pre>
+         metadata = pData(eset_hs_clean), color = &quot;experiment&quot;)</code></pre>
 <p><img src="figure/pca.Rmd/pca-hs-1.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>plot_pca(pca_hs$PCs, pcx = 3, pcy = 4, explained = pca_hs$explained,
-         metadata = mol_hs %&gt;% select(experiment:index), color = &quot;experiment&quot;)</code></pre>
+         metadata = pData(eset_hs_clean), color = &quot;experiment&quot;)</code></pre>
 <p><img src="figure/pca.Rmd/pca-hs-2.png" width="768" style="display: block; margin: auto;" /></p>
 </div>
 <div id="session-information" class="section level2">
@@ -586,10 +577,10 @@ attached base packages:
 [8] base     
 
 other attached packages:
- [1] testit_0.6          tidyr_0.6.1         stringr_1.2.0      
- [4] readr_0.2.2         edgeR_3.16.5        limma_3.30.13      
- [7] dplyr_0.5.0         cowplot_0.7.0       ggplot2_2.2.1      
-[10] Biobase_2.34.0      BiocGenerics_0.20.0
+ [1] testit_0.6          Biobase_2.34.0      BiocGenerics_0.20.0
+ [4] tidyr_0.6.1         stringr_1.2.0       edgeR_3.16.5       
+ [7] limma_3.30.13       dplyr_0.5.0         cowplot_0.7.0      
+[10] ggplot2_2.2.1      
 
 loaded via a namespace (and not attached):
  [1] Rcpp_0.12.10     knitr_1.16       magrittr_1.5     munsell_0.4.3   
@@ -597,7 +588,7 @@ loaded via a namespace (and not attached):
  [9] tools_3.3.2      grid_3.3.2       gtable_0.2.0     DBI_0.6-1       
 [13] git2r_0.19.0     htmltools_0.3.6  yaml_2.1.13      lazyeval_0.2.0  
 [17] rprojroot_1.2    digest_0.6.12    assertthat_0.1   tibble_1.2      
-[21] evaluate_0.10    rmarkdown_1.6    labeling_0.3     stringi_1.1.5   
+[21] evaluate_0.10    rmarkdown_1.6    labeling_0.3     stringi_1.1.2   
 [25] scales_0.4.1     backports_1.0.5  locfit_1.5-9.1  </code></pre>
 </div>
 
