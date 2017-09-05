@@ -1,0 +1,294 @@
+---
+title: "Contributing"
+author: "John Blischak"
+date: 2017-09-05
+output: html_document
+---
+
+<!-- The file analysis/chunks.R contains chunks that define default settings
+shared across the workflowr files. -->
+```{r read-chunk, include=FALSE, cache=FALSE}
+knitr::read_chunk("chunks.R")
+```
+
+<!-- Update knitr chunk options -->
+```{r knitr-opts-chunk, include=FALSE}
+```
+
+<!-- Insert the date the file was last updated -->
+```{r last-updated, echo=FALSE, results='asis'}
+```
+
+<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
+ package git2r is installed -->
+```{r code-version, echo=FALSE, results='asis'}
+```
+
+## Initial setup
+
+The intial setup only has to be performed once for each computer that you use.
+
+To ensure all contributors are using the same computational environment, we use
+[conda][] to manage software dependencies (made possible by the [bioconda][] and
+[conda-forge][] projects). Please complete the following steps to replicate the
+computing environment. Note that this is only guaranteed to work on a Linux-64
+based architecture, but in theory should be able to work on macOS as well. All
+commands shown below are intended to be run in a Bash shell from the root of the
+project directory.
+
+1. Install Git and register for an account on GitHub
+
+1. Download and install [Miniconda3][miniconda]
+    * Run `bash Downloads/Miniconda3-latest-MacOSX-x86_64.sh`
+    * Press `ENTER` to start installation
+    * Press `q` when finished reading the license and then type `yes`
+    * Type the location for installation (press `ENTER` to accept the default of `~/miniconda3`)
+    * Type `yes` to add Miniconda to your `PATH` variable
+    * Run `source ~/.bash_profile` on macOS or `source ~/.bashrc` on Linux to update `PATH`
+    * Run `which conda` to confirm that `conda` was installed
+
+1. Clone this repository (or your personal fork)
+    ```
+    git clone https://github.com/jdblischak/singlecell-qtl.git
+    cd singlecell-qtl
+    ```
+
+1. Create the conda environment "scqtl" using `environment.yaml`
+    ```
+    conda env create --file environment.yaml
+    ```
+
+1. To use the conda enviroment, you must first activate it by running `source
+activate scqtl`. This will override your default settings for R, Python, and
+various other software packages. When you are done working on this project, you
+can either logout of the current session or deactivate the environment.
+    ```
+    # Activate conda environment scqtl
+    source activate scqtl
+    # Deactivate conda environment
+    source deactivate
+    ```
+
+1. Initialize [git-lfs][] and download the latest version of large data files
+    ```
+    git lfs install
+    git lfs pull
+    ```
+
+**Warning:** If you are using RStudio, you need to ensure that it recognizes
+  your conda environment. If you launch RStudio by clicking on an icon, it
+  doesn't use the current environment you have configured in your shell. On a
+  Linux-based system, the solution is to launch RStudio directly from the shell
+  with `rstudio`. On macOS, running `open -a rstudio` from the shell causes
+  RStudio to recognize most of the environemnt variables, but strangely it does
+  not set the correct library path to the conda R packages. Suggestions for how
+  to fix this are welcome.
+
+## Regular setup
+
+Once you have performed the [initial setup](#initial-setup) on your computer,
+the regular setup you have to perform each time you want to work on the project
+is much quicker. Navigate to the singlecell-qtl directory, activate the conda
+environment, and pull the latest changes from the GitHub repository.
+
+```
+cd singlecell-qtl
+source activate scqtl
+git pull
+```
+
+If there are updates to `environment.yaml`, you can update the "scqtl" conda 
+environment. You may want to do this occasionally just to be sure you have all
+the software you need.
+
+```
+conda env udpate --file environment.yaml
+```
+
+## Bioinformatics pipeline
+
+The main steps of the bioinformatics pipeline are:
+
+* Reads that do not have a valid UMI are removed
+* UMIs are extracted with [UMI-tools][umi-tools] (`umi_tools extract`)
+* Reads are mapped to the genome with [Subjunc][subjunc]
+* Reads are deduplicated based on their UMI with [UMI-tools][umi-tools]
+(`umi_tools dedup`; output referred to as molecules)
+* Molecules are assigned to genes with [featureCounts][featurecounts]
+* The identity of the single cells is determined with [verifyBamID][verifybamid]
+
+The pipeline is implemented with [Snakemake][snakemake]. The 
+[Snakefile][snakefile] controls this process, ensuring that output files are 
+updated when upstream files are changed. Options for the pipeline are set in
+[config.yaml][], options for submission to Slurm are set in [cluster.json][],
+the Bash script for exectuing Snakemake is in [submit-snakemake.sh][], and the
+Slurm sbatch file for submitting the pipeline is [snakemake.sbatch][].
+
+## Using ExpressionSet objects
+
+The processed data for each C1 chip is stored in its own RDS file, a binary 
+format for storing R objects. The RDS file contains an [ExpressionSet][eset] 
+object. The ExpressionSet class stores the RNA-seq counts along with metadata on
+the samples, features (e.g. genes), and experimental details.
+
+To import the data, use the R function `readRDS()`. Because the ExpressionSet 
+class is defined in the Bioconductor package Biobase, it will be loaded the 
+first time you access the loaded ExpressionSet object. To avoid the long startup
+message that the Biobase package prints, here it is loaded prior to importing
+the object.
+
+```{r load-eset}
+suppressPackageStartupMessages(library("Biobase"))
+eset <- readRDS("../data/eset/03162017.rds")
+```
+
+Executing the object in the R console provides an overall summary of what it contains.
+
+```{r eset-show}
+eset
+```
+
+But each element of the object can be extracted individually, for example:
+
+```{r eset-extract}
+# Dimensions
+dim(eset)
+# Sample names
+head(sampleNames(eset))
+# Expression data
+exprs(eset)[1:5, 1:5]
+# Sample-level variables ("phenotype data")
+pData(eset)[1:5, 1:5]
+# Descriptions of the sample-level variables
+varMetadata(eset)[1:5, , drop = FALSE]
+# Gene-level variables ("feature data")
+head(fData(eset))
+# Descriptions of the gene-level metrics
+fvarMetadata(eset)
+# Experimental details
+experimentData(eset)
+# Abstract
+abstract(eset)
+# Proprocessing steps
+preproc(eset)
+```
+
+A nice feature of ExpressionSets is that any subsetting applied to either the
+sample-level or gene-level variables is automatically propogated to the
+expression matrix.
+
+```{r eset-subset}
+eset_quality <- eset[fData(eset)$source == "H. sapiens",
+                     eset$cell_number == 1 & eset$tra1.60]
+dim(eset_quality)
+```
+
+Mutliple ExpressionSet objects can also be combined. The following code imports
+and combines the data for all 10 C1 chips from batch 1.
+
+```{r eset-combine}
+chips <- c("03162017.rds", "03172017.rds", "03232017.rds",
+           "03302017.rds", "03312017.rds", "04052017.rds",
+           "04072017.rds", "04132017.rds", "04142017.rds",
+           "04202017.rds")
+fname <- Map(function(x) paste0("../data/eset/", x), chips)
+batch1 <- Reduce(combine, Map(readRDS, fname))
+dim(batch1)
+```
+
+To learn more about the data that can be stored in an ExpressionSet object and 
+methods to access the data, please see the help pages for ExpressionSet and its
+parent class eSet.
+
+```{r eset-man-pages, eval=FALSE}
+?ExpressionSet
+?eSet
+```
+
+## Data analysis workflow
+
+The data analysis is organized using the R package [workflowr][]. Here are the
+basics:
+
+```{r workflowr-basics, eval=FALSE}
+# Create a new analysis file using the workflowr
+wflow_open("analysis/new.Rmd")
+# Build the website locally
+wflow_build()
+# Build and commit the website files
+wflow_publish("analysis/new.Rmd", "Add a new analysis")
+```
+
+Ideally `wflow_publish()` will be run using the conda environment scqtl so that
+the final results are always generated using the same versions of the software.
+If you are using RStudio, you may need to open R from the command line to
+execute `wflow_publish()` in the conda environment.
+
+More information on workflowr can be found in the [online
+documentation][workflowr-docs].
+
+## Installation of R packages outside of conda environment
+
+There may be situations where you cannot access the R packages installed in the
+conda environment (e.g. running RStudio on macOS, or RStudio Server). The code
+below installs the necessary R packages from [CRAN][cran], [Bioconductor][bioc],
+and [GitHub][gh].
+
+Install R packages from [CRAN][cran]:
+
+```{r install-cran, eval=FALSE}
+install.packages("cowplot", "data.table", "devtools", "dplyr", "ggplot2",
+                 "readr", "rmarkdown", "stringr", "testit", "tidyr")
+```
+
+Install R packages from [Bioconductor][bioc]:
+
+```{r install-bioc, eval=FALSE}
+source("https://bioconductor.org/biocLite.R")
+biocLite(c("Biobase", "biomaRt", "edgeR"))
+```
+
+Install R packages from [GitHub][gh]:
+
+```{r install-github, eval=FALSE}
+devtools::install_github("jdblischak/workflowr")
+```
+
+## FAQ
+
+### Why does Git keep asking for my password repeatedely?
+
+We use [git-lfs][] to version control large files. To push updated versions of these large files requires authentication of the https server where they are stored, and this must be done for each file separately! To reduce the number of times you have to manually enter your password, enable [caching of your GitHub password][git-caching]:
+
+```
+git config --global credential.helper cache
+```
+
+## Session information
+
+<!-- Insert the session information into the document -->
+```{r session-info}
+```
+
+[bioc]: https://bioconductor.org
+[bioconda]: https://bioconda.github.io
+[cluster.json]: https://github.com/jdblischak/singlecell-qtl/blob/master/cluster.json
+[conda]: https://conda.io/docs/
+[conda-forge]: https://conda-forge.org/
+[config.yaml]: https://github.com/jdblischak/singlecell-qtl/blob/master/config.yaml
+[cran]: https://cran.r-project.org/
+[eset]: https://www.bioconductor.org/packages/release/bioc/vignettes/Biobase/inst/doc/ExpressionSetIntroduction.pdf
+[featurecounts]: http://bioinf.wehi.edu.au/featureCounts/
+[gh]: https://github.com
+[git-caching]: https://help.github.com/articles/caching-your-github-password-in-git/
+[git-lfs]: https://git-lfs.github.com/
+[miniconda]: https://conda.io/miniconda.html
+[snakefile]: https://github.com/jdblischak/singlecell-qtl/blob/master/Snakefile
+[snakemake]: https://snakemake.readthedocs.io/en/stable/
+[snakemake.sbatch]: https://github.com/jdblischak/singlecell-qtl/blob/master/snakemake.sbatch
+[subjunc]: http://bioinf.wehi.edu.au/subjunc/
+[submit-snakemake.sh]: https://github.com/jdblischak/singlecell-qtl/blob/master/submit-snakemake.sh
+[umi-tools]: https://github.com/CGATOxford/UMI-tools
+[verifybamid]: http://genome.sph.umich.edu/wiki/VerifyBamID
+[workflowr]: https://github.com/jdblischak/workflowr
+[workflowr-docs]: https://jdblischak.github.io/workflowr/
