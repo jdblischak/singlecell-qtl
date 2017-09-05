@@ -29,6 +29,12 @@ various other software packages. When you are done working on this project, you
 can either logout of the current session or deactivate the environment by
 running `source deactivate`.
 
+1. Initialize git-lfs and download latest version of large data files
+    ```
+    git lfs install
+    git lfs pull
+    ```
+
 If there are updates to `environment.yaml`, you can update the "scqtl"
 environment by running `conda env udpate --file environment.yaml`.
 

@@ -35,6 +35,8 @@ dependencies:
   - bioconductor-biomart
   - bioconductor-edger
   - biopython
+  - git
+  - git-lfs
   - ipython
   - pandoc
   - pysam
