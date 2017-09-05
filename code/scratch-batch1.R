@@ -16,9 +16,19 @@ out <- x %>%
   select(sample, experiment:index) %>%
   arrange(sample)
 
+# Change individual NA18522 to NA18852
+out <- out %>% mutate(individual.1 = ifelse(individual.1 == "NA18522",
+                                            "NA18852", individual.1),
+                      individual.2 = ifelse(individual.2 == "NA18522",
+                                            "NA18852", individual.2),
+                      individual.3 = ifelse(individual.3 == "NA18522",
+                                            "NA18852", individual.3),
+                      individual.4 = ifelse(individual.4 == "NA18522",
+                                            "NA18852", individual.4))
+
 str(out)
 
-dir.create("../data/lab-info")
+dir.create("../data/lab-info", showWarnings = FALSE)
 
 for (e in unique(out$experiment)) {
   print(e)

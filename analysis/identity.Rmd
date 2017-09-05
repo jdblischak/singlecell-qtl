@@ -34,86 +34,31 @@ knitr::read_chunk("chunks.R")
 library("cowplot")
 library("dplyr")
 library("ggplot2")
-library("readr")
 library("stringr")
 library("tidyr")
 theme_set(theme_cowplot())
-source("../code/functions.R")
+library("Biobase")
 ```
 
-Import totals counts.
+Import data.
 
-```{r read-totals, message=FALSE}
-totals <- read_tsv("../data/totals.txt")
-dim(totals)
-totals[1:5, 1:10]
-colnames(totals)
-```
-
-Import annotation.
-
-```{r read-anno, message=FALSE}
-anno <- read_tsv("../data/batch1_qc.txt",
-                 col_types = cols(ERCC = col_character()))
-# Cleanup ERCC column
-anno$ERCC <- ifelse(is.na(anno$ERCC), "Not added", anno$ERCC)
-anno$ERCC <- factor(anno$ERCC, levels = c("Not added", "1:100000", "1:50000"),
-                    labels = c("Not added", "100x dilution", "50x dilution"))
-# Prepend "NA" to individual IDs
-anno <- anno %>% mutate(individual.1 = paste0("NA", individual.1),
-                        individual.2 = paste0("NA", individual.2),
-                        individual.3 = paste0("NA", individual.3),
-                        individual.4 = paste0("NA", individual.4))
-# Change individual NA18522 to NA 18852
-anno <- anno %>% mutate(individual.1 = ifelse(individual.1 == "NA18522",
-                                              "NA18852", individual.1),
-                        individual.2 = ifelse(individual.2 == "NA18522",
-                                              "NA18852", individual.2),
-                        individual.3 = ifelse(individual.3 == "NA18522",
-                                              "NA18852", individual.3),
-                        individual.4 = ifelse(individual.4 == "NA18522",
-                                              "NA18852", individual.4))
-dim(anno)
-colnames(anno)
-```
-
-Merge the data sets.
-
-```{r merge}
-totals_anno <- merge(totals, anno, by = c("experiment", "well"))
-stopifnot(nrow(totals_anno) == nrow(totals))
-```
-
-Import identity information from verifyBamID.
-
-```{r identity, message=FALSE}
-verify <- read_tsv("../data/verify.txt")
-dim(verify)
-# Extract sample ID into experiment and well
-verify <- verify %>%
-  extract(col = sample, into = c("experiment", "well"),
-          regex = "([[:digit:]]+)-([[:alnum:]]+)")
-head(verify)
-```
-
-Merge in identity.
-
-```{r merge-identity}
-verify <- merge(verify, totals_anno, by = c("experiment", "well"))
+```{r import}
+fname <- Sys.glob("../data/eset/*.rds")
+eset <- Reduce(combine, Map(readRDS, fname))
+eset
 ```
 
 ## How many of the identities are plausible?
 
 ```{r plausible}
-verify <- verify %>% mutate(plausible = chip_id %in% c(individual.1, individual.2,
-                                                       individual.3, individual.4))
-table(verify$plausible)
-mean(verify$plausible)
+table(eset$valid_id)
+mean(eset$valid_id)
 ```
 
 ## Plot per C1 chip
 
 ```{r ind-per-chip}
+anno <- pData(eset)
 df_e <- anno %>%
   group_by(experiment) %>%
   summarize(i1 = unique(individual.1),
@@ -123,10 +68,10 @@ df_e <- anno %>%
 op <- par(cex = 2, las = 2, mfrow = c(2, 5))
 for (i in 1:nrow(df_e)) {
   e <- df_e$experiment[i]
-  n1 <- sum(verify$chip_id[verify$experiment == e] == df_e$i1[i])
-  n2 <- sum(verify$chip_id[verify$experiment == e] == df_e$i2[i])
-  n3 <- sum(verify$chip_id[verify$experiment == e] == df_e$i3[i])
-  n4 <- sum(verify$chip_id[verify$experiment == e] == df_e$i4[i])
+  n1 <- sum(anno$chip_id[anno$experiment == e] == df_e$i1[i])
+  n2 <- sum(anno$chip_id[anno$experiment == e] == df_e$i2[i])
+  n3 <- sum(anno$chip_id[anno$experiment == e] == df_e$i3[i])
+  n4 <- sum(anno$chip_id[anno$experiment == e] == df_e$i4[i])
   n_other <- 96 - n1 - n2 -n3 - n4
   barplot(c(n1, n2, n3, n4, n_other), main = sprintf("C1 chip %s", e),
           names.arg = c(df_e$i1[i], df_e$i2[i], df_e$i3[i],df_e$i4[i], "Other"),
@@ -144,7 +89,7 @@ it is on.
 expected <- df_e %>% select(starts_with("i")) %>% unlist %>% table * 96 / 4
 expected <- as.data.frame(expected)
 colnames(expected) <- c("ind", "count")
-observed <- table(verify$chip_id)
+observed <- table(anno$chip_id)
 observed <- as.data.frame(observed)
 colnames(observed) <- c("ind", "count")
 df_obs <- merge(expected, observed, by = "ind", suffixes = c(".exp", ".obs"),
@@ -175,7 +120,7 @@ observed %>% filter(count > 10, !(ind %in% expected$ind)) %>%
 Sequencing depth
 
 ```{r reason-raw}
-reason_raw <- ggplot(verify, aes(x = plausible, y = raw)) +
+reason_raw <- ggplot(anno, aes(x = valid_id, y = raw)) +
   geom_boxplot() +
   scale_x_discrete(labels = c("Wrong", "Correct")) +
   labs(x = "Predicted individual of origin",
@@ -195,7 +140,7 @@ reason_raw %+% aes(y = mapped / raw * 100) +
 Cell number
 
 ```{r reason-cell-number}
-barplot(with(verify, table(plausible, cell_number)), beside = TRUE,
+barplot(with(anno, table(valid_id, cell_number)), beside = TRUE,
         col = c("red", "black"),
         xlab = "Number of cells in well", main = "Number of cells in well",
         ylab = "Number of cells correct (black) versus wrong (red)")
@@ -212,7 +157,7 @@ reason_raw %+% aes(y = concentration) +
 TRA-1-60
 
 ```{r reason-tra-1-60}
-barplot(with(verify, table(plausible, tra1.60)), beside = TRUE,
+barplot(with(anno, table(valid_id, tra1.60)), beside = TRUE,
         col = c("red", "black"),
         xlab = "TRA-1-60", main = "TRA-1-60",
         ylab = "Number of cells correct (black) versus wrong (red)")
@@ -243,18 +188,18 @@ reason_raw %+% aes(y = freemix) +
 chipmix versus freemix
 
 ```{r chipmix-v-freemix}
-ggplot(verify, aes(x = freemix, y = chipmix, color = plausible)) +
+ggplot(anno, aes(x = freemix, y = chipmix, color = valid_id)) +
   geom_point() +
-  facet_wrap(~plausible) +
+  facet_wrap(~valid_id) +
   labs(title = "chipmix versus freemix")
 ```
 
 chipmix versus SNPs with overlapping reads
 
 ```{r chipmix-v-snps-w-min}
-ggplot(verify, aes(x = snps_w_min, y = chipmix, color = plausible)) +
+ggplot(anno, aes(x = snps_w_min, y = chipmix, color = valid_id)) +
   geom_point() +
-  facet_wrap(~plausible) +
+  facet_wrap(~valid_id) +
   labs(title = "chipmix versus SNPs with at least one overlapping read",
        x = "SNPs with at least one overlapping read")
 ```
@@ -262,9 +207,9 @@ ggplot(verify, aes(x = snps_w_min, y = chipmix, color = plausible)) +
 chipmix versus raw number of reads
 
 ```{r chipmix-v-raw}
-ggplot(verify, aes(x = raw, y = chipmix, color = plausible)) +
+ggplot(anno, aes(x = raw, y = chipmix, color = valid_id)) +
   geom_point() +
-  facet_wrap(~plausible) +
+  facet_wrap(~valid_id) +
   labs(title = "chipmix versus number of raw reads",
        x = "Number of raw reads")
 ```
