@@ -5,14 +5,26 @@
 # https://www.bioconductor.org/packages/release/bioc/vignettes/Biobase/inst/doc/ExpressionSetIntroduction.pdf
 #
 
-library("Biobase")
-library("data.table")
-library("dplyr")
-library("stringr")
+# Setup ------------------------------------------------------------------------
 
-molecules <- fread("zcat ../data/molecules/03302017.txt.gz", data.table = FALSE)
+suppressPackageStartupMessages(library("Biobase"))
+suppressPackageStartupMessages(library("data.table"))
+suppressPackageStartupMessages(library("dplyr"))
+suppressPackageStartupMessages(library("stringr"))
+
+# Input arguments
+args <- commandArgs(trailingOnly = TRUE)
+stopifnot(length(args) == 6, file.exists(args[1:5]))
+f_molecules <- args[1]
+f_lab <- args[2]
+f_totals <- args[3]
+f_verify <- args[4]
+f_saf <- args[5]
+f_rds <- args[6]
 
 # Assay data: molecules counts -------------------------------------------------
+
+molecules <- fread(sprintf("zcat %s", f_molecules), data.table = FALSE)
 
 assay <- molecules %>% select(-sample:-well) %>% t
 stopifnot(class(assay) == "matrix")
@@ -22,11 +34,11 @@ assay <- assay[order(rownames(assay)), ]
 # Pheno data: single-cell metrics ----------------------------------------------
 
 # Lab info
-lab <- fread("../data/lab-info/03302017.txt", data.table = FALSE)
+lab <- fread(f_lab, data.table = FALSE)
 # Total counts
-totals <- fread("../data/totals/03302017.txt", data.table = FALSE)
+totals <- fread(f_totals, data.table = FALSE)
 # Results from verifyBamID
-verify <- fread("../data/verify/03302017.txt", data.table = FALSE)
+verify <- fread(f_verify, data.table = FALSE)
 stopifnot(lab$sample == totals$sample,
           lab$sample == verify$sample,
           lab$sample == colnames(assay))
@@ -91,8 +103,7 @@ pheno_anno$experiment <- paste0("0", pheno_anno$experiment)
 
 # Feature annotations ----------------------------------------------------------
 
-saf <- "/scratch/midway2/jdblischak/genome-ensembl-release-75/exons-ensembl-release-75.saf"
-exons <- fread(saf, data.table = FALSE)
+exons <- fread(f_saf, data.table = FALSE)
 colnames(exons) <- tolower(colnames(exons))
 feature <- exons %>%
   group_by(geneid, chr, strand, name) %>%
@@ -147,7 +158,7 @@ eset <- ExpressionSet(assayData = assay,
                       featureData = feature_anno,
                       experimentData = experiment)
 
-saveRDS(eset, "../data/eset/03302017.rds")
+saveRDS(eset, file = f_rds)
 
 # Access info:
 # eset

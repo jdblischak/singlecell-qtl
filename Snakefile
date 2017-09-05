@@ -92,22 +92,13 @@ wildcard_constraints: chip = "[0-9]{8,8}", row = "[A-H]", col = "[0-1][0-9]"
 # Targets ----------------------------------------------------------------------
 
 rule all:
-    input: totals = expand(dir_data + "totals/{chip}.txt", chip = chips),
-           reads = expand(dir_data + "reads/{chip}.txt.gz", chip = chips),
-           molecules = expand(dir_data + "molecules/{chip}.txt.gz", chip = chips),
-           verify = expand(dir_data + "verify/{chip}.txt", chip = chips)
+    input: expand(dir_data + "eset/{chip}.rds", chip = chips)
 
 rule chip_03232017:
-    input: totals = dir_data + "totals/03232017.txt",
-           reads = dir_data + "reads/03232017.txt.gz",
-           molecules = dir_data + "molecules/03232017.txt.gz",
-           verify = dir_data + "verify/03232017.txt"
+    input: dir_data + "eset/03232017.rds"
 
 rule chip_04202017:
-    input: totals = dir_data + "totals/04202017.txt",
-           reads = dir_data + "reads/04202017.txt.gz",
-           molecules = dir_data + "molecules/04202017.txt.gz",
-           verify = dir_data + "verify/04202017.txt"
+    input: dir_data + "eset/04202017.rds"
 
 # Functions --------------------------------------------------------------------
 
@@ -380,6 +371,20 @@ rule gather_counts:
 
         reads.close()
         molecules.close()
+
+rule expressionset:
+    input: lab = dir_data + "lab-info/{chip}.txt",
+           totals = dir_data + "totals/{chip}.txt",
+           molecules = dir_data + "molecules/{chip}.txt.gz",
+           verify = dir_data + "verify/{chip}.txt",
+           saf = dir_genome + ensembl_exons
+    output: dir_data + "eset/{chip}.rds"
+    shell: "Rscript code/create-expressionset.R {input.molecules} \
+                                                {input.lab} \
+                                                {input.totals} \
+                                                {input.verify} \
+                                                {input.saf} \
+                                                {output}"
 
 # Calculate total counts -------------------------------------------------------
 
