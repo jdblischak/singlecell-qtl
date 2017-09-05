@@ -21,19 +21,68 @@ assay <- assay[order(rownames(assay)), ]
 
 # Pheno data: single-cell metrics ----------------------------------------------
 
+# Lab info
+lab <- fread("../data/lab-info/03302017.txt", data.table = FALSE)
 # Total counts
 totals <- fread("../data/totals/03302017.txt", data.table = FALSE)
 # Results from verifyBamID
 verify <- fread("../data/verify/03302017.txt", data.table = FALSE)
-stopifnot(totals$sample == verify$sample,
-          totals$sample == colnames(assay))
+stopifnot(lab$sample == totals$sample,
+          lab$sample == verify$sample,
+          lab$sample == colnames(assay))
 
-pheno <- merge(totals, verify) %>% select(-sample)
+pheno <- cbind(lab %>% select(-sample),
+               totals %>% select(-(sample:well)),
+               verify %>% select(-sample))
+# Determine if predicted individual is one of the ones added to that C1 chip
+pheno <- pheno %>% mutate(valid_id = chip_id %in% c(individual.1, individual.2,
+                                                    individual.3, individual.4))
 rownames(pheno) <- colnames(assay)
 
-metadata <- data.frame(labelDescription = c(colnames(pheno)))
+metadata <- data.frame(labelDescription = c(
+  # Lab information
+  "ID of C1 chip (i.e. processing date in MMDDYYYY)",
+  "Well of C1 chip (96 total, rows A-H, cols 1-12)",
+  "The number of cells observed in the well via microscopy",
+  "The cDNA concentration of the well prior to library prep",
+  "Did the cell stain positive for TRA-1-60? (test of pluripotency)",
+  "Individual # 1 included on this C1 chip",
+  "Individual # 2 included on this C1 chip",
+  "Individual # 3 included on this C1 chip",
+  "Individual # 4 included on this C1 chip",
+  "The concentration of spike-in added from D. Melanogaster",
+  "The concentration of spike-in added from C. elegans",
+  "The dilution factor of the ERCC spike-ins",
+  "The set of indexes used for library prep (of the 3 sets of 96)",
+  # Total counts
+  "The number of raw reads",
+  "The number of reads with a valid UMI",
+  "The number of reads with a valid UMI that mapped to a genome",
+  "The number of reads with a valid UMI that did *not* map to a genome",
+  "The number of reads that mapped to the C. elegans genome",
+  "The number of reads that mapped to the D. melanogaster genome",
+  "The number of reads that mapped to the ERCC spike-in transcripts",
+  "The number of reads that mapped to the H. sapiens genome",
+  "The number of molecules (i.e. post UMI-deduplication)",
+  "The number of molecules that mapped to the C. elegans genome",
+  "The number of molecules that mapped to the D. melanogaster genome",
+  "The number of molecules that mapped to the ERCC spike-in transcripts",
+  "The number of molecules that mapped to the H. sapiens genome",
+  # verifyBamID
+  "verifyBamID: The predicted individual based on the sequencing data",
+  "verifyBamID: chipmix is a metric for detecting sample swaps",
+  "verifyBamID: freemix is a measure of contamination. 0 == good & 0.5 == bad",
+  "verifyBamID: The number of SNPs that passed thresholds for AF and missingness",
+  "verifyBamID: The number of sequences that overlapped SNPs",
+  "verifyBamID: The average sequencing depth that covered a SNP",
+  "verifyBamID: A minimun depth threshold for QC only (affects snps_w_min)",
+  "verifyBamID: The number of SNPs that had the minimum depth (min_dp); QC only",
+  "verifyBamID: Is the predicted individual 1 of the 4 added to the C1 chip?"
+))
 rownames(metadata) <- c(colnames(pheno))
 pheno_anno <- new("AnnotatedDataFrame", data = pheno, varMetadata = metadata)
+# Add back leading zero for experiment ID
+pheno_anno$experiment <- paste0("0", pheno_anno$experiment)
 
 # Access info:
 # sampleNames(pheno_anno)
@@ -99,3 +148,15 @@ eset <- ExpressionSet(assayData = assay,
                       experimentData = experiment)
 
 saveRDS(eset, "../data/eset/03302017.rds")
+
+# Access info:
+# eset
+# dim(eset)
+# sampleNames(eset)
+# phenoData(eset)
+# varMetadata(eset)
+# featureData(eset)
+# fvarMetadata(eset)
+# experimentData(eset)
+# abstract(eset)
+# preproc(eset)
