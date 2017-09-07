@@ -316,13 +316,13 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2017-09-05</p>
+<p><strong>Last updated:</strong> 2017-09-06</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> 1470b04</p>
+<p><strong>Code version:</strong> 3152859</p>
 <div id="initial-setup" class="section level2">
 <h2>Initial setup</h2>
-<p>The intial setup only has to be performed once for each computer that you use.</p>
+<p>The initial setup only has to be performed once for each computer that you use.</p>
 <p>To ensure all contributors are using the same computational environment, we use <a href="https://conda.io/docs/">conda</a> to manage software dependencies (made possible by the <a href="https://bioconda.github.io">bioconda</a> and <a href="https://conda-forge.org/">conda-forge</a> projects). Please complete the following steps to replicate the computing environment. Note that this is only guaranteed to work on a Linux-64 based architecture, but in theory should be able to work on macOS as well. All commands shown below are intended to be run in a Bash shell from the root of the project directory.</p>
 <ol style="list-style-type: decimal">
 <li><p>Install Git and register for an account on GitHub</p></li>
@@ -341,7 +341,7 @@ shared across the workflowr files. -->
 cd singlecell-qtl</code></pre></li>
 <li><p>Create the conda environment “scqtl” using <code>environment.yaml</code></p>
 <pre><code>conda env create --file environment.yaml</code></pre></li>
-<li><p>To use the conda enviroment, you must first activate it by running <code>source activate scqtl</code>. This will override your default settings for R, Python, and various other software packages. When you are done working on this project, you can either logout of the current session or deactivate the environment.</p>
+<li><p>To use the conda environment, you must first activate it by running <code>source activate scqtl</code>. This will override your default settings for R, Python, and various other software packages. When you are done working on this project, you can either logout of the current session or deactivate the environment.</p>
 <pre><code># Activate conda environment scqtl
 source activate scqtl
 # Deactivate conda environment
@@ -350,7 +350,7 @@ source deactivate</code></pre></li>
 <pre><code>git lfs install
 git lfs pull</code></pre></li>
 </ol>
-<p><strong>Warning:</strong> If you are using RStudio, you need to ensure that it recognizes your conda environment. If you launch RStudio by clicking on an icon, it doesn’t use the current environment you have configured in your shell. On a Linux-based system, the solution is to launch RStudio directly from the shell with <code>rstudio</code>. On macOS, running <code>open -a rstudio</code> from the shell causes RStudio to recognize most of the environemnt variables, but strangely it does not set the correct library path to the conda R packages. Suggestions for how to fix this are welcome.</p>
+<p><strong>Warning:</strong> If you are using RStudio, you need to ensure that it recognizes your conda environment. If you launch RStudio by clicking on an icon, it doesn’t use the current environment you have configured in your shell. On a Linux-based system, the solution is to launch RStudio directly from the shell with <code>rstudio</code>. On macOS, running <code>open -a rstudio</code> from the shell causes RStudio to recognize most of the environment variables, but strangely it does not set the correct library path to the conda R packages. Suggestions for how to fix this are welcome.</p>
 </div>
 <div id="regular-setup" class="section level2">
 <h2>Regular setup</h2>
@@ -372,7 +372,7 @@ git pull</code></pre>
 <li>Molecules are assigned to genes with <a href="http://bioinf.wehi.edu.au/featureCounts/">featureCounts</a></li>
 <li>The identity of the single cells is determined with <a href="http://genome.sph.umich.edu/wiki/VerifyBamID">verifyBamID</a></li>
 </ul>
-<p>The pipeline is implemented with <a href="https://snakemake.readthedocs.io/en/stable/">Snakemake</a>. The <a href="https://github.com/jdblischak/singlecell-qtl/blob/master/Snakefile">Snakefile</a> controls this process, ensuring that output files are updated when upstream files are changed. Options for the pipeline are set in <a href="https://github.com/jdblischak/singlecell-qtl/blob/master/config.yaml">config.yaml</a>, options for submission to Slurm are set in <a href="https://github.com/jdblischak/singlecell-qtl/blob/master/cluster.json">cluster.json</a>, the Bash script for exectuing Snakemake is in <a href="https://github.com/jdblischak/singlecell-qtl/blob/master/submit-snakemake.sh">submit-snakemake.sh</a>, and the Slurm sbatch file for submitting the pipeline is <a href="https://github.com/jdblischak/singlecell-qtl/blob/master/snakemake.sbatch">snakemake.sbatch</a>.</p>
+<p>The pipeline is implemented with <a href="https://snakemake.readthedocs.io/en/stable/">Snakemake</a>. The <a href="https://github.com/jdblischak/singlecell-qtl/blob/master/Snakefile">Snakefile</a> controls this process, ensuring that output files are updated when upstream files are changed. Options for the pipeline are set in <a href="https://github.com/jdblischak/singlecell-qtl/blob/master/config.yaml">config.yaml</a>, options for submission to Slurm are set in <a href="https://github.com/jdblischak/singlecell-qtl/blob/master/cluster.json">cluster.json</a>, the Bash script for executing Snakemake is in <a href="https://github.com/jdblischak/singlecell-qtl/blob/master/submit-snakemake.sh">submit-snakemake.sh</a>, and the Slurm sbatch file for submitting the pipeline is <a href="https://github.com/jdblischak/singlecell-qtl/blob/master/snakemake.sbatch">snakemake.sbatch</a>.</p>
 </div>
 <div id="using-expressionset-objects" class="section level2">
 <h2>Using ExpressionSet objects</h2>
@@ -483,13 +483,13 @@ $counting
 
 $verify
 [1] &quot;Individuals were identified by verifyBamID&quot;</code></pre>
-<p>A nice feature of ExpressionSets is that any subsetting applied to either the sample-level or gene-level variables is automatically propogated to the expression matrix.</p>
+<p>A nice feature of ExpressionSets is that any subsetting applied to either the sample-level or gene-level variables is automatically propagated to the expression matrix.</p>
 <pre class="r"><code>eset_quality &lt;- eset[fData(eset)$source == &quot;H. sapiens&quot;,
                      eset$cell_number == 1 &amp; eset$tra1.60]
 dim(eset_quality)</code></pre>
 <pre><code>Features  Samples 
    20327       85 </code></pre>
-<p>Mutliple ExpressionSet objects can also be combined. The following code imports and combines the data for all 10 C1 chips from batch 1.</p>
+<p>Multiple ExpressionSet objects can also be combined. The following code imports and combines the data for all 10 C1 chips from batch 1.</p>
 <pre class="r"><code>chips &lt;- c(&quot;03162017.rds&quot;, &quot;03172017.rds&quot;, &quot;03232017.rds&quot;,
            &quot;03302017.rds&quot;, &quot;03312017.rds&quot;, &quot;04052017.rds&quot;,
            &quot;04072017.rds&quot;, &quot;04132017.rds&quot;, &quot;04142017.rds&quot;,
@@ -527,10 +527,25 @@ biocLite(c(&quot;Biobase&quot;, &quot;biomaRt&quot;, &quot;edgeR&quot;))</code><
 <p>Install R packages from <a href="https://github.com">GitHub</a>:</p>
 <pre class="r"><code>devtools::install_github(&quot;jdblischak/workflowr&quot;)</code></pre>
 </div>
+<div id="tips-and-tricks" class="section level2">
+<h2>Tips and tricks</h2>
+<div id="enable-bash-auto-completion-for-git-on-macos" class="section level3">
+<h3>Enable Bash auto-completion for Git on macOS</h3>
+<p>Manually typing <code>git pull origin master</code> and other long Git commands is a pain. To enable <a href="https://git-scm.com/book/en/v2/Appendix-A:-Git-in-Other-Environments-Git-in-Bash">Bash auto-completion</a> (i.e. tab-completion) for Git on macOS, follow these <a href="http://www.codethatmatters.com/2010/01/git-autocomplete-in-mac-os-x/">steps</a>:</p>
+<ol style="list-style-type: decimal">
+<li><p>Download the Bash completion script:</p>
+<pre><code>curl https://raw.github.com/git/git/master/contrib/completion/git-completion.bash -OL</code></pre></li>
+<li><p>Add the following line to your .bash_profile:</p>
+<pre><code>source ~/git-completion.bash</code></pre></li>
+<li><p>Re-run your .bash_profile:</p>
+<pre><code>source ~/.bash_profile</code></pre></li>
+</ol>
+</div>
+</div>
 <div id="faq" class="section level2">
 <h2>FAQ</h2>
-<div id="why-does-git-keep-asking-for-my-password-repeatedely" class="section level3">
-<h3>Why does Git keep asking for my password repeatedely?</h3>
+<div id="why-does-git-keep-asking-for-my-password-repeatedly" class="section level3">
+<h3>Why does Git keep asking for my password repeatedly?</h3>
 <p>We use <a href="https://git-lfs.github.com/">git-lfs</a> to version control large files. To push updated versions of these large files requires authentication of the https server where they are stored, and this must be done for each file separately! To reduce the number of times you have to manually enter your password, enable <a href="https://help.github.com/articles/caching-your-github-password-in-git/">caching of your GitHub password</a>:</p>
 <pre><code>git config --global credential.helper cache</code></pre>
 </div>
@@ -540,16 +555,11 @@ biocLite(c(&quot;Biobase&quot;, &quot;biomaRt&quot;, &quot;edgeR&quot;))</code><
 <!-- Insert the session information into the document -->
 <pre class="r"><code>sessionInfo()</code></pre>
 <pre><code>R version 3.3.2 (2016-10-31)
-Platform: x86_64-pc-linux-gnu (64-bit)
-Running under: Scientific Linux 7.2 (Nitrogen)
+Platform: x86_64-apple-darwin14.5.0 (64-bit)
+Running under: OS X Yosemite 10.10.5
 
 locale:
- [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
- [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
- [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
- [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
- [9] LC_ADDRESS=C               LC_TELEPHONE=C            
-[11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
 
 attached base packages:
 [1] parallel  stats     graphics  grDevices utils     datasets  methods  
@@ -560,9 +570,9 @@ other attached packages:
 
 loaded via a namespace (and not attached):
  [1] backports_1.0.5 magrittr_1.5    rprojroot_1.2   tools_3.3.2    
- [5] htmltools_0.3.6 yaml_2.1.13     Rcpp_0.12.10    stringi_1.1.2  
+ [5] htmltools_0.3.6 yaml_2.1.14     Rcpp_0.12.10    stringi_1.1.2  
  [9] rmarkdown_1.6   knitr_1.16      git2r_0.19.0    stringr_1.2.0  
-[13] digest_0.6.12   evaluate_0.10  </code></pre>
+[13] digest_0.6.10   evaluate_0.10  </code></pre>
 </div>
 
 <hr>
