@@ -26,7 +26,7 @@ knitr::read_chunk("chunks.R")
 
 ## Initial setup
 
-The intial setup only has to be performed once for each computer that you use.
+The initial setup only has to be performed once for each computer that you use.
 
 To ensure all contributors are using the same computational environment, we use
 [conda][] to manage software dependencies (made possible by the [bioconda][] and
@@ -58,7 +58,7 @@ project directory.
     conda env create --file environment.yaml
     ```
 
-1. To use the conda enviroment, you must first activate it by running `source
+1. To use the conda environment, you must first activate it by running `source
 activate scqtl`. This will override your default settings for R, Python, and
 various other software packages. When you are done working on this project, you
 can either logout of the current session or deactivate the environment.
@@ -80,7 +80,7 @@ can either logout of the current session or deactivate the environment.
   doesn't use the current environment you have configured in your shell. On a
   Linux-based system, the solution is to launch RStudio directly from the shell
   with `rstudio`. On macOS, running `open -a rstudio` from the shell causes
-  RStudio to recognize most of the environemnt variables, but strangely it does
+  RStudio to recognize most of the environment variables, but strangely it does
   not set the correct library path to the conda R packages. Suggestions for how
   to fix this are welcome.
 
@@ -121,7 +121,7 @@ The pipeline is implemented with [Snakemake][snakemake]. The
 [Snakefile][snakefile] controls this process, ensuring that output files are 
 updated when upstream files are changed. Options for the pipeline are set in
 [config.yaml][], options for submission to Slurm are set in [cluster.json][],
-the Bash script for exectuing Snakemake is in [submit-snakemake.sh][], and the
+the Bash script for executing Snakemake is in [submit-snakemake.sh][], and the
 Slurm sbatch file for submitting the pipeline is [snakemake.sbatch][].
 
 ## Using ExpressionSet objects
@@ -174,7 +174,7 @@ preproc(eset)
 ```
 
 A nice feature of ExpressionSets is that any subsetting applied to either the
-sample-level or gene-level variables is automatically propogated to the
+sample-level or gene-level variables is automatically propagated to the
 expression matrix.
 
 ```{r eset-subset}
@@ -183,7 +183,7 @@ eset_quality <- eset[fData(eset)$source == "H. sapiens",
 dim(eset_quality)
 ```
 
-Mutliple ExpressionSet objects can also be combined. The following code imports
+Multiple ExpressionSet objects can also be combined. The following code imports
 and combines the data for all 10 C1 chips from batch 1.
 
 ```{r eset-combine}
@@ -254,9 +254,32 @@ Install R packages from [GitHub][gh]:
 devtools::install_github("jdblischak/workflowr")
 ```
 
+## Tips and tricks
+
+### Enable Bash auto-completion for Git on macOS
+
+Manually typing `git pull origin master` and other long Git commands is a pain.
+To enable [Bash auto-completion][git-complete] (i.e. tab-completion) for Git on
+macOS, follow these [steps][git-complete-steps]:
+
+1. Download the Bash completion script:
+    ```
+    curl https://raw.github.com/git/git/master/contrib/completion/git-completion.bash -OL
+    ```
+
+1. Add the following line to your .bash_profile:
+    ```
+    source ~/git-completion.bash
+    ```
+
+3. Re-run your .bash_profile:
+    ```
+    source ~/.bash_profile
+    ```
+
 ## FAQ
 
-### Why does Git keep asking for my password repeatedely?
+### Why does Git keep asking for my password repeatedly?
 
 We use [git-lfs][] to version control large files. To push updated versions of these large files requires authentication of the https server where they are stored, and this must be done for each file separately! To reduce the number of times you have to manually enter your password, enable [caching of your GitHub password][git-caching]:
 
@@ -281,6 +304,8 @@ git config --global credential.helper cache
 [featurecounts]: http://bioinf.wehi.edu.au/featureCounts/
 [gh]: https://github.com
 [git-caching]: https://help.github.com/articles/caching-your-github-password-in-git/
+[git-complete]: https://git-scm.com/book/en/v2/Appendix-A:-Git-in-Other-Environments-Git-in-Bash
+[git-complete-steps]: http://www.codethatmatters.com/2010/01/git-autocomplete-in-mac-os-x/
 [git-lfs]: https://git-lfs.github.com/
 [miniconda]: https://conda.io/miniconda.html
 [snakefile]: https://github.com/jdblischak/singlecell-qtl/blob/master/Snakefile
