@@ -316,10 +316,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2017-09-05</p>
+<p><strong>Last updated:</strong> 2017-09-11</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> 3ca06bb</p>
+<p><strong>Code version:</strong> a34056f</p>
 <p>Calculate pairwise correlations between single cells.</p>
 <div id="setup" class="section level2">
 <h2>Setup</h2>
@@ -593,6 +593,45 @@ ggplot(cor_per_chip, aes(x = id, y = r)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))</code></pre>
 <p><img src="figure/correlations.Rmd/cor-per-chip-1.png" width="768" style="display: block; margin: auto;" /></p>
 <p>Note that the boxplots for Fly and Fly 5 or 50 pg are not identical even though each chip has only 1 because these were processed separately above when filtering genes which are present in at least 50% of samples.</p>
+</div>
+<div id="chip-effect-versus-individual-effect" class="section level2">
+<h2>Chip effect versus individual effect</h2>
+<pre class="r"><code>anno &lt;- pData(eset)
+head(cor_long_hs)</code></pre>
+<pre><code>  experiment1 well1 experiment2 well2         r    id
+1    03162017   A01    03162017   A02 0.3573758 Human
+2    03162017   A01    03162017   A03 0.2283622 Human
+3    03162017   A01    03162017   A05 0.2566673 Human
+4    03162017   A01    03162017   A06 0.3496850 Human
+5    03162017   A01    03162017   A07 0.3387504 Human
+6    03162017   A01    03162017   A08 0.3454641 Human</code></pre>
+<pre class="r"><code>cor_hs_long_cat &lt;- cor_long_hs %&gt;%
+  mutate(chip_id1 = anno[paste(experiment1, well1, sep = &quot;-&quot;), &quot;chip_id&quot;],
+         chip_id2 = anno[paste(experiment2, well2, sep = &quot;-&quot;), &quot;chip_id&quot;],
+         same_chip = experiment1 == experiment2,
+         same_ind = chip_id1 == chip_id2,
+         same_chip_same_ind = same_chip &amp; same_ind,
+         same_chip_diff_ind = same_chip &amp; !same_ind,
+         diff_chip_same_ind = !same_chip &amp; same_ind,
+         diff_chip_diff_ind = !same_chip &amp; !same_ind) %&gt;%
+  gather(&quot;category&quot;, &quot;assigned&quot;,
+         same_chip_same_ind:diff_chip_diff_ind) %&gt;%
+  filter(assigned)</code></pre>
+<p>The effect of individual is stronger than the effect of chip.</p>
+<pre class="r"><code>cor_hs_long_cat$category &lt;- factor(cor_hs_long_cat$category,
+                                   levels = c(&quot;same_chip_same_ind&quot;,
+                                              &quot;diff_chip_same_ind&quot;,
+                                              &quot;same_chip_diff_ind&quot;,
+                                              &quot;diff_chip_diff_ind&quot;),
+                                   labels = c(&quot;Same chip\nSame ind&quot;,
+                                              &quot;Diff chip\nSame ind&quot;,
+                                              &quot;Same chip\nDiff ind&quot;,
+                                              &quot;Diff chip\nDiff ind&quot;))
+ggplot(cor_hs_long_cat, aes(x = category, y = r)) +
+  geom_boxplot() +
+  labs(title = &quot;Chip effect v. individual effect&quot;,
+       x = &quot;&quot;, y = &quot;Pairwise Pearson correlations&quot;)</code></pre>
+<p><img src="figure/correlations.Rmd/chip-v-individual-1.png" width="768" style="display: block; margin: auto;" /></p>
 </div>
 <div id="session-information" class="section level2">
 <h2>Session information</h2>

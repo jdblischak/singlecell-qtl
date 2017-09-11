@@ -316,10 +316,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2017-09-05</p>
+<p><strong>Last updated:</strong> 2017-09-11</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> 3ca06bb</p>
+<p><strong>Code version:</strong> a34056f</p>
 <div id="setup" class="section level2">
 <h2>Setup</h2>
 <pre class="r"><code>library(&quot;cowplot&quot;)
@@ -555,6 +555,18 @@ plot_pca(pca_hs$PCs, pcx = 1, pcy = 2, explained = pca_hs$explained,
 <pre class="r"><code>plot_pca(pca_hs$PCs, pcx = 3, pcy = 4, explained = pca_hs$explained,
          metadata = pData(eset_hs_clean), color = &quot;experiment&quot;)</code></pre>
 <p><img src="figure/pca.Rmd/pca-hs-2.png" width="768" style="display: block; margin: auto;" /></p>
+<p>Visualizing how cells cluster by chip and individual for a subset of individuals.</p>
+<pre class="r"><code>pca_hs_data &lt;- cbind(pca_hs$PCs[, 1:4], pData(eset_hs_clean))
+hs_pc1v2 &lt;- ggplot(pca_hs_data %&gt;% filter(chip_id %in% c(&quot;NA18505&quot;,
+                                             &quot;NA18507&quot;,
+                                             &quot;NA18508&quot;)),
+       aes(x = PC1, y = PC2, color = experiment)) +
+  geom_text(aes(label = str_sub(chip_id, 6, 7)))
+hs_pc1v2</code></pre>
+<p><img src="figure/pca.Rmd/pca-hs-individual-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>hs_pc3v4 &lt;- hs_pc1v2 %+% aes(x = PC3, y = PC4)
+hs_pc3v4</code></pre>
+<p><img src="figure/pca.Rmd/pca-hs-individual-2.png" width="768" style="display: block; margin: auto;" /></p>
 </div>
 <div id="session-information" class="section level2">
 <h2>Session information</h2>
