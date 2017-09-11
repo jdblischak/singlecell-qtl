@@ -294,6 +294,21 @@ plot_pca(pca_hs$PCs, pcx = 3, pcy = 4, explained = pca_hs$explained,
          metadata = pData(eset_hs_clean), color = "experiment")
 ```
 
+Visualizing how cells cluster by chip and individual for a subset of
+individuals.
+
+```{r pca-hs-individual}
+pca_hs_data <- cbind(pca_hs$PCs[, 1:4], pData(eset_hs_clean))
+hs_pc1v2 <- ggplot(pca_hs_data %>% filter(chip_id %in% c("NA18505",
+                                             "NA18507",
+                                             "NA18508")),
+       aes(x = PC1, y = PC2, color = experiment)) +
+  geom_text(aes(label = str_sub(chip_id, 6, 7)))
+hs_pc1v2
+hs_pc3v4 <- hs_pc1v2 %+% aes(x = PC3, y = PC4)
+hs_pc3v4
+```
+
 ## Session information
 
 <!-- Insert the session information into the document -->

@@ -368,6 +368,44 @@ Note that the boxplots for Fly and Fly 5 or 50 pg are not identical even though
 each chip has only 1 because these were processed separately above when
 filtering genes which are present in at least 50% of samples.
 
+## Chip effect versus individual effect
+
+```{r prepare-chip-v-individual}
+anno <- pData(eset)
+head(cor_long_hs)
+cor_hs_long_cat <- cor_long_hs %>%
+  mutate(chip_id1 = anno[paste(experiment1, well1, sep = "-"), "chip_id"],
+         chip_id2 = anno[paste(experiment2, well2, sep = "-"), "chip_id"],
+         same_chip = experiment1 == experiment2,
+         same_ind = chip_id1 == chip_id2,
+         same_chip_same_ind = same_chip & same_ind,
+         same_chip_diff_ind = same_chip & !same_ind,
+         diff_chip_same_ind = !same_chip & same_ind,
+         diff_chip_diff_ind = !same_chip & !same_ind) %>%
+  gather("category", "assigned",
+         same_chip_same_ind:diff_chip_diff_ind) %>%
+  filter(assigned)
+```
+
+The effect of individual is stronger than the effect of chip.
+
+```{r chip-v-individual}
+cor_hs_long_cat$category <- factor(cor_hs_long_cat$category,
+                                   levels = c("same_chip_same_ind",
+                                              "diff_chip_same_ind",
+                                              "same_chip_diff_ind",
+                                              "diff_chip_diff_ind"),
+                                   labels = c("Same chip\nSame ind",
+                                              "Diff chip\nSame ind",
+                                              "Same chip\nDiff ind",
+                                              "Diff chip\nDiff ind"))
+ggplot(cor_hs_long_cat, aes(x = category, y = r)) +
+  geom_boxplot() +
+  labs(title = "Chip effect v. individual effect",
+       x = "", y = "Pairwise Pearson correlations")
+```
+
+
 ## Session information
 
 <!-- Insert the session information into the document -->
