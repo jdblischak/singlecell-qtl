@@ -79,7 +79,7 @@ can either logout of the current session or deactivate the environment.
   your conda environment. If you launch RStudio by clicking on an icon, it
   doesn't use the current environment you have configured in your shell. On a
   Linux-based system, the solution is to launch RStudio directly from the shell
-  with `rstudio`. On macOS, running `open -a rstudio` from the shell causes
+  with `rstudio`. On macOS, running `open -a rstudio .` from the shell causes
   RStudio to recognize most of the environment variables, but strangely it does
   not set the correct library path to the conda R packages. Suggestions for how
   to fix this are welcome.
@@ -102,7 +102,7 @@ environment. You may want to do this occasionally just to be sure you have all
 the software you need.
 
 ```
-conda env udpate --file environment.yaml
+conda env update --file environment.yaml
 ```
 
 ## Bioinformatics pipeline
@@ -276,6 +276,30 @@ macOS, follow these [steps][git-complete-steps]:
     ```
     source ~/.bash_profile
     ```
+
+### Open RStudio from the Terminal
+
+On macOS and Linux systems you can run RStudio from a terminal and specify which
+working directory to startup within. Additionally, on Linux systems if you run
+RStudio from a terminal and specify no command line argument then RStudio will
+startup using the current working directory of the terminal.
+
+For example, on macOS you could use the following commands to open RStudio
+(respectively) in the `~/projects/foo` directory or the current working
+directory:
+
+```
+$ open -a RStudio ~/projects/foo
+$ open -a RStudio .
+```
+
+On Linux you would use the following commands (note that no `.` is necessary in
+the second invocation):
+
+```
+$ rstudio ~/projects/foo
+$ rstudio
+```
 
 ## FAQ
 
