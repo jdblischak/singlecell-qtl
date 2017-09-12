@@ -319,7 +319,7 @@ shared across the workflowr files. -->
 <p><strong>Last updated:</strong> 2017-09-11</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> a34056f</p>
+<p><strong>Code version:</strong> d239528</p>
 <div id="setup" class="section level2">
 <h2>Setup</h2>
 <pre class="r"><code>library(&quot;cowplot&quot;)
@@ -558,15 +558,27 @@ plot_pca(pca_hs$PCs, pcx = 1, pcy = 2, explained = pca_hs$explained,
 <p>Visualizing how cells cluster by chip and individual for a subset of individuals.</p>
 <pre class="r"><code>pca_hs_data &lt;- cbind(pca_hs$PCs[, 1:4], pData(eset_hs_clean))
 hs_pc1v2 &lt;- ggplot(pca_hs_data %&gt;% filter(chip_id %in% c(&quot;NA18505&quot;,
-                                             &quot;NA18507&quot;,
-                                             &quot;NA18508&quot;)),
-       aes(x = PC1, y = PC2, color = experiment)) +
+                                                         &quot;NA18507&quot;,
+                                                         &quot;NA18508&quot;)),
+                   aes(x = PC1, y = PC2, color = experiment)) +
   geom_text(aes(label = str_sub(chip_id, 6, 7)))
 hs_pc1v2</code></pre>
 <p><img src="figure/pca.Rmd/pca-hs-individual-1.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>hs_pc3v4 &lt;- hs_pc1v2 %+% aes(x = PC3, y = PC4)
 hs_pc3v4</code></pre>
 <p><img src="figure/pca.Rmd/pca-hs-individual-2.png" width="768" style="display: block; margin: auto;" /></p>
+<p>Visualizing C1 chips 04132017 and 04142017 because they share 3 individuals. PC1 and PC2 separate outlier cells. PC3 appears to separate by chip followed by individual in PC4.</p>
+<pre class="r"><code>pca_cross_chip_1v2 &lt;- ggplot(pca_hs_data %&gt;%
+                               filter(experiment %in% c(&quot;04132017&quot;, &quot;04142017&quot;),
+                                      chip_id %in% c(&quot;NA18498&quot;, &quot;NA18510&quot;, &quot;NA18520&quot;,
+                                                     &quot;NA18522&quot;, &quot;NA19203&quot;)),
+                             aes(x = PC1, y = PC2, shape = experiment,
+                                 color = chip_id)) +
+  geom_point() +
+  labs(title = &quot;C1 chips 04132017 &amp; 04142017&quot;)
+pca_cross_chip_3v4 &lt;- pca_cross_chip_1v2 %+% aes(x = PC3, y = PC4)
+plot_grid(pca_cross_chip_1v2, pca_cross_chip_3v4, labels = LETTERS[1:2])</code></pre>
+<p><img src="figure/pca.Rmd/pca-cross-chip-1.png" width="768" style="display: block; margin: auto;" /></p>
 </div>
 <div id="session-information" class="section level2">
 <h2>Session information</h2>
