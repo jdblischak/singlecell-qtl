@@ -316,10 +316,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2017-09-06</p>
+<p><strong>Last updated:</strong> 2017-09-12</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> 3152859</p>
+<p><strong>Code version:</strong> 37fafae</p>
 <div id="initial-setup" class="section level2">
 <h2>Initial setup</h2>
 <p>The initial setup only has to be performed once for each computer that you use.</p>
@@ -350,7 +350,7 @@ source deactivate</code></pre></li>
 <pre><code>git lfs install
 git lfs pull</code></pre></li>
 </ol>
-<p><strong>Warning:</strong> If you are using RStudio, you need to ensure that it recognizes your conda environment. If you launch RStudio by clicking on an icon, it doesn’t use the current environment you have configured in your shell. On a Linux-based system, the solution is to launch RStudio directly from the shell with <code>rstudio</code>. On macOS, running <code>open -a rstudio</code> from the shell causes RStudio to recognize most of the environment variables, but strangely it does not set the correct library path to the conda R packages. Suggestions for how to fix this are welcome.</p>
+<p><strong>Warning:</strong> If you are using RStudio, you need to ensure that it recognizes your conda environment. If you launch RStudio by clicking on an icon, it doesn’t use the current environment you have configured in your shell. On a Linux-based system, the solution is to launch RStudio directly from the shell with <code>rstudio</code>. On macOS, running <code>open -a rstudio .</code> from the shell causes RStudio to recognize most of the environment variables, but strangely it does not set the correct library path to the conda R packages. Suggestions for how to fix this are welcome.</p>
 </div>
 <div id="regular-setup" class="section level2">
 <h2>Regular setup</h2>
@@ -359,7 +359,7 @@ git lfs pull</code></pre></li>
 source activate scqtl
 git pull</code></pre>
 <p>If there are updates to <code>environment.yaml</code>, you can update the “scqtl” conda environment. You may want to do this occasionally just to be sure you have all the software you need.</p>
-<pre><code>conda env udpate --file environment.yaml</code></pre>
+<pre><code>conda env update --file environment.yaml</code></pre>
 </div>
 <div id="bioinformatics-pipeline" class="section level2">
 <h2>Bioinformatics pipeline</h2>
@@ -541,6 +541,16 @@ biocLite(c(&quot;Biobase&quot;, &quot;biomaRt&quot;, &quot;edgeR&quot;))</code><
 <pre><code>source ~/.bash_profile</code></pre></li>
 </ol>
 </div>
+<div id="open-rstudio-from-the-terminal" class="section level3">
+<h3>Open RStudio from the Terminal</h3>
+<p>On macOS and Linux systems you can run RStudio from a terminal and specify which working directory to startup within. Additionally, on Linux systems if you run RStudio from a terminal and specify no command line argument then RStudio will startup using the current working directory of the terminal.</p>
+<p>For example, on macOS you could use the following commands to open RStudio (respectively) in the <code>~/projects/foo</code> directory or the current working directory:</p>
+<pre><code>$ open -a RStudio ~/projects/foo
+$ open -a RStudio .</code></pre>
+<p>On Linux you would use the following commands (note that no <code>.</code> is necessary in the second invocation):</p>
+<pre><code>$ rstudio ~/projects/foo
+$ rstudio</code></pre>
+</div>
 </div>
 <div id="faq" class="section level2">
 <h2>FAQ</h2>
@@ -555,11 +565,16 @@ biocLite(c(&quot;Biobase&quot;, &quot;biomaRt&quot;, &quot;edgeR&quot;))</code><
 <!-- Insert the session information into the document -->
 <pre class="r"><code>sessionInfo()</code></pre>
 <pre><code>R version 3.3.2 (2016-10-31)
-Platform: x86_64-apple-darwin14.5.0 (64-bit)
-Running under: OS X Yosemite 10.10.5
+Platform: x86_64-pc-linux-gnu (64-bit)
+Running under: Ubuntu 17.04
 
 locale:
-[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+ [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
+ [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
+ [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
+ [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
+ [9] LC_ADDRESS=C               LC_TELEPHONE=C            
+[11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
 
 attached base packages:
 [1] parallel  stats     graphics  grDevices utils     datasets  methods  
@@ -570,9 +585,9 @@ other attached packages:
 
 loaded via a namespace (and not attached):
  [1] backports_1.0.5 magrittr_1.5    rprojroot_1.2   tools_3.3.2    
- [5] htmltools_0.3.6 yaml_2.1.14     Rcpp_0.12.10    stringi_1.1.2  
+ [5] htmltools_0.3.6 yaml_2.1.13     Rcpp_0.12.10    stringi_1.1.2  
  [9] rmarkdown_1.6   knitr_1.16      git2r_0.19.0    stringr_1.2.0  
-[13] digest_0.6.10   evaluate_0.10  </code></pre>
+[13] digest_0.6.12   evaluate_0.10  </code></pre>
 </div>
 
 <hr>
