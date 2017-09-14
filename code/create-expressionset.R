@@ -42,9 +42,15 @@ verify <- fread(f_verify, data.table = FALSE)
 stopifnot(lab$sample == totals$sample,
           lab$sample == verify$sample,
           lab$sample == colnames(assay))
+# Calculate genes detected
+detect_ce <- colSums(assay[grepl("WBGene", rownames(assay)), ] > 0)
+detect_dm <- colSums(assay[grepl("FBgn", rownames(assay)), ] > 0)
+detect_ercc <- colSums(assay[grepl("ERCC", rownames(assay)), ] > 0)
+detect_hs <- colSums(assay[grepl("ENSG", rownames(assay)), ] > 0)
 
 pheno <- cbind(lab %>% select(-sample),
                totals %>% select(-(sample:well)),
+               detect_ce, detect_dm, detect_ercc, detect_hs,
                verify %>% select(-sample))
 # Determine if predicted individual is one of the ones added to that C1 chip
 pheno <- pheno %>% mutate(valid_id = chip_id %in% c(individual.1, individual.2,
@@ -80,6 +86,11 @@ metadata <- data.frame(labelDescription = c(
   "The number of molecules that mapped to the D. melanogaster genome",
   "The number of molecules that mapped to the ERCC spike-in transcripts",
   "The number of molecules that mapped to the H. sapiens genome",
+  # Number of genes detected
+  "The number of C. elegans genes with at least one molecule",
+  "The number of D. melanogaster genes with at least one molecule",
+  "The number of ERCC genes with at least one molecule",
+  "The number of H. sapiens genes with at least one molecule",
   # verifyBamID
   "verifyBamID: The predicted individual based on the sequencing data",
   "verifyBamID: chipmix is a metric for detecting sample swaps",
