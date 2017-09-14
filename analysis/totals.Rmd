@@ -33,48 +33,31 @@ source (human, fly, worm, and ERCC).
 library("cowplot")
 library("dplyr")
 library("ggplot2")
-library("readr")
-library("stringr")
 library("tidyr")
 theme_set(theme_cowplot())
 source("../code/functions.R")
+library("Biobase")
 ```
 
-Import totals counts.
+Import data.
 
-```{r read-totals, message=FALSE}
-totals <- read_tsv("../data/totals.txt")
-dim(totals)
-totals[1:5, 1:10]
-colnames(totals)
-```
-
-Import annotation.
-
-```{r read-anno, message=FALSE}
-anno <- read_tsv("../data/batch1_qc.txt",
-                 col_types = cols(ERCC = col_character()))
-# Cleanup ERCC column
-anno$ERCC <- ifelse(is.na(anno$ERCC), "Not added", anno$ERCC)
-anno$ERCC <- factor(anno$ERCC, levels = c("Not added", "1:100000", "1:50000"),
-                    labels = c("Not added", "100x dilution", "50x dilution"))
-dim(anno)
-colnames(anno)
-```
-
-Merge the data sets.
-
-```{r merge}
-totals_anno <- merge(totals, anno, by = c("experiment", "well"))
-stopifnot(nrow(totals_anno) == nrow(totals))
+```{r import}
+fname <- Sys.glob("../data/eset/*.rds")
+eset <- Reduce(combine, Map(readRDS, fname))
+anno <- pData(eset)
 ```
 
 Remove samples with bad cell number or TRA-1-60.
 
 ```{r filter}
-totals_anno <- totals_anno %>%
-  filter(cell_number == 1, tra1.60 == 1)
-dim(totals_anno)
+eset_qc <- eset[, anno$cell_number == 1 & anno$tra1.60]
+anno_qc <- pData(eset_qc)
+```
+
+Extract the columns relevant for this analysis.
+
+```{r totals}
+totals <- anno_qc %>% select(experiment:well, raw:mol_hs)
 ```
 
 ## What percentage of reads are mapped to the genome?
@@ -164,11 +147,11 @@ plot_grid(convert_all, convert_hs, convert_dm, convert_ce,
 ## Drosophila spike-in
 
 ```{r totals-fly-perc}
-p_reads_dm <- ggplot(totals_anno, aes(x = as.factor(fly), y = reads_dm / mapped * 100)) +
+p_reads_dm <- ggplot(anno_qc, aes(x = as.factor(fly), y = reads_dm / mapped * 100)) +
   geom_boxplot() +
   labs(x = "Fly spike-in concentration",
        y = "Percentage of mapped reads that mapped to fly genome")
-p_mol_dm <- ggplot(totals_anno, aes(x = as.factor(fly), y = mol_dm / molecules * 100)) +
+p_mol_dm <- ggplot(anno_qc, aes(x = as.factor(fly), y = mol_dm / molecules * 100)) +
   geom_boxplot() +
   labs(x = "Fly spike-in concentration",
        y = "Percentage of mapped molecules that mapped to fly genome")
@@ -176,11 +159,11 @@ plot_grid(p_reads_dm, p_mol_dm, labels = letters[1:2])
 ```
 
 ```{r totals-fly-counts}
-p_reads_dm_counts <- ggplot(totals_anno, aes(x = as.factor(fly), y = reads_dm)) +
+p_reads_dm_counts <- ggplot(anno_qc, aes(x = as.factor(fly), y = reads_dm)) +
   geom_boxplot() +
   labs(x = "Fly spike-in concentration",
        y = "Number of reads that mapped to fly genome")
-p_mol_dm_counts <- ggplot(totals_anno, aes(x = as.factor(fly), y = mol_dm)) +
+p_mol_dm_counts <- ggplot(anno_qc, aes(x = as.factor(fly), y = mol_dm)) +
   geom_boxplot() +
   labs(x = "Fly spike-in concentration",
        y = "Number of molecules that mapped to fly genome")
@@ -188,8 +171,9 @@ plot_grid(p_reads_dm_counts, p_mol_dm_counts, labels = letters[1:2])
 ```
 
 ```{r read-classification-per-sample}
-totals_percent <- totals_anno %>%
-  mutate(sample = factor(sample, levels = sample[order(reads_dm / raw)])) %>%
+totals_percent <- anno_qc %>%
+  mutate(sample = paste(experiment, well, sep = "-"),
+         sample = factor(sample, levels = sample[order(reads_dm / raw)])) %>%
   arrange(reads_dm / raw) %>%
   group_by(experiment, sample, fly, worm, ERCC) %>%
   summarize(p_reads_ce = reads_ce / raw * 100,
@@ -217,11 +201,11 @@ ggplot(totals_percent, aes(x = sample, y = percent, fill = type)) +
 ## C. elegans spike-in
 
 ```{r totals-worm-perc}
-p_reads_ce <- ggplot(totals_anno, aes(x = as.factor(worm), y = reads_ce / mapped * 100)) +
+p_reads_ce <- ggplot(anno_qc, aes(x = as.factor(worm), y = reads_ce / mapped * 100)) +
   geom_boxplot() +
   labs(x = "Worm spike-in concentration",
        y = "Percentage of mapped reads that mapped to worm genome")
-p_mol_ce <- ggplot(totals_anno, aes(x = as.factor(worm), y = mol_ce / molecules * 100)) +
+p_mol_ce <- ggplot(anno_qc, aes(x = as.factor(worm), y = mol_ce / molecules * 100)) +
   geom_boxplot() +
   labs(x = "Worm spike-in concentration",
        y = "Percentage of mapped molecules that mapped to worm genome")
@@ -229,11 +213,11 @@ plot_grid(p_reads_ce, p_mol_ce, labels = letters[1:2])
 ```
 
 ```{r totals-worm-counts}
-p_reads_ce_counts <- ggplot(totals_anno, aes(x = as.factor(worm), y = reads_ce)) +
+p_reads_ce_counts <- ggplot(anno_qc, aes(x = as.factor(worm), y = reads_ce)) +
   geom_boxplot() +
   labs(x = "Worm spike-in concentration",
        y = "Number of mapped reads that mapped to worm genome")
-p_mol_ce_counts <- ggplot(totals_anno, aes(x = as.factor(worm), y = mol_ce)) +
+p_mol_ce_counts <- ggplot(anno_qc, aes(x = as.factor(worm), y = mol_ce)) +
   geom_boxplot() +
   labs(x = "Worm spike-in concentration",
        y = "Number of mapped molecules that mapped to worm genome")
@@ -244,11 +228,11 @@ plot_grid(p_reads_ce_counts, p_mol_ce_counts, labels = letters[1:2])
 ## ERCC spike-in
 
 ```{r totals-ercc-perc}
-p_reads_ercc <- ggplot(totals_anno, aes(x = as.factor(ERCC), y = reads_ercc / mapped * 100)) +
+p_reads_ercc <- ggplot(anno_qc, aes(x = as.factor(ERCC), y = reads_ercc / mapped * 100)) +
   geom_boxplot() +
   labs(x = "ERCC spike-in concentration",
        y = "Percentage of mapped reads that mapped to ERCCs")
-p_mol_ercc <- ggplot(totals_anno, aes(x = as.factor(ERCC), y = mol_ercc / molecules * 100)) +
+p_mol_ercc <- ggplot(anno_qc, aes(x = as.factor(ERCC), y = mol_ercc / molecules * 100)) +
   geom_boxplot() +
   labs(x = "ERCC spike-in concentration",
        y = "Percentage of mapped molecules that mapped to ERCCs")
@@ -256,11 +240,11 @@ plot_grid(p_reads_ercc, p_mol_ercc, labels = letters[1:2])
 ```
 
 ```{r totals-ercc-counts}
-p_reads_ercc_counts <- ggplot(totals_anno, aes(x = as.factor(ERCC), y = reads_ercc)) +
+p_reads_ercc_counts <- ggplot(anno_qc, aes(x = as.factor(ERCC), y = reads_ercc)) +
   geom_boxplot() +
   labs(x = "ERCC spike-in concentration",
        y = "Number of reads that mapped to ERCCs")
-p_mol_ercc_counts <- ggplot(totals_anno, aes(x = as.factor(ERCC), y = mol_ercc)) +
+p_mol_ercc_counts <- ggplot(anno_qc, aes(x = as.factor(ERCC), y = mol_ercc)) +
   geom_boxplot() +
   labs(x = "ERCC spike-in concentration",
        y = "Number of molecules that mapped to ERCCs")
