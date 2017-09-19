@@ -1,0 +1,242 @@
+---
+title: "Partioning the variance across factors"
+author: "John Blischak"
+date: 2017-09-18
+output: html_document
+---
+
+<!-- The file analysis/chunks.R contains chunks that define default settings
+shared across the workflowr files. -->
+```{r read-chunk, include=FALSE, cache=FALSE}
+knitr::read_chunk("chunks.R")
+```
+
+<!-- Update knitr chunk options -->
+```{r knitr-opts-chunk, include=FALSE}
+```
+
+<!-- Insert the date the file was last updated -->
+```{r last-updated, echo=FALSE, results='asis'}
+```
+
+<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
+ package git2r is installed -->
+```{r code-version, echo=FALSE, results='asis'}
+```
+
+## Setup
+
+```{r packages, message=FALSE}
+library("edgeR")
+library("variancePartition")
+library("Biobase") # has to be loaded last to use `combine`
+```
+
+Import data.
+
+```{r import}
+fname <- Sys.glob("../data/eset/*.rds")
+eset <- Reduce(combine, Map(readRDS, fname))
+eset
+```
+
+Remove samples with bad cell number or TRA-1-60.
+
+```{r filter}
+eset_quality <- eset[, eset$cell_number == 1 & eset$tra1.60]
+dim(eset_quality)
+```
+
+Separate by source.
+
+```{r separate-by-source}
+eset_ce <- eset_quality[fData(eset_quality)$source == "C. elegans", ]
+head(featureNames(eset_ce))
+eset_dm <- eset_quality[fData(eset_quality)$source == "D. melanogaster", ]
+head(featureNames(eset_dm))
+eset_ercc <- eset_quality[fData(eset_quality)$source == "ERCC",
+                          eset_quality$ERCC != "Not added"]
+head(featureNames(eset_ercc))
+eset_hs <- eset_quality[fData(eset_quality)$source == "H. sapiens", ]
+head(featureNames(eset_hs))
+```
+
+Define a function for filtering by percentage of cells in which a gene is detected.
+
+```{r function-present}
+present <- function(x, percent = 0.50) mean(x > 0) >= percent
+```
+
+Define a function for partitioning the variance.
+
+```{r}
+# https://bioconductor.org/packages/3.4/bioc/vignettes/variancePartition/inst/doc/variancePartition.R
+calc_partition <- function(x, info, cores = 8) {
+  stopifnot(c("experiment", "chip_id") %in% colnames(info))
+  library("doParallel")
+  cl <- makeCluster(cores)
+  registerDoParallel(cl)
+  form <- ~ (1|experiment) + (1|chip_id) 
+  varPart <- fitExtractVarPartModel(x, form, info)
+  vp <- sortCols(varPart)
+  return(vp)
+}
+```
+
+## ERCC
+
+Remove zeros.
+
+```{r remove-zeros-ercc}
+eset_ercc_clean <- eset_ercc[rowSums(exprs(eset_ercc)) != 0, ]
+dim(eset_ercc_clean)
+```
+
+Only keep genes which are observed in at least 50% of the samples.
+
+```{r present-ercc}
+eset_ercc_clean <- eset_ercc_clean[apply(exprs(eset_ercc_clean), 1, present), ]
+dim(eset_ercc_clean)
+```
+
+```{r cpm-ercc}
+mol_ercc_cpm <- cpm(exprs(eset_ercc_clean), log = TRUE)
+```
+
+```{r partition-ercc}
+part_ercc <- calc_partition(mol_ercc_cpm, pData(eset_ercc_clean))
+plotPercentBars(part_ercc)
+plotVarPart(part_ercc)
+```
+
+## Drosophila
+
+Remove zeros.
+
+```{r remove-zeros-dm}
+eset_dm_clean <- eset_dm[rowSums(exprs(eset_dm)) != 0, ]
+dim(eset_dm_clean)
+```
+
+Only keep genes which are observed in at least 50% of the samples.
+
+```{r present-dm}
+eset_dm_clean <- eset_dm_clean[apply(exprs(eset_dm_clean), 1, present), ]
+dim(eset_dm_clean)
+```
+
+Convert to log2 counts per million.
+
+```{r cpm-dm}
+mol_dm_cpm <- cpm(exprs(eset_dm_clean), log = TRUE)
+```
+
+```{r partition-dm}
+part_dm <- calc_partition(mol_dm_cpm, pData(eset_dm_clean))
+plotPercentBars(part_dm)
+plotVarPart(part_dm)
+```
+
+## Drosophila - 5 pg
+
+Select only samples that received 5 pg.
+
+```{r dm-5000}
+eset_dm_5pg <- eset_dm[, eset_dm$fly == 5000]
+dim(eset_dm_5pg)
+```
+
+Remove zeros.
+
+```{r remove-zeros-dm_5pg}
+eset_dm_5pg_clean <- eset_dm_5pg[rowSums(exprs(eset_dm_5pg)) != 0, ]
+dim(eset_dm_5pg_clean)
+```
+
+Only keep genes which are observed in at least 50% of the samples.
+
+```{r present-dm_5pg}
+eset_dm_5pg_clean <- eset_dm_5pg_clean[apply(exprs(eset_dm_5pg_clean), 1, present), ]
+dim(eset_dm_5pg_clean)
+```
+
+Convert to log2 counts per million.
+
+```{r cpm-dm_5pg}
+mol_dm_5pg_cpm <- cpm(exprs(eset_dm_5pg_clean), log = TRUE)
+```
+
+```{r partition-dm_5pg}
+part_dm_5pg <- calc_partition(mol_dm_5pg_cpm, pData(eset_dm_5pg_clean))
+plotPercentBars(part_dm_5pg)
+plotVarPart(part_dm_5pg)
+```
+
+## Drosophila - 50 pg
+
+Select only samples that received 50 pg.
+
+```{r dm-50000}
+eset_dm_50pg <- eset_dm[, eset_dm$fly == 50000]
+dim(eset_dm_50pg)
+```
+
+Remove zeros.
+
+```{r remove-zeros-dm_50pg}
+eset_dm_50pg_clean <- eset_dm_50pg[rowSums(exprs(eset_dm_50pg)) != 0, ]
+dim(eset_dm_50pg_clean)
+```
+
+Only keep genes which are observed in at least 50% of the samples.
+
+```{r present-dm_50pg}
+eset_dm_50pg_clean <- eset_dm_50pg_clean[apply(exprs(eset_dm_50pg_clean), 1, present), ]
+dim(eset_dm_50pg_clean)
+```
+
+Convert to log2 counts per million.
+
+```{r cpm-dm_50pg}
+mol_dm_50pg_cpm <- cpm(exprs(eset_dm_50pg_clean), log = TRUE)
+```
+
+```{r partition-dm_50pg}
+part_dm_50pg <- calc_partition(mol_dm_50pg_cpm, pData(eset_dm_50pg_clean))
+plotPercentBars(part_dm_50pg)
+plotVarPart(part_dm_50pg)
+```
+
+## Human
+
+Remove zeros.
+
+```{r remove-zeros-hs}
+eset_hs_clean <- eset_hs[rowSums(exprs(eset_hs)) != 0, ]
+dim(eset_hs_clean)
+```
+
+Only keep genes which are observed in at least 50% of the samples.
+
+```{r present-hs}
+eset_hs_clean <- eset_hs_clean[apply(exprs(eset_hs_clean), 1, present), ]
+dim(eset_hs_clean)
+```
+
+Convert to log2 counts per million.
+
+```{r cpm-hs}
+mol_hs_cpm <- cpm(exprs(eset_hs_clean), log = TRUE)
+```
+
+```{r partition-hs}
+part_hs <- calc_partition(mol_hs_cpm, pData(eset_hs_clean))
+plotPercentBars(part_hs)
+plotVarPart(part_hs)
+```
+
+## Session information
+
+<!-- Insert the session information into the document -->
+```{r session-info}
+```
