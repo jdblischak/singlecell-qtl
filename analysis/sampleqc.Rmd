@@ -1,0 +1,374 @@
+---
+title: "QC of single cell libraries"
+author: "PoYuan Tung"
+date: 2017-09-13
+output: html_document
+---
+
+<!-- The file analysis/chunks.R contains chunks that define default settings
+shared across the workflowr files. -->
+```{r read-chunk, include=FALSE, cache=FALSE}
+knitr::read_chunk("chunks.R")
+```
+
+<!-- Update knitr chunk options -->
+```{r knitr-opts-chunk, include=FALSE}
+```
+
+<!-- Insert the date the file was last updated -->
+```{r last-updated, echo=FALSE, results='asis'}
+```
+
+<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
+ package git2r is installed -->
+```{r code-version, echo=FALSE, results='asis'}
+```
+
+This is for qc of the samples. Based on obsevation under the scope and the sequencing results, samples with bad quality will be removed.
+
+## Setup
+
+```{r packages, message=FALSE}
+library("cowplot")
+library("dplyr")
+library("ggplot2")
+library("tidyr")
+theme_set(theme_cowplot())
+source("../code/functions.R")
+library("Biobase")
+```
+
+Import data.
+
+```{r import}
+fname <- Sys.glob("../data/eset/*.rds")
+eset <- Reduce(combine, Map(readRDS, fname))
+anno <- pData(eset)
+```
+
+## Total mapped reads reads
+
+```{r total-reads}
+## calculate the cut-off  
+cut_off_reads <- quantile(anno[anno$cell_number == 0,"mapped"], 0.95)
+
+cut_off_reads
+
+anno$cut_off_reads <- anno$mapped > cut_off_reads
+
+## numbers of cells 
+sum(anno[anno$cell_number == 1, "mapped"] > cut_off_reads)
+
+sum(anno[anno$cell_number == 1, "mapped"] <= cut_off_reads)
+
+## density plots
+plot_reads <- ggplot(anno[anno$cell_number == 0 |
+                          anno$cell_number == 1 , ],
+       aes(x = mapped, fill = as.factor(cell_number))) + 
+       geom_density(alpha = 0.5) +
+       geom_vline(xintercept = cut_off_reads, colour="grey", linetype = "longdash") +
+       labs(x = "Total mapped reads", title = "Number of total mapped reads", fill = "Cell number")
+
+plot_reads
+```
+
+## Unmapped ratios
+Note: Using the 5% cutoff of samples with no cells excludes all the samples
+
+```{r unmapped-ratios}
+## calculate unmapped ratios
+anno$unmapped_ratios <- anno$unmapped/anno$umi
+
+## cut off 
+cut_off_unmapped <- quantile(anno[anno$cell_number == 0,"unmapped_ratios"], 0.05)
+
+cut_off_unmapped
+
+anno$cut_off_unmapped <- anno$unmapped_ratios < cut_off_unmapped
+
+## numbers of cells 
+sum(anno[anno$cell_number == 1, "unmapped_ratios"] >= cut_off_unmapped)
+
+sum(anno[anno$cell_number == 1, "unmapped_ratios"] < cut_off_unmapped)
+
+## density plots
+plot_unmapped <- ggplot(anno[anno$cell_number == 0 |
+                             anno$cell_number == 1 , ],
+       aes(x = unmapped_ratios *100, fill = as.factor(cell_number))) + 
+       geom_density(alpha = 0.5) +
+       geom_vline(xintercept = cut_off_unmapped *100, colour="grey", linetype = "longdash") +
+       labs(x = "Unmapped reads/ total reads", title = "Unmapped reads percentage")
+
+plot_unmapped
+```
+
+## ERCC percentage 
+Note: Beacuse not all samples include ERCC, this is not a good cutoff.
+
+```{r ercc-percentage}
+## calculate ercc reads percentage
+anno$ercc_percentage <- anno$reads_ercc / anno$mapped
+
+## cut off 
+cut_off_ercc <- quantile(anno[anno$cell_number == 0,"ercc_percentage"], 0.05)
+
+cut_off_ercc
+
+anno$cut_off_ercc <- anno$ercc_percentage < cut_off_ercc
+
+## numbers of cells 
+sum(anno[anno$cell_number == 1, "ercc_percentage"] >= cut_off_ercc)
+
+sum(anno[anno$cell_number == 1, "ercc_percentage"] < cut_off_ercc)
+
+## density plots
+plot_ercc <- ggplot(anno[anno$cell_number == 0 |
+                                anno$cell_number == 1 , ],
+       aes(x = ercc_percentage *100, fill = as.factor(cell_number))) + 
+       geom_density(alpha = 0.5) +
+       geom_vline(xintercept = cut_off_ercc *100, colour="grey", linetype = "longdash") +
+       labs(x = "ERCC reads / total mapped reads", title = "ERCC reads percentage")
+
+plot_ercc
+```
+
+## Spike-in percentage 
+Note: Using the percentage of all the kinds of spike-in as the cutoff. Instead of 5%, 10% seem to be more reasonable due to different amounts of total spike-in. 
+
+```{r spike-percentage}
+## calculate worm and fly reads percentage
+anno$spike_percentage <- apply(anno[,18:20],1,sum) / anno$mapped
+
+## cut off 
+cut_off_spike <- quantile(anno[anno$cell_number == 0,"spike_percentage"], 0.10)
+
+cut_off_spike
+
+anno$cut_off_spike <- anno$spike_percentage < cut_off_spike
+
+## numbers of cells 
+sum(anno[anno$cell_number == 1, "spike_percentage"] >= cut_off_spike)
+
+sum(anno[anno$cell_number == 1, "spike_percentage"] < cut_off_spike)
+
+## density plots
+plot_spike <- ggplot(anno[anno$cell_number == 0 |
+                          anno$cell_number == 1 , ],
+       aes(x = spike_percentage *100, fill = as.factor(cell_number))) + 
+       geom_density(alpha = 0.5) +
+       geom_vline(xintercept = cut_off_spike *100, colour="grey", linetype = "longdash") +
+       labs(x = "spike-in reads / total mapped reads", title = "Spike-in reads percentage")
+
+plot_spike
+```
+
+## Number of genes detected 
+```{r gene-number}
+## cut off 
+cut_off_genes <- quantile(anno[anno$cell_number == 0,"detect_hs"], 0.95)
+
+cut_off_genes
+
+anno$cut_off_genes <- anno$detect_hs > cut_off_genes
+
+## numbers of cells 
+sum(anno[anno$cell_number == 1, "detect_hs"] > cut_off_genes)
+
+sum(anno[anno$cell_number == 1, "detect_hs"] <= cut_off_genes)
+
+## density plots
+plot_gene <- ggplot(anno[anno$cell_number == 0 |
+                         anno$cell_number == 1 , ],
+       aes(x = detect_hs, fill = as.factor(cell_number))) + 
+       geom_density(alpha = 0.5) +
+       geom_vline(xintercept = cut_off_genes, colour="grey", linetype = "longdash") +
+       labs(x = "Gene numbers", title = "Numbers of detected genes")
+
+plot_gene
+```
+
+```{r density plots}
+plot_grid(plot_reads + theme(legend.position=c(.7,.7)),
+          plot_unmapped + theme(legend.position = "none"),
+          plot_spike + theme(legend.position = "none"), 
+          plot_gene + theme(legend.position = "none"),
+          labels = LETTERS[1:4])
+```
+
+## Linear Discriminat Analysis
+### Total molecule vs concentration 
+```{r lda, fig.width=12, fig.height=6}
+library(MASS)
+## create 3 groups according to cell number
+group_3 <- rep("two",dim(anno)[1])
+         group_3[grep("0", anno$cell_number)] <- "no"
+         group_3[grep("1", anno$cell_number)] <- "one"
+
+## create data frame
+data <- anno %>% dplyr::select(experiment:concentration, mapped, molecules)
+data <- data.frame(data, group = group_3)
+
+## perform lda
+data_lda <- lda(group ~ concentration + molecules, data = data)
+data_lda_p <- predict(data_lda, newdata = data[,c("concentration", "molecules")])$class
+
+## determine how well the model fix
+table(data_lda_p, data[, "group"])
+data$data_lda_p <- data_lda_p
+
+
+## plot before and after
+plot_before <- ggplot(data, aes(x = concentration, y = molecules / 10^3,
+               color = as.factor(group))) +
+               geom_text(aes(label = cell_number)) +
+               labs(x = "Concentration", y = "Gene molecules (thousands)", title = "Before") +
+               scale_color_brewer(palette = "Dark2") +
+               theme(legend.position = "none")
+
+
+plot_after <- ggplot(data, aes(x = concentration, y = molecules / 10^3,
+               color = as.factor(data_lda_p))) +
+               geom_text(aes(label = cell_number)) +
+               labs(x = "Concentration", y = "Gene molecules (thousands)", title = "After") +
+               scale_color_brewer(palette = "Dark2") +
+               theme(legend.position = "none")
+
+plot_grid(plot_before + theme(legend.position=c(.8,.85)), 
+          plot_after + theme(legend.position = "none"),
+          labels = LETTERS[1:2])
+```
+
+### Reads to molecule conversion
+```{r convertion, fig.width=12, fig.height=6}
+## calculate convertion
+anno$dm_conversion <- anno$mol_dm / anno$reads_dm
+
+anno$conversion <- anno$mol_hs / anno$reads_hs
+
+ggplot(anno, aes(x = dm_conversion, y = conversion,
+  color = as.factor(cell_number))) +
+  geom_text(aes(label = cell_number)) +
+  labs(x = "Convertion of Fly spike-ins", y = "Conversion of genes") +
+  scale_color_brewer(palette = "Dark2") +
+  theme(legend.position = "none")
+
+## try lda
+data$conversion <- anno$conversion
+data$dm_conversion <- anno$dm_conversion
+
+data_ercc_lda <- lda(group ~ dm_conversion + conversion, data = data)
+
+data_ercc_lda_p <- predict(data_ercc_lda,  newdata = data[,c("dm_conversion", "conversion")])$class
+
+## determine how well the model fix
+table(data_ercc_lda_p, data[, "group"])
+
+data$data_ercc_lda_p <- data_ercc_lda_p
+
+
+## cutoff
+out_ercc_con <- anno %>% filter(cell_number == "1", dm_conversion > .094)
+
+anno$conversion_outlier <- anno$cell_number == 1 & anno$dm_conversion > .094
+
+## plot before and after
+plot_ercc_before <- ggplot(data, aes(x = dm_conversion, y = conversion,
+               color = as.factor(group))) +
+               geom_text(aes(label = cell_number)) +
+               labs(x = "Convertion of Fly spike-ins", y = "Conversion of genes", title = "Before") +
+               scale_color_brewer(palette = "Dark2") +
+               theme(legend.position = "none")
+
+plot_ercc_after <- ggplot(data, aes(x = dm_conversion, y = conversion,
+               color = as.factor(data_ercc_lda_p))) +
+               geom_text(aes(label = cell_number)) +
+               labs(x = "Convertion of Fly spike-ins", y = "Conversion of genes", title = "After") +
+               scale_color_brewer(palette = "Dark2") +
+               theme(legend.position = "none")
+
+plot_grid(plot_ercc_before, 
+          plot_ercc_after,
+          labels = LETTERS[3:4])
+```
+
+## Filter
+
+### Final list
+```{r filter}
+## all filter
+anno$filter_all <- anno$cell_number == 1 &
+                   anno$valid_id &
+                   anno$cut_off_reads &
+                ##   anno$cut_off_unmapped &
+                ##   anno$cut_off_ercc &
+                   anno$cut_off_spike &
+                   anno$cut_off_genes 
+table(anno$filter_all)
+```
+
+### Plots
+```{r plots, fig.width=12, fig.heigh=12, dpi=300}
+## plot only the sample with valid ID
+table(anno$valid_id)
+dim(anno[anno$valid_id, ])
+
+genes_unmapped <-  ggplot(anno,
+                   aes(x = detect_hs, y = unmapped_ratios * 100,
+                       col = as.factor(valid_id), 
+                       label = as.character(cell_number),
+                       height = 600, width = 2000)) +
+                   geom_text(fontface = 3, alpha = 0.5) + 
+                   geom_vline(xintercept = cut_off_genes, 
+                              colour="grey", linetype = "longdash") +
+                   geom_hline(yintercept = cut_off_unmapped * 100, 
+                              colour="grey", linetype = "longdash") +
+                   labs(x = "Number of detected genes / sample", 
+                        y = "Percentage of unmapped reads (%)") 
+
+genes_spike <- ggplot(anno,
+               aes(x = detect_hs, y = spike_percentage * 100,
+                   col = as.factor(valid_id), 
+                   label = as.character(cell_number), 
+                   height = 600, width = 2000)) +
+               scale_shape_manual(values=c(1:10)) +
+               geom_text(fontface = 3, alpha = 0.5) + 
+               geom_vline(xintercept = cut_off_genes, 
+                          colour="grey", linetype = "longdash") +
+               geom_hline(yintercept = cut_off_spike * 100, 
+                          colour="grey", linetype = "longdash") +
+               labs(x = "Number of detected genes / samlpe", 
+                    y = "Percentage of spike-in reads (%)") 
+
+reads_unmapped_num <-  ggplot(anno,
+                       aes(x = mapped, y = unmapped_ratios * 100,
+                           col = as.factor(chip_id), 
+                           label = as.character(cell_number), 
+                           height = 600, width = 2000)) +
+                       geom_text(fontface = 3, alpha = 0.5) + 
+                       geom_vline(xintercept = cut_off_reads, 
+                                  colour="grey", linetype = "longdash") +
+                       geom_hline(yintercept = cut_off_unmapped * 100,
+                                  colour="grey", linetype = "longdash") +
+                       labs(x = "Total mapped reads / sample", 
+                            y = "Percentage of unmapped reads (%)") 
+
+reads_spike_num <- ggplot(anno,
+                   aes(x = mapped, y = spike_percentage * 100,
+                       col = as.factor(chip_id), 
+                       label = as.character(cell_number), 
+                       height = 600, width = 2000)) +
+                   geom_text(fontface = 3, alpha = 0.5) + 
+                   geom_vline(xintercept = cut_off_reads, 
+                              colour="grey", linetype = "longdash") +
+                   geom_hline(yintercept = cut_off_spike * 100, 
+                              colour="grey", linetype = "longdash") +
+                   labs(x = "Total mapped reads / sample",
+                        y = "Percentage of spike-in reads (%)") 
+
+plot_grid(genes_unmapped + theme(legend.position=c(.7,.9)), 
+          genes_spike + theme(legend.position = "none"),
+          labels = letters[1:2])
+plot_grid(reads_unmapped_num + theme(legend.position = "none"), 
+          reads_spike_num + theme(legend.position = "none"),
+          labels = letters[3:4])
+```
