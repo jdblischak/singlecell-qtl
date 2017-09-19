@@ -27,8 +27,11 @@ knitr::read_chunk("chunks.R")
 ## Setup
 
 ```{r packages, message=FALSE}
+library("cowplot")
 library("edgeR")
+library("ggplot2")
 library("variancePartition")
+theme_set(theme_cowplot())
 library("Biobase") # has to be loaded last to use `combine`
 ```
 
@@ -40,10 +43,11 @@ eset <- Reduce(combine, Map(readRDS, fname))
 eset
 ```
 
-Remove samples with bad cell number or TRA-1-60.
+Remove samples with bad cell number, lack of TRA-1-60 signal, or an invalid
+individual assignment.
 
 ```{r filter}
-eset_quality <- eset[, eset$cell_number == 1 & eset$tra1.60]
+eset_quality <- eset[, eset$cell_number == 1 & eset$tra1.60 & eset$valid_id]
 dim(eset_quality)
 ```
 
@@ -106,7 +110,7 @@ mol_ercc_cpm <- cpm(exprs(eset_ercc_clean), log = TRUE)
 ```{r partition-ercc}
 part_ercc <- calc_partition(mol_ercc_cpm, pData(eset_ercc_clean))
 plotPercentBars(part_ercc)
-plotVarPart(part_ercc)
+plotVarPart(part_ercc, main = sprintf("ERCC (n = %d)", nrow(part_ercc)))
 ```
 
 ## Drosophila
@@ -134,7 +138,7 @@ mol_dm_cpm <- cpm(exprs(eset_dm_clean), log = TRUE)
 ```{r partition-dm}
 part_dm <- calc_partition(mol_dm_cpm, pData(eset_dm_clean))
 plotPercentBars(part_dm)
-plotVarPart(part_dm)
+plotVarPart(part_dm, main = sprintf("Fly (n = %d)", nrow(part_dm)))
 ```
 
 ## Drosophila - 5 pg
@@ -169,7 +173,7 @@ mol_dm_5pg_cpm <- cpm(exprs(eset_dm_5pg_clean), log = TRUE)
 ```{r partition-dm_5pg}
 part_dm_5pg <- calc_partition(mol_dm_5pg_cpm, pData(eset_dm_5pg_clean))
 plotPercentBars(part_dm_5pg)
-plotVarPart(part_dm_5pg)
+plotVarPart(part_dm_5pg, main = sprintf("Fly (5 pg; n = %d)", nrow(part_dm_5pg)))
 ```
 
 ## Drosophila - 50 pg
@@ -204,7 +208,7 @@ mol_dm_50pg_cpm <- cpm(exprs(eset_dm_50pg_clean), log = TRUE)
 ```{r partition-dm_50pg}
 part_dm_50pg <- calc_partition(mol_dm_50pg_cpm, pData(eset_dm_50pg_clean))
 plotPercentBars(part_dm_50pg)
-plotVarPart(part_dm_50pg)
+plotVarPart(part_dm_50pg, main = sprintf("Fly (50 pg; n = %d)", nrow(part_dm_50pg)))
 ```
 
 ## Human
@@ -232,7 +236,19 @@ mol_hs_cpm <- cpm(exprs(eset_hs_clean), log = TRUE)
 ```{r partition-hs}
 part_hs <- calc_partition(mol_hs_cpm, pData(eset_hs_clean))
 plotPercentBars(part_hs)
-plotVarPart(part_hs)
+plotVarPart(part_hs, main = sprintf("Human (n = %d)", nrow(part_hs)))
+```
+
+## Final plot
+
+```{r variance-partition}
+x_labels <- scale_x_discrete(labels = c("C1 chip", "Individual", "Residuals"))
+x_title <- labs(x = "Model coefficient")
+plot_grid(plotVarPart(part_ercc, main = sprintf("ERCC (n = %d)", nrow(part_ercc))) +
+            x_labels + x_title,
+          plotVarPart(part_hs, main = sprintf("Human (n = %d)", nrow(part_hs))) +
+            x_labels + x_title,
+          labels = LETTERS[1:2])
 ```
 
 ## Session information

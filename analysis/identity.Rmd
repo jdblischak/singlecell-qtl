@@ -80,6 +80,22 @@ for (i in 1:nrow(df_e)) {
 par(op)
 ```
 
+Colored by individual. The most worrisome are the last three C1 chips (04132017,
+04142017, 04202017), which all have high numbers of assignments coming from one
+or more individuals that were not on that chip.
+
+```{r ind-per-chip-color}
+anno$valid_id_display <- factor(anno$valid_id, levels = c(TRUE, FALSE),
+                                labels = c("Valid", "Invalid"))
+ggplot(anno, aes(x = valid_id_display, fill = chip_id)) +
+  geom_bar() +
+  facet_wrap(~experiment, nrow = 2) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+        legend.position = "bottom") +
+  labs(x = "", y = "Number of single cells",
+       title = "Valid vs. invalid assignments colored by individual")
+```
+
 ## Expected versus observed cells
 
 Each individual is expected to get 25% of the wells (i.e. 24) for each C1 chip
