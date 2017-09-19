@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+
+
+<meta name="author" content="John Blischak" />
+
+<meta name="date" content="2017-09-18" />
+
+<title>Partioning the variance across factors</title>
+
+<script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<script src="site_libs/jqueryui-1.11.4/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-1.1/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-1.1/highlight.js"></script>
+<link href="site_libs/font-awesome-4.5.0/css/font-awesome.min.css" rel="stylesheet" />
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+  pre:not([class]) {
+    background-color: white;
+  }
+</style>
+<script type="text/javascript">
+if (window.hljs && document.readyState && document.readyState === "complete") {
+   window.setTimeout(function() {
+      hljs.initHighlighting();
+   }, 0);
+}
+</script>
+
+
+
+<style type="text/css">
+h1 {
+  font-size: 34px;
+}
+h1.title {
+  font-size: 38px;
+}
+h2 {
+  font-size: 30px;
+}
+h3 {
+  font-size: 24px;
+}
+h4 {
+  font-size: 18px;
+}
+h5 {
+  font-size: 16px;
+}
+h6 {
+  font-size: 12px;
+}
+.table th:not([align]) {
+  text-align: left;
+}
+</style>
+
+
+</head>
+
+<body>
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+code {
+  color: inherit;
+  background-color: rgba(0, 0, 0, 0.04);
+}
+img {
+  max-width:100%;
+  height: auto;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+</style>
+
+
+<style type="text/css">
+/* padding for bootstrap navbar */
+body {
+  padding-top: 51px;
+  padding-bottom: 40px;
+}
+/* offset scroll position for anchor links (for fixed navbar)  */
+.section h1 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+
+.section h2 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h3 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h4 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h5 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h6 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+</style>
+
+<script>
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark it active
+  menuAnchor.parent().addClass('active');
+
+  // if it's got a parent navbar menu mark it active as well
+  menuAnchor.closest('li.dropdown').addClass('active');
+});
+</script>
+
+
+<div class="container-fluid main-container">
+
+<!-- tabsets -->
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+</script>
+
+<!-- code folding -->
+
+
+
+
+<script>
+$(document).ready(function ()  {
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_').toLowerCase();
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+  padding-left: 25px;
+  text-indent: 0;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row-fluid">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">singlecell-qtl</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li>
+  <a href="about.html">About</a>
+</li>
+<li>
+  <a href="contributing.html">Contributing</a>
+</li>
+<li>
+  <a href="license.html">License</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/jdblischak/singlecell-qtl">
+    <span class="fa fa-github"></span>
+     
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div class="fluid-row" id="header">
+
+
+
+<h1 class="title toc-ignore">Partioning the variance across factors</h1>
+<h4 class="author"><em>John Blischak</em></h4>
+<h4 class="date"><em>2017-09-18</em></h4>
+
+</div>
+
+
+<!-- The file analysis/chunks.R contains chunks that define default settings
+shared across the workflowr files. -->
+<!-- Update knitr chunk options -->
+<!-- Insert the date the file was last updated -->
+<p><strong>Last updated:</strong> 2017-09-19</p>
+<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
+ package git2r is installed -->
+<p><strong>Code version:</strong> 794ef7b</p>
+<div id="setup" class="section level2">
+<h2>Setup</h2>
+<pre class="r"><code>library(&quot;edgeR&quot;)
+library(&quot;variancePartition&quot;)
+library(&quot;Biobase&quot;) # has to be loaded last to use `combine`</code></pre>
+<p>Import data.</p>
+<pre class="r"><code>fname &lt;- Sys.glob(&quot;../data/eset/*.rds&quot;)
+eset &lt;- Reduce(combine, Map(readRDS, fname))
+eset</code></pre>
+<pre><code>ExpressionSet (storageMode: lockedEnvironment)
+assayData: 54792 features, 960 samples 
+  element names: exprs 
+protocolData: none
+phenoData
+  sampleNames: 03162017-A01 03162017-A02 ... 04202017-H12 (960
+    total)
+  varLabels: experiment well ... valid_id (39 total)
+  varMetadata: labelDescription
+featureData
+  featureNames: ENSG00000000003 ENSG00000000005 ... WBGene00235374
+    (54792 total)
+  fvarLabels: chr start ... source (6 total)
+  fvarMetadata: labelDescription
+experimentData: use &#39;experimentData(object)&#39;
+Annotation:  </code></pre>
+<p>Remove samples with bad cell number or TRA-1-60.</p>
+<pre class="r"><code>eset_quality &lt;- eset[, eset$cell_number == 1 &amp; eset$tra1.60]
+dim(eset_quality)</code></pre>
+<pre><code>Features  Samples 
+   54792      869 </code></pre>
+<p>Separate by source.</p>
+<pre class="r"><code>eset_ce &lt;- eset_quality[fData(eset_quality)$source == &quot;C. elegans&quot;, ]
+head(featureNames(eset_ce))</code></pre>
+<pre><code>[1] &quot;WBGene00000001&quot; &quot;WBGene00000002&quot; &quot;WBGene00000003&quot; &quot;WBGene00000004&quot;
+[5] &quot;WBGene00000005&quot; &quot;WBGene00000006&quot;</code></pre>
+<pre class="r"><code>eset_dm &lt;- eset_quality[fData(eset_quality)$source == &quot;D. melanogaster&quot;, ]
+head(featureNames(eset_dm))</code></pre>
+<pre><code>[1] &quot;FBgn0000008&quot; &quot;FBgn0000014&quot; &quot;FBgn0000015&quot; &quot;FBgn0000017&quot; &quot;FBgn0000018&quot;
+[6] &quot;FBgn0000022&quot;</code></pre>
+<pre class="r"><code>eset_ercc &lt;- eset_quality[fData(eset_quality)$source == &quot;ERCC&quot;,
+                          eset_quality$ERCC != &quot;Not added&quot;]
+head(featureNames(eset_ercc))</code></pre>
+<pre><code>[1] &quot;ERCC-00002&quot; &quot;ERCC-00003&quot; &quot;ERCC-00004&quot; &quot;ERCC-00009&quot; &quot;ERCC-00012&quot;
+[6] &quot;ERCC-00013&quot;</code></pre>
+<pre class="r"><code>eset_hs &lt;- eset_quality[fData(eset_quality)$source == &quot;H. sapiens&quot;, ]
+head(featureNames(eset_hs))</code></pre>
+<pre><code>[1] &quot;ENSG00000000003&quot; &quot;ENSG00000000005&quot; &quot;ENSG00000000419&quot; &quot;ENSG00000000457&quot;
+[5] &quot;ENSG00000000460&quot; &quot;ENSG00000000938&quot;</code></pre>
+<p>Define a function for filtering by percentage of cells in which a gene is detected.</p>
+<pre class="r"><code>present &lt;- function(x, percent = 0.50) mean(x &gt; 0) &gt;= percent</code></pre>
+<p>Define a function for partitioning the variance.</p>
+<pre class="r"><code># https://bioconductor.org/packages/3.4/bioc/vignettes/variancePartition/inst/doc/variancePartition.R
+calc_partition &lt;- function(x, info, cores = 8) {
+  stopifnot(c(&quot;experiment&quot;, &quot;chip_id&quot;) %in% colnames(info))
+  library(&quot;doParallel&quot;)
+  cl &lt;- makeCluster(cores)
+  registerDoParallel(cl)
+  form &lt;- ~ (1|experiment) + (1|chip_id) 
+  varPart &lt;- fitExtractVarPartModel(x, form, info)
+  vp &lt;- sortCols(varPart)
+  return(vp)
+}</code></pre>
+</div>
+<div id="ercc" class="section level2">
+<h2>ERCC</h2>
+<p>Remove zeros.</p>
+<pre class="r"><code>eset_ercc_clean &lt;- eset_ercc[rowSums(exprs(eset_ercc)) != 0, ]
+dim(eset_ercc_clean)</code></pre>
+<pre><code>Features  Samples 
+      85      347 </code></pre>
+<p>Only keep genes which are observed in at least 50% of the samples.</p>
+<pre class="r"><code>eset_ercc_clean &lt;- eset_ercc_clean[apply(exprs(eset_ercc_clean), 1, present), ]
+dim(eset_ercc_clean)</code></pre>
+<pre><code>Features  Samples 
+      30      347 </code></pre>
+<pre class="r"><code>mol_ercc_cpm &lt;- cpm(exprs(eset_ercc_clean), log = TRUE)</code></pre>
+<pre class="r"><code>part_ercc &lt;- calc_partition(mol_ercc_cpm, pData(eset_ercc_clean))</code></pre>
+<pre><code>Loading required package: iterators</code></pre>
+<pre class="r"><code>plotPercentBars(part_ercc)</code></pre>
+<p><img src="figure/partition.Rmd/partition-ercc-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>plotVarPart(part_ercc)</code></pre>
+<p><img src="figure/partition.Rmd/partition-ercc-2.png" width="768" style="display: block; margin: auto;" /></p>
+</div>
+<div id="drosophila" class="section level2">
+<h2>Drosophila</h2>
+<p>Remove zeros.</p>
+<pre class="r"><code>eset_dm_clean &lt;- eset_dm[rowSums(exprs(eset_dm)) != 0, ]
+dim(eset_dm_clean)</code></pre>
+<pre><code>Features  Samples 
+   10310      869 </code></pre>
+<p>Only keep genes which are observed in at least 50% of the samples.</p>
+<pre class="r"><code>eset_dm_clean &lt;- eset_dm_clean[apply(exprs(eset_dm_clean), 1, present), ]
+dim(eset_dm_clean)</code></pre>
+<pre><code>Features  Samples 
+     201      869 </code></pre>
+<p>Convert to log2 counts per million.</p>
+<pre class="r"><code>mol_dm_cpm &lt;- cpm(exprs(eset_dm_clean), log = TRUE)</code></pre>
+<pre class="r"><code>part_dm &lt;- calc_partition(mol_dm_cpm, pData(eset_dm_clean))</code></pre>
+<pre><code>Projected run time: ~ 0.06 min </code></pre>
+<pre class="r"><code>plotPercentBars(part_dm)</code></pre>
+<p><img src="figure/partition.Rmd/partition-dm-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>plotVarPart(part_dm)</code></pre>
+<pre><code>Warning: closing unused connection 13 (&lt;-localhost:11763)</code></pre>
+<pre><code>Warning: closing unused connection 12 (&lt;-localhost:11763)</code></pre>
+<pre><code>Warning: closing unused connection 11 (&lt;-localhost:11763)</code></pre>
+<pre><code>Warning: closing unused connection 10 (&lt;-localhost:11763)</code></pre>
+<pre><code>Warning: closing unused connection 9 (&lt;-localhost:11763)</code></pre>
+<pre><code>Warning: closing unused connection 8 (&lt;-localhost:11763)</code></pre>
+<pre><code>Warning: closing unused connection 7 (&lt;-localhost:11763)</code></pre>
+<pre><code>Warning: closing unused connection 6 (&lt;-localhost:11763)</code></pre>
+<p><img src="figure/partition.Rmd/partition-dm-2.png" width="768" style="display: block; margin: auto;" /></p>
+</div>
+<div id="drosophila---5-pg" class="section level2">
+<h2>Drosophila - 5 pg</h2>
+<p>Select only samples that received 5 pg.</p>
+<pre class="r"><code>eset_dm_5pg &lt;- eset_dm[, eset_dm$fly == 5000]
+dim(eset_dm_5pg)</code></pre>
+<pre><code>Features  Samples 
+   13832      343 </code></pre>
+<p>Remove zeros.</p>
+<pre class="r"><code>eset_dm_5pg_clean &lt;- eset_dm_5pg[rowSums(exprs(eset_dm_5pg)) != 0, ]
+dim(eset_dm_5pg_clean)</code></pre>
+<pre><code>Features  Samples 
+    8235      343 </code></pre>
+<p>Only keep genes which are observed in at least 50% of the samples.</p>
+<pre class="r"><code>eset_dm_5pg_clean &lt;- eset_dm_5pg_clean[apply(exprs(eset_dm_5pg_clean), 1, present), ]
+dim(eset_dm_5pg_clean)</code></pre>
+<pre><code>Features  Samples 
+      68      343 </code></pre>
+<p>Convert to log2 counts per million.</p>
+<pre class="r"><code>mol_dm_5pg_cpm &lt;- cpm(exprs(eset_dm_5pg_clean), log = TRUE)</code></pre>
+<pre class="r"><code>part_dm_5pg &lt;- calc_partition(mol_dm_5pg_cpm, pData(eset_dm_5pg_clean))</code></pre>
+<pre><code>Projected run time: ~ 0.01 min </code></pre>
+<pre class="r"><code>plotPercentBars(part_dm_5pg)</code></pre>
+<p><img src="figure/partition.Rmd/partition-dm_5pg-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>plotVarPart(part_dm_5pg)</code></pre>
+<p><img src="figure/partition.Rmd/partition-dm_5pg-2.png" width="768" style="display: block; margin: auto;" /></p>
+</div>
+<div id="drosophila---50-pg" class="section level2">
+<h2>Drosophila - 50 pg</h2>
+<p>Select only samples that received 50 pg.</p>
+<pre class="r"><code>eset_dm_50pg &lt;- eset_dm[, eset_dm$fly == 50000]
+dim(eset_dm_50pg)</code></pre>
+<pre><code>Features  Samples 
+   13832      526 </code></pre>
+<p>Remove zeros.</p>
+<pre class="r"><code>eset_dm_50pg_clean &lt;- eset_dm_50pg[rowSums(exprs(eset_dm_50pg)) != 0, ]
+dim(eset_dm_50pg_clean)</code></pre>
+<pre><code>Features  Samples 
+   10045      526 </code></pre>
+<p>Only keep genes which are observed in at least 50% of the samples.</p>
+<pre class="r"><code>eset_dm_50pg_clean &lt;- eset_dm_50pg_clean[apply(exprs(eset_dm_50pg_clean), 1, present), ]
+dim(eset_dm_50pg_clean)</code></pre>
+<pre><code>Features  Samples 
+     300      526 </code></pre>
+<p>Convert to log2 counts per million.</p>
+<pre class="r"><code>mol_dm_50pg_cpm &lt;- cpm(exprs(eset_dm_50pg_clean), log = TRUE)</code></pre>
+<pre class="r"><code>part_dm_50pg &lt;- calc_partition(mol_dm_50pg_cpm, pData(eset_dm_50pg_clean))</code></pre>
+<pre><code>Projected run time: ~ 0.09 min </code></pre>
+<pre class="r"><code>plotPercentBars(part_dm_50pg)</code></pre>
+<p><img src="figure/partition.Rmd/partition-dm_50pg-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>plotVarPart(part_dm_50pg)</code></pre>
+<p><img src="figure/partition.Rmd/partition-dm_50pg-2.png" width="768" style="display: block; margin: auto;" /></p>
+</div>
+<div id="human" class="section level2">
+<h2>Human</h2>
+<p>Remove zeros.</p>
+<pre class="r"><code>eset_hs_clean &lt;- eset_hs[rowSums(exprs(eset_hs)) != 0, ]
+dim(eset_hs_clean)</code></pre>
+<pre><code>Features  Samples 
+   17579      869 </code></pre>
+<p>Only keep genes which are observed in at least 50% of the samples.</p>
+<pre class="r"><code>eset_hs_clean &lt;- eset_hs_clean[apply(exprs(eset_hs_clean), 1, present), ]</code></pre>
+<pre><code>Warning: closing unused connection 13 (&lt;-localhost:11763)</code></pre>
+<pre><code>Warning: closing unused connection 12 (&lt;-localhost:11763)</code></pre>
+<pre><code>Warning: closing unused connection 11 (&lt;-localhost:11763)</code></pre>
+<pre><code>Warning: closing unused connection 10 (&lt;-localhost:11763)</code></pre>
+<pre><code>Warning: closing unused connection 9 (&lt;-localhost:11763)</code></pre>
+<pre><code>Warning: closing unused connection 8 (&lt;-localhost:11763)</code></pre>
+<pre><code>Warning: closing unused connection 7 (&lt;-localhost:11763)</code></pre>
+<pre><code>Warning: closing unused connection 6 (&lt;-localhost:11763)</code></pre>
+<pre class="r"><code>dim(eset_hs_clean)</code></pre>
+<pre><code>Features  Samples 
+    4364      869 </code></pre>
+<p>Convert to log2 counts per million.</p>
+<pre class="r"><code>mol_hs_cpm &lt;- cpm(exprs(eset_hs_clean), log = TRUE)</code></pre>
+<pre class="r"><code>part_hs &lt;- calc_partition(mol_hs_cpm, pData(eset_hs_clean))</code></pre>
+<pre><code>Projected run time: ~ 2 min </code></pre>
+<pre><code>Warning: closing unused connection 29 (&lt;-localhost:11763)</code></pre>
+<pre><code>Warning: closing unused connection 28 (&lt;-localhost:11763)</code></pre>
+<pre><code>Warning: closing unused connection 27 (&lt;-localhost:11763)</code></pre>
+<pre><code>Warning: closing unused connection 26 (&lt;-localhost:11763)</code></pre>
+<pre><code>Warning: closing unused connection 25 (&lt;-localhost:11763)</code></pre>
+<pre><code>Warning: closing unused connection 24 (&lt;-localhost:11763)</code></pre>
+<pre><code>Warning: closing unused connection 23 (&lt;-localhost:11763)</code></pre>
+<pre><code>Warning: closing unused connection 22 (&lt;-localhost:11763)</code></pre>
+<pre><code>Warning: closing unused connection 21 (&lt;-localhost:11763)</code></pre>
+<pre><code>Warning: closing unused connection 20 (&lt;-localhost:11763)</code></pre>
+<pre><code>Warning: closing unused connection 19 (&lt;-localhost:11763)</code></pre>
+<pre><code>Warning: closing unused connection 18 (&lt;-localhost:11763)</code></pre>
+<pre><code>Warning: closing unused connection 17 (&lt;-localhost:11763)</code></pre>
+<pre><code>Warning: closing unused connection 16 (&lt;-localhost:11763)</code></pre>
+<pre><code>Warning: closing unused connection 15 (&lt;-localhost:11763)</code></pre>
+<pre><code>Warning: closing unused connection 14 (&lt;-localhost:11763)</code></pre>
+<pre class="r"><code>plotPercentBars(part_hs)</code></pre>
+<p><img src="figure/partition.Rmd/partition-hs-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>plotVarPart(part_hs)</code></pre>
+<p><img src="figure/partition.Rmd/partition-hs-2.png" width="768" style="display: block; margin: auto;" /></p>
+</div>
+<div id="session-information" class="section level2">
+<h2>Session information</h2>
+<!-- Insert the session information into the document -->
+<pre class="r"><code>sessionInfo()</code></pre>
+<pre><code>R version 3.3.2 (2016-10-31)
+Platform: x86_64-pc-linux-gnu (64-bit)
+Running under: Scientific Linux 7.2 (Nitrogen)
+
+locale:
+ [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
+ [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
+ [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
+ [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
+ [9] LC_ADDRESS=C               LC_TELEPHONE=C            
+[11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+
+attached base packages:
+[1] parallel  methods   stats     graphics  grDevices utils     datasets 
+[8] base     
+
+other attached packages:
+[1] doParallel_1.0.10       iterators_1.0.8         variancePartition_1.4.2
+[4] Biobase_2.34.0          BiocGenerics_0.20.0     foreach_1.4.3          
+[7] ggplot2_2.2.1           edgeR_3.16.5            limma_3.30.13          
+
+loaded via a namespace (and not attached):
+ [1] Rcpp_0.12.10       compiler_3.3.2     nloptr_1.0.4      
+ [4] git2r_0.19.0       plyr_1.8.4         bitops_1.0-6      
+ [7] tools_3.3.2        lme4_1.1-13        digest_0.6.12     
+[10] nlme_3.1-131       evaluate_0.10      tibble_1.2        
+[13] gtable_0.2.0       lattice_0.20-34    Matrix_1.2-7.1    
+[16] yaml_2.1.13        stringr_1.2.0      knitr_1.16        
+[19] gtools_3.5.0       caTools_1.17.1     locfit_1.5-9.1    
+[22] rprojroot_1.2      grid_3.3.2         rmarkdown_1.6     
+[25] minqa_1.2.4        gdata_2.17.0       reshape2_1.4.2    
+[28] magrittr_1.5       MASS_7.3-45        splines_3.3.2     
+[31] backports_1.0.5    scales_0.4.1       colorRamps_2.3    
+[34] gplots_2.17.0      codetools_0.2-15   htmltools_0.3.6   
+[37] pbkrtest_0.4-7     assertthat_0.1     colorspace_1.3-2  
+[40] labeling_0.3       KernSmooth_2.23-15 stringi_1.1.2     
+[43] lazyeval_0.2.0     munsell_0.4.3     </code></pre>
+</div>
+
+<hr>
+<p>
+    This <a href="http://rmarkdown.rstudio.com">R Markdown</a> site was created with <a href="https://github.com/jdblischak/workflowr">workflowr</a>
+</p>
+<hr>
+
+<!-- To enable disqus, uncomment the section below and provide your disqus_shortname -->
+
+<!-- disqus
+  <div id="disqus_thread"></div>
+    <script type="text/javascript">
+        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+        var disqus_shortname = 'rmarkdown'; // required: replace example with your forum shortname
+
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+    <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+    <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+-->
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.header').parent('thead').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
