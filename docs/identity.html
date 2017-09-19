@@ -316,10 +316,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2017-09-07</p>
+<p><strong>Last updated:</strong> 2017-09-19</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> a805f89</p>
+<p><strong>Code version:</strong> b0e85b8</p>
 <p><a href="https://catalog.coriell.org/0/Sections/Collections/NHGRI/1000IndSamples.aspx?PgId=665&amp;did=MGENOME27">Link to Yoruba samples on Coriell</a></p>
 <div id="setup" class="section level2">
 <h2>Setup</h2>
@@ -341,7 +341,7 @@ protocolData: none
 phenoData
   sampleNames: 03162017-A01 03162017-A02 ... 04202017-H12 (960
     total)
-  varLabels: experiment well ... valid_id (35 total)
+  varLabels: experiment well ... valid_id (39 total)
   varMetadata: labelDescription
 featureData
   featureNames: ENSG00000000003 ENSG00000000005 ... WBGene00235374
@@ -383,6 +383,17 @@ for (i in 1:nrow(df_e)) {
 }</code></pre>
 <p><img src="figure/identity.Rmd/ind-per-chip-1.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>par(op)</code></pre>
+<p>Colored by individual. The most worrisome are the last three C1 chips (04132017, 04142017, 04202017), which all have high numbers of assignments coming from one or more individuals that were not on that chip.</p>
+<pre class="r"><code>anno$valid_id_display &lt;- factor(anno$valid_id, levels = c(TRUE, FALSE),
+                                labels = c(&quot;Valid&quot;, &quot;Invalid&quot;))
+ggplot(anno, aes(x = valid_id_display, fill = chip_id)) +
+  geom_bar() +
+  facet_wrap(~experiment, nrow = 2) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+        legend.position = &quot;bottom&quot;) +
+  labs(x = &quot;&quot;, y = &quot;Number of single cells&quot;,
+       title = &quot;Valid vs. invalid assignments colored by individual&quot;)</code></pre>
+<p><img src="figure/identity.Rmd/ind-per-chip-color-1.png" width="768" style="display: block; margin: auto;" /></p>
 </div>
 <div id="expected-versus-observed-cells" class="section level2">
 <h2>Expected versus observed cells</h2>
@@ -456,7 +467,6 @@ reason_raw</code></pre>
 <pre class="r"><code>reason_raw %+% aes(y = concentration) +
   labs(y = &quot;Concentration&quot;,
        title = &quot;Concentration&quot;)</code></pre>
-<pre><code>Warning: Removed 192 rows containing non-finite values (stat_boxplot).</code></pre>
 <p><img src="figure/identity.Rmd/reason-concentation-1.png" width="768" style="display: block; margin: auto;" /></p>
 <p>TRA-1-60</p>
 <pre class="r"><code>barplot(with(anno, table(valid_id, tra1.60)), beside = TRUE,
@@ -515,7 +525,7 @@ locale:
 [11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
 
 attached base packages:
-[1] parallel  stats     graphics  grDevices utils     datasets  methods  
+[1] parallel  methods   stats     graphics  grDevices utils     datasets 
 [8] base     
 
 other attached packages:

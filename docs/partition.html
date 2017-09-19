@@ -319,11 +319,14 @@ shared across the workflowr files. -->
 <p><strong>Last updated:</strong> 2017-09-19</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> 794ef7b</p>
+<p><strong>Code version:</strong> b0e85b8</p>
 <div id="setup" class="section level2">
 <h2>Setup</h2>
-<pre class="r"><code>library(&quot;edgeR&quot;)
+<pre class="r"><code>library(&quot;cowplot&quot;)
+library(&quot;edgeR&quot;)
+library(&quot;ggplot2&quot;)
 library(&quot;variancePartition&quot;)
+theme_set(theme_cowplot())
 library(&quot;Biobase&quot;) # has to be loaded last to use `combine`</code></pre>
 <p>Import data.</p>
 <pre class="r"><code>fname &lt;- Sys.glob(&quot;../data/eset/*.rds&quot;)
@@ -345,11 +348,11 @@ featureData
   fvarMetadata: labelDescription
 experimentData: use &#39;experimentData(object)&#39;
 Annotation:  </code></pre>
-<p>Remove samples with bad cell number or TRA-1-60.</p>
-<pre class="r"><code>eset_quality &lt;- eset[, eset$cell_number == 1 &amp; eset$tra1.60]
+<p>Remove samples with bad cell number, lack of TRA-1-60 signal, or an invalid individual assignment.</p>
+<pre class="r"><code>eset_quality &lt;- eset[, eset$cell_number == 1 &amp; eset$tra1.60 &amp; eset$valid_id]
 dim(eset_quality)</code></pre>
 <pre><code>Features  Samples 
-   54792      869 </code></pre>
+   54792      776 </code></pre>
 <p>Separate by source.</p>
 <pre class="r"><code>eset_ce &lt;- eset_quality[fData(eset_quality)$source == &quot;C. elegans&quot;, ]
 head(featureNames(eset_ce))</code></pre>
@@ -389,18 +392,18 @@ calc_partition &lt;- function(x, info, cores = 8) {
 <pre class="r"><code>eset_ercc_clean &lt;- eset_ercc[rowSums(exprs(eset_ercc)) != 0, ]
 dim(eset_ercc_clean)</code></pre>
 <pre><code>Features  Samples 
-      85      347 </code></pre>
+      82      265 </code></pre>
 <p>Only keep genes which are observed in at least 50% of the samples.</p>
 <pre class="r"><code>eset_ercc_clean &lt;- eset_ercc_clean[apply(exprs(eset_ercc_clean), 1, present), ]
 dim(eset_ercc_clean)</code></pre>
 <pre><code>Features  Samples 
-      30      347 </code></pre>
+      27      265 </code></pre>
 <pre class="r"><code>mol_ercc_cpm &lt;- cpm(exprs(eset_ercc_clean), log = TRUE)</code></pre>
 <pre class="r"><code>part_ercc &lt;- calc_partition(mol_ercc_cpm, pData(eset_ercc_clean))</code></pre>
 <pre><code>Loading required package: iterators</code></pre>
 <pre class="r"><code>plotPercentBars(part_ercc)</code></pre>
 <p><img src="figure/partition.Rmd/partition-ercc-1.png" width="768" style="display: block; margin: auto;" /></p>
-<pre class="r"><code>plotVarPart(part_ercc)</code></pre>
+<pre class="r"><code>plotVarPart(part_ercc, main = sprintf(&quot;ERCC (n = %d)&quot;, nrow(part_ercc)))</code></pre>
 <p><img src="figure/partition.Rmd/partition-ercc-2.png" width="768" style="display: block; margin: auto;" /></p>
 </div>
 <div id="drosophila" class="section level2">
@@ -409,27 +412,19 @@ dim(eset_ercc_clean)</code></pre>
 <pre class="r"><code>eset_dm_clean &lt;- eset_dm[rowSums(exprs(eset_dm)) != 0, ]
 dim(eset_dm_clean)</code></pre>
 <pre><code>Features  Samples 
-   10310      869 </code></pre>
+   10215      776 </code></pre>
 <p>Only keep genes which are observed in at least 50% of the samples.</p>
 <pre class="r"><code>eset_dm_clean &lt;- eset_dm_clean[apply(exprs(eset_dm_clean), 1, present), ]
 dim(eset_dm_clean)</code></pre>
 <pre><code>Features  Samples 
-     201      869 </code></pre>
+     204      776 </code></pre>
 <p>Convert to log2 counts per million.</p>
 <pre class="r"><code>mol_dm_cpm &lt;- cpm(exprs(eset_dm_clean), log = TRUE)</code></pre>
 <pre class="r"><code>part_dm &lt;- calc_partition(mol_dm_cpm, pData(eset_dm_clean))</code></pre>
 <pre><code>Projected run time: ~ 0.06 min </code></pre>
 <pre class="r"><code>plotPercentBars(part_dm)</code></pre>
 <p><img src="figure/partition.Rmd/partition-dm-1.png" width="768" style="display: block; margin: auto;" /></p>
-<pre class="r"><code>plotVarPart(part_dm)</code></pre>
-<pre><code>Warning: closing unused connection 13 (&lt;-localhost:11763)</code></pre>
-<pre><code>Warning: closing unused connection 12 (&lt;-localhost:11763)</code></pre>
-<pre><code>Warning: closing unused connection 11 (&lt;-localhost:11763)</code></pre>
-<pre><code>Warning: closing unused connection 10 (&lt;-localhost:11763)</code></pre>
-<pre><code>Warning: closing unused connection 9 (&lt;-localhost:11763)</code></pre>
-<pre><code>Warning: closing unused connection 8 (&lt;-localhost:11763)</code></pre>
-<pre><code>Warning: closing unused connection 7 (&lt;-localhost:11763)</code></pre>
-<pre><code>Warning: closing unused connection 6 (&lt;-localhost:11763)</code></pre>
+<pre class="r"><code>plotVarPart(part_dm, main = sprintf(&quot;Fly (n = %d)&quot;, nrow(part_dm)))</code></pre>
 <p><img src="figure/partition.Rmd/partition-dm-2.png" width="768" style="display: block; margin: auto;" /></p>
 </div>
 <div id="drosophila---5-pg" class="section level2">
@@ -438,24 +433,40 @@ dim(eset_dm_clean)</code></pre>
 <pre class="r"><code>eset_dm_5pg &lt;- eset_dm[, eset_dm$fly == 5000]
 dim(eset_dm_5pg)</code></pre>
 <pre><code>Features  Samples 
-   13832      343 </code></pre>
+   13832      298 </code></pre>
 <p>Remove zeros.</p>
 <pre class="r"><code>eset_dm_5pg_clean &lt;- eset_dm_5pg[rowSums(exprs(eset_dm_5pg)) != 0, ]
 dim(eset_dm_5pg_clean)</code></pre>
 <pre><code>Features  Samples 
-    8235      343 </code></pre>
+    8070      298 </code></pre>
 <p>Only keep genes which are observed in at least 50% of the samples.</p>
 <pre class="r"><code>eset_dm_5pg_clean &lt;- eset_dm_5pg_clean[apply(exprs(eset_dm_5pg_clean), 1, present), ]
 dim(eset_dm_5pg_clean)</code></pre>
 <pre><code>Features  Samples 
-      68      343 </code></pre>
+      71      298 </code></pre>
 <p>Convert to log2 counts per million.</p>
 <pre class="r"><code>mol_dm_5pg_cpm &lt;- cpm(exprs(eset_dm_5pg_clean), log = TRUE)</code></pre>
 <pre class="r"><code>part_dm_5pg &lt;- calc_partition(mol_dm_5pg_cpm, pData(eset_dm_5pg_clean))</code></pre>
-<pre><code>Projected run time: ~ 0.01 min </code></pre>
+<pre><code>Projected run time: ~ 0.02 min </code></pre>
 <pre class="r"><code>plotPercentBars(part_dm_5pg)</code></pre>
+<pre><code>Warning: closing unused connection 21 (&lt;-localhost:11100)</code></pre>
+<pre><code>Warning: closing unused connection 20 (&lt;-localhost:11100)</code></pre>
+<pre><code>Warning: closing unused connection 19 (&lt;-localhost:11100)</code></pre>
+<pre><code>Warning: closing unused connection 18 (&lt;-localhost:11100)</code></pre>
+<pre><code>Warning: closing unused connection 17 (&lt;-localhost:11100)</code></pre>
+<pre><code>Warning: closing unused connection 16 (&lt;-localhost:11100)</code></pre>
+<pre><code>Warning: closing unused connection 15 (&lt;-localhost:11100)</code></pre>
+<pre><code>Warning: closing unused connection 14 (&lt;-localhost:11100)</code></pre>
+<pre><code>Warning: closing unused connection 13 (&lt;-localhost:11100)</code></pre>
+<pre><code>Warning: closing unused connection 12 (&lt;-localhost:11100)</code></pre>
+<pre><code>Warning: closing unused connection 11 (&lt;-localhost:11100)</code></pre>
+<pre><code>Warning: closing unused connection 10 (&lt;-localhost:11100)</code></pre>
+<pre><code>Warning: closing unused connection 9 (&lt;-localhost:11100)</code></pre>
+<pre><code>Warning: closing unused connection 8 (&lt;-localhost:11100)</code></pre>
+<pre><code>Warning: closing unused connection 7 (&lt;-localhost:11100)</code></pre>
+<pre><code>Warning: closing unused connection 6 (&lt;-localhost:11100)</code></pre>
 <p><img src="figure/partition.Rmd/partition-dm_5pg-1.png" width="768" style="display: block; margin: auto;" /></p>
-<pre class="r"><code>plotVarPart(part_dm_5pg)</code></pre>
+<pre class="r"><code>plotVarPart(part_dm_5pg, main = sprintf(&quot;Fly (5 pg; n = %d)&quot;, nrow(part_dm_5pg)))</code></pre>
 <p><img src="figure/partition.Rmd/partition-dm_5pg-2.png" width="768" style="display: block; margin: auto;" /></p>
 </div>
 <div id="drosophila---50-pg" class="section level2">
@@ -464,24 +475,24 @@ dim(eset_dm_5pg_clean)</code></pre>
 <pre class="r"><code>eset_dm_50pg &lt;- eset_dm[, eset_dm$fly == 50000]
 dim(eset_dm_50pg)</code></pre>
 <pre><code>Features  Samples 
-   13832      526 </code></pre>
+   13832      478 </code></pre>
 <p>Remove zeros.</p>
 <pre class="r"><code>eset_dm_50pg_clean &lt;- eset_dm_50pg[rowSums(exprs(eset_dm_50pg)) != 0, ]
 dim(eset_dm_50pg_clean)</code></pre>
 <pre><code>Features  Samples 
-   10045      526 </code></pre>
+    9960      478 </code></pre>
 <p>Only keep genes which are observed in at least 50% of the samples.</p>
 <pre class="r"><code>eset_dm_50pg_clean &lt;- eset_dm_50pg_clean[apply(exprs(eset_dm_50pg_clean), 1, present), ]
 dim(eset_dm_50pg_clean)</code></pre>
 <pre><code>Features  Samples 
-     300      526 </code></pre>
+     297      478 </code></pre>
 <p>Convert to log2 counts per million.</p>
 <pre class="r"><code>mol_dm_50pg_cpm &lt;- cpm(exprs(eset_dm_50pg_clean), log = TRUE)</code></pre>
 <pre class="r"><code>part_dm_50pg &lt;- calc_partition(mol_dm_50pg_cpm, pData(eset_dm_50pg_clean))</code></pre>
-<pre><code>Projected run time: ~ 0.09 min </code></pre>
+<pre><code>Projected run time: ~ 0.08 min </code></pre>
 <pre class="r"><code>plotPercentBars(part_dm_50pg)</code></pre>
 <p><img src="figure/partition.Rmd/partition-dm_50pg-1.png" width="768" style="display: block; margin: auto;" /></p>
-<pre class="r"><code>plotVarPart(part_dm_50pg)</code></pre>
+<pre class="r"><code>plotVarPart(part_dm_50pg, main = sprintf(&quot;Fly (50 pg; n = %d)&quot;, nrow(part_dm_50pg)))</code></pre>
 <p><img src="figure/partition.Rmd/partition-dm_50pg-2.png" width="768" style="display: block; margin: auto;" /></p>
 </div>
 <div id="human" class="section level2">
@@ -490,44 +501,47 @@ dim(eset_dm_50pg_clean)</code></pre>
 <pre class="r"><code>eset_hs_clean &lt;- eset_hs[rowSums(exprs(eset_hs)) != 0, ]
 dim(eset_hs_clean)</code></pre>
 <pre><code>Features  Samples 
-   17579      869 </code></pre>
+   17516      776 </code></pre>
 <p>Only keep genes which are observed in at least 50% of the samples.</p>
-<pre class="r"><code>eset_hs_clean &lt;- eset_hs_clean[apply(exprs(eset_hs_clean), 1, present), ]</code></pre>
-<pre><code>Warning: closing unused connection 13 (&lt;-localhost:11763)</code></pre>
-<pre><code>Warning: closing unused connection 12 (&lt;-localhost:11763)</code></pre>
-<pre><code>Warning: closing unused connection 11 (&lt;-localhost:11763)</code></pre>
-<pre><code>Warning: closing unused connection 10 (&lt;-localhost:11763)</code></pre>
-<pre><code>Warning: closing unused connection 9 (&lt;-localhost:11763)</code></pre>
-<pre><code>Warning: closing unused connection 8 (&lt;-localhost:11763)</code></pre>
-<pre><code>Warning: closing unused connection 7 (&lt;-localhost:11763)</code></pre>
-<pre><code>Warning: closing unused connection 6 (&lt;-localhost:11763)</code></pre>
-<pre class="r"><code>dim(eset_hs_clean)</code></pre>
+<pre class="r"><code>eset_hs_clean &lt;- eset_hs_clean[apply(exprs(eset_hs_clean), 1, present), ]
+dim(eset_hs_clean)</code></pre>
 <pre><code>Features  Samples 
-    4364      869 </code></pre>
+    4535      776 </code></pre>
 <p>Convert to log2 counts per million.</p>
 <pre class="r"><code>mol_hs_cpm &lt;- cpm(exprs(eset_hs_clean), log = TRUE)</code></pre>
 <pre class="r"><code>part_hs &lt;- calc_partition(mol_hs_cpm, pData(eset_hs_clean))</code></pre>
 <pre><code>Projected run time: ~ 2 min </code></pre>
-<pre><code>Warning: closing unused connection 29 (&lt;-localhost:11763)</code></pre>
-<pre><code>Warning: closing unused connection 28 (&lt;-localhost:11763)</code></pre>
-<pre><code>Warning: closing unused connection 27 (&lt;-localhost:11763)</code></pre>
-<pre><code>Warning: closing unused connection 26 (&lt;-localhost:11763)</code></pre>
-<pre><code>Warning: closing unused connection 25 (&lt;-localhost:11763)</code></pre>
-<pre><code>Warning: closing unused connection 24 (&lt;-localhost:11763)</code></pre>
-<pre><code>Warning: closing unused connection 23 (&lt;-localhost:11763)</code></pre>
-<pre><code>Warning: closing unused connection 22 (&lt;-localhost:11763)</code></pre>
-<pre><code>Warning: closing unused connection 21 (&lt;-localhost:11763)</code></pre>
-<pre><code>Warning: closing unused connection 20 (&lt;-localhost:11763)</code></pre>
-<pre><code>Warning: closing unused connection 19 (&lt;-localhost:11763)</code></pre>
-<pre><code>Warning: closing unused connection 18 (&lt;-localhost:11763)</code></pre>
-<pre><code>Warning: closing unused connection 17 (&lt;-localhost:11763)</code></pre>
-<pre><code>Warning: closing unused connection 16 (&lt;-localhost:11763)</code></pre>
-<pre><code>Warning: closing unused connection 15 (&lt;-localhost:11763)</code></pre>
-<pre><code>Warning: closing unused connection 14 (&lt;-localhost:11763)</code></pre>
+<pre><code>Warning: closing unused connection 13 (&lt;-localhost:11100)</code></pre>
+<pre><code>Warning: closing unused connection 12 (&lt;-localhost:11100)</code></pre>
+<pre><code>Warning: closing unused connection 11 (&lt;-localhost:11100)</code></pre>
+<pre><code>Warning: closing unused connection 10 (&lt;-localhost:11100)</code></pre>
+<pre><code>Warning: closing unused connection 9 (&lt;-localhost:11100)</code></pre>
+<pre><code>Warning: closing unused connection 8 (&lt;-localhost:11100)</code></pre>
+<pre><code>Warning: closing unused connection 7 (&lt;-localhost:11100)</code></pre>
+<pre><code>Warning: closing unused connection 6 (&lt;-localhost:11100)</code></pre>
 <pre class="r"><code>plotPercentBars(part_hs)</code></pre>
+<pre><code>Warning: closing unused connection 29 (&lt;-localhost:11100)</code></pre>
+<pre><code>Warning: closing unused connection 28 (&lt;-localhost:11100)</code></pre>
+<pre><code>Warning: closing unused connection 27 (&lt;-localhost:11100)</code></pre>
+<pre><code>Warning: closing unused connection 26 (&lt;-localhost:11100)</code></pre>
+<pre><code>Warning: closing unused connection 25 (&lt;-localhost:11100)</code></pre>
+<pre><code>Warning: closing unused connection 24 (&lt;-localhost:11100)</code></pre>
+<pre><code>Warning: closing unused connection 23 (&lt;-localhost:11100)</code></pre>
+<pre><code>Warning: closing unused connection 22 (&lt;-localhost:11100)</code></pre>
 <p><img src="figure/partition.Rmd/partition-hs-1.png" width="768" style="display: block; margin: auto;" /></p>
-<pre class="r"><code>plotVarPart(part_hs)</code></pre>
+<pre class="r"><code>plotVarPart(part_hs, main = sprintf(&quot;Human (n = %d)&quot;, nrow(part_hs)))</code></pre>
 <p><img src="figure/partition.Rmd/partition-hs-2.png" width="768" style="display: block; margin: auto;" /></p>
+</div>
+<div id="final-plot" class="section level2">
+<h2>Final plot</h2>
+<pre class="r"><code>x_labels &lt;- scale_x_discrete(labels = c(&quot;C1 chip&quot;, &quot;Individual&quot;, &quot;Residuals&quot;))
+x_title &lt;- labs(x = &quot;Model coefficient&quot;)
+plot_grid(plotVarPart(part_ercc, main = sprintf(&quot;ERCC (n = %d)&quot;, nrow(part_ercc))) +
+            x_labels + x_title,
+          plotVarPart(part_hs, main = sprintf(&quot;Human (n = %d)&quot;, nrow(part_hs))) +
+            x_labels + x_title,
+          labels = LETTERS[1:2])</code></pre>
+<p><img src="figure/partition.Rmd/variance-partition-1.png" width="768" style="display: block; margin: auto;" /></p>
 </div>
 <div id="session-information" class="section level2">
 <h2>Session information</h2>
@@ -550,9 +564,11 @@ attached base packages:
 [8] base     
 
 other attached packages:
-[1] doParallel_1.0.10       iterators_1.0.8         variancePartition_1.4.2
-[4] Biobase_2.34.0          BiocGenerics_0.20.0     foreach_1.4.3          
-[7] ggplot2_2.2.1           edgeR_3.16.5            limma_3.30.13          
+ [1] doParallel_1.0.10       iterators_1.0.8        
+ [3] variancePartition_1.4.2 Biobase_2.34.0         
+ [5] BiocGenerics_0.20.0     foreach_1.4.3          
+ [7] edgeR_3.16.5            limma_3.30.13          
+ [9] cowplot_0.7.0           ggplot2_2.2.1          
 
 loaded via a namespace (and not attached):
  [1] Rcpp_0.12.10       compiler_3.3.2     nloptr_1.0.4      
