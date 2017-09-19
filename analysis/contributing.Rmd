@@ -264,7 +264,7 @@ macOS, follow these [steps][git-complete-steps]:
 
 1. Download the Bash completion script:
     ```
-    curl https://raw.github.com/git/git/master/contrib/completion/git-completion.bash -OL
+    curl -L https://raw.github.com/git/git/master/contrib/completion/git-completion.bash > ~/git-completion.bash
     ```
 
 1. Add the following line to your .bash_profile:
@@ -276,6 +276,83 @@ macOS, follow these [steps][git-complete-steps]:
     ```
     source ~/.bash_profile
     ```
+
+### Install git-lfs locally
+
+The [Initial setup instructions](#initial-setup) install git-lfs using conda.
+Therefore you need to have the conda environment active (`source activate
+scqtl`) whenever you run a Git command, which ensures that the large files are
+always handled properly by Git. Since it can be easy to forget to first activate
+the conda environment, a safety measure would be to install git-lfs on your
+local machine (i.e. outside of the conda environment). This will ensure that
+git-lfs is always available even when you forget to activate the conda
+environment.
+
+There are multiple [methods][git-lfs-install] to install git-lfs. Below are
+instructions to download a pre-built binary.
+
+1. Download the software:
+    ```
+    cd ~/Downloads
+    # 64-bit macOS:
+    curl -OL https://github.com/git-lfs/git-lfs/releases/download/v2.3.0/git-lfs-darwin-amd64-2.3.0.tar.gz
+    # 64-bit Linux:
+    curl -OL https://github.com/git-lfs/git-lfs/releases/download/v2.3.0/git-lfs-linux-amd64-2.3.0.tar.gz
+    ```
+
+1. Extract the software and copy the executable files into `~/bin` (note: you
+can put it anywhere you like, but this is a conventional place to put executable
+files):
+    ```
+    mkdir -p ~/bin
+    tar xzf git-lfs-*.tar.gz
+    cd git-lfs-2.3.0/
+    cp git-lfs install.sh ~/bin
+    ```
+
+1. Add `~/bin` to your `PATH` in `~/.bash_profile` (macOS) or `.bashrc` (Linux)
+if it isn't already (this is added by default on at least some Linux
+distributions).
+
+1. Update `PATH`:
+    ```
+    # macOS
+    source ~/.bash_profile
+    # Linux
+    source ~/.bashrc
+    ```
+
+1. Just to be safe, run the git-lfs install script (this modifies the file
+`~/.gitconfig`). This is unnecessary if you have already gone through the
+[Initial setup instructions](#initial-setup) on this machine, but it doesn't
+hurt to run it again:
+    ```
+    git lfs install
+    ```
+
+1. To confirm that you have git-lfs installed locally, run `which git-lfs`. This should point to `~/bin/git-lfs` and not your conda environment. Also run `cat ~/.gitconfig`. It should contain the following (it will also likely have additional lines):
+    ```
+    [filter "lfs"]
+	        clean = git-lfs clean -- %f
+	        smudge = git-lfs smudge -- %f
+	        process = git-lfs filter-process
+	        required = true
+    ```
+
+### Upgrade RStudio
+
+RStudio has had some major updates with its 1.0 release. If you are using a
+version less than 1.0 (check by clicking `Help` -> `About RStudio`), you should
+strongly consider [upgrading][rstudio-download]. The most noticeable change for
+our workflow is that it has built-in support for R Markdown websites. Thus if
+you click the `Knit` button for an R Markdown file in the workflowr project, it
+will recognize the settings in the file `analysis/_site.yml` and save the output
+HTML in `docs/`.
+
+One annoying new feature you will notice is that the chunks of R Markdown
+documents appear inline in the document instead of being executed in the R
+console. To restore the previous setting, go to `Tools` -> `Global Options...`
+-> `R Markdown` and unselect "Show output inline for all R Markdown documents".
 
 ### Open RStudio from the Terminal
 
@@ -331,7 +408,9 @@ git config --global credential.helper cache
 [git-complete]: https://git-scm.com/book/en/v2/Appendix-A:-Git-in-Other-Environments-Git-in-Bash
 [git-complete-steps]: http://www.codethatmatters.com/2010/01/git-autocomplete-in-mac-os-x/
 [git-lfs]: https://git-lfs.github.com/
+[git-lfs-install]: https://github.com/git-lfs/git-lfs#getting-started
 [miniconda]: https://conda.io/miniconda.html
+[rstudio-download]: https://www.rstudio.com/products/rstudio/download/#download
 [snakefile]: https://github.com/jdblischak/singlecell-qtl/blob/master/Snakefile
 [snakemake]: https://snakemake.readthedocs.io/en/stable/
 [snakemake.sbatch]: https://github.com/jdblischak/singlecell-qtl/blob/master/snakemake.sbatch
