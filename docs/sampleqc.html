@@ -319,7 +319,7 @@ shared across the workflowr files. -->
 <p><strong>Last updated:</strong> 2017-09-19</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> 56e2885</p>
+<p><strong>Code version:</strong> c99f6b2</p>
 <p>This is for qc of the samples. Based on obsevation under the scope and the sequencing results, samples with bad quality will be removed.</p>
 <div id="setup" class="section level2">
 <h2>Setup</h2>
@@ -327,9 +327,12 @@ shared across the workflowr files. -->
 library(&quot;dplyr&quot;)
 library(&quot;ggplot2&quot;)
 library(&quot;tidyr&quot;)
+library(&quot;edgeR&quot;)
 theme_set(theme_cowplot())
 source(&quot;../code/functions.R&quot;)
 library(&quot;Biobase&quot;)</code></pre>
+<pre class="r"><code># The palette with grey:
+cbPalette &lt;- c(&quot;#999999&quot;, &quot;#E69F00&quot;, &quot;#56B4E9&quot;, &quot;#009E73&quot;, &quot;#F0E442&quot;, &quot;#0072B2&quot;, &quot;#D55E00&quot;, &quot;#CC79A7&quot;)</code></pre>
 <p>Import data.</p>
 <pre class="r"><code>fname &lt;- Sys.glob(&quot;../data/eset/*.rds&quot;)
 eset &lt;- Reduce(combine, Map(readRDS, fname))
@@ -519,7 +522,7 @@ data_lda_p  no one two
 ## plot before and after
 plot_before &lt;- ggplot(data, aes(x = concentration, y = molecules / 10^3,
                color = as.factor(group))) +
-               geom_text(aes(label = cell_number)) +
+               geom_text(aes(label = cell_number, alpha = 0.5)) +
                labs(x = &quot;Concentration&quot;, y = &quot;Gene molecules (thousands)&quot;, title = &quot;Before&quot;) +
                scale_color_brewer(palette = &quot;Dark2&quot;) +
                theme(legend.position = &quot;none&quot;)
@@ -527,7 +530,7 @@ plot_before &lt;- ggplot(data, aes(x = concentration, y = molecules / 10^3,
 
 plot_after &lt;- ggplot(data, aes(x = concentration, y = molecules / 10^3,
                color = as.factor(data_lda_p))) +
-               geom_text(aes(label = cell_number)) +
+               geom_text(aes(label = cell_number, alpha = 0.5)) +
                labs(x = &quot;Concentration&quot;, y = &quot;Gene molecules (thousands)&quot;, title = &quot;After&quot;) +
                scale_color_brewer(palette = &quot;Dark2&quot;) +
                theme(legend.position = &quot;none&quot;)
@@ -577,14 +580,14 @@ anno$conversion_outlier &lt;- anno$cell_number == 1 &amp; anno$dm_conversion &gt
 ## plot before and after
 plot_ercc_before &lt;- ggplot(data, aes(x = dm_conversion, y = conversion,
                color = as.factor(group))) +
-               geom_text(aes(label = cell_number)) +
+               geom_text(aes(label = cell_number, alpha = 0.5)) +
                labs(x = &quot;Convertion of Fly spike-ins&quot;, y = &quot;Conversion of genes&quot;, title = &quot;Before&quot;) +
                scale_color_brewer(palette = &quot;Dark2&quot;) +
                theme(legend.position = &quot;none&quot;)
 
 plot_ercc_after &lt;- ggplot(data, aes(x = dm_conversion, y = conversion,
                color = as.factor(data_ercc_lda_p))) +
-               geom_text(aes(label = cell_number)) +
+               geom_text(aes(label = cell_number, alpha = 0.5)) +
                labs(x = &quot;Convertion of Fly spike-ins&quot;, y = &quot;Conversion of genes&quot;, title = &quot;After&quot;) +
                scale_color_brewer(palette = &quot;Dark2&quot;) +
                theme(legend.position = &quot;none&quot;)
@@ -607,25 +610,40 @@ anno$filter_all &lt;- anno$cell_number == 1 &amp;
                 ##   anno$cut_off_ercc &amp;
                    anno$cut_off_spike &amp;
                    anno$cut_off_genes 
-table(anno$filter_all)</code></pre>
-<pre><code>
-FALSE  TRUE 
-  319   641 </code></pre>
+table(anno[anno$filter_all, c(&quot;experiment&quot;,&quot;chip_id&quot;)])</code></pre>
+<pre><code>          chip_id
+experiment NA18498 NA18502 NA18505 NA18508 NA18520 NA18852 NA18856 NA19092
+  03162017       0       0      12       0      14      10       0       0
+  03172017       0      19      24       0       0      12       0       0
+  03232017       0      26      12       0      24      15       0       0
+  03302017       0      26       0       0      13      16       0       0
+  03312017       0      18       0       0      15       0      18      27
+  04052017       0      47       3       0      11      16       0       0
+  04072017       0      26       0       0       0       0      24      26
+  04132017       7       0       0       0      15       9       0       0
+  04142017       5       0       0       0      23       0       0       0
+  04202017       5       0       0      16       0       0      16       0
+          chip_id
+experiment NA19098 NA19190 NA19203
+  03162017      14       0       0
+  03172017      27       0       0
+  03232017       0       0       0
+  03302017      12       0       0
+  03312017       0       0       0
+  04052017       0       0       0
+  04072017       7       0       0
+  04132017       0       0      15
+  04142017       0       0       9
+  04202017       0       7       0</code></pre>
 </div>
 <div id="plots" class="section level3">
 <h3>Plots</h3>
-<pre class="r"><code>## plot only the sample with valid ID
-table(anno$valid_id)</code></pre>
-<pre><code>
-FALSE  TRUE 
-  126   834 </code></pre>
-<pre class="r"><code>dim(anno[anno$valid_id, ])</code></pre>
-<pre><code>[1] 834  51</code></pre>
 <pre class="r"><code>genes_unmapped &lt;-  ggplot(anno,
                    aes(x = detect_hs, y = unmapped_ratios * 100,
                        col = as.factor(valid_id), 
                        label = as.character(cell_number),
                        height = 600, width = 2000)) +
+                   scale_colour_manual(values=cbPalette) +
                    geom_text(fontface = 3, alpha = 0.5) + 
                    geom_vline(xintercept = cut_off_genes, 
                               colour=&quot;grey&quot;, linetype = &quot;longdash&quot;) +
@@ -639,6 +657,7 @@ genes_spike &lt;- ggplot(anno,
                    col = as.factor(valid_id), 
                    label = as.character(cell_number), 
                    height = 600, width = 2000)) +
+               scale_colour_manual(values=cbPalette) +
                scale_shape_manual(values=c(1:10)) +
                geom_text(fontface = 3, alpha = 0.5) + 
                geom_vline(xintercept = cut_off_genes, 
@@ -683,6 +702,78 @@ plot_grid(genes_unmapped + theme(legend.position=c(.7,.9)),
           labels = letters[3:4])</code></pre>
 <p><img src="figure/sampleqc.Rmd/plots-2.png" width="3600" style="display: block; margin: auto;" /></p>
 </div>
+</div>
+<div id="pca" class="section level2">
+<h2>PCA</h2>
+<p>Select the most variable human genes</p>
+<pre class="r"><code>## look at human genes
+eset_hs &lt;- eset[fData(eset)$source == &quot;H. sapiens&quot;, ]
+head(featureNames(eset_hs))</code></pre>
+<pre><code>[1] &quot;ENSG00000000003&quot; &quot;ENSG00000000005&quot; &quot;ENSG00000000419&quot; &quot;ENSG00000000457&quot;
+[5] &quot;ENSG00000000460&quot; &quot;ENSG00000000938&quot;</code></pre>
+<pre class="r"><code>## remove genes of all 0s
+eset_hs_clean &lt;- eset_hs[rowSums(exprs(eset_hs)) != 0, ]
+dim(eset_hs_clean)</code></pre>
+<pre><code>Features  Samples 
+   17615      960 </code></pre>
+<pre class="r"><code>## convert to log2 cpm
+mol_hs_cpm &lt;- cpm(exprs(eset_hs_clean), log = TRUE)
+hist(rowMeans(mol_hs_cpm))</code></pre>
+<p><img src="figure/sampleqc.Rmd/select-gene-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>## variable genes
+mol_hs_cpm_var &lt;- log(apply(mol_hs_cpm, 1, var))
+hist(mol_hs_cpm_var)</code></pre>
+<p><img src="figure/sampleqc.Rmd/select-gene-2.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>sum(mol_hs_cpm_var &gt; 0.5)</code></pre>
+<pre><code>[1] 5995</code></pre>
+<p>Using the 5995 most variable genes to perform PCA</p>
+<pre class="r"><code>## pca of top variable genes
+mol_hs_cpm &lt;- mol_hs_cpm[mol_hs_cpm_var &gt; 0.5, ]
+pca_hs &lt;- run_pca(mol_hs_cpm) 
+plot_pca(pca_hs$PCs, pcx = 1, pcy = 2, explained = pca_hs$explained,
+         metadata = pData(eset_hs_clean), color = &quot;experiment&quot;)</code></pre>
+<p><img src="figure/sampleqc.Rmd/pca-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>## combine to investigate the effect
+pca_anno &lt;- cbind(anno, pca_hs$PCs)
+
+## total mapped vs pc1
+pc1_reads &lt;- ggplot(pca_anno, aes(x = mapped, y = PC1)) +
+                     geom_text(aes(label = cell_number, 
+                                   col = filter_all, alpha = 0.5)) + 
+                     scale_colour_manual(values=cbPalette) +
+                     geom_smooth()
+
+## unmapped ratio vs pc1
+pc1_unmapped &lt;- ggplot(pca_anno, aes(x = unmapped_ratios, y = PC1)) +
+                       geom_text(aes(label = cell_number,
+                                     col = filter_all, alpha = 0.5)) + 
+                       scale_colour_manual(values=cbPalette) + 
+                       geom_smooth()
+
+## spike-in ratio vs pc1
+pc1_spike &lt;- ggplot(pca_anno, aes(x = spike_percentage, y = PC1)) +
+                     geom_text(aes(label = cell_number,
+                                   col = filter_all, alpha = 0.5)) + 
+                     scale_colour_manual(values=cbPalette) + 
+                     geom_smooth()
+
+## number of detected gene vs pc1
+pc1_gene &lt;- ggplot(pca_anno, aes(x = detect_hs, y = PC1)) +
+                     geom_text(aes(label = cell_number,
+                                   col = filter_all, alpha = 0.5)) + 
+                     scale_colour_manual(values=cbPalette) + 
+                     geom_smooth()
+
+plot_grid(pc1_reads + theme(legend.position=c(.7,.5)),
+          pc1_unmapped + theme(legend.position = &quot;none&quot;),
+          pc1_spike + theme(legend.position = &quot;none&quot;), 
+          pc1_gene + theme(legend.position = &quot;none&quot;),
+          labels = LETTERS[1:4])</code></pre>
+<pre><code>`geom_smooth()` using method = &#39;loess&#39;
+`geom_smooth()` using method = &#39;loess&#39;
+`geom_smooth()` using method = &#39;loess&#39;
+`geom_smooth()` using method = &#39;loess&#39;</code></pre>
+<p><img src="figure/sampleqc.Rmd/pca-2.png" width="768" style="display: block; margin: auto;" /></p>
 </div>
 
 <hr>
