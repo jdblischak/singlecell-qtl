@@ -33,9 +33,15 @@ library("cowplot")
 library("dplyr")
 library("ggplot2")
 library("tidyr")
+library("edgeR")
 theme_set(theme_cowplot())
 source("../code/functions.R")
 library("Biobase")
+```
+
+```{r color}
+# The palette with grey:
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 ```
 
 Import data.
@@ -220,7 +226,7 @@ data$data_lda_p <- data_lda_p
 ## plot before and after
 plot_before <- ggplot(data, aes(x = concentration, y = molecules / 10^3,
                color = as.factor(group))) +
-               geom_text(aes(label = cell_number)) +
+               geom_text(aes(label = cell_number, alpha = 0.5)) +
                labs(x = "Concentration", y = "Gene molecules (thousands)", title = "Before") +
                scale_color_brewer(palette = "Dark2") +
                theme(legend.position = "none")
@@ -228,7 +234,7 @@ plot_before <- ggplot(data, aes(x = concentration, y = molecules / 10^3,
 
 plot_after <- ggplot(data, aes(x = concentration, y = molecules / 10^3,
                color = as.factor(data_lda_p))) +
-               geom_text(aes(label = cell_number)) +
+               geom_text(aes(label = cell_number, alpha = 0.5)) +
                labs(x = "Concentration", y = "Gene molecules (thousands)", title = "After") +
                scale_color_brewer(palette = "Dark2") +
                theme(legend.position = "none")
@@ -274,14 +280,14 @@ anno$conversion_outlier <- anno$cell_number == 1 & anno$dm_conversion > .094
 ## plot before and after
 plot_ercc_before <- ggplot(data, aes(x = dm_conversion, y = conversion,
                color = as.factor(group))) +
-               geom_text(aes(label = cell_number)) +
+               geom_text(aes(label = cell_number, alpha = 0.5)) +
                labs(x = "Convertion of Fly spike-ins", y = "Conversion of genes", title = "Before") +
                scale_color_brewer(palette = "Dark2") +
                theme(legend.position = "none")
 
 plot_ercc_after <- ggplot(data, aes(x = dm_conversion, y = conversion,
                color = as.factor(data_ercc_lda_p))) +
-               geom_text(aes(label = cell_number)) +
+               geom_text(aes(label = cell_number, alpha = 0.5)) +
                labs(x = "Convertion of Fly spike-ins", y = "Conversion of genes", title = "After") +
                scale_color_brewer(palette = "Dark2") +
                theme(legend.position = "none")
@@ -303,20 +309,18 @@ anno$filter_all <- anno$cell_number == 1 &
                 ##   anno$cut_off_ercc &
                    anno$cut_off_spike &
                    anno$cut_off_genes 
-table(anno$filter_all)
+table(anno[anno$filter_all, c("experiment","chip_id")])
 ```
 
 ### Plots
 ```{r plots, fig.width=12, fig.heigh=12, dpi=300}
-## plot only the sample with valid ID
-table(anno$valid_id)
-dim(anno[anno$valid_id, ])
 
 genes_unmapped <-  ggplot(anno,
                    aes(x = detect_hs, y = unmapped_ratios * 100,
                        col = as.factor(valid_id), 
                        label = as.character(cell_number),
                        height = 600, width = 2000)) +
+                   scale_colour_manual(values=cbPalette) +
                    geom_text(fontface = 3, alpha = 0.5) + 
                    geom_vline(xintercept = cut_off_genes, 
                               colour="grey", linetype = "longdash") +
@@ -330,6 +334,7 @@ genes_spike <- ggplot(anno,
                    col = as.factor(valid_id), 
                    label = as.character(cell_number), 
                    height = 600, width = 2000)) +
+               scale_colour_manual(values=cbPalette) +
                scale_shape_manual(values=c(1:10)) +
                geom_text(fontface = 3, alpha = 0.5) + 
                geom_vline(xintercept = cut_off_genes, 
@@ -371,4 +376,72 @@ plot_grid(genes_unmapped + theme(legend.position=c(.7,.9)),
 plot_grid(reads_unmapped_num + theme(legend.position = "none"), 
           reads_spike_num + theme(legend.position = "none"),
           labels = letters[3:4])
+```
+
+## PCA
+Select the most variable human genes
+```{r select-gene}
+## look at human genes
+eset_hs <- eset[fData(eset)$source == "H. sapiens", ]
+head(featureNames(eset_hs))
+
+## remove genes of all 0s
+eset_hs_clean <- eset_hs[rowSums(exprs(eset_hs)) != 0, ]
+dim(eset_hs_clean)
+
+## convert to log2 cpm
+mol_hs_cpm <- cpm(exprs(eset_hs_clean), log = TRUE)
+hist(rowMeans(mol_hs_cpm))
+
+## variable genes
+mol_hs_cpm_var <- log(apply(mol_hs_cpm, 1, var))
+hist(mol_hs_cpm_var)
+sum(mol_hs_cpm_var > 0.5)
+```
+
+Using the `r sum(mol_hs_cpm_var > 0.5)` most variable genes to perform PCA
+
+```{r pca}
+## pca of top variable genes
+mol_hs_cpm <- mol_hs_cpm[mol_hs_cpm_var > 0.5, ]
+pca_hs <- run_pca(mol_hs_cpm) 
+plot_pca(pca_hs$PCs, pcx = 1, pcy = 2, explained = pca_hs$explained,
+         metadata = pData(eset_hs_clean), color = "experiment")
+
+## combine to investigate the effect
+pca_anno <- cbind(anno, pca_hs$PCs)
+
+## total mapped vs pc1
+pc1_reads <- ggplot(pca_anno, aes(x = mapped, y = PC1)) +
+                     geom_text(aes(label = cell_number, 
+                                   col = filter_all, alpha = 0.5)) + 
+                     scale_colour_manual(values=cbPalette) +
+                     geom_smooth()
+
+## unmapped ratio vs pc1
+pc1_unmapped <- ggplot(pca_anno, aes(x = unmapped_ratios, y = PC1)) +
+                       geom_text(aes(label = cell_number,
+                                     col = filter_all, alpha = 0.5)) + 
+                       scale_colour_manual(values=cbPalette) + 
+                       geom_smooth()
+
+## spike-in ratio vs pc1
+pc1_spike <- ggplot(pca_anno, aes(x = spike_percentage, y = PC1)) +
+                     geom_text(aes(label = cell_number,
+                                   col = filter_all, alpha = 0.5)) + 
+                     scale_colour_manual(values=cbPalette) + 
+                     geom_smooth()
+
+## number of detected gene vs pc1
+pc1_gene <- ggplot(pca_anno, aes(x = detect_hs, y = PC1)) +
+                     geom_text(aes(label = cell_number,
+                                   col = filter_all, alpha = 0.5)) + 
+                     scale_colour_manual(values=cbPalette) + 
+                     geom_smooth()
+
+plot_grid(pc1_reads + theme(legend.position=c(.7,.5)),
+          pc1_unmapped + theme(legend.position = "none"),
+          pc1_spike + theme(legend.position = "none"), 
+          pc1_gene + theme(legend.position = "none"),
+          labels = LETTERS[1:4])
 ```
