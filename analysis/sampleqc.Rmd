@@ -309,7 +309,7 @@ anno$filter_all <- anno$cell_number == 1 &
                 ##   anno$cut_off_ercc &
                    anno$cut_off_spike &
                    anno$cut_off_genes 
-table(anno[anno$filter_all, c("experiment","chip_id")])
+sort(table(anno[anno$filter_all, "chip_id"]))
 ```
 
 ### Plots
