@@ -379,8 +379,10 @@ plot_grid(reads_unmapped_num + theme(legend.position = "none"),
 ```
 
 ## PCA
+
+### Before filter
 Select the most variable human genes
-```{r select-gene}
+```{r select-gene-before}
 ## look at human genes
 eset_hs <- eset[fData(eset)$source == "H. sapiens", ]
 head(featureNames(eset_hs))
@@ -401,7 +403,7 @@ sum(mol_hs_cpm_var > 0.5)
 
 Using the `r sum(mol_hs_cpm_var > 0.5)` most variable genes to perform PCA
 
-```{r pca}
+```{r pca-before}
 ## pca of top variable genes
 mol_hs_cpm <- mol_hs_cpm[mol_hs_cpm_var > 0.5, ]
 pca_hs <- run_pca(mol_hs_cpm) 
@@ -445,3 +447,66 @@ plot_grid(pc1_reads + theme(legend.position=c(.7,.5)),
           pc1_gene + theme(legend.position = "none"),
           labels = LETTERS[1:4])
 ```
+
+### After filter
+```{r pca-after}
+## filter bad cells
+eset_hs_clean_filter <- eset_hs_clean[,anno$filter_all]
+dim(eset_hs_clean_filter)
+
+## convert to log2 cpm
+mol_hs_cpm_filter <- cpm(exprs(eset_hs_clean_filter), log = TRUE)
+hist(rowMeans(mol_hs_cpm_filter))
+stopifnot(rownames(anno[anno$filter_all,]) == colnames(mol_hs_cpm_filter))
+
+## variable genes
+mol_hs_cpm_filter_var <- log(apply(mol_hs_cpm_filter, 1, var))
+hist(mol_hs_cpm_filter_var)
+sum(mol_hs_cpm_filter_var > 0.5)
+
+## pca of top variable genes
+mol_hs_cpm_filter<- mol_hs_cpm_filter[mol_hs_cpm_filter_var > 0.5, ]
+pca_hs_filter <- run_pca(mol_hs_cpm_filter) 
+plot_pca(pca_hs_filter$PCs, pcx = 1, pcy = 2, explained = pca_hs_filter$explained,
+         metadata = pData(eset_hs_clean_filter), color = "experiment")
+
+## combine to investigate the effect
+anno_filter <- anno[anno$filter_all,]
+pca_anno_filter <- cbind(anno_filter, pca_hs_filter$PCs)
+
+## total mapped vs pc1
+pc1_reads_filter <- ggplot(pca_anno_filter, aes(x = mapped, y = PC1)) +
+                     geom_text(aes(label = cell_number, 
+                                   alpha = 0.5)) + 
+                     scale_colour_manual(values=cbPalette) +
+                     geom_smooth()
+
+## unmapped ratio vs pc1
+pc1_unmapped_filter <- ggplot(pca_anno_filter, aes(x = unmapped_ratios, y = PC1)) +
+                       geom_text(aes(label = cell_number,
+                                     alpha = 0.5)) + 
+                       scale_colour_manual(values=cbPalette) + 
+                       geom_smooth()
+
+## spike-in ratio vs pc1
+pc1_spike_filter <- ggplot(pca_anno_filter, aes(x = spike_percentage, y = PC1)) +
+                     geom_text(aes(label = cell_number,
+                                   alpha = 0.5)) + 
+                     scale_colour_manual(values=cbPalette) + 
+                     geom_smooth()
+
+## number of detected gene vs pc1
+pc1_gene_filter <- ggplot(pca_anno_filter, aes(x = detect_hs, y = PC1)) +
+                     geom_text(aes(label = cell_number,
+                                   alpha = 0.5)) + 
+                     scale_colour_manual(values=cbPalette) + 
+                     geom_smooth()
+
+plot_grid(pc1_reads_filter + theme(legend.position=c(.7,.5)),
+          pc1_unmapped_filter + theme(legend.position = "none"),
+          pc1_spike_filter + theme(legend.position = "none"), 
+          pc1_gene_filter + theme(legend.position = "none"),
+          labels = LETTERS[1:4])
+```
+```
+
