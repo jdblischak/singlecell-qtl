@@ -310,9 +310,13 @@ files):
     cp git-lfs install.sh ~/bin
     ```
 
-1. Add `~/bin` to your `PATH` in `~/.bash_profile` (macOS) or `.bashrc` (Linux)
-if it isn't already (this is added by default on at least some Linux
-distributions).
+1. Add `~/bin` to your `PATH` by adding the following line to your
+`~/.bash_profile` (macOS) or `.bashrc` (Linux):
+    ```
+    export PATH="~/bin:$PATH"
+    ```
+     Note that `~/bin` is already included in `PATH` by default on at least some
+     Linux distributions.
 
 1. Update `PATH`:
     ```
