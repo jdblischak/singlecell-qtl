@@ -316,10 +316,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2017-09-19</p>
+<p><strong>Last updated:</strong> 2017-10-23</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> b0e85b8</p>
+<p><strong>Code version:</strong> 0544c95</p>
 <div id="initial-setup" class="section level2">
 <h2>Initial setup</h2>
 <p>The initial setup only has to be performed once for each computer that you use.</p>
@@ -515,6 +515,23 @@ wflow_publish(&quot;analysis/new.Rmd&quot;, &quot;Add a new analysis&quot;)</cod
 <p>Ideally <code>wflow_publish()</code> will be run using the conda environment scqtl so that the final results are always generated using the same versions of the software. If you are using RStudio, you may need to open R from the command line to execute <code>wflow_publish()</code> in the conda environment.</p>
 <p>More information on workflowr can be found in the <a href="https://jdblischak.github.io/workflowr/">online documentation</a>.</p>
 </div>
+<div id="adding-large-files-to-the-git-repo" class="section level2">
+<h2>Adding large files to the Git repo</h2>
+<p>Since we use <a href="https://git-lfs.github.com/">Git LFS</a>, we can version large binary files with Git without worrying about the size of the Git repo. Before you do anything with large files, make sure you have activated the conda environment to ensure that you have Git LFS installed.</p>
+<ol style="list-style-type: decimal">
+<li><p>Activate the conda environment:</p>
+<pre><code>source activate scqtl</code></pre></li>
+<li><p>Check the currently tracked file extensions:</p>
+<pre><code>git lfs track</code></pre></li>
+<li><p>If the file extension is not yet being tracked, you first need to track it. For example, if you wanted to use Git LFS with files that end in the extension <code>.xyz</code>, you would run the following:</p>
+<pre><code>git lfs track &quot;*.xyz&quot;
+git add .gitattributes</code></pre></li>
+<li><p>Once the file extension is being tracked, add and commit the file like any other file (you need to specify the <code>-f</code> flag for “force” because the directory <code>data/</code> is ignored by default to prevent accidentally committing a large file):</p>
+<pre><code>git add -f data/filename.xyz
+git commit</code></pre></li>
+<li><p>Before pushing to GitHub, confirm that the large file was properly committed by running <code>git log --stat</code>. The file that was committed should only be a few lines long because it is a plain text file with a pointer to the version of the large file on GitHub’s servers.</p></li>
+</ol>
+</div>
 <div id="installation-of-r-packages-outside-of-conda-environment" class="section level2">
 <h2>Installation of R packages outside of conda environment</h2>
 <p>There may be situations where you cannot access the R packages installed in the conda environment (e.g. running RStudio on macOS, or RStudio Server). The code below installs the necessary R packages from <a href="https://cran.r-project.org/">CRAN</a>, <a href="https://bioconductor.org">Bioconductor</a>, and <a href="https://github.com">GitHub</a>.</p>
@@ -557,7 +574,9 @@ curl -OL https://github.com/git-lfs/git-lfs/releases/download/v2.3.0/git-lfs-lin
 tar xzf git-lfs-*.tar.gz
 cd git-lfs-2.3.0/
 cp git-lfs install.sh ~/bin</code></pre></li>
-<li><p>Add <code>~/bin</code> to your <code>PATH</code> in <code>~/.bash_profile</code> (macOS) or <code>.bashrc</code> (Linux) if it isn’t already (this is added by default on at least some Linux distributions).</p></li>
+<li><p>Add <code>~/bin</code> to your <code>PATH</code> by adding the following line to your <code>~/.bash_profile</code> (macOS) or <code>.bashrc</code> (Linux):</p>
+<pre><code>export PATH=&quot;~/bin:$PATH&quot;</code></pre>
+<p>Note that <code>~/bin</code> is already included in <code>PATH</code> by default on at least some Linux distributions.</p></li>
 <li><p>Update <code>PATH</code>:</p>
 <pre><code># macOS
 source ~/.bash_profile
@@ -603,7 +622,7 @@ $ rstudio</code></pre>
 <pre class="r"><code>sessionInfo()</code></pre>
 <pre><code>R version 3.3.2 (2016-10-31)
 Platform: x86_64-pc-linux-gnu (64-bit)
-Running under: Scientific Linux 7.2 (Nitrogen)
+Running under: Ubuntu 17.04
 
 locale:
  [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
@@ -614,7 +633,7 @@ locale:
 [11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
 
 attached base packages:
-[1] parallel  methods   stats     graphics  grDevices utils     datasets 
+[1] parallel  stats     graphics  grDevices utils     datasets  methods  
 [8] base     
 
 other attached packages:

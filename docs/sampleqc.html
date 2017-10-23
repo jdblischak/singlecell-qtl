@@ -316,10 +316,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2017-09-19</p>
+<p><strong>Last updated:</strong> 2017-10-23</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> c99f6b2</p>
+<p><strong>Code version:</strong> 0544c95</p>
 <p>This is for qc of the samples. Based on obsevation under the scope and the sequencing results, samples with bad quality will be removed.</p>
 <div id="setup" class="section level2">
 <h2>Setup</h2>
@@ -610,31 +610,12 @@ anno$filter_all &lt;- anno$cell_number == 1 &amp;
                 ##   anno$cut_off_ercc &amp;
                    anno$cut_off_spike &amp;
                    anno$cut_off_genes 
-table(anno[anno$filter_all, c(&quot;experiment&quot;,&quot;chip_id&quot;)])</code></pre>
-<pre><code>          chip_id
-experiment NA18498 NA18502 NA18505 NA18508 NA18520 NA18852 NA18856 NA19092
-  03162017       0       0      12       0      14      10       0       0
-  03172017       0      19      24       0       0      12       0       0
-  03232017       0      26      12       0      24      15       0       0
-  03302017       0      26       0       0      13      16       0       0
-  03312017       0      18       0       0      15       0      18      27
-  04052017       0      47       3       0      11      16       0       0
-  04072017       0      26       0       0       0       0      24      26
-  04132017       7       0       0       0      15       9       0       0
-  04142017       5       0       0       0      23       0       0       0
-  04202017       5       0       0      16       0       0      16       0
-          chip_id
-experiment NA19098 NA19190 NA19203
-  03162017      14       0       0
-  03172017      27       0       0
-  03232017       0       0       0
-  03302017      12       0       0
-  03312017       0       0       0
-  04052017       0       0       0
-  04072017       7       0       0
-  04132017       0       0      15
-  04142017       0       0       9
-  04202017       0       7       0</code></pre>
+sort(table(anno[anno$filter_all, &quot;chip_id&quot;]))</code></pre>
+<pre><code>
+NA19190 NA18508 NA18498 NA19203 NA18505 NA19092 NA18856 NA19098 NA18852 
+      7      16      17      24      51      53      58      60      78 
+NA18520 NA18502 
+    115     162 </code></pre>
 </div>
 <div id="plots" class="section level3">
 <h3>Plots</h3>
@@ -705,6 +686,8 @@ plot_grid(genes_unmapped + theme(legend.position=c(.7,.9)),
 </div>
 <div id="pca" class="section level2">
 <h2>PCA</h2>
+<div id="before-filter" class="section level3">
+<h3>Before filter</h3>
 <p>Select the most variable human genes</p>
 <pre class="r"><code>## look at human genes
 eset_hs &lt;- eset[fData(eset)$source == &quot;H. sapiens&quot;, ]
@@ -719,11 +702,11 @@ dim(eset_hs_clean)</code></pre>
 <pre class="r"><code>## convert to log2 cpm
 mol_hs_cpm &lt;- cpm(exprs(eset_hs_clean), log = TRUE)
 hist(rowMeans(mol_hs_cpm))</code></pre>
-<p><img src="figure/sampleqc.Rmd/select-gene-1.png" width="768" style="display: block; margin: auto;" /></p>
+<p><img src="figure/sampleqc.Rmd/select-gene-before-1.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>## variable genes
 mol_hs_cpm_var &lt;- log(apply(mol_hs_cpm, 1, var))
 hist(mol_hs_cpm_var)</code></pre>
-<p><img src="figure/sampleqc.Rmd/select-gene-2.png" width="768" style="display: block; margin: auto;" /></p>
+<p><img src="figure/sampleqc.Rmd/select-gene-before-2.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>sum(mol_hs_cpm_var &gt; 0.5)</code></pre>
 <pre><code>[1] 5995</code></pre>
 <p>Using the 5995 most variable genes to perform PCA</p>
@@ -732,7 +715,7 @@ mol_hs_cpm &lt;- mol_hs_cpm[mol_hs_cpm_var &gt; 0.5, ]
 pca_hs &lt;- run_pca(mol_hs_cpm) 
 plot_pca(pca_hs$PCs, pcx = 1, pcy = 2, explained = pca_hs$explained,
          metadata = pData(eset_hs_clean), color = &quot;experiment&quot;)</code></pre>
-<p><img src="figure/sampleqc.Rmd/pca-1.png" width="768" style="display: block; margin: auto;" /></p>
+<p><img src="figure/sampleqc.Rmd/pca-before-1.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>## combine to investigate the effect
 pca_anno &lt;- cbind(anno, pca_hs$PCs)
 
@@ -773,7 +756,76 @@ plot_grid(pc1_reads + theme(legend.position=c(.7,.5)),
 `geom_smooth()` using method = &#39;loess&#39;
 `geom_smooth()` using method = &#39;loess&#39;
 `geom_smooth()` using method = &#39;loess&#39;</code></pre>
-<p><img src="figure/sampleqc.Rmd/pca-2.png" width="768" style="display: block; margin: auto;" /></p>
+<p><img src="figure/sampleqc.Rmd/pca-before-2.png" width="768" style="display: block; margin: auto;" /></p>
+</div>
+<div id="after-filter" class="section level3">
+<h3>After filter</h3>
+<pre class="r"><code>## filter bad cells
+eset_hs_clean_filter &lt;- eset_hs_clean[,anno$filter_all]
+dim(eset_hs_clean_filter)</code></pre>
+<pre><code>Features  Samples 
+   17615      641 </code></pre>
+<pre class="r"><code>## convert to log2 cpm
+mol_hs_cpm_filter &lt;- cpm(exprs(eset_hs_clean_filter), log = TRUE)
+hist(rowMeans(mol_hs_cpm_filter))</code></pre>
+<p><img src="figure/sampleqc.Rmd/pca-after-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>stopifnot(rownames(anno[anno$filter_all,]) == colnames(mol_hs_cpm_filter))
+
+## variable genes
+mol_hs_cpm_filter_var &lt;- log(apply(mol_hs_cpm_filter, 1, var))
+hist(mol_hs_cpm_filter_var)</code></pre>
+<p><img src="figure/sampleqc.Rmd/pca-after-2.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>sum(mol_hs_cpm_filter_var &gt; 0.5)</code></pre>
+<pre><code>[1] 5794</code></pre>
+<pre class="r"><code>## pca of top variable genes
+mol_hs_cpm_filter&lt;- mol_hs_cpm_filter[mol_hs_cpm_filter_var &gt; 0.5, ]
+pca_hs_filter &lt;- run_pca(mol_hs_cpm_filter) 
+plot_pca(pca_hs_filter$PCs, pcx = 1, pcy = 2, explained = pca_hs_filter$explained,
+         metadata = pData(eset_hs_clean_filter), color = &quot;experiment&quot;)</code></pre>
+<p><img src="figure/sampleqc.Rmd/pca-after-3.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>## combine to investigate the effect
+anno_filter &lt;- anno[anno$filter_all,]
+pca_anno_filter &lt;- cbind(anno_filter, pca_hs_filter$PCs)
+
+## total mapped vs pc1
+pc1_reads_filter &lt;- ggplot(pca_anno_filter, aes(x = mapped, y = PC1)) +
+                     geom_text(aes(label = cell_number, 
+                                   alpha = 0.5)) + 
+                     scale_colour_manual(values=cbPalette) +
+                     geom_smooth()
+
+## unmapped ratio vs pc1
+pc1_unmapped_filter &lt;- ggplot(pca_anno_filter, aes(x = unmapped_ratios, y = PC1)) +
+                       geom_text(aes(label = cell_number,
+                                     alpha = 0.5)) + 
+                       scale_colour_manual(values=cbPalette) + 
+                       geom_smooth()
+
+## spike-in ratio vs pc1
+pc1_spike_filter &lt;- ggplot(pca_anno_filter, aes(x = spike_percentage, y = PC1)) +
+                     geom_text(aes(label = cell_number,
+                                   alpha = 0.5)) + 
+                     scale_colour_manual(values=cbPalette) + 
+                     geom_smooth()
+
+## number of detected gene vs pc1
+pc1_gene_filter &lt;- ggplot(pca_anno_filter, aes(x = detect_hs, y = PC1)) +
+                     geom_text(aes(label = cell_number,
+                                   alpha = 0.5)) + 
+                     scale_colour_manual(values=cbPalette) + 
+                     geom_smooth()
+
+plot_grid(pc1_reads_filter + theme(legend.position=c(.7,.5)),
+          pc1_unmapped_filter + theme(legend.position = &quot;none&quot;),
+          pc1_spike_filter + theme(legend.position = &quot;none&quot;), 
+          pc1_gene_filter + theme(legend.position = &quot;none&quot;),
+          labels = LETTERS[1:4])</code></pre>
+<pre><code>`geom_smooth()` using method = &#39;loess&#39;
+`geom_smooth()` using method = &#39;loess&#39;
+`geom_smooth()` using method = &#39;loess&#39;
+`geom_smooth()` using method = &#39;loess&#39;</code></pre>
+<p><img src="figure/sampleqc.Rmd/pca-after-4.png" width="768" style="display: block; margin: auto;" /> ```</p>
+</div>
 </div>
 
 <hr>
