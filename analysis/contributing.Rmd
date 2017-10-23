@@ -227,6 +227,44 @@ execute `wflow_publish()` in the conda environment.
 More information on workflowr can be found in the [online
 documentation][workflowr-docs].
 
+## Adding large files to the Git repo
+
+Since we use [Git LFS][git-lfs], we can version large binary files with Git
+without worrying about the size of the Git repo. Before you do anything with
+large files, make sure you have activated the conda environment to ensure that
+you have Git LFS installed.
+
+1. Activate the conda environment:
+    ```
+    source activate scqtl
+    ```
+
+1. Check the currently tracked file extensions:
+    ```
+    git lfs track
+    ```
+
+1. If the file extension is not yet being tracked, you first need to track it.
+For example, if you wanted to use Git LFS with files that end in the extension
+`.xyz`, you would run the following:
+    ```
+    git lfs track "*.xyz"
+    git add .gitattributes
+    ```
+
+1. Once the file extension is being tracked, add and commit the file like any
+other file (you need to specify the `-f` flag for "force" because the directory
+`data/` is ignored by default to prevent accidentally committing a large file):
+    ```
+    git add -f data/filename.xyz
+    git commit
+    ```
+
+1. Before pushing to GitHub, confirm that the large file was properly committed
+by running `git log --stat`. The file that was committed should only be a few
+lines long because it is a plain text file with a pointer to the version of the
+large file on GitHub's servers.
+
 ## Installation of R packages outside of conda environment
 
 There may be situations where you cannot access the R packages installed in the
