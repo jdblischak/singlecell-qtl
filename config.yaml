@@ -10,14 +10,16 @@
 
 # Paths must end with forward slash
 
-# Enter the absolute path to the singlecell-qtl directory
-dir_proj: /project2/gilad/jdblischak/singlecell-qtl/
+# Enter the absolute path to the local directory to store the final data files
+dir_data: /project2/gilad/jdblischak/singlecell-qtl/data/
 
-# Enter the absolute path to a scratch directory for writing intermediate files
-scratch: /scratch/midway2/jdblischak/
+# Enter the absolute path to a scratch directory for writing temporary files
+dir_scratch: /scratch/midway2/jdblischak/
 
-# Enter the absolute path to the directory which contains the fastq files
-dir_fq: /project2/gilad/joycehsiao/singlecell-qtl/batch-1/fastq/qtl/
+# Enter the absolute path to an external directory to store intermediate files.
+# It should also contain a subdirectory fastq/ which contains the raw gzipped
+# FASTQ files.
+dir_external: /project2/gilad/singlecell-qtl/
 
 # Enter the path (absolute or relative to the Snakefile) for writing log
 # files. Make sure to also update this path for log files in cluster.json
