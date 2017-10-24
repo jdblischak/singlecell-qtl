@@ -316,10 +316,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2017-10-23</p>
+<p><strong>Last updated:</strong> 2017-10-24</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> 0544c95</p>
+<p><strong>Code version:</strong> cec0e85</p>
 <p>This is for qc of the samples. Based on obsevation under the scope and the sequencing results, samples with bad quality will be removed.</p>
 <div id="setup" class="section level2">
 <h2>Setup</h2>
@@ -345,14 +345,14 @@ cut_off_reads &lt;- quantile(anno[anno$cell_number == 0,&quot;mapped&quot;], 0.9
 
 cut_off_reads</code></pre>
 <pre><code>     95% 
-179654.2 </code></pre>
+880092.5 </code></pre>
 <pre class="r"><code>anno$cut_off_reads &lt;- anno$mapped &gt; cut_off_reads
 
 ## numbers of cells 
 sum(anno[anno$cell_number == 1, &quot;mapped&quot;] &gt; cut_off_reads)</code></pre>
-<pre><code>[1] 726</code></pre>
+<pre><code>[1] 682</code></pre>
 <pre class="r"><code>sum(anno[anno$cell_number == 1, &quot;mapped&quot;] &lt;= cut_off_reads)</code></pre>
-<pre><code>[1] 154</code></pre>
+<pre><code>[1] 198</code></pre>
 <pre class="r"><code>## density plots
 plot_reads &lt;- ggplot(anno[anno$cell_number == 0 |
                           anno$cell_number == 1 , ],
@@ -374,15 +374,15 @@ anno$unmapped_ratios &lt;- anno$unmapped/anno$umi
 cut_off_unmapped &lt;- quantile(anno[anno$cell_number == 0,&quot;unmapped_ratios&quot;], 0.05)
 
 cut_off_unmapped</code></pre>
-<pre><code>        5% 
-0.07767718 </code></pre>
+<pre><code>       5% 
+0.1657631 </code></pre>
 <pre class="r"><code>anno$cut_off_unmapped &lt;- anno$unmapped_ratios &lt; cut_off_unmapped
 
 ## numbers of cells 
 sum(anno[anno$cell_number == 1, &quot;unmapped_ratios&quot;] &gt;= cut_off_unmapped)</code></pre>
-<pre><code>[1] 880</code></pre>
+<pre><code>[1] 877</code></pre>
 <pre class="r"><code>sum(anno[anno$cell_number == 1, &quot;unmapped_ratios&quot;] &lt; cut_off_unmapped)</code></pre>
-<pre><code>[1] 0</code></pre>
+<pre><code>[1] 3</code></pre>
 <pre class="r"><code>## density plots
 plot_unmapped &lt;- ggplot(anno[anno$cell_number == 0 |
                              anno$cell_number == 1 , ],
@@ -435,14 +435,14 @@ cut_off_spike &lt;- quantile(anno[anno$cell_number == 0,&quot;spike_percentage&q
 
 cut_off_spike</code></pre>
 <pre><code>      10% 
-0.3284215 </code></pre>
+0.3009532 </code></pre>
 <pre class="r"><code>anno$cut_off_spike &lt;- anno$spike_percentage &lt; cut_off_spike
 
 ## numbers of cells 
 sum(anno[anno$cell_number == 1, &quot;spike_percentage&quot;] &gt;= cut_off_spike)</code></pre>
-<pre><code>[1] 63</code></pre>
+<pre><code>[1] 74</code></pre>
 <pre class="r"><code>sum(anno[anno$cell_number == 1, &quot;spike_percentage&quot;] &lt; cut_off_spike)</code></pre>
-<pre><code>[1] 817</code></pre>
+<pre><code>[1] 806</code></pre>
 <pre class="r"><code>## density plots
 plot_spike &lt;- ggplot(anno[anno$cell_number == 0 |
                           anno$cell_number == 1 , ],
@@ -460,15 +460,15 @@ plot_spike</code></pre>
 cut_off_genes &lt;- quantile(anno[anno$cell_number == 0,&quot;detect_hs&quot;], 0.95)
 
 cut_off_genes</code></pre>
-<pre><code>    95% 
-2375.25 </code></pre>
+<pre><code>   95% 
+4210.5 </code></pre>
 <pre class="r"><code>anno$cut_off_genes &lt;- anno$detect_hs &gt; cut_off_genes
 
 ## numbers of cells 
 sum(anno[anno$cell_number == 1, &quot;detect_hs&quot;] &gt; cut_off_genes)</code></pre>
-<pre><code>[1] 796</code></pre>
+<pre><code>[1] 755</code></pre>
 <pre class="r"><code>sum(anno[anno$cell_number == 1, &quot;detect_hs&quot;] &lt;= cut_off_genes)</code></pre>
-<pre><code>[1] 84</code></pre>
+<pre><code>[1] 125</code></pre>
 <pre class="r"><code>## density plots
 plot_gene &lt;- ggplot(anno[anno$cell_number == 0 |
                          anno$cell_number == 1 , ],
@@ -513,8 +513,8 @@ data_lda_p &lt;- predict(data_lda, newdata = data[,c(&quot;concentration&quot;, 
 table(data_lda_p, data[, &quot;group&quot;])</code></pre>
 <pre><code>          
 data_lda_p  no one two
-       no    4   2   1
-       one  64 878  11
+       no    8   4   1
+       one  60 876  11
        two   0   0   0</code></pre>
 <pre class="r"><code>data$data_lda_p &lt;- data_lda_p
 
@@ -566,9 +566,9 @@ data_ercc_lda_p &lt;- predict(data_ercc_lda,  newdata = data[,c(&quot;dm_convers
 table(data_ercc_lda_p, data[, &quot;group&quot;])</code></pre>
 <pre><code>               
 data_ercc_lda_p  no one two
-            no   33   4   0
-            one  35 873  10
-            two   0   3   2</code></pre>
+            no   31   3   0
+            one  37 875  10
+            two   0   2   2</code></pre>
 <pre class="r"><code>data$data_ercc_lda_p &lt;- data_ercc_lda_p
 
 
@@ -612,10 +612,10 @@ anno$filter_all &lt;- anno$cell_number == 1 &amp;
                    anno$cut_off_genes 
 sort(table(anno[anno$filter_all, &quot;chip_id&quot;]))</code></pre>
 <pre><code>
-NA19190 NA18508 NA18498 NA19203 NA18505 NA19092 NA18856 NA19098 NA18852 
-      7      16      17      24      51      53      58      60      78 
+NA18498 NA19190 NA18508 NA19203 NA18505 NA19098 NA19092 NA18856 NA18852 
+     14      14      18      18      46      49      50      56      70 
 NA18520 NA18502 
-    115     162 </code></pre>
+    113     164 </code></pre>
 </div>
 <div id="plots" class="section level3">
 <h3>Plots</h3>
@@ -698,7 +698,7 @@ head(featureNames(eset_hs))</code></pre>
 eset_hs_clean &lt;- eset_hs[rowSums(exprs(eset_hs)) != 0, ]
 dim(eset_hs_clean)</code></pre>
 <pre><code>Features  Samples 
-   17615      960 </code></pre>
+   18681      960 </code></pre>
 <pre class="r"><code>## convert to log2 cpm
 mol_hs_cpm &lt;- cpm(exprs(eset_hs_clean), log = TRUE)
 hist(rowMeans(mol_hs_cpm))</code></pre>
@@ -708,8 +708,8 @@ mol_hs_cpm_var &lt;- log(apply(mol_hs_cpm, 1, var))
 hist(mol_hs_cpm_var)</code></pre>
 <p><img src="figure/sampleqc.Rmd/select-gene-before-2.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>sum(mol_hs_cpm_var &gt; 0.5)</code></pre>
-<pre><code>[1] 5995</code></pre>
-<p>Using the 5995 most variable genes to perform PCA</p>
+<pre><code>[1] 7366</code></pre>
+<p>Using the 7366 most variable genes to perform PCA</p>
 <pre class="r"><code>## pca of top variable genes
 mol_hs_cpm &lt;- mol_hs_cpm[mol_hs_cpm_var &gt; 0.5, ]
 pca_hs &lt;- run_pca(mol_hs_cpm) 
@@ -764,7 +764,7 @@ plot_grid(pc1_reads + theme(legend.position=c(.7,.5)),
 eset_hs_clean_filter &lt;- eset_hs_clean[,anno$filter_all]
 dim(eset_hs_clean_filter)</code></pre>
 <pre><code>Features  Samples 
-   17615      641 </code></pre>
+   18681      612 </code></pre>
 <pre class="r"><code>## convert to log2 cpm
 mol_hs_cpm_filter &lt;- cpm(exprs(eset_hs_clean_filter), log = TRUE)
 hist(rowMeans(mol_hs_cpm_filter))</code></pre>
@@ -776,7 +776,7 @@ mol_hs_cpm_filter_var &lt;- log(apply(mol_hs_cpm_filter, 1, var))
 hist(mol_hs_cpm_filter_var)</code></pre>
 <p><img src="figure/sampleqc.Rmd/pca-after-2.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>sum(mol_hs_cpm_filter_var &gt; 0.5)</code></pre>
-<pre><code>[1] 5794</code></pre>
+<pre><code>[1] 6619</code></pre>
 <pre class="r"><code>## pca of top variable genes
 mol_hs_cpm_filter&lt;- mol_hs_cpm_filter[mol_hs_cpm_filter_var &gt; 0.5, ]
 pca_hs_filter &lt;- run_pca(mol_hs_cpm_filter) 

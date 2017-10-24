@@ -316,10 +316,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2017-09-14</p>
+<p><strong>Last updated:</strong> 2017-10-24</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> e455fa0</p>
+<p><strong>Code version:</strong> cec0e85</p>
 <p>This analysis explores the total counts of reads and molecules mapped to each source (human, fly, worm, and ERCC).</p>
 <div id="setup" class="section level2">
 <h2>Setup</h2>
@@ -351,12 +351,12 @@ anno_qc &lt;- pData(eset_qc)</code></pre>
                                   &quot;Molecules mapped\nto genome&quot;)))
 head(totals_long)</code></pre>
 <pre><code>  experiment well      type   count
-1   03162017  A01 Raw reads  405060
-2   03162017  A02 Raw reads 1002890
-3   03162017  A03 Raw reads  345100
-4   03162017  A05 Raw reads  218762
-5   03162017  A06 Raw reads  959959
-6   03162017  A07 Raw reads  850740</code></pre>
+1   03162017  A01 Raw reads 1505379
+2   03162017  A02 Raw reads 3666431
+3   03162017  A03 Raw reads 1260788
+4   03162017  A05 Raw reads  908520
+5   03162017  A06 Raw reads 3762199
+6   03162017  A07 Raw reads 3524476</code></pre>
 <pre class="r"><code>ggplot(totals_long, aes(x = type, y = count)) +
   geom_boxplot() +
   labs(x = &quot;Classification&quot;, y = &quot;Number of sequences&quot;,
@@ -374,27 +374,27 @@ head(totals_long)</code></pre>
 <tbody>
 <tr class="odd">
 <td>Raw reads</td>
-<td>7.308583810^{5}</td>
-<td>3.600860210^{5}</td>
+<td>3.195240110^{6}</td>
+<td>1.518070210^{6}</td>
 <td>1.00</td>
 </tr>
 <tr class="even">
 <td>Reads with UMI</td>
-<td>4.452234410^{5}</td>
-<td>2.153514110^{5}</td>
-<td>0.61</td>
+<td>1.984829310^{6}</td>
+<td>9.656687410^{5}</td>
+<td>0.62</td>
 </tr>
 <tr class="odd">
 <td>Reads mapped to genome</td>
-<td>3.502061610^{5}</td>
-<td>1.698625210^{5}</td>
-<td>0.48</td>
+<td>1.430424310^{6}</td>
+<td>7.155993310^{5}</td>
+<td>0.44</td>
 </tr>
 <tr class="even">
 <td>Molecules mapped to genome</td>
-<td>3.937304310^{4}</td>
-<td>1.800206310^{4}</td>
-<td>0.06</td>
+<td>7.985557310^{4}</td>
+<td>3.541903910^{4}</td>
+<td>0.03</td>
 </tr>
 </tbody>
 </table>
@@ -432,44 +432,44 @@ ggplot(mapped_sum, aes(x = experiment, y = total)) +
 </thead>
 <tbody>
 <tr class="odd">
-<td align="left">04202017</td>
-<td align="right">19.14049</td>
+<td align="left">04132017</td>
+<td align="right">82.98590</td>
 </tr>
 <tr class="even">
-<td align="left">03232017</td>
-<td align="right">25.38071</td>
-</tr>
-<tr class="odd">
-<td align="left">03302017</td>
-<td align="right">26.32757</td>
-</tr>
-<tr class="even">
-<td align="left">04052017</td>
-<td align="right">26.35275</td>
+<td align="left">04072017</td>
+<td align="right">98.85689</td>
 </tr>
 <tr class="odd">
 <td align="left">03162017</td>
-<td align="right">27.69233</td>
-</tr>
-<tr class="even">
-<td align="left">04132017</td>
-<td align="right">27.69296</td>
-</tr>
-<tr class="odd">
-<td align="left">04142017</td>
-<td align="right">30.77649</td>
-</tr>
-<tr class="even">
-<td align="left">03312017</td>
-<td align="right">37.31653</td>
-</tr>
-<tr class="odd">
-<td align="left">04072017</td>
-<td align="right">40.51944</td>
+<td align="right">104.42973</td>
 </tr>
 <tr class="even">
 <td align="left">03172017</td>
-<td align="right">43.12988</td>
+<td align="right">105.22459</td>
+</tr>
+<tr class="odd">
+<td align="left">04052017</td>
+<td align="right">106.98044</td>
+</tr>
+<tr class="even">
+<td align="left">04202017</td>
+<td align="right">117.27714</td>
+</tr>
+<tr class="odd">
+<td align="left">03302017</td>
+<td align="right">138.24284</td>
+</tr>
+<tr class="even">
+<td align="left">04142017</td>
+<td align="right">157.35120</td>
+</tr>
+<tr class="odd">
+<td align="left">03312017</td>
+<td align="right">159.88979</td>
+</tr>
+<tr class="even">
+<td align="left">03232017</td>
+<td align="right">171.80020</td>
 </tr>
 </tbody>
 </table>
@@ -613,7 +613,7 @@ locale:
 [11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
 
 attached base packages:
-[1] parallel  stats     graphics  grDevices utils     datasets  methods  
+[1] parallel  methods   stats     graphics  grDevices utils     datasets 
 [8] base     
 
 other attached packages:

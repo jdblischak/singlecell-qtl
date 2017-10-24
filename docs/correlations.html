@@ -316,10 +316,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2017-09-11</p>
+<p><strong>Last updated:</strong> 2017-10-24</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> a34056f</p>
+<p><strong>Code version:</strong> cec0e85</p>
 <p>Calculate pairwise correlations between single cells.</p>
 <div id="setup" class="section level2">
 <h2>Setup</h2>
@@ -342,7 +342,7 @@ protocolData: none
 phenoData
   sampleNames: 03162017-A01 03162017-A02 ... 04202017-H12 (960
     total)
-  varLabels: experiment well ... valid_id (35 total)
+  varLabels: experiment well ... valid_id (39 total)
   varMetadata: labelDescription
 featureData
   featureNames: ENSG00000000003 ENSG00000000005 ... WBGene00235374
@@ -383,12 +383,12 @@ head(featureNames(eset_hs))</code></pre>
 <pre class="r"><code>eset_ercc_clean &lt;- eset_ercc[rowSums(exprs(eset_ercc)) != 0, ]
 dim(eset_ercc_clean)</code></pre>
 <pre><code>Features  Samples 
-      85      347 </code></pre>
+      87      347 </code></pre>
 <p>Only keep genes which are observed in at least 50% of the samples.</p>
 <pre class="r"><code>eset_ercc_clean &lt;- eset_ercc_clean[apply(exprs(eset_ercc_clean), 1, present), ]
 dim(eset_ercc_clean)</code></pre>
 <pre><code>Features  Samples 
-      30      347 </code></pre>
+      31      347 </code></pre>
 <p>Convert to log2 counts per million.</p>
 <pre class="r"><code>mol_ercc_cpm &lt;- cpm(exprs(eset_ercc_clean), log = TRUE)</code></pre>
 <p>Calculate pairwise correlations.</p>
@@ -396,7 +396,7 @@ dim(eset_ercc_clean)</code></pre>
 cor_ercc &lt;- cor_ercc[upper.tri(cor_ercc)]
 summary(cor_ercc)</code></pre>
 <pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
- 0.3324  0.8297  0.8815  0.8701  0.9267  0.9924 </code></pre>
+ 0.4991  0.8372  0.8845  0.8781  0.9298  0.9934 </code></pre>
 </div>
 <div id="drosophila" class="section level2">
 <h2>Drosophila</h2>
@@ -404,20 +404,20 @@ summary(cor_ercc)</code></pre>
 <pre class="r"><code>eset_dm_clean &lt;- eset_dm[rowSums(exprs(eset_dm)) != 0, ]
 dim(eset_dm_clean)</code></pre>
 <pre><code>Features  Samples 
-   10310      869 </code></pre>
+   11233      869 </code></pre>
 <p>Only keep genes which are observed in at least 50% of the samples.</p>
 <pre class="r"><code>eset_dm_clean &lt;- eset_dm_clean[apply(exprs(eset_dm_clean), 1, present), ]
 dim(eset_dm_clean)</code></pre>
 <pre><code>Features  Samples 
-     201      869 </code></pre>
+     279      869 </code></pre>
 <p>Convert to log2 counts per million.</p>
 <pre class="r"><code>mol_dm_cpm &lt;- cpm(exprs(eset_dm_clean), log = TRUE)</code></pre>
 <p>Calculate pairwise correlations.</p>
 <pre class="r"><code>cor_dm &lt;- cor(mol_dm_cpm)
 cor_dm &lt;- cor_dm[upper.tri(cor_dm)]
 summary(cor_dm)</code></pre>
-<pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
--0.1300  0.2538  0.3246  0.3292  0.4008  0.8129 </code></pre>
+<pre><code>    Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
+0.004052 0.298700 0.374500 0.382100 0.461700 0.775400 </code></pre>
 </div>
 <div id="drosophila---5-pg" class="section level2">
 <h2>Drosophila - 5 pg</h2>
@@ -430,12 +430,12 @@ dim(eset_dm_5pg)</code></pre>
 <pre class="r"><code>eset_dm_5pg_clean &lt;- eset_dm_5pg[rowSums(exprs(eset_dm_5pg)) != 0, ]
 dim(eset_dm_5pg_clean)</code></pre>
 <pre><code>Features  Samples 
-    8235      343 </code></pre>
+    9578      343 </code></pre>
 <p>Only keep genes which are observed in at least 50% of the samples.</p>
 <pre class="r"><code>eset_dm_5pg_clean &lt;- eset_dm_5pg_clean[apply(exprs(eset_dm_5pg_clean), 1, present), ]
 dim(eset_dm_5pg_clean)</code></pre>
 <pre><code>Features  Samples 
-      68      343 </code></pre>
+     141      343 </code></pre>
 <p>Convert to log2 counts per million.</p>
 <pre class="r"><code>mol_dm_5pg_cpm &lt;- cpm(exprs(eset_dm_5pg_clean), log = TRUE)</code></pre>
 <p>Calculate pairwise correlations.</p>
@@ -443,7 +443,7 @@ dim(eset_dm_5pg_clean)</code></pre>
 cor_dm_5pg &lt;- cor_dm_5pg[upper.tri(cor_dm_5pg)]
 summary(cor_dm_5pg)</code></pre>
 <pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
--0.2600  0.1952  0.2798  0.2756  0.3600  0.6720 </code></pre>
+-0.1177  0.2223  0.2851  0.2838  0.3466  0.6346 </code></pre>
 </div>
 <div id="drosophila---50-pg" class="section level2">
 <h2>Drosophila - 50 pg</h2>
@@ -456,20 +456,20 @@ dim(eset_dm_50pg)</code></pre>
 <pre class="r"><code>eset_dm_50pg_clean &lt;- eset_dm_50pg[rowSums(exprs(eset_dm_50pg)) != 0, ]
 dim(eset_dm_50pg_clean)</code></pre>
 <pre><code>Features  Samples 
-   10045      526 </code></pre>
+   10741      526 </code></pre>
 <p>Only keep genes which are observed in at least 50% of the samples.</p>
 <pre class="r"><code>eset_dm_50pg_clean &lt;- eset_dm_50pg_clean[apply(exprs(eset_dm_50pg_clean), 1, present), ]
 dim(eset_dm_50pg_clean)</code></pre>
 <pre><code>Features  Samples 
-     300      526 </code></pre>
+     425      526 </code></pre>
 <p>Convert to log2 counts per million.</p>
 <pre class="r"><code>mol_dm_50pg_cpm &lt;- cpm(exprs(eset_dm_50pg_clean), log = TRUE)</code></pre>
 <p>Calculate pairwise correlations.</p>
 <pre class="r"><code>cor_dm_50pg &lt;- cor(mol_dm_50pg_cpm)
 cor_dm_50pg &lt;- cor_dm_50pg[upper.tri(cor_dm_50pg)]
 summary(cor_dm_50pg)</code></pre>
-<pre><code>    Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
--0.05398  0.38100  0.42840  0.42660  0.47660  0.77760 </code></pre>
+<pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+ 0.1081  0.4442  0.4886  0.4859  0.5317  0.7318 </code></pre>
 </div>
 <div id="c.-elegans" class="section level2">
 <h2>C. elegans</h2>
@@ -477,12 +477,12 @@ summary(cor_dm_50pg)</code></pre>
 <pre class="r"><code>eset_ce_clean &lt;- eset_ce[rowSums(exprs(eset_ce)) != 0, ]
 dim(eset_ce_clean)</code></pre>
 <pre><code>Features  Samples 
-    9165      869 </code></pre>
+   12084      869 </code></pre>
 <p>Only keep genes which are observed in at least 50% of the samples.</p>
 <pre class="r"><code>eset_ce_clean &lt;- eset_ce_clean[apply(exprs(eset_ce_clean), 1, present), ]
 dim(eset_ce_clean)</code></pre>
 <pre><code>Features  Samples 
-       3      869 </code></pre>
+       9      869 </code></pre>
 <p>Convert to log2 counts per million.</p>
 <pre class="r"><code>mol_ce_cpm &lt;- cpm(exprs(eset_ce_clean), log = TRUE)
 # Remove samples with no observations for this subset
@@ -490,12 +490,11 @@ zeros_ce &lt;- colSums(exprs(eset_ce_clean)) &gt; 0
 eset_ce_clean &lt;- eset_ce_clean[, zeros_ce]
 mol_ce_cpm &lt;- mol_ce_cpm[, zeros_ce]</code></pre>
 <p>Calculate pairwise correlations.</p>
-<pre class="r"><code>cor_ce &lt;- cor(mol_ce_cpm)</code></pre>
-<pre><code>Warning in cor(mol_ce_cpm): the standard deviation is zero</code></pre>
-<pre class="r"><code>cor_ce &lt;- cor_ce[upper.tri(cor_ce)]
+<pre class="r"><code>cor_ce &lt;- cor(mol_ce_cpm)
+cor_ce &lt;- cor_ce[upper.tri(cor_ce)]
 summary(cor_ce)</code></pre>
-<pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA&#39;s 
- -1.000   0.388   0.780   0.579   0.952   1.000    5187 </code></pre>
+<pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+-0.4259  0.6372  0.7490  0.7239  0.8369  0.9992 </code></pre>
 </div>
 <div id="human" class="section level2">
 <h2>Human</h2>
@@ -503,12 +502,12 @@ summary(cor_ce)</code></pre>
 <pre class="r"><code>eset_hs_clean &lt;- eset_hs[rowSums(exprs(eset_hs)) != 0, ]
 dim(eset_hs_clean)</code></pre>
 <pre><code>Features  Samples 
-   17579      869 </code></pre>
+   18652      869 </code></pre>
 <p>Only keep genes which are observed in at least 50% of the samples.</p>
 <pre class="r"><code>eset_hs_clean &lt;- eset_hs_clean[apply(exprs(eset_hs_clean), 1, present), ]
 dim(eset_hs_clean)</code></pre>
 <pre><code>Features  Samples 
-    4364      869 </code></pre>
+    5990      869 </code></pre>
 <p>Convert to log2 counts per million.</p>
 <pre class="r"><code>mol_hs_cpm &lt;- cpm(exprs(eset_hs_clean), log = TRUE)</code></pre>
 <p>Calculate pairwise correlations.</p>
@@ -516,7 +515,7 @@ dim(eset_hs_clean)</code></pre>
 cor_hs &lt;- cor_hs[upper.tri(cor_hs)]
 summary(cor_hs)</code></pre>
 <pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
- 0.1153  0.3710  0.4961  0.4723  0.5643  0.7751 </code></pre>
+ 0.2066  0.4464  0.5280  0.5169  0.5872  0.7998 </code></pre>
 </div>
 <div id="summary-plot" class="section level2">
 <h2>Summary plot</h2>
@@ -599,12 +598,12 @@ ggplot(cor_per_chip, aes(x = id, y = r)) +
 <pre class="r"><code>anno &lt;- pData(eset)
 head(cor_long_hs)</code></pre>
 <pre><code>  experiment1 well1 experiment2 well2         r    id
-1    03162017   A01    03162017   A02 0.3573758 Human
-2    03162017   A01    03162017   A03 0.2283622 Human
-3    03162017   A01    03162017   A05 0.2566673 Human
-4    03162017   A01    03162017   A06 0.3496850 Human
-5    03162017   A01    03162017   A07 0.3387504 Human
-6    03162017   A01    03162017   A08 0.3454641 Human</code></pre>
+1    03162017   A01    03162017   A02 0.4153915 Human
+2    03162017   A01    03162017   A03 0.2962886 Human
+3    03162017   A01    03162017   A05 0.3445413 Human
+4    03162017   A01    03162017   A06 0.4244354 Human
+5    03162017   A01    03162017   A07 0.3952700 Human
+6    03162017   A01    03162017   A08 0.4031076 Human</code></pre>
 <pre class="r"><code>cor_hs_long_cat &lt;- cor_long_hs %&gt;%
   mutate(chip_id1 = anno[paste(experiment1, well1, sep = &quot;-&quot;), &quot;chip_id&quot;],
          chip_id2 = anno[paste(experiment2, well2, sep = &quot;-&quot;), &quot;chip_id&quot;],
@@ -650,7 +649,7 @@ locale:
 [11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
 
 attached base packages:
-[1] parallel  stats     graphics  grDevices utils     datasets  methods  
+[1] parallel  methods   stats     graphics  grDevices utils     datasets 
 [8] base     
 
 other attached packages:

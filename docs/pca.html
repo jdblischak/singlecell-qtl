@@ -316,10 +316,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2017-09-11</p>
+<p><strong>Last updated:</strong> 2017-10-24</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> d239528</p>
+<p><strong>Code version:</strong> cec0e85</p>
 <div id="setup" class="section level2">
 <h2>Setup</h2>
 <pre class="r"><code>library(&quot;cowplot&quot;)
@@ -342,7 +342,7 @@ protocolData: none
 phenoData
   sampleNames: 03162017-A01 03162017-A02 ... 04202017-H12 (960
     total)
-  varLabels: experiment well ... valid_id (35 total)
+  varLabels: experiment well ... valid_id (39 total)
   varMetadata: labelDescription
 featureData
   featureNames: ENSG00000000003 ENSG00000000005 ... WBGene00235374
@@ -383,12 +383,12 @@ head(featureNames(eset_hs))</code></pre>
 <pre class="r"><code>eset_ercc_clean &lt;- eset_ercc[rowSums(exprs(eset_ercc)) != 0, ]
 dim(eset_ercc_clean)</code></pre>
 <pre><code>Features  Samples 
-      85      347 </code></pre>
+      87      347 </code></pre>
 <p>Only keep genes which are observed in at least 50% of the samples.</p>
 <pre class="r"><code>eset_ercc_clean &lt;- eset_ercc_clean[apply(exprs(eset_ercc_clean), 1, present), ]
 dim(eset_ercc_clean)</code></pre>
 <pre><code>Features  Samples 
-      30      347 </code></pre>
+      31      347 </code></pre>
 <pre class="r"><code>mol_ercc_cpm &lt;- cpm(exprs(eset_ercc_clean), log = TRUE)
 hist(rowMeans(mol_ercc_cpm))</code></pre>
 <p><img src="figure/pca.Rmd/hist-ercc-1.png" width="768" style="display: block; margin: auto;" /></p>
@@ -416,12 +416,12 @@ plot_pca(pca_ercc$PCs, pcx = 1, pcy = 2, explained = pca_ercc$explained,
 <pre class="r"><code>eset_dm_clean &lt;- eset_dm[rowSums(exprs(eset_dm)) != 0, ]
 dim(eset_dm_clean)</code></pre>
 <pre><code>Features  Samples 
-   10310      869 </code></pre>
+   11233      869 </code></pre>
 <p>Only keep genes which are observed in at least 50% of the samples.</p>
 <pre class="r"><code>eset_dm_clean &lt;- eset_dm_clean[apply(exprs(eset_dm_clean), 1, present), ]
 dim(eset_dm_clean)</code></pre>
 <pre><code>Features  Samples 
-     201      869 </code></pre>
+     279      869 </code></pre>
 <p>Convert to log2 counts per million.</p>
 <pre class="r"><code>mol_dm_cpm &lt;- cpm(exprs(eset_dm_clean), log = TRUE)
 hist(rowMeans(mol_dm_cpm))</code></pre>
@@ -447,12 +447,12 @@ dim(eset_dm_5pg)</code></pre>
 <pre class="r"><code>eset_dm_5pg_clean &lt;- eset_dm_5pg[rowSums(exprs(eset_dm_5pg)) != 0, ]
 dim(eset_dm_5pg_clean)</code></pre>
 <pre><code>Features  Samples 
-    8235      343 </code></pre>
+    9578      343 </code></pre>
 <p>Only keep genes which are observed in at least 50% of the samples.</p>
 <pre class="r"><code>eset_dm_5pg_clean &lt;- eset_dm_5pg_clean[apply(exprs(eset_dm_5pg_clean), 1, present), ]
 dim(eset_dm_5pg_clean)</code></pre>
 <pre><code>Features  Samples 
-      68      343 </code></pre>
+     141      343 </code></pre>
 <p>Convert to log2 counts per million.</p>
 <pre class="r"><code>mol_dm_cpm_5pg &lt;- cpm(exprs(eset_dm_5pg_clean), log = TRUE)
 hist(rowMeans(mol_dm_cpm_5pg))</code></pre>
@@ -478,12 +478,12 @@ dim(eset_dm_50pg)</code></pre>
 <pre class="r"><code>eset_dm_50pg_clean &lt;- eset_dm_50pg[rowSums(exprs(eset_dm_50pg)) != 0, ]
 dim(eset_dm_50pg_clean)</code></pre>
 <pre><code>Features  Samples 
-   10045      526 </code></pre>
+   10741      526 </code></pre>
 <p>Only keep genes which are observed in at least 50% of the samples.</p>
 <pre class="r"><code>eset_dm_50pg_clean &lt;- eset_dm_50pg_clean[apply(exprs(eset_dm_50pg_clean), 1, present), ]
 dim(eset_dm_50pg_clean)</code></pre>
 <pre><code>Features  Samples 
-     300      526 </code></pre>
+     425      526 </code></pre>
 <p>Convert to log2 counts per million.</p>
 <pre class="r"><code>mol_dm_cpm_50pg &lt;- cpm(exprs(eset_dm_50pg_clean), log = TRUE)
 hist(rowMeans(mol_dm_cpm_50pg))</code></pre>
@@ -508,12 +508,12 @@ plot_pca(pca_dm_50pg$PCs, pcx = 1, pcy = 2, explained = pca_dm_50pg$explained,
 <pre class="r"><code>eset_ce_clean &lt;- eset_ce[rowSums(exprs(eset_ce)) != 0, ]
 dim(eset_ce_clean)</code></pre>
 <pre><code>Features  Samples 
-    9165      869 </code></pre>
+   12084      869 </code></pre>
 <p>Only keep genes which are observed in at least 50% of the samples.</p>
 <pre class="r"><code>eset_ce_clean &lt;- eset_ce_clean[apply(exprs(eset_ce_clean), 1, present), ]
 dim(eset_ce_clean)</code></pre>
 <pre><code>Features  Samples 
-       3      869 </code></pre>
+       9      869 </code></pre>
 <p>Convert to log2 counts per million.</p>
 <pre class="r"><code>mol_ce_cpm &lt;- cpm(exprs(eset_ce_clean), log = TRUE)
 # Remove samples with no observations for this subset
@@ -538,12 +538,12 @@ plot_pca(pca_ce$PCs, pcx = 1, pcy = 2, explained = pca_ce$explained,
 <pre class="r"><code>eset_hs_clean &lt;- eset_hs[rowSums(exprs(eset_hs)) != 0, ]
 dim(eset_hs_clean)</code></pre>
 <pre><code>Features  Samples 
-   17579      869 </code></pre>
+   18652      869 </code></pre>
 <p>Only keep genes which are observed in at least 50% of the samples.</p>
 <pre class="r"><code>eset_hs_clean &lt;- eset_hs_clean[apply(exprs(eset_hs_clean), 1, present), ]
 dim(eset_hs_clean)</code></pre>
 <pre><code>Features  Samples 
-    4364      869 </code></pre>
+    5990      869 </code></pre>
 <p>Convert to log2 counts per million.</p>
 <pre class="r"><code>mol_hs_cpm &lt;- cpm(exprs(eset_hs_clean), log = TRUE)
 hist(rowMeans(mol_hs_cpm))</code></pre>
@@ -597,7 +597,7 @@ locale:
 [11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
 
 attached base packages:
-[1] parallel  stats     graphics  grDevices utils     datasets  methods  
+[1] parallel  methods   stats     graphics  grDevices utils     datasets 
 [8] base     
 
 other attached packages:
