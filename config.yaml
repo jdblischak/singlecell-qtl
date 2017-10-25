@@ -11,7 +11,7 @@
 # Paths must end with forward slash
 
 # Enter the absolute path to the local directory to store the final data files
-dir_data: /project2/gilad/jdblischak/singlecell-qtl/data/
+dir_data: /home/jdblischak/singlecell-qtl/data/
 
 # Enter the absolute path to a scratch directory for writing temporary files
 dir_scratch: /scratch/midway2/jdblischak/

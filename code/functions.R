@@ -1,3 +1,6 @@
+# Only keep genes which are present in at least X% of the samples
+present <- function(x, percent = 0.50) mean(x > 0) >= percent
+
 # Utility function to force R to output a specific number of decimal places.
 # Avoids Git thinking results have changed simply because of slight changes
 # in insignificant digits.

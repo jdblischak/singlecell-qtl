@@ -266,6 +266,7 @@ rule subjunc:
     output: temp(dir_bam + "{chip}/{chip}-{row}{col}.bam")
     params: prefix = dir_genome + "genome"
     threads: 8
+    priority: 1
     shell: "subjunc -i {params.prefix} -r {input.read} -T {threads} > {output}"
 
 rule sort_bam:
@@ -577,6 +578,7 @@ rule verify_bam:
             selfSM = temp(dir_id + "{chip}/{chip}-{row}{col}.selfSM"),
             log = dir_id + "{chip}/{chip}-{row}{col}.log"
     params: prefix = dir_id + "{chip}/{chip}-{row}{col}"
+    priority: 1
     shell: "verifyBamID --vcf {input.vcf} --bam {input.bam} --best --ignoreRG --out {params.prefix}"
 
 # Parse the various verifyBamID output files into one tab-separated file. Each
