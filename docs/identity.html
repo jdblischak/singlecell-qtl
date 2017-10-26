@@ -316,10 +316,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2017-10-24</p>
+<p><strong>Last updated:</strong> 2017-10-26</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> cec0e85</p>
+<p><strong>Code version:</strong> a8f4104</p>
 <p><a href="https://catalog.coriell.org/0/Sections/Collections/NHGRI/1000IndSamples.aspx?PgId=665&amp;did=MGENOME27">Link to Yoruba samples on Coriell</a></p>
 <div id="setup" class="section level2">
 <h2>Setup</h2>
@@ -356,9 +356,9 @@ Annotation:  </code></pre>
 <pre class="r"><code>table(eset$valid_id)</code></pre>
 <pre><code>
 FALSE  TRUE 
-   98   862 </code></pre>
+   90   870 </code></pre>
 <pre class="r"><code>mean(eset$valid_id)</code></pre>
-<pre><code>[1] 0.8979167</code></pre>
+<pre><code>[1] 0.90625</code></pre>
 </div>
 <div id="plot-per-c1-chip" class="section level2">
 <h2>Plot per C1 chip</h2>
@@ -410,18 +410,18 @@ df_obs &lt;- merge(expected, observed, by = &quot;ind&quot;, suffixes = c(&quot;
 df_obs$count.obs[is.na(df_obs$count.obs)] &lt;- 0
 df_obs</code></pre>
 <pre><code>       ind count.exp count.obs
-1  NA18498        72        21
-2  NA18502       144       219
-3  NA18505        96        60
-4  NA18508        24        25
+1  NA18498        72        20
+2  NA18502       144       228
+3  NA18505        96        64
+4  NA18508        24        27
 5  NA18510        24         0
-6  NA18520       168       163
-7  NA18852       144       104
-8  NA18856        72        88
-9  NA19092        48        53
-10 NA19098        96        86
-11 NA19190        24        19
-12 NA19203        48        29</code></pre>
+6  NA18520       168       164
+7  NA18852       144       105
+8  NA18856        72        93
+9  NA19092        48        54
+10 NA19098        96        74
+11 NA19190        24        18
+12 NA19203        48        27</code></pre>
 <pre class="r"><code># The max observed number of cells for any indvidual
 max_cells &lt;- max(df_obs$count.exp, df_obs$count.obs)
 ggplot(df_obs, aes(x = count.exp, y = count.obs)) +
@@ -438,7 +438,7 @@ ggplot(df_obs, aes(x = count.exp, y = count.obs)) +
 <pre class="r"><code>observed %&gt;% filter(count &gt; 10, !(ind %in% expected$ind)) %&gt;%
   arrange(desc(count))</code></pre>
 <pre><code>      ind count
-1 NA18862    49
+1 NA18862    50
 2 NA18507    23</code></pre>
 </div>
 <div id="potential-reasons-for-failure" class="section level2">
