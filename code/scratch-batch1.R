@@ -36,6 +36,16 @@ out <- out %>% mutate(individual.1 = ifelse(individual.1 == "NA19201",
                       individual.4 = ifelse(individual.4 == "NA19201",
                                             "NA19092", individual.4))
 
+# Change individual NA18510 to NA18507
+out <- out %>% mutate(individual.1 = ifelse(individual.1 == "NA18510",
+                                            "NA18507", individual.1),
+                      individual.2 = ifelse(individual.2 == "NA18510",
+                                            "NA18507", individual.2),
+                      individual.3 = ifelse(individual.3 == "NA18510",
+                                            "NA18507", individual.3),
+                      individual.4 = ifelse(individual.4 == "NA18510",
+                                            "NA18507", individual.4))
+
 str(out)
 
 dir.create("../data/lab-info", showWarnings = FALSE)

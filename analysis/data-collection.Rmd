@@ -49,7 +49,11 @@ collection <- pData(eset_hs_clean) %>%
   arrange(desc(n))
 ```
 
-We have collected a total of `r ncol(eset_hs_clean)` cells for a total of `r length(unique(eset_hs_clean$chip_id))` individuals.
+We have collected a total of `r ncol(eset_hs_clean)` cells\* for a total of
+`r length(unique(eset_hs_clean$chip_id))` individuals.
+
+\* This is a high estimate because only a few QC filters were used The
+number will decrease when more stringent QC filters are applied.
 
 ```{r datatable}
 datatable(collection, options = list(pageLength = nrow(collection)),
