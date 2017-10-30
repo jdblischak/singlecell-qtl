@@ -52,7 +52,7 @@ collection <- pData(eset_hs_clean) %>%
 We have collected a total of `r ncol(eset_hs_clean)` cells\* for a total of
 `r length(unique(eset_hs_clean$chip_id))` individuals.
 
-\* This is a high estimate because only a few QC filters were used The
+\* This is a high estimate because only a few QC filters were used. The
 number will decrease when more stringent QC filters are applied.
 
 ```{r datatable}
