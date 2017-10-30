@@ -316,10 +316,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2017-10-26</p>
+<p><strong>Last updated:</strong> 2017-10-30</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> 66962a1</p>
+<p><strong>Code version:</strong> 8fed98f</p>
 <p><a href="https://catalog.coriell.org/0/Sections/Collections/NHGRI/1000IndSamples.aspx?PgId=665&amp;did=MGENOME27">Link to Yoruba samples on Coriell</a></p>
 <div id="setup" class="section level2">
 <h2>Setup</h2>
@@ -335,11 +335,11 @@ library(&quot;Biobase&quot;)</code></pre>
 eset &lt;- Reduce(combine, Map(readRDS, fname))
 eset</code></pre>
 <pre><code>ExpressionSet (storageMode: lockedEnvironment)
-assayData: 54792 features, 960 samples 
+assayData: 54792 features, 2304 samples 
   element names: exprs 
 protocolData: none
 phenoData
-  sampleNames: 03162017-A01 03162017-A02 ... 04202017-H12 (960
+  sampleNames: 03162017-A01 03162017-A02 ... 08312017-H12 (2304
     total)
   varLabels: experiment well ... valid_id (39 total)
   varMetadata: labelDescription
@@ -356,9 +356,9 @@ Annotation:  </code></pre>
 <pre class="r"><code>table(eset$valid_id)</code></pre>
 <pre><code>
 FALSE  TRUE 
-   67   893 </code></pre>
+  813  1491 </code></pre>
 <pre class="r"><code>mean(eset$valid_id)</code></pre>
-<pre><code>[1] 0.9302083</code></pre>
+<pre><code>[1] 0.6471354</code></pre>
 </div>
 <div id="plot-per-c1-chip" class="section level2">
 <h2>Plot per C1 chip</h2>
@@ -369,7 +369,7 @@ df_e &lt;- anno %&gt;%
             i2 = unique(individual.2),
             i3 = unique(individual.3),
             i4 = unique(individual.4))
-op &lt;- par(cex = 2, las = 2, mfrow = c(2, 5))
+op &lt;- par(cex = 2, las = 2, mfrow = c(ceiling(length(fname) / 5), 5))
 for (i in 1:nrow(df_e)) {
   e &lt;- df_e$experiment[i]
   n1 &lt;- sum(anno$chip_id[anno$experiment == e] == df_e$i1[i])
@@ -380,15 +380,15 @@ for (i in 1:nrow(df_e)) {
   barplot(c(n1, n2, n3, n4, n_other), main = sprintf(&quot;C1 chip %s&quot;, e),
           names.arg = c(df_e$i1[i], df_e$i2[i], df_e$i3[i],df_e$i4[i], &quot;Other&quot;),
           ylab = &quot;Number of single cells&quot;)
-}</code></pre>
+}
+par(op)</code></pre>
 <p><img src="figure/identity.Rmd/ind-per-chip-1.png" width="768" style="display: block; margin: auto;" /></p>
-<pre class="r"><code>par(op)</code></pre>
 <p>Colored by individual. The most worrisome are the last three C1 chips (04132017, 04142017, 04202017), which all have high numbers of assignments coming from one or more individuals that were not on that chip.</p>
 <pre class="r"><code>anno$valid_id_display &lt;- factor(anno$valid_id, levels = c(TRUE, FALSE),
                                 labels = c(&quot;Valid&quot;, &quot;Invalid&quot;))
 ggplot(anno, aes(x = valid_id_display, fill = chip_id)) +
   geom_bar() +
-  facet_wrap(~experiment, nrow = 2) +
+  facet_wrap(~experiment) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
         legend.position = &quot;bottom&quot;) +
   labs(x = &quot;&quot;, y = &quot;Number of single cells&quot;,
@@ -412,16 +412,28 @@ df_obs</code></pre>
 <pre><code>       ind count.exp count.obs
 1  NA18498        72        20
 2  NA18502       144       228
-3  NA18505        96        64
-4  NA18507        24        23
-5  NA18508        24        27
-6  NA18520       168       164
-7  NA18852       144       105
-8  NA18856        72        93
-9  NA19092        48        54
-10 NA19098        96        74
-11 NA19190        24        18
-12 NA19203        48        27</code></pre>
+3  NA18504        96         0
+4  NA18505        96        65
+5  NA18507        24       233
+6  NA18508        24       203
+7  NA18520       168       164
+8  NA18852       144       105
+9  NA18853        96        89
+10 NA18856        72        96
+11 NA18870        96        87
+12 NA18916        96         0
+13 NA19092        48        54
+14 NA19098        96        75
+15 NA19128        96       119
+16 NA19138        96         2
+17 NA19159        96        45
+18 NA19171       120         1
+19 NA19190       120       114
+20 NA19203        48        27
+21 NA19210        96        87
+22 NA19222       120         0
+23 NA19239       120         1
+24 NA19257       120       105</code></pre>
 <pre class="r"><code># The max observed number of cells for any indvidual
 max_cells &lt;- max(df_obs$count.exp, df_obs$count.obs)
 ggplot(df_obs, aes(x = count.exp, y = count.obs)) +
@@ -438,7 +450,231 @@ ggplot(df_obs, aes(x = count.exp, y = count.obs)) +
 <pre class="r"><code>observed %&gt;% filter(count &gt; 10, !(ind %in% expected$ind)) %&gt;%
   arrange(desc(count))</code></pre>
 <pre><code>      ind count
-1 NA18862    50</code></pre>
+1 NA18862   132
+2 NA18501   100
+3 NA18499    93
+4 NA19119    20</code></pre>
+</div>
+<div id="top-individuals-per-c1-chip" class="section level2">
+<h2>Top individuals per C1 chip</h2>
+<pre class="r"><code># Return all individuals with more than cutoff cells on the C1 chip
+table_to_string &lt;- function(x, cutoff = 5) {
+  tab &lt;- sort(table(x), decreasing = TRUE)
+  tab &lt;- tab[tab &gt; cutoff]
+  string &lt;- mapply(paste, names(tab), tab, MoreArgs = list(sep = &quot; - &quot;))
+  return(paste(string, collapse = &quot;; &quot;))
+}
+top &lt;- anno %&gt;%
+  group_by(experiment, individual.1, individual.2, individual.3, individual.4) %&gt;%
+  summarize(Observed = table_to_string(chip_id))
+knitr::kable(top, col.names = c(&quot;C1 chip&quot;, &quot;Expected 1&quot;, &quot;Expected 2&quot;,
+                               &quot;Expected 3&quot;, &quot;Expected 4&quot;, &quot;Observed (individual - number of cells)&quot;))</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left">C1 chip</th>
+<th align="left">Expected 1</th>
+<th align="left">Expected 2</th>
+<th align="left">Expected 3</th>
+<th align="left">Expected 4</th>
+<th align="left">Observed (individual - number of cells)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">03162017</td>
+<td align="left">NA19098</td>
+<td align="left">NA18852</td>
+<td align="left">NA18505</td>
+<td align="left">NA18520</td>
+<td align="left">NA18520 - 32; NA19098 - 24; NA18505 - 21; NA18852 - 16</td>
+</tr>
+<tr class="even">
+<td align="left">03172017</td>
+<td align="left">NA18502</td>
+<td align="left">NA18505</td>
+<td align="left">NA18852</td>
+<td align="left">NA19098</td>
+<td align="left">NA19098 - 30; NA18505 - 26; NA18502 - 22; NA18852 - 17</td>
+</tr>
+<tr class="odd">
+<td align="left">03232017</td>
+<td align="left">NA18520</td>
+<td align="left">NA18502</td>
+<td align="left">NA18505</td>
+<td align="left">NA18852</td>
+<td align="left">NA18502 - 36; NA18520 - 26; NA18852 - 20; NA18505 - 14</td>
+</tr>
+<tr class="even">
+<td align="left">03302017</td>
+<td align="left">NA18502</td>
+<td align="left">NA18520</td>
+<td align="left">NA18852</td>
+<td align="left">NA19098</td>
+<td align="left">NA18502 - 48; NA18852 - 22; NA18520 - 13; NA19098 - 13</td>
+</tr>
+<tr class="odd">
+<td align="left">03312017</td>
+<td align="left">NA18502</td>
+<td align="left">NA18520</td>
+<td align="left">NA19092</td>
+<td align="left">NA18856</td>
+<td align="left">NA18856 - 28; NA19092 - 25; NA18502 - 23; NA18520 - 19</td>
+</tr>
+<tr class="even">
+<td align="left">04052017</td>
+<td align="left">NA18502</td>
+<td align="left">NA18505</td>
+<td align="left">NA18520</td>
+<td align="left">NA18852</td>
+<td align="left">NA18502 - 66; NA18852 - 14; NA18520 - 13</td>
+</tr>
+<tr class="odd">
+<td align="left">04072017</td>
+<td align="left">NA18502</td>
+<td align="left">NA18856</td>
+<td align="left">NA19098</td>
+<td align="left">NA19092</td>
+<td align="left">NA18502 - 32; NA19092 - 29; NA18856 - 26; NA19098 - 7</td>
+</tr>
+<tr class="even">
+<td align="left">04132017</td>
+<td align="left">NA18498</td>
+<td align="left">NA18520</td>
+<td align="left">NA18852</td>
+<td align="left">NA19203</td>
+<td align="left">NA18862 - 28; NA18520 - 21; NA19203 - 18; NA18852 - 16; NA18498 - 7</td>
+</tr>
+<tr class="odd">
+<td align="left">04142017</td>
+<td align="left">NA18498</td>
+<td align="left">NA18507</td>
+<td align="left">NA18520</td>
+<td align="left">NA19203</td>
+<td align="left">NA18520 - 40; NA18507 - 23; NA18862 - 14; NA19203 - 9; NA18498 - 7</td>
+</tr>
+<tr class="even">
+<td align="left">04202017</td>
+<td align="left">NA18498</td>
+<td align="left">NA18508</td>
+<td align="left">NA18856</td>
+<td align="left">NA19190</td>
+<td align="left">NA18856 - 37; NA18508 - 27; NA19190 - 17; NA18862 - 8; NA18498 - 6</td>
+</tr>
+<tr class="odd">
+<td align="left">08102017</td>
+<td align="left">NA18504</td>
+<td align="left">NA19138</td>
+<td align="left">NA19239</td>
+<td align="left">NA19257</td>
+<td align="left">NA18501 - 28; NA18507 - 26; NA19257 - 18; NA18499 - 17</td>
+</tr>
+<tr class="even">
+<td align="left">08112017</td>
+<td align="left">NA18853</td>
+<td align="left">NA19210</td>
+<td align="left">NA19222</td>
+<td align="left">NA19257</td>
+<td align="left">NA18508 - 31; NA18853 - 24; NA19210 - 24; NA19257 - 15</td>
+</tr>
+<tr class="odd">
+<td align="left">08142017</td>
+<td align="left">NA19171</td>
+<td align="left">NA19222</td>
+<td align="left">NA19239</td>
+<td align="left">NA19257</td>
+<td align="left">NA18508 - 45; NA18507 - 21; NA19257 - 14; NA18499 - 11</td>
+</tr>
+<tr class="even">
+<td align="left">08152017</td>
+<td align="left">NA18916</td>
+<td align="left">NA19159</td>
+<td align="left">NA19171</td>
+<td align="left">NA19257</td>
+<td align="left">NA18507 - 32; NA19159 - 31; NA18862 - 19; NA19257 - 10</td>
+</tr>
+<tr class="odd">
+<td align="left">08162017</td>
+<td align="left">NA19159</td>
+<td align="left">NA19190</td>
+<td align="left">NA19222</td>
+<td align="left">NA19239</td>
+<td align="left">NA18508 - 43; NA18499 - 29; NA19159 - 14; NA19190 - 10</td>
+</tr>
+<tr class="even">
+<td align="left">08182017</td>
+<td align="left">NA18853</td>
+<td align="left">NA18870</td>
+<td align="left">NA19171</td>
+<td align="left">NA19239</td>
+<td align="left">NA18507 - 29; NA18870 - 23; NA18499 - 20; NA18853 - 16</td>
+</tr>
+<tr class="odd">
+<td align="left">08212017</td>
+<td align="left">NA19128</td>
+<td align="left">NA19138</td>
+<td align="left">NA19222</td>
+<td align="left">NA19171</td>
+<td align="left">NA18507 - 37; NA19128 - 32; NA18508 - 25</td>
+</tr>
+<tr class="even">
+<td align="left">08222017</td>
+<td align="left">NA18870</td>
+<td align="left">NA19128</td>
+<td align="left">NA19190</td>
+<td align="left">NA19257</td>
+<td align="left">NA19190 - 28; NA18870 - 24; NA19128 - 24; NA19257 - 17</td>
+</tr>
+<tr class="odd">
+<td align="left">08232017</td>
+<td align="left">NA18916</td>
+<td align="left">NA19128</td>
+<td align="left">NA19210</td>
+<td align="left">NA19239</td>
+<td align="left">NA19128 - 45; NA19210 - 17; NA18499 - 16; NA18862 - 16</td>
+</tr>
+<tr class="even">
+<td align="left">08242017</td>
+<td align="left">NA18504</td>
+<td align="left">NA18870</td>
+<td align="left">NA18916</td>
+<td align="left">NA19222</td>
+<td align="left">NA18508 - 32; NA18862 - 25; NA18870 - 17; NA18501 - 16</td>
+</tr>
+<tr class="odd">
+<td align="left">08282017</td>
+<td align="left">NA18853</td>
+<td align="left">NA18916</td>
+<td align="left">NA19138</td>
+<td align="left">NA19190</td>
+<td align="left">NA19190 - 29; NA18507 - 22; NA18862 - 22; NA18853 - 21</td>
+</tr>
+<tr class="even">
+<td align="left">08292017</td>
+<td align="left">NA18504</td>
+<td align="left">NA19171</td>
+<td align="left">NA19190</td>
+<td align="left">NA19210</td>
+<td align="left">NA19190 - 28; NA18507 - 23; NA19210 - 23; NA18501 - 19</td>
+</tr>
+<tr class="odd">
+<td align="left">08302017</td>
+<td align="left">NA18870</td>
+<td align="left">NA19138</td>
+<td align="left">NA19159</td>
+<td align="left">NA19210</td>
+<td align="left">NA19257 - 24; NA18870 - 23; NA19210 - 23; NA18507 - 20; NA19119 - 6</td>
+</tr>
+<tr class="even">
+<td align="left">08312017</td>
+<td align="left">NA18504</td>
+<td align="left">NA18853</td>
+<td align="left">NA19128</td>
+<td align="left">NA19159</td>
+<td align="left">NA18501 - 36; NA18853 - 28; NA19128 - 17; NA19257 - 7</td>
+</tr>
+</tbody>
+</table>
 </div>
 <div id="potential-reasons-for-failure" class="section level2">
 <h2>Potential reasons for failure</h2>
@@ -534,12 +770,12 @@ other attached packages:
 
 loaded via a namespace (and not attached):
  [1] Rcpp_0.12.10     knitr_1.16       magrittr_1.5     munsell_0.4.3   
- [5] colorspace_1.3-2 R6_2.2.0         plyr_1.8.4       tools_3.3.2     
- [9] grid_3.3.2       gtable_0.2.0     DBI_0.6-1        git2r_0.19.0    
-[13] htmltools_0.3.6  yaml_2.1.13      lazyeval_0.2.0   rprojroot_1.2   
-[17] digest_0.6.12    assertthat_0.1   tibble_1.2       evaluate_0.10   
-[21] rmarkdown_1.6    labeling_0.3     stringi_1.1.2    scales_0.4.1    
-[25] backports_1.0.5 </code></pre>
+ [5] colorspace_1.3-2 R6_2.2.0         highr_0.6        plyr_1.8.4      
+ [9] tools_3.3.2      grid_3.3.2       gtable_0.2.0     DBI_0.6-1       
+[13] git2r_0.19.0     htmltools_0.3.6  yaml_2.1.13      lazyeval_0.2.0  
+[17] rprojroot_1.2    digest_0.6.12    assertthat_0.1   tibble_1.2      
+[21] evaluate_0.10    rmarkdown_1.6    labeling_0.3     stringi_1.1.2   
+[25] scales_0.4.1     backports_1.0.5 </code></pre>
 </div>
 
 <hr>
