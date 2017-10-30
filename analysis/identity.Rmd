@@ -57,7 +57,7 @@ mean(eset$valid_id)
 
 ## Plot per C1 chip
 
-```{r ind-per-chip}
+```{r ind-per-chip, fig.height=ceiling(length(fname) / 5) * 4}
 anno <- pData(eset)
 df_e <- anno %>%
   group_by(experiment) %>%
@@ -65,7 +65,7 @@ df_e <- anno %>%
             i2 = unique(individual.2),
             i3 = unique(individual.3),
             i4 = unique(individual.4))
-op <- par(cex = 2, las = 2, mfrow = c(2, 5))
+op <- par(cex = 2, las = 2, mfrow = c(ceiling(length(fname) / 5), 5))
 for (i in 1:nrow(df_e)) {
   e <- df_e$experiment[i]
   n1 <- sum(anno$chip_id[anno$experiment == e] == df_e$i1[i])
@@ -84,12 +84,12 @@ Colored by individual. The most worrisome are the last three C1 chips (04132017,
 04142017, 04202017), which all have high numbers of assignments coming from one
 or more individuals that were not on that chip.
 
-```{r ind-per-chip-color}
+```{r ind-per-chip-color, fig.height=ceiling(length(fname) / 8) * 4}
 anno$valid_id_display <- factor(anno$valid_id, levels = c(TRUE, FALSE),
                                 labels = c("Valid", "Invalid"))
 ggplot(anno, aes(x = valid_id_display, fill = chip_id)) +
   geom_bar() +
-  facet_wrap(~experiment, nrow = 2) +
+  facet_wrap(~experiment) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
         legend.position = "bottom") +
   labs(x = "", y = "Number of single cells",
@@ -129,6 +129,23 @@ ggplot(df_obs, aes(x = count.exp, y = count.obs)) +
 ```{r unexpectedly-high-counts}
 observed %>% filter(count > 10, !(ind %in% expected$ind)) %>%
   arrange(desc(count))
+```
+
+## Top individuals per C1 chip
+
+```{r top-per-chip}
+# Return all individuals with more than cutoff cells on the C1 chip
+table_to_string <- function(x, cutoff = 5) {
+  tab <- sort(table(x), decreasing = TRUE)
+  tab <- tab[tab > cutoff]
+  string <- mapply(paste, names(tab), tab, MoreArgs = list(sep = " - "))
+  return(paste(string, collapse = "; "))
+}
+top <- anno %>%
+  group_by(experiment, individual.1, individual.2, individual.3, individual.4) %>%
+  summarize(Observed = table_to_string(chip_id))
+knitr::kable(top, col.names = c("C1 chip", "Expected 1", "Expected 2",
+                               "Expected 3", "Expected 4", "Observed (individual - number of cells)"))
 ```
 
 ## Potential reasons for failure
