@@ -1,0 +1,40 @@
+variable	description
+experiment	ID of C1 chip (i.e. processing date in MMDDYYYY)
+well	Well of C1 chip (96 total, rows A-H, cols 1-12)
+cell_number	The number of cells observed in the well via microscopy
+concentration	The cDNA concentration of the well prior to library prep
+tra1.60	Did the cell stain positive for TRA-1-60? (test of pluripotency)
+individual.1	Individual # 1 included on this C1 chip
+individual.2	Individual # 2 included on this C1 chip
+individual.3	Individual # 3 included on this C1 chip
+individual.4	Individual # 4 included on this C1 chip
+fly	The concentration of spike-in added from D. Melanogaster
+worm	The concentration of spike-in added from C. elegans
+ERCC	The dilution factor of the ERCC spike-ins
+index	The set of indexes used for library prep (of the 3 sets of 96)
+raw	The number of raw reads
+umi	The number of reads with a valid UMI
+mapped	The number of reads with a valid UMI that mapped to a genome
+unmapped	The number of reads with a valid UMI that did *not* map to a genome
+reads_ce	The number of reads that mapped to the C. elegans genome
+reads_dm	The number of reads that mapped to the D. melanogaster genome
+reads_ercc	The number of reads that mapped to the ERCC spike-in transcripts
+reads_hs	The number of reads that mapped to the H. sapiens genome
+molecules	The number of molecules (i.e. post UMI-deduplication)
+mol_ce	The number of molecules that mapped to the C. elegans genome
+mol_dm	The number of molecules that mapped to the D. melanogaster genome
+mol_ercc	The number of molecules that mapped to the ERCC spike-in transcripts
+mol_hs	The number of molecules that mapped to the H. sapiens genome
+detect_ce	The number of C. elegans genes with at least one molecule
+detect_dm	The number of D. melanogaster genes with at least one molecule
+detect_ercc	The number of ERCC genes with at least one molecule
+detect_hs	The number of H. sapiens genes with at least one molecule
+chip_id	verifyBamID: The predicted individual based on the sequencing data
+chipmix	verifyBamID: chipmix is a metric for detecting sample swaps
+freemix	verifyBamID: freemix is a measure of contamination. 0 == good & 0.5 == bad
+snps	verifyBamID: The number of SNPs that passed thresholds for AF and missingness
+reads	verifyBamID: The number of sequences that overlapped SNPs
+avg_dp	verifyBamID: The average sequencing depth that covered a SNP
+min_dp	verifyBamID: A minimun depth threshold for QC only (affects snps_w_min)
+snps_w_min	verifyBamID: The number of SNPs that had the minimum depth (min_dp); QC only
+valid_id	verifyBamID: Is the predicted individual 1 of the 4 added to the C1 chip?
