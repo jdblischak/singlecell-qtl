@@ -37,5 +37,13 @@
     {
 	"mem" : 16000,
 	"tasks": 8
+    },
+        "counts_combined" :
+    {
+	"mem" : 8000
+    },
+        "annotation_combined" :
+    {
+	"mem" : 8000
     }
 }

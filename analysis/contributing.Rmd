@@ -205,6 +205,37 @@ parent class eSet.
 ?eSet
 ```
 
+
+## Using combined data files
+
+For convenience, the combined data are available in single files.
+
+The annotation for all the single cells is in
+[data/scqtl-annotation.txt](https://github.com/jdblischak/singlecell-qtl/blob/master/data/scqtl-annotation.txt).
+The description of the annotation columns is in
+[data/scqtl-annotation-description.txt](https://github.com/jdblischak/singlecell-qtl/blob/master/data/scqtl-annotation-description.txt).
+
+```{r input-combined-annotation}
+anno <- read.delim("../data/scqtl-annotation.txt", stringsAsFactors = FALSE)
+anno_descrip <- read.delim("../data/scqtl-annotation-description.txt",
+                           stringsAsFactors = FALSE)
+head(anno_descrip, 3)
+```
+
+The combined counts are in
+[data/scqtl-counts.txt.gz](https://github.com/jdblischak/singlecell-qtl/blob/master/data/scqtl-counts.txt.gz).
+Note that because this file is large, it is stored using [Git LFS][git-lfs].
+Thus you must follow the [setup instructions above](#initial-setup) to download
+this file to your local computer. I recommend importing it with
+`data.table::fread`.
+
+```{r input-combined-counts}
+library("data.table")
+counts <- data.frame(fread("zcat ../data/scqtl-counts.txt.gz"), row.names = 1)
+dim(counts)
+counts[1:5, 1:2]
+```
+
 ## Data analysis workflow
 
 The data analysis is organized using the R package [workflowr][]. Here are the

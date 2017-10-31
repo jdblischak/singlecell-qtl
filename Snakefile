@@ -95,6 +95,11 @@ wildcard_constraints: chip = "[0-9]{8,8}", row = "[A-H]", col = "[0-1][0-9]"
 # Targets ----------------------------------------------------------------------
 
 rule all:
+    input: counts = dir_data + "scqtl-counts.txt.gz",
+           anno = dir_data + "scqtl-annotation.txt",
+           description = dir_data + "scqtl-annotation-description.txt"
+
+rule rds:
     input: expand(dir_data + "eset/{chip}.rds", chip = chips)
 
 rule chip_03232017:
@@ -389,6 +394,21 @@ rule expressionset:
                                                 {input.verify} \
                                                 {input.saf} \
                                                 {output}"
+
+rule counts_combined:
+    input: expand(dir_data + "eset/{chip}.rds", chip = chips)
+    output: dir_data + "scqtl-counts.txt.gz"
+    params: dir_eset = dir_data + "eset/"
+    shell: "Rscript code/output-exp-mat.R {params.dir_eset} {output}"
+
+rule annotation_combined:
+    input: expand(dir_data + "eset/{chip}.rds", chip = chips)
+    output: anno = dir_data + "scqtl-annotation.txt",
+            description = dir_data + "scqtl-annotation-description.txt"
+    params: dir_eset = dir_data + "eset/"
+    shell: "Rscript code/output-annotation.R {params.dir_eset} \
+                                             {output.anno} \
+                                             {output.description}"
 
 # Sequence quality control -----------------------------------------------------
 
