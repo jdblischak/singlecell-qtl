@@ -316,10 +316,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2017-10-26</p>
+<p><strong>Last updated:</strong> 2017-10-31</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> a8f4104</p>
+<p><strong>Code version:</strong> 3c33d75</p>
 <div id="initial-setup" class="section level2">
 <h2>Initial setup</h2>
 <p>The initial setup only has to be performed once for each computer that you use.</p>
@@ -503,6 +503,34 @@ dim(batch1)</code></pre>
 <pre class="r"><code>?ExpressionSet
 ?eSet</code></pre>
 </div>
+<div id="using-combined-data-files" class="section level2">
+<h2>Using combined data files</h2>
+<p>For convenience, the combined data are available in single files.</p>
+<p>The annotation for all the single cells is in <a href="https://github.com/jdblischak/singlecell-qtl/blob/master/data/scqtl-annotation.txt">data/scqtl-annotation.txt</a>. The description of the annotation columns is in <a href="https://github.com/jdblischak/singlecell-qtl/blob/master/data/scqtl-annotation-description.txt">data/scqtl-annotation-description.txt</a>.</p>
+<pre class="r"><code>anno &lt;- read.delim(&quot;../data/scqtl-annotation.txt&quot;, stringsAsFactors = FALSE)
+anno_descrip &lt;- read.delim(&quot;../data/scqtl-annotation-description.txt&quot;,
+                           stringsAsFactors = FALSE)
+head(anno_descrip, 3)</code></pre>
+<pre><code>     variable                                             description
+1  experiment        ID of C1 chip (i.e. processing date in MMDDYYYY)
+2        well         Well of C1 chip (96 total, rows A-H, cols 1-12)
+3 cell_number The number of cells observed in the well via microscopy</code></pre>
+<p>The combined counts are in <a href="https://github.com/jdblischak/singlecell-qtl/blob/master/data/scqtl-counts.txt.gz">data/scqtl-counts.txt.gz</a>. Note that because this file is large, it is stored using <a href="https://git-lfs.github.com/">Git LFS</a>. Thus you must follow the <a href="#initial-setup">setup instructions above</a> to download this file to your local computer. I recommend importing it with <code>data.table::fread</code>.</p>
+<pre class="r"><code>library(&quot;data.table&quot;)
+counts &lt;- data.frame(fread(&quot;zcat ../data/scqtl-counts.txt.gz&quot;), row.names = 1)</code></pre>
+<pre><code>
+Read 98.4% of 20327 rows
+Read 20327 rows and 2305 (of 2305) columns from 0.089 GB file in 00:00:03</code></pre>
+<pre class="r"><code>dim(counts)</code></pre>
+<pre><code>[1] 20327  2304</code></pre>
+<pre class="r"><code>counts[1:5, 1:2]</code></pre>
+<pre><code>                NA19098.03162017.A01 NA18505.03162017.A02
+ENSG00000000003                    0                    3
+ENSG00000000005                    0                    0
+ENSG00000000419                    0                    3
+ENSG00000000457                    1                    0
+ENSG00000000460                    0                    2</code></pre>
+</div>
 <div id="data-analysis-workflow" class="section level2">
 <h2>Data analysis workflow</h2>
 <p>The data analysis is organized using the R package <a href="https://github.com/jdblischak/workflowr">workflowr</a>. Here are the basics:</p>
@@ -633,17 +661,17 @@ locale:
 [11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
 
 attached base packages:
-[1] parallel  methods   stats     graphics  grDevices utils     datasets 
+[1] parallel  stats     graphics  grDevices utils     datasets  methods  
 [8] base     
 
 other attached packages:
-[1] Biobase_2.34.0      BiocGenerics_0.20.0
+[1] data.table_1.10.4   Biobase_2.34.0      BiocGenerics_0.20.0
 
 loaded via a namespace (and not attached):
- [1] backports_1.0.5 magrittr_1.5    rprojroot_1.2   tools_3.3.2    
- [5] htmltools_0.3.6 yaml_2.1.13     Rcpp_0.12.10    stringi_1.1.2  
- [9] rmarkdown_1.6   knitr_1.16      git2r_0.19.0    stringr_1.2.0  
-[13] digest_0.6.12   evaluate_0.10  </code></pre>
+ [1] Rcpp_0.12.10    digest_0.6.12   rprojroot_1.2   backports_1.0.5
+ [5] git2r_0.19.0    magrittr_1.5    evaluate_0.10   stringi_1.1.2  
+ [9] rmarkdown_1.6   tools_3.3.2     stringr_1.2.0   yaml_2.1.13    
+[13] htmltools_0.3.6 knitr_1.16     </code></pre>
 </div>
 
 <hr>
