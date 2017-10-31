@@ -36,9 +36,11 @@ dependencies:
   - bioconductor-edger
   - bioconductor-variancepartition
   - biopython
+  - fastqc
   - git
   - git-lfs
   - ipython
+  - multiqc
   - pandoc
   - pysam
   - python

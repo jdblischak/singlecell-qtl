@@ -54,6 +54,8 @@ dir_external = config["dir_external"]
 dir_scratch = config["dir_scratch"]
 dir_fq = dir_external + "fastq/"
 dir_fq_combin = dir_external + "fastq-combined/"
+dir_fastqc = dir_external + "fastqc/"
+dir_multiqc = dir_external + "multiqc/"
 dir_genome = dir_scratch + "genome-ensembl-release-" + str(ensembl_rel) + "/"
 dir_fq_filter = dir_scratch + "scqtl-fastq-filter/"
 dir_fq_extract = dir_scratch + "scqtl-fastq-extract/"
@@ -387,6 +389,29 @@ rule expressionset:
                                                 {input.verify} \
                                                 {input.saf} \
                                                 {output}"
+
+# Sequence quality control -----------------------------------------------------
+
+rule target_multiqc:
+    input: expand(dir_multiqc + "{chip}/multiqc_report.html", chip = chips)
+
+rule target_fastqc:
+    input: expand(dir_fastqc + "{chip}/{chip}-{row}{col}_fastqc.html", \
+                  chip = chips, row = rows, col = cols)
+
+rule fastqc:
+    input: dir_fq_combin + "{chip}/{chip}-{row}{col}.fastq.gz"
+    output: dir_fastqc + "{chip}/{chip}-{row}{col}_fastqc.html"
+    params: outdir = dir_fastqc + "{chip}/"
+    shell: "fastqc --outdir {params.outdir} {input}"
+
+rule multiqc:
+    input: expand(dir_fastqc + "{{chip}}/{{chip}}-{row}{col}_fastqc.html", \
+                  row = rows, col = cols)
+    output: dir_multiqc + "{chip}/" + "multiqc_report.html"
+    params: indir = dir_fastqc + "{chip}/",
+            outdir = dir_multiqc + "{chip}/"
+    shell: "multiqc --force --outdir {params.outdir} {params.indir}"
 
 # Calculate total counts -------------------------------------------------------
 
