@@ -316,10 +316,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2017-10-26</p>
+<p><strong>Last updated:</strong> 2017-10-31</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> a8f4104</p>
+<p><strong>Code version:</strong> 31aceec</p>
 <p>This analysis explores the total counts of reads and molecules mapped to each source (human, fly, worm, and ERCC).</p>
 <div id="setup" class="section level2">
 <h2>Setup</h2>
@@ -374,27 +374,27 @@ head(totals_long)</code></pre>
 <tbody>
 <tr class="odd">
 <td>Raw reads</td>
-<td>4.741445510^{6}</td>
-<td>2.084694110^{6}</td>
+<td>2.936804910^{6}</td>
+<td>2.181722210^{6}</td>
 <td>1.00</td>
 </tr>
 <tr class="even">
 <td>Reads with UMI</td>
-<td>2.967793610^{6}</td>
-<td>1.369665110^{6}</td>
-<td>0.62</td>
+<td>1.876238310^{6}</td>
+<td>1.390258210^{6}</td>
+<td>0.64</td>
 </tr>
 <tr class="odd">
 <td>Reads mapped to genome</td>
-<td>2.126037710^{6}</td>
-<td>1.007285710^{6}</td>
+<td>1.322475410^{6}</td>
+<td>1.008351710^{6}</td>
 <td>0.44</td>
 </tr>
 <tr class="even">
 <td>Molecules mapped to genome</td>
-<td>9.952215110^{4}</td>
-<td>4.0934310^{4}</td>
-<td>0.02</td>
+<td>7.608126810^{4}</td>
+<td>3.905347710^{4}</td>
+<td>0.03</td>
 </tr>
 </tbody>
 </table>
@@ -432,44 +432,100 @@ ggplot(mapped_sum, aes(x = experiment, y = total)) +
 </thead>
 <tbody>
 <tr class="odd">
+<td align="left">08292017</td>
+<td align="right">51.13804</td>
+</tr>
+<tr class="even">
+<td align="left">08282017</td>
+<td align="right">51.78616</td>
+</tr>
+<tr class="odd">
+<td align="left">08302017</td>
+<td align="right">53.26984</td>
+</tr>
+<tr class="even">
+<td align="left">08242017</td>
+<td align="right">54.52270</td>
+</tr>
+<tr class="odd">
+<td align="left">08312017</td>
+<td align="right">54.81444</td>
+</tr>
+<tr class="even">
+<td align="left">08212017</td>
+<td align="right">56.39745</td>
+</tr>
+<tr class="odd">
+<td align="left">08112017</td>
+<td align="right">56.45161</td>
+</tr>
+<tr class="even">
+<td align="left">08232017</td>
+<td align="right">58.47733</td>
+</tr>
+<tr class="odd">
+<td align="left">08182017</td>
+<td align="right">59.73698</td>
+</tr>
+<tr class="even">
+<td align="left">08152017</td>
+<td align="right">62.02262</td>
+</tr>
+<tr class="odd">
+<td align="left">08222017</td>
+<td align="right">67.29810</td>
+</tr>
+<tr class="even">
+<td align="left">08142017</td>
+<td align="right">70.10057</td>
+</tr>
+<tr class="odd">
+<td align="left">08102017</td>
+<td align="right">74.86912</td>
+</tr>
+<tr class="even">
+<td align="left">08162017</td>
+<td align="right">152.17424</td>
+</tr>
+<tr class="odd">
 <td align="left">04132017</td>
-<td align="right">156.9763</td>
+<td align="right">156.97627</td>
 </tr>
 <tr class="even">
 <td align="left">04142017</td>
-<td align="right">157.3512</td>
+<td align="right">157.35120</td>
 </tr>
 <tr class="odd">
 <td align="left">04072017</td>
-<td align="right">159.8095</td>
+<td align="right">159.80946</td>
 </tr>
 <tr class="even">
 <td align="left">03312017</td>
-<td align="right">159.8898</td>
+<td align="right">159.88979</td>
 </tr>
 <tr class="odd">
 <td align="left">04052017</td>
-<td align="right">173.9947</td>
+<td align="right">173.99471</td>
 </tr>
 <tr class="even">
 <td align="left">03172017</td>
-<td align="right">186.3686</td>
+<td align="right">186.36864</td>
 </tr>
 <tr class="odd">
 <td align="left">03162017</td>
-<td align="right">186.4863</td>
+<td align="right">186.48628</td>
 </tr>
 <tr class="even">
 <td align="left">04202017</td>
-<td align="right">196.0036</td>
+<td align="right">196.00356</td>
 </tr>
 <tr class="odd">
 <td align="left">03302017</td>
-<td align="right">222.0228</td>
+<td align="right">222.02280</td>
 </tr>
 <tr class="even">
 <td align="left">03232017</td>
-<td align="right">248.6240</td>
+<td align="right">248.62403</td>
 </tr>
 </tbody>
 </table>
@@ -613,7 +669,7 @@ locale:
 [11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
 
 attached base packages:
-[1] parallel  methods   stats     graphics  grDevices utils     datasets 
+[1] parallel  stats     graphics  grDevices utils     datasets  methods  
 [8] base     
 
 other attached packages:
