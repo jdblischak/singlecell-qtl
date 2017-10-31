@@ -34,7 +34,17 @@ library("Biobase")
 source("../code/functions.R")
 fname <- Sys.glob("../data/eset/*.rds")
 eset <- Reduce(combine, Map(readRDS, fname))
-eset_quality <- eset[, eset$cell_number == 1 & eset$tra1.60 & eset$valid_id]
+# Determine all individuals that have more than 5 cells on at least 1 chip
+individuals <- pData(eset) %>%
+  group_by(chip_id, experiment) %>%
+  summarize(n = n()) %>%
+  filter(n > 5) %>%
+  select(chip_id) %>%
+  unlist() %>%
+  unique()
+eset_quality <- eset[, eset$cell_number == 1 &
+                       eset$tra1.60 &
+                       eset$chip_id %in% individuals]
 eset_hs <- eset_quality[fData(eset_quality)$source == "H. sapiens", ]
 eset_hs_clean <- eset_hs[rowSums(exprs(eset_hs)) != 0, ]
 eset_hs_clean <- eset_hs_clean[apply(exprs(eset_hs_clean), 1, present), ]
@@ -49,11 +59,24 @@ collection <- pData(eset_hs_clean) %>%
   arrange(desc(n))
 ```
 
-We have collected a total of `r ncol(eset_hs_clean)` cells\* for a total of
+We have collected a total of `r ncol(eset_hs_clean)` cells from a total of
 `r length(unique(eset_hs_clean$chip_id))` individuals.
 
-\* This is a high estimate because only a few QC filters were used. The
-number will decrease when more stringent QC filters are applied.
+Column descriptions:
+
+* **Individual** - This includes any individual that had more than 5 cells on at
+least 1 C1 chip.
+
+* **Number of cells** - Total number of cells for that individual. This is a
+high estimate because only a few QC filters were used. The number will decrease
+when more stringent QC filters are applied.
+
+* **Median number of genes detected** - This only includes human genes which
+were observed in at least 50% of the cells across the entire experiment.
+
+* **Median number of molecules** - This only includes the molecules that map to
+human genes which were observed in at least 50% of the cells across the entire
+experiment.
 
 ```{r datatable}
 datatable(collection, options = list(pageLength = nrow(collection)),
