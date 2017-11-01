@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- 2017-11-06 Mon 09:32 -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UMI count distribution stratified by genotype</title>
+<meta name="generator" content="Org mode">
+<meta name="author" content="Abhishek Sarkar">
+<style type="text/css">
+ <!--/*--><![CDATA[/*><!--*/
+  .title  { text-align: center;
+             margin-bottom: .2em; }
+  .subtitle { text-align: center;
+              font-size: medium;
+              font-weight: bold;
+              margin-top:0; }
+  .todo   { font-family: monospace; color: red; }
+  .done   { font-family: monospace; color: green; }
+  .priority { font-family: monospace; color: orange; }
+  .tag    { background-color: #eee; font-family: monospace;
+            padding: 2px; font-size: 80%; font-weight: normal; }
+  .timestamp { color: #bebebe; }
+  .timestamp-kwd { color: #5f9ea0; }
+  .org-right  { margin-left: auto; margin-right: 0px;  text-align: right; }
+  .org-left   { margin-left: 0px;  margin-right: auto; text-align: left; }
+  .org-center { margin-left: auto; margin-right: auto; text-align: center; }
+  .underline { text-decoration: underline; }
+  #postamble p, #preamble p { font-size: 90%; margin: .2em; }
+  p.verse { margin-left: 3%; }
+  pre {
+    border: 1px solid #ccc;
+    box-shadow: 3px 3px 3px #eee;
+    padding: 8pt;
+    font-family: monospace;
+    overflow: auto;
+    margin: 1.2em;
+  }
+  pre.src {
+    position: relative;
+    overflow: visible;
+    padding-top: 1.2em;
+  }
+  pre.src:before {
+    display: none;
+    position: absolute;
+    background-color: white;
+    top: -10px;
+    right: 10px;
+    padding: 3px;
+    border: 1px solid black;
+  }
+  pre.src:hover:before { display: inline;}
+  /* Languages per Org manual */
+  pre.src-asymptote:before { content: 'Asymptote'; }
+  pre.src-awk:before { content: 'Awk'; }
+  pre.src-C:before { content: 'C'; }
+  /* pre.src-C++ doesn't work in CSS */
+  pre.src-clojure:before { content: 'Clojure'; }
+  pre.src-css:before { content: 'CSS'; }
+  pre.src-D:before { content: 'D'; }
+  pre.src-ditaa:before { content: 'ditaa'; }
+  pre.src-dot:before { content: 'Graphviz'; }
+  pre.src-calc:before { content: 'Emacs Calc'; }
+  pre.src-emacs-lisp:before { content: 'Emacs Lisp'; }
+  pre.src-fortran:before { content: 'Fortran'; }
+  pre.src-gnuplot:before { content: 'gnuplot'; }
+  pre.src-haskell:before { content: 'Haskell'; }
+  pre.src-hledger:before { content: 'hledger'; }
+  pre.src-java:before { content: 'Java'; }
+  pre.src-js:before { content: 'Javascript'; }
+  pre.src-latex:before { content: 'LaTeX'; }
+  pre.src-ledger:before { content: 'Ledger'; }
+  pre.src-lisp:before { content: 'Lisp'; }
+  pre.src-lilypond:before { content: 'Lilypond'; }
+  pre.src-lua:before { content: 'Lua'; }
+  pre.src-matlab:before { content: 'MATLAB'; }
+  pre.src-mscgen:before { content: 'Mscgen'; }
+  pre.src-ocaml:before { content: 'Objective Caml'; }
+  pre.src-octave:before { content: 'Octave'; }
+  pre.src-org:before { content: 'Org mode'; }
+  pre.src-oz:before { content: 'OZ'; }
+  pre.src-plantuml:before { content: 'Plantuml'; }
+  pre.src-processing:before { content: 'Processing.js'; }
+  pre.src-python:before { content: 'Python'; }
+  pre.src-R:before { content: 'R'; }
+  pre.src-ruby:before { content: 'Ruby'; }
+  pre.src-sass:before { content: 'Sass'; }
+  pre.src-scheme:before { content: 'Scheme'; }
+  pre.src-screen:before { content: 'Gnu Screen'; }
+  pre.src-sed:before { content: 'Sed'; }
+  pre.src-sh:before { content: 'shell'; }
+  pre.src-sql:before { content: 'SQL'; }
+  pre.src-sqlite:before { content: 'SQLite'; }
+  /* additional languages in org.el's org-babel-load-languages alist */
+  pre.src-forth:before { content: 'Forth'; }
+  pre.src-io:before { content: 'IO'; }
+  pre.src-J:before { content: 'J'; }
+  pre.src-makefile:before { content: 'Makefile'; }
+  pre.src-maxima:before { content: 'Maxima'; }
+  pre.src-perl:before { content: 'Perl'; }
+  pre.src-picolisp:before { content: 'Pico Lisp'; }
+  pre.src-scala:before { content: 'Scala'; }
+  pre.src-shell:before { content: 'Shell Script'; }
+  pre.src-ebnf2ps:before { content: 'ebfn2ps'; }
+  /* additional language identifiers per "defun org-babel-execute"
+       in ob-*.el */
+  pre.src-cpp:before  { content: 'C++'; }
+  pre.src-abc:before  { content: 'ABC'; }
+  pre.src-coq:before  { content: 'Coq'; }
+  pre.src-groovy:before  { content: 'Groovy'; }
+  /* additional language identifiers from org-babel-shell-names in
+     ob-shell.el: ob-shell is the only babel language using a lambda to put
+     the execution function name together. */
+  pre.src-bash:before  { content: 'bash'; }
+  pre.src-csh:before  { content: 'csh'; }
+  pre.src-ash:before  { content: 'ash'; }
+  pre.src-dash:before  { content: 'dash'; }
+  pre.src-ksh:before  { content: 'ksh'; }
+  pre.src-mksh:before  { content: 'mksh'; }
+  pre.src-posh:before  { content: 'posh'; }
+  /* Additional Emacs modes also supported by the LaTeX listings package */
+  pre.src-ada:before { content: 'Ada'; }
+  pre.src-asm:before { content: 'Assembler'; }
+  pre.src-caml:before { content: 'Caml'; }
+  pre.src-delphi:before { content: 'Delphi'; }
+  pre.src-html:before { content: 'HTML'; }
+  pre.src-idl:before { content: 'IDL'; }
+  pre.src-mercury:before { content: 'Mercury'; }
+  pre.src-metapost:before { content: 'MetaPost'; }
+  pre.src-modula-2:before { content: 'Modula-2'; }
+  pre.src-pascal:before { content: 'Pascal'; }
+  pre.src-ps:before { content: 'PostScript'; }
+  pre.src-prolog:before { content: 'Prolog'; }
+  pre.src-simula:before { content: 'Simula'; }
+  pre.src-tcl:before { content: 'tcl'; }
+  pre.src-tex:before { content: 'TeX'; }
+  pre.src-plain-tex:before { content: 'Plain TeX'; }
+  pre.src-verilog:before { content: 'Verilog'; }
+  pre.src-vhdl:before { content: 'VHDL'; }
+  pre.src-xml:before { content: 'XML'; }
+  pre.src-nxml:before { content: 'XML'; }
+  /* add a generic configuration mode; LaTeX export needs an additional
+     (add-to-list 'org-latex-listings-langs '(conf " ")) in .emacs */
+  pre.src-conf:before { content: 'Configuration File'; }
+
+  table { border-collapse:collapse; }
+  caption.t-above { caption-side: top; }
+  caption.t-bottom { caption-side: bottom; }
+  td, th { vertical-align:top;  }
+  th.org-right  { text-align: center;  }
+  th.org-left   { text-align: center;   }
+  th.org-center { text-align: center; }
+  td.org-right  { text-align: right;  }
+  td.org-left   { text-align: left;   }
+  td.org-center { text-align: center; }
+  dt { font-weight: bold; }
+  .footpara { display: inline; }
+  .footdef  { margin-bottom: 1em; }
+  .figure { padding: 1em; }
+  .figure p { text-align: center; }
+  .inlinetask {
+    padding: 10px;
+    border: 2px solid gray;
+    margin: 10px;
+    background: #ffffcc;
+  }
+  #org-div-home-and-up
+   { text-align: right; font-size: 70%; white-space: nowrap; }
+  textarea { overflow-x: auto; }
+  .linenr { font-size: smaller }
+  .code-highlighted { background-color: #ffff00; }
+  .org-info-js_info-navigation { border-style: none; }
+  #org-info-js_console-label
+    { font-size: 10px; font-weight: bold; white-space: nowrap; }
+  .org-info-js_search-highlight
+    { background-color: #ffff00; color: #000000; font-weight: bold; }
+  .org-svg { width: 90%; }
+  /*]]>*/-->
+</style>
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<link rel="stylesheet" type="text/css" href="https://www.pirilampo.org/styles/readtheorg/css/htmlize.css"/>
+<style type="text/css">body {width: 60em; margin:auto} pre.src {overflow:auto}</style>
+<script type="text/javascript">
+/*
+@licstart  The following is the entire license notice for the
+JavaScript code in this tag.
+
+Copyright (C) 2012-2017 Free Software Foundation, Inc.
+
+The JavaScript code in this tag is free software: you can
+redistribute it and/or modify it under the terms of the GNU
+General Public License (GNU GPL) as published by the Free Software
+Foundation, either version 3 of the License, or (at your option)
+any later version.  The code is distributed WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU GPL for more details.
+
+As additional permission under GNU GPL version 3 section 7, you
+may distribute non-source (e.g., minimized or compacted) forms of
+that code without the copy of the GNU GPL normally required by
+section 4, provided you include this license notice and a URL
+through which recipients can access the Corresponding Source.
+
+
+@licend  The above is the entire license notice
+for the JavaScript code in this tag.
+*/
+<!--/*--><![CDATA[/*><!--*/
+ function CodeHighlightOn(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(null != target) {
+     elem.cacheClassElem = elem.className;
+     elem.cacheClassTarget = target.className;
+     target.className = "code-highlighted";
+     elem.className   = "code-highlighted";
+   }
+ }
+ function CodeHighlightOff(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(elem.cacheClassElem)
+     elem.className = elem.cacheClassElem;
+   if(elem.cacheClassTarget)
+     target.className = elem.cacheClassTarget;
+ }
+/*]]>*///-->
+</script>
+</head>
+<body>
+<div id="content">
+<h1 class="title">UMI count distribution stratified by genotype</h1>
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#org9d08f7b">Setup</a></li>
+<li><a href="#orgaa0f7bd">Read the data</a></li>
+<li><a href="#org3bc4ca8">Look at top mean-QTLs</a>
+<ul>
+<li><a href="#orgf08c868">ZWIM7</a></li>
+<li><a href="#org78352a1">PPIP5K2</a></li>
+<li><a href="#org507d497">NUDT2</a></li>
+<li><a href="#orgab87fce">C7orf73</a></li>
+<li><a href="#orgb620854">PPIL3</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+
+<div id="outline-container-org9d08f7b" class="outline-2">
+<h2 id="org9d08f7b">Setup</h2>
+<div class="outline-text-2" id="text-org9d08f7b">
+<div class="org-src-container">
+<pre class="src src-shell" id="org1f97edb">sbatch $<span class="org-variable-name">RESOURCES</span> --job-name=ipython3 --output=ipython3.out
+<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
+<span class="org-builtin">source</span> activate scqtl
+rm -f $<span class="org-variable-name">HOME</span>/.local/share/jupyter/runtime/kernel-aksarkar.json
+ipython3 kernel --ip=$(<span class="org-sh-quoted-exec">hostname</span> -i) -f kernel-aksarkar.json
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython" id="org849b84f">%matplotlib inline
+
+<span class="org-keyword">import</span> io
+<span class="org-keyword">import</span> os
+<span class="org-keyword">import</span> matplotlib.pyplot <span class="org-keyword">as</span> plt
+<span class="org-keyword">import</span> numpy <span class="org-keyword">as</span> np
+<span class="org-keyword">import</span> requests
+<span class="org-keyword">import</span> pandas <span class="org-keyword">as</span> pd
+</pre>
+</div>
+</div>
+</div>
+
+<div id="outline-container-orgaa0f7bd" class="outline-2">
+<h2 id="orgaa0f7bd">Read the data</h2>
+<div class="outline-text-2" id="text-orgaa0f7bd">
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">counts</span> = pd.read_table(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>, index_col=0)
+counts.shape
+</pre>
+</div>
+
+<pre class="example">
+(20327, 2304)
+
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">annotations</span> = pd.read_table(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
+annotations[<span class="org-string">'chip_id'</span>].value_counts()
+</pre>
+</div>
+
+<pre class="example">
+NA18507    233
+  NA18502    228
+  NA18508    203
+  NA18520    164
+  NA18862    132
+  NA19128    119
+  NA19190    114
+  NA19257    105
+  NA18852    105
+  NA18501    100
+  NA18856     96
+  NA18499     93
+  NA18853     89
+  NA18870     87
+  NA19210     87
+  NA19098     75
+  NA18505     65
+  NA19092     54
+  NA19159     45
+  NA19203     27
+  NA19119     20
+  NA18498     20
+  NA19131      3
+  NA18516      3
+  NA19200      3
+  NA19129      3
+  NA19122      2
+  NA18913      2
+  NA19138      2
+  NA18907      2
+  NA19214      2
+  NA19144      2
+  NA19153      2
+  NA18874      1
+  NA18924      1
+  NA19107      1
+  NA18917      1
+  NA18867      1
+  NA19102      1
+  NA19099      1
+  NA18486      1
+  NA18861      1
+  NA19171      1
+  NA19176      1
+  NA19239      1
+  NA18517      1
+  NA18523      1
+  NA19189      1
+  NA19209      1
+  NA18511      1
+  Name: chip_id, dtype: int64
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">genotypes</span> = pd.read_table(<span class="org-string">'/project/compbio/jointLCLs/genotype/hg19/YRI/genotypesYRI.gen.txt.gz'</span>,
+                          header=0, sep=<span class="org-string">'\t'</span>)
+<span class="org-variable-name">genotypes</span> = genotypes.rename(columns={k: <span class="org-string">'NA{}'</span>.<span class="org-builtin">format</span>(k)
+                                      <span class="org-keyword">for</span> k <span class="org-keyword">in</span> genotypes.columns.values[9:]})
+genotypes.shape
+</pre>
+</div>
+
+<pre class="example">
+(6278013, 128)
+
+</pre>
+
+<p>
+Download ENSEMBL to Hugo gene symbol conversion table from Biomart.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">query</span> = <span class="org-string">"""&lt;?xml version="1.0" encoding="UTF-8"?&gt;</span>
+<span class="org-string">&lt;!DOCTYPE Query&gt;</span>
+<span class="org-string">&lt;Query  virtualSchemaName = "default" formatter = "TSV" header = "0" uniqueRows = "0" count = "" datasetConfigVersion = "0.6" &gt;</span>
+
+<span class="org-string">        &lt;Dataset name = "hsapiens_gene_ensembl" interface = "default" &gt;</span>
+<span class="org-string">                &lt;Attribute name = "ensembl_gene_id" /&gt;</span>
+<span class="org-string">                &lt;Attribute name = "hgnc_symbol" /&gt;</span>
+<span class="org-string">        &lt;/Dataset&gt;</span>
+<span class="org-string">&lt;/Query&gt;"""</span>
+
+<span class="org-variable-name">resp</span> = requests.get(<span class="org-string">'http://www.ensembl.org/biomart/martservice'</span>, params={<span class="org-string">'query'</span>: query})
+<span class="org-keyword">if</span> resp.status_code != 200:
+  <span class="org-keyword">raise</span> <span class="org-type">RuntimeError</span>
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">ensembl</span> = pd.read_table(io.StringIO(resp.text), header=<span class="org-constant">None</span>, index_col=0)
+<span class="org-variable-name">ensembl.columns</span> = [<span class="org-string">'symbol'</span>]
+ensembl.head()
+</pre>
+</div>
+
+<pre class="example">
+                symbol
+0                       
+ENSG00000210049    MT-TF
+ENSG00000211459  MT-RNR1
+ENSG00000210077    MT-TV
+ENSG00000210082  MT-RNR2
+ENSG00000209082   MT-TL1
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">eqtls</span> = pd.read_table(<span class="org-string">'/project/compbio/iPSC_eQTL/permutations.all.RNAseq_run.fixed.txt.gz'</span>, header=<span class="org-constant">None</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">eqtls.columns</span> = [<span class="org-string">'num_variants'</span>, <span class="org-string">'alpha'</span>, <span class="org-string">'beta'</span>, <span class="org-string">'dummy'</span>, <span class="org-string">'best_eqtl'</span>, <span class="org-string">'dist'</span>, <span class="org-string">'p'</span>, <span class="org-string">'effect_size'</span>, <span class="org-string">'perm'</span>, <span class="org-string">'beta_perm'</span>]
+<span class="org-variable-name">eqtls.index</span> = [symbol.split(<span class="org-string">'.'</span>)[0] <span class="org-keyword">for</span> symbol <span class="org-keyword">in</span> eqtls.index.values]
+eqtls[[<span class="org-string">'rsid'</span>, <span class="org-string">'chrom'</span>, <span class="org-string">'pos'</span>]] = eqtls.<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: pd.Series(<span class="org-builtin">str</span>(x[<span class="org-string">'best_eqtl'</span>]).split(<span class="org-string">'.'</span>)), axis=1)
+eqtls.merge(ensembl, left_index=<span class="org-constant">True</span>, right_index=<span class="org-constant">True</span>).merge(counts, left_index=<span class="org-constant">True</span>, right_index=<span class="org-constant">True</span>).sort_values(by=<span class="org-string">'beta_perm'</span>)[[<span class="org-string">'symbol'</span>, <span class="org-string">'rsid'</span>, <span class="org-string">'effect_size'</span>, <span class="org-string">'beta_perm'</span>]].head()
+</pre>
+</div>
+
+<pre class="example">
+                symbol        rsid  effect_size     beta_perm
+ENSG00000214941   ZSWIM7  rs73276049     1.792670  1.567000e-17
+ENSG00000145725  PPIP5K2     rs34822     1.155860  1.280260e-15
+ENSG00000164978    NUDT2   rs7848476     0.998739  6.685150e-15
+ENSG00000243317  C7orf73   rs6467603     1.371900  1.508780e-14
+ENSG00000240344    PPIL3  rs13412214    -1.343370  1.566880e-14
+</pre>
+</div>
+</div>
+
+<div id="outline-container-org3bc4ca8" class="outline-2">
+<h2 id="org3bc4ca8">Look at top mean-QTLs</h2>
+<div class="outline-text-2" id="text-org3bc4ca8">
+<p>
+Plot the distribution of UMI counts per cell stratified by genotype (no
+pooling by individual).
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">stratify_umi</span>(counts, genotypes, gene, rsid):
+  <span class="org-variable-name">counts</span> = pd.DataFrame(counts.loc[gene].transpose())
+  <span class="org-variable-name">counts.index</span> = [k.split(<span class="org-string">'.'</span>)[0] <span class="org-keyword">for</span> k <span class="org-keyword">in</span> counts.index]
+  <span class="org-variable-name">genotypes</span> = genotypes[genotypes[<span class="org-string">'ID'</span>] == rsid].iloc[:,9:].transpose().astype(np.int32)
+  <span class="org-keyword">if</span> <span class="org-builtin">len</span>(counts) == 0 <span class="org-keyword">or</span> <span class="org-builtin">len</span>(genotypes) == 0:
+    <span class="org-keyword">raise</span> <span class="org-type">ValueError</span>
+  <span class="org-variable-name">merged</span> = counts.merge(genotypes, how=<span class="org-string">'left'</span>, left_index=<span class="org-constant">True</span>, right_index=<span class="org-constant">True</span>)
+  <span class="org-variable-name">merged.columns</span> = [<span class="org-string">'count'</span>, <span class="org-string">'genotype'</span>]
+  <span class="org-keyword">return</span> merged
+
+<span class="org-keyword">def</span> <span class="org-function-name">plot_umi_dist</span>(counts, genotypes, ensembl, gene, rsid, **kwargs):
+  <span class="org-keyword">if</span> <span class="org-string">'kind'</span> <span class="org-keyword">not</span> <span class="org-keyword">in</span> kwargs:
+    <span class="org-variable-name">kwargs</span>[<span class="org-string">'kind'</span>] = <span class="org-string">'hist'</span>
+  plt.clf()
+  plt.gcf().set_size_inches(6, 4)
+  <span class="org-variable-name">merged</span> = stratify_umi(counts, genotypes, gene, rsid)
+  <span class="org-keyword">if</span> kwargs.get(<span class="org-string">'kind'</span>, <span class="org-string">''</span>) == <span class="org-string">'hist'</span>:
+    <span class="org-variable-name">kwargs</span>[<span class="org-string">'bins'</span>] = np.arange(merged[<span class="org-string">'count'</span>].<span class="org-builtin">max</span>()).astype(np.float32)
+    <span class="org-variable-name">kwargs</span>[<span class="org-string">'histtype'</span>] = <span class="org-string">'step'</span>
+  <span class="org-keyword">for</span> k, g <span class="org-keyword">in</span> merged.groupby(<span class="org-string">'genotype'</span>):
+    <span class="org-variable-name">ax</span> = g[<span class="org-string">'count'</span>].plot(**kwargs)
+    ax.set_xlim(left=0)
+  plt.title(<span class="org-string">'{}, {}'</span>.<span class="org-builtin">format</span>(ensembl.loc[gene, <span class="org-string">'symbol'</span>], rsid))
+  plt.xlabel(<span class="org-string">'UMI count'</span>)
+  plt.legend(labels=np.arange(3))
+</pre>
+</div>
+</div>
+
+<div id="outline-container-orgf08c868" class="outline-3">
+<h3 id="orgf08c868">ZWIM7</h3>
+<div class="outline-text-3" id="text-orgf08c868">
+<div class="org-src-container">
+<pre class="src src-ipython">plot_umi_dist(counts, genotypes, ensembl, <span class="org-string">'ENSG00000214941'</span>, <span class="org-string">'rs73276049'</span>)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="../docs/figure/sc-stratified-geno.org/214941.png" alt="214941.png">
+</p>
+</div>
+
+<p>
+At this variant, there are only two YRI individuals with genotype 2, and they
+are not among the individuals assayed.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">genotypes[genotypes[<span class="org-string">'ID'</span>] == <span class="org-string">'rs73276049'</span>].iloc[0,9:].transpose().astype(np.int32).value_counts()
+</pre>
+</div>
+
+<pre class="example">
+0    83
+  1    34
+  2     2
+  Name: 2295561, dtype: int64
+</pre>
+</div>
+</div>
+
+<div id="outline-container-org78352a1" class="outline-3">
+<h3 id="org78352a1">PPIP5K2</h3>
+<div class="outline-text-3" id="text-org78352a1">
+<div class="org-src-container">
+<pre class="src src-ipython">plot_umi_dist(counts, genotypes, ensembl, <span class="org-string">'ENSG00000145725'</span>, <span class="org-string">'rs34822'</span>)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="./../docs/figure/sc-stratified-geno.org/145725.png" alt="145725.png">
+</p>
+</div>
+</div>
+</div>
+
+<div id="outline-container-org507d497" class="outline-3">
+<h3 id="org507d497">NUDT2</h3>
+<div class="outline-text-3" id="text-org507d497">
+<div class="org-src-container">
+<pre class="src src-ipython">plot_umi_dist(counts, genotypes, ensembl, <span class="org-string">'ENSG00000164978'</span>, <span class="org-string">'rs7848476'</span>)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="./../docs/figure/sc-stratified-geno.org/164978.png" alt="164978.png">
+</p>
+</div>
+</div>
+</div>
+
+<div id="outline-container-orgab87fce" class="outline-3">
+<h3 id="orgab87fce">C7orf73</h3>
+<div class="outline-text-3" id="text-orgab87fce">
+<div class="org-src-container">
+<pre class="src src-ipython">plot_umi_dist(counts, genotypes, ensembl, <span class="org-string">'ENSG00000243317'</span>, <span class="org-string">'rs6467603'</span>)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="./../docs/figure/sc-stratified-geno.org/243317.png" alt="243317.png">
+</p>
+</div>
+</div>
+</div>
+
+<div id="outline-container-orgb620854" class="outline-3">
+<h3 id="orgb620854">PPIL3</h3>
+<div class="outline-text-3" id="text-orgb620854">
+<div class="org-src-container">
+<pre class="src src-ipython">plot_umi_dist(counts, genotypes, ensembl, <span class="org-string">'ENSG00000240344'</span>, <span class="org-string">'rs13412214'</span>)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="./../docs/figure/sc-stratified-geno.org/240344.png" alt="240344.png">
+</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div id="postamble" class="status">
+<p class="author">Author: Abhishek Sarkar</p>
+<p class="date">Created: 2017-11-06 Mon 09:32</p>
+<p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
+</div>
+</body>
+</html>
