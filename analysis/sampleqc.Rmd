@@ -394,18 +394,12 @@ dim(eset_hs_clean)
 ## convert to log2 cpm
 mol_hs_cpm <- cpm(exprs(eset_hs_clean), log = TRUE)
 hist(rowMeans(mol_hs_cpm))
-
-## variable genes
-mol_hs_cpm_var <- log(apply(mol_hs_cpm, 1, var))
-hist(mol_hs_cpm_var)
-sum(mol_hs_cpm_var > 0.5)
 ```
 
-Using the `r sum(mol_hs_cpm_var > 0.5)` most variable genes to perform PCA
+Using the all genes to perform PCA
 
 ```{r pca-before}
-## pca of top variable genes
-mol_hs_cpm <- mol_hs_cpm[mol_hs_cpm_var > 0.5, ]
+## pca of all genes
 pca_hs <- run_pca(mol_hs_cpm) 
 plot_pca(pca_hs$PCs, pcx = 1, pcy = 2, explained = pca_hs$explained,
          metadata = pData(eset_hs_clean), color = "experiment")
@@ -459,13 +453,8 @@ mol_hs_cpm_filter <- cpm(exprs(eset_hs_clean_filter), log = TRUE)
 hist(rowMeans(mol_hs_cpm_filter))
 stopifnot(rownames(anno[anno$filter_all,]) == colnames(mol_hs_cpm_filter))
 
-## variable genes
-mol_hs_cpm_filter_var <- log(apply(mol_hs_cpm_filter, 1, var))
-hist(mol_hs_cpm_filter_var)
-sum(mol_hs_cpm_filter_var > 0.5)
 
-## pca of top variable genes
-mol_hs_cpm_filter<- mol_hs_cpm_filter[mol_hs_cpm_filter_var > 0.5, ]
+## pca of all genes
 pca_hs_filter <- run_pca(mol_hs_cpm_filter) 
 plot_pca(pca_hs_filter$PCs, pcx = 1, pcy = 2, explained = pca_hs_filter$explained,
          metadata = pData(eset_hs_clean_filter), color = "experiment")
