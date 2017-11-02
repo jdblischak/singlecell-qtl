@@ -497,5 +497,9 @@ plot_grid(pc1_reads_filter + theme(legend.position=c(.7,.5)),
           pc1_gene_filter + theme(legend.position = "none"),
           labels = LETTERS[1:4])
 ```
-```
 
+## Session information
+
+<!-- Insert the session information into the document -->
+```{r session-info}
+```
