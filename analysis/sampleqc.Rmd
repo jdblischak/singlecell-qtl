@@ -393,14 +393,19 @@ dim(eset_hs_clean)
 
 ## convert to log2 cpm
 mol_hs_cpm <- cpm(exprs(eset_hs_clean), log = TRUE)
-hist(rowMeans(mol_hs_cpm))
+mol_hs_cpm_means <- rowMeans(mol_hs_cpm)
+summary(mol_hs_cpm_means)
+hist(mol_hs_cpm_means)
+abline(v = median(mol_hs_cpm_means), col = "red")
+mol_hs_cpm <- mol_hs_cpm[mol_hs_cpm_means > median(mol_hs_cpm_means), ]
+dim(mol_hs_cpm)
 ```
 
-Using the all genes to perform PCA
+Using the genes with reasonable expression levels to perform PCA
 
 ```{r pca-before}
-## pca of all genes
-pca_hs <- run_pca(mol_hs_cpm) 
+## pca of genes with reasonable expression levels
+pca_hs <- run_pca(mol_hs_cpm)
 plot_pca(pca_hs$PCs, pcx = 1, pcy = 2, explained = pca_hs$explained,
          metadata = pData(eset_hs_clean), color = "experiment")
 
@@ -450,11 +455,15 @@ dim(eset_hs_clean_filter)
 
 ## convert to log2 cpm
 mol_hs_cpm_filter <- cpm(exprs(eset_hs_clean_filter), log = TRUE)
-hist(rowMeans(mol_hs_cpm_filter))
 stopifnot(rownames(anno[anno$filter_all,]) == colnames(mol_hs_cpm_filter))
+mol_hs_cpm_filter_means <- rowMeans(mol_hs_cpm_filter)
+summary(mol_hs_cpm_filter_means)
+hist(mol_hs_cpm_filter_means)
+abline(v = median(mol_hs_cpm_filter_means), col = "red")
+mol_hs_cpm_filter <- mol_hs_cpm_filter[mol_hs_cpm_filter_means > median(mol_hs_cpm_filter_means), ]
+dim(mol_hs_cpm_filter)
 
-
-## pca of all genes
+## pca of genes with reasonable expression levels
 pca_hs_filter <- run_pca(mol_hs_cpm_filter) 
 plot_pca(pca_hs_filter$PCs, pcx = 1, pcy = 2, explained = pca_hs_filter$explained,
          metadata = pData(eset_hs_clean_filter), color = "experiment")
