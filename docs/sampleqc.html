@@ -316,10 +316,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2017-10-26</p>
+<p><strong>Last updated:</strong> 2017-11-02</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> a8f4104</p>
+<p><strong>Code version:</strong> e8a4638</p>
 <p>This is for qc of the samples. Based on obsevation under the scope and the sequencing results, samples with bad quality will be removed.</p>
 <div id="setup" class="section level2">
 <h2>Setup</h2>
@@ -344,15 +344,15 @@ anno &lt;- pData(eset)</code></pre>
 cut_off_reads &lt;- quantile(anno[anno$cell_number == 0,&quot;mapped&quot;], 0.95)
 
 cut_off_reads</code></pre>
-<pre><code>    95% 
-1168155 </code></pre>
+<pre><code>     95% 
+740896.1 </code></pre>
 <pre class="r"><code>anno$cut_off_reads &lt;- anno$mapped &gt; cut_off_reads
 
 ## numbers of cells 
 sum(anno[anno$cell_number == 1, &quot;mapped&quot;] &gt; cut_off_reads)</code></pre>
-<pre><code>[1] 732</code></pre>
+<pre><code>[1] 1387</code></pre>
 <pre class="r"><code>sum(anno[anno$cell_number == 1, &quot;mapped&quot;] &lt;= cut_off_reads)</code></pre>
-<pre><code>[1] 148</code></pre>
+<pre><code>[1] 723</code></pre>
 <pre class="r"><code>## density plots
 plot_reads &lt;- ggplot(anno[anno$cell_number == 0 |
                           anno$cell_number == 1 , ],
@@ -375,14 +375,14 @@ cut_off_unmapped &lt;- quantile(anno[anno$cell_number == 0,&quot;unmapped_ratios
 
 cut_off_unmapped</code></pre>
 <pre><code>       5% 
-0.1690633 </code></pre>
+0.1906151 </code></pre>
 <pre class="r"><code>anno$cut_off_unmapped &lt;- anno$unmapped_ratios &lt; cut_off_unmapped
 
 ## numbers of cells 
 sum(anno[anno$cell_number == 1, &quot;unmapped_ratios&quot;] &gt;= cut_off_unmapped)</code></pre>
-<pre><code>[1] 876</code></pre>
+<pre><code>[1] 2100</code></pre>
 <pre class="r"><code>sum(anno[anno$cell_number == 1, &quot;unmapped_ratios&quot;] &lt; cut_off_unmapped)</code></pre>
-<pre><code>[1] 4</code></pre>
+<pre><code>[1] 10</code></pre>
 <pre class="r"><code>## density plots
 plot_unmapped &lt;- ggplot(anno[anno$cell_number == 0 |
                              anno$cell_number == 1 , ],
@@ -410,7 +410,7 @@ cut_off_ercc</code></pre>
 
 ## numbers of cells 
 sum(anno[anno$cell_number == 1, &quot;ercc_percentage&quot;] &gt;= cut_off_ercc)</code></pre>
-<pre><code>[1] 880</code></pre>
+<pre><code>[1] 2110</code></pre>
 <pre class="r"><code>sum(anno[anno$cell_number == 1, &quot;ercc_percentage&quot;] &lt; cut_off_ercc)</code></pre>
 <pre><code>[1] 0</code></pre>
 <pre class="r"><code>## density plots
@@ -435,14 +435,14 @@ cut_off_spike &lt;- quantile(anno[anno$cell_number == 0,&quot;spike_percentage&q
 
 cut_off_spike</code></pre>
 <pre><code>      10% 
-0.3001895 </code></pre>
+0.3922174 </code></pre>
 <pre class="r"><code>anno$cut_off_spike &lt;- anno$spike_percentage &lt; cut_off_spike
 
 ## numbers of cells 
 sum(anno[anno$cell_number == 1, &quot;spike_percentage&quot;] &gt;= cut_off_spike)</code></pre>
-<pre><code>[1] 73</code></pre>
+<pre><code>[1] 164</code></pre>
 <pre class="r"><code>sum(anno[anno$cell_number == 1, &quot;spike_percentage&quot;] &lt; cut_off_spike)</code></pre>
-<pre><code>[1] 807</code></pre>
+<pre><code>[1] 1946</code></pre>
 <pre class="r"><code>## density plots
 plot_spike &lt;- ggplot(anno[anno$cell_number == 0 |
                           anno$cell_number == 1 , ],
@@ -460,15 +460,15 @@ plot_spike</code></pre>
 cut_off_genes &lt;- quantile(anno[anno$cell_number == 0,&quot;detect_hs&quot;], 0.95)
 
 cut_off_genes</code></pre>
-<pre><code>   95% 
-5140.2 </code></pre>
+<pre><code>    95% 
+4265.95 </code></pre>
 <pre class="r"><code>anno$cut_off_genes &lt;- anno$detect_hs &gt; cut_off_genes
 
 ## numbers of cells 
 sum(anno[anno$cell_number == 1, &quot;detect_hs&quot;] &gt; cut_off_genes)</code></pre>
-<pre><code>[1] 728</code></pre>
+<pre><code>[1] 1750</code></pre>
 <pre class="r"><code>sum(anno[anno$cell_number == 1, &quot;detect_hs&quot;] &lt;= cut_off_genes)</code></pre>
-<pre><code>[1] 152</code></pre>
+<pre><code>[1] 360</code></pre>
 <pre class="r"><code>## density plots
 plot_gene &lt;- ggplot(anno[anno$cell_number == 0 |
                          anno$cell_number == 1 , ],
@@ -512,10 +512,10 @@ data_lda_p &lt;- predict(data_lda, newdata = data[,c(&quot;concentration&quot;, 
 ## determine how well the model fix
 table(data_lda_p, data[, &quot;group&quot;])</code></pre>
 <pre><code>          
-data_lda_p  no one two
-       no   13   6   1
-       one  55 874  11
-       two   0   0   0</code></pre>
+data_lda_p   no  one  two
+       no     0    0    0
+       one  124 2110   70
+       two    0    0    0</code></pre>
 <pre class="r"><code>data$data_lda_p &lt;- data_lda_p
 
 
@@ -565,10 +565,10 @@ data_ercc_lda_p &lt;- predict(data_ercc_lda,  newdata = data[,c(&quot;dm_convers
 ## determine how well the model fix
 table(data_ercc_lda_p, data[, &quot;group&quot;])</code></pre>
 <pre><code>               
-data_ercc_lda_p  no one two
-            no   30   3   1
-            one  38 875  11
-            two   0   2   0</code></pre>
+data_ercc_lda_p   no  one  two
+            no    65   30    1
+            one   59 2080   69
+            two    0    0    0</code></pre>
 <pre class="r"><code>data$data_ercc_lda_p &lt;- data_ercc_lda_p
 
 
@@ -612,10 +612,12 @@ anno$filter_all &lt;- anno$cell_number == 1 &amp;
                    anno$cut_off_genes 
 sort(table(anno[anno$filter_all, &quot;chip_id&quot;]))</code></pre>
 <pre><code>
-NA19190 NA18498 NA18508 NA19203 NA19092 NA18505 NA19098 NA18856 NA18852 
-     14      17      18      20      49      50      53      58      74 
-NA18520 NA18502 
-    119     176 </code></pre>
+NA18498 NA19159 NA19203 NA19210 NA18501 NA18862 NA18853 NA18870 NA19190 
+     19      23      23      31      32      33      36      44      44 
+NA19128 NA19257 NA19092 NA18505 NA18499 NA19098 NA18856 NA18852 NA18507 
+     49      50      51      52      60      61      69      82     104 
+NA18508 NA18520 NA18502 
+    104     130     188 </code></pre>
 </div>
 <div id="plots" class="section level3">
 <h3>Plots</h3>
@@ -698,21 +700,22 @@ head(featureNames(eset_hs))</code></pre>
 eset_hs_clean &lt;- eset_hs[rowSums(exprs(eset_hs)) != 0, ]
 dim(eset_hs_clean)</code></pre>
 <pre><code>Features  Samples 
-   18934      960 </code></pre>
+   19221     2304 </code></pre>
 <pre class="r"><code>## convert to log2 cpm
 mol_hs_cpm &lt;- cpm(exprs(eset_hs_clean), log = TRUE)
-hist(rowMeans(mol_hs_cpm))</code></pre>
+mol_hs_cpm_means &lt;- rowMeans(mol_hs_cpm)
+summary(mol_hs_cpm_means)</code></pre>
+<pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  3.043   3.085   3.530   4.132   4.682  13.171 </code></pre>
+<pre class="r"><code>hist(mol_hs_cpm_means)
+abline(v = median(mol_hs_cpm_means), col = &quot;red&quot;)</code></pre>
 <p><img src="figure/sampleqc.Rmd/select-gene-before-1.png" width="768" style="display: block; margin: auto;" /></p>
-<pre class="r"><code>## variable genes
-mol_hs_cpm_var &lt;- log(apply(mol_hs_cpm, 1, var))
-hist(mol_hs_cpm_var)</code></pre>
-<p><img src="figure/sampleqc.Rmd/select-gene-before-2.png" width="768" style="display: block; margin: auto;" /></p>
-<pre class="r"><code>sum(mol_hs_cpm_var &gt; 0.5)</code></pre>
-<pre><code>[1] 7677</code></pre>
-<p>Using the 7677 most variable genes to perform PCA</p>
-<pre class="r"><code>## pca of top variable genes
-mol_hs_cpm &lt;- mol_hs_cpm[mol_hs_cpm_var &gt; 0.5, ]
-pca_hs &lt;- run_pca(mol_hs_cpm) 
+<pre class="r"><code>mol_hs_cpm &lt;- mol_hs_cpm[mol_hs_cpm_means &gt; median(mol_hs_cpm_means), ]
+dim(mol_hs_cpm)</code></pre>
+<pre><code>[1] 9610 2304</code></pre>
+<p>Using the genes with reasonable expression levels to perform PCA</p>
+<pre class="r"><code>## pca of genes with reasonable expression levels
+pca_hs &lt;- run_pca(mol_hs_cpm)
 plot_pca(pca_hs$PCs, pcx = 1, pcy = 2, explained = pca_hs$explained,
          metadata = pData(eset_hs_clean), color = &quot;experiment&quot;)</code></pre>
 <p><img src="figure/sampleqc.Rmd/pca-before-1.png" width="768" style="display: block; margin: auto;" /></p>
@@ -752,10 +755,10 @@ plot_grid(pc1_reads + theme(legend.position=c(.7,.5)),
           pc1_spike + theme(legend.position = &quot;none&quot;), 
           pc1_gene + theme(legend.position = &quot;none&quot;),
           labels = LETTERS[1:4])</code></pre>
-<pre><code>`geom_smooth()` using method = &#39;loess&#39;
-`geom_smooth()` using method = &#39;loess&#39;
-`geom_smooth()` using method = &#39;loess&#39;
-`geom_smooth()` using method = &#39;loess&#39;</code></pre>
+<pre><code>`geom_smooth()` using method = &#39;gam&#39;
+`geom_smooth()` using method = &#39;gam&#39;
+`geom_smooth()` using method = &#39;gam&#39;
+`geom_smooth()` using method = &#39;gam&#39;</code></pre>
 <p><img src="figure/sampleqc.Rmd/pca-before-2.png" width="768" style="display: block; margin: auto;" /></p>
 </div>
 <div id="after-filter" class="section level3">
@@ -764,25 +767,25 @@ plot_grid(pc1_reads + theme(legend.position=c(.7,.5)),
 eset_hs_clean_filter &lt;- eset_hs_clean[,anno$filter_all]
 dim(eset_hs_clean_filter)</code></pre>
 <pre><code>Features  Samples 
-   18934      648 </code></pre>
+   19221     1285 </code></pre>
 <pre class="r"><code>## convert to log2 cpm
 mol_hs_cpm_filter &lt;- cpm(exprs(eset_hs_clean_filter), log = TRUE)
-hist(rowMeans(mol_hs_cpm_filter))</code></pre>
+stopifnot(rownames(anno[anno$filter_all,]) == colnames(mol_hs_cpm_filter))
+mol_hs_cpm_filter_means &lt;- rowMeans(mol_hs_cpm_filter)
+summary(mol_hs_cpm_filter_means)</code></pre>
+<pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  2.650   2.710   3.309   3.989   4.759  13.058 </code></pre>
+<pre class="r"><code>hist(mol_hs_cpm_filter_means)
+abline(v = median(mol_hs_cpm_filter_means), col = &quot;red&quot;)</code></pre>
 <p><img src="figure/sampleqc.Rmd/pca-after-1.png" width="768" style="display: block; margin: auto;" /></p>
-<pre class="r"><code>stopifnot(rownames(anno[anno$filter_all,]) == colnames(mol_hs_cpm_filter))
-
-## variable genes
-mol_hs_cpm_filter_var &lt;- log(apply(mol_hs_cpm_filter, 1, var))
-hist(mol_hs_cpm_filter_var)</code></pre>
-<p><img src="figure/sampleqc.Rmd/pca-after-2.png" width="768" style="display: block; margin: auto;" /></p>
-<pre class="r"><code>sum(mol_hs_cpm_filter_var &gt; 0.5)</code></pre>
-<pre><code>[1] 6743</code></pre>
-<pre class="r"><code>## pca of top variable genes
-mol_hs_cpm_filter&lt;- mol_hs_cpm_filter[mol_hs_cpm_filter_var &gt; 0.5, ]
+<pre class="r"><code>mol_hs_cpm_filter &lt;- mol_hs_cpm_filter[mol_hs_cpm_filter_means &gt; median(mol_hs_cpm_filter_means), ]
+dim(mol_hs_cpm_filter)</code></pre>
+<pre><code>[1] 9610 1285</code></pre>
+<pre class="r"><code>## pca of genes with reasonable expression levels
 pca_hs_filter &lt;- run_pca(mol_hs_cpm_filter) 
 plot_pca(pca_hs_filter$PCs, pcx = 1, pcy = 2, explained = pca_hs_filter$explained,
          metadata = pData(eset_hs_clean_filter), color = &quot;experiment&quot;)</code></pre>
-<p><img src="figure/sampleqc.Rmd/pca-after-3.png" width="768" style="display: block; margin: auto;" /></p>
+<p><img src="figure/sampleqc.Rmd/pca-after-2.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>## combine to investigate the effect
 anno_filter &lt;- anno[anno$filter_all,]
 pca_anno_filter &lt;- cbind(anno_filter, pca_hs_filter$PCs)
@@ -820,12 +823,54 @@ plot_grid(pc1_reads_filter + theme(legend.position=c(.7,.5)),
           pc1_spike_filter + theme(legend.position = &quot;none&quot;), 
           pc1_gene_filter + theme(legend.position = &quot;none&quot;),
           labels = LETTERS[1:4])</code></pre>
-<pre><code>`geom_smooth()` using method = &#39;loess&#39;
-`geom_smooth()` using method = &#39;loess&#39;
-`geom_smooth()` using method = &#39;loess&#39;
-`geom_smooth()` using method = &#39;loess&#39;</code></pre>
-<p><img src="figure/sampleqc.Rmd/pca-after-4.png" width="768" style="display: block; margin: auto;" /> ```</p>
+<pre><code>`geom_smooth()` using method = &#39;gam&#39;
+`geom_smooth()` using method = &#39;gam&#39;
+`geom_smooth()` using method = &#39;gam&#39;
+`geom_smooth()` using method = &#39;gam&#39;</code></pre>
+<p><img src="figure/sampleqc.Rmd/pca-after-3.png" width="768" style="display: block; margin: auto;" /></p>
 </div>
+</div>
+<div id="session-information" class="section level2">
+<h2>Session information</h2>
+<!-- Insert the session information into the document -->
+<pre class="r"><code>sessionInfo()</code></pre>
+<pre><code>R version 3.4.1 (2017-06-30)
+Platform: x86_64-redhat-linux-gnu (64-bit)
+Running under: Scientific Linux 7.2 (Nitrogen)
+
+Matrix products: default
+BLAS/LAPACK: /usr/lib64/R/lib/libRblas.so
+
+locale:
+ [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
+ [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
+ [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
+ [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
+ [9] LC_ADDRESS=C               LC_TELEPHONE=C            
+[11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+
+attached base packages:
+[1] parallel  stats     graphics  grDevices utils     datasets  methods  
+[8] base     
+
+other attached packages:
+ [1] testit_0.7          MASS_7.3-47         Biobase_2.34.0     
+ [4] BiocGenerics_0.20.0 edgeR_3.16.5        limma_3.30.13      
+ [7] tidyr_0.6.1         dplyr_0.5.0         cowplot_0.7.0      
+[10] ggplot2_2.2.1      
+
+loaded via a namespace (and not attached):
+ [1] Rcpp_0.12.12       compiler_3.4.1     RColorBrewer_1.1-2
+ [4] git2r_0.19.0       plyr_1.8.4         tools_3.4.1       
+ [7] digest_0.6.12      nlme_3.1-131       evaluate_0.10.1   
+[10] tibble_1.3.0       gtable_0.2.0       lattice_0.20-35   
+[13] mgcv_1.8-17        Matrix_1.2-10      DBI_0.6-1         
+[16] yaml_2.1.14        stringr_1.2.0      knitr_1.17        
+[19] locfit_1.5-9.1     rprojroot_1.2      grid_3.4.1        
+[22] R6_2.2.2           rmarkdown_1.6      magrittr_1.5      
+[25] backports_1.0.5    scales_0.4.1       htmltools_0.3.6   
+[28] assertthat_0.2.0   colorspace_1.3-2   labeling_0.3      
+[31] stringi_1.1.5      lazyeval_0.2.0     munsell_0.4.3     </code></pre>
 </div>
 
 <hr>
