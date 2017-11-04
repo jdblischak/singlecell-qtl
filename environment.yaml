@@ -1,68 +1,277 @@
-# Conda configuration file to reproduce computing environment
-#
-# Create the conda environment:
-#
-# conda env create --file environment.yaml
-#
-# Update the conda environment:
-#
-# conda env update --file environment.yaml
-#
-# Activate the conda environment:
-#
-# source activate scqtl
-#
-# Deactivate the conda environment:
-#
-# source deactivate scqtl
-#
-# Resources:
-#
-# https://snakemake.readthedocs.io/en/stable/snakefiles/deployment.html
-# https://conda.io/docs/using/envs.html#create-environment-file-by-hand
-# https://bioconda.github.io
-# https://anaconda.org/jdblischak/repo
-
 name: scqtl
 channels:
-  - jdblischak
-  - bioconda
-  - conda-forge
-  - defaults
-  - r
+- jdblischak
+- conda-forge
+- bioconda
+- defaults
 dependencies:
-  - bioconductor-biobase
-  - bioconductor-biomart
-  - bioconductor-edger
-  - bioconductor-variancepartition
-  - biopython
-  - fastqc
-  - git
-  - git-lfs
-  - ipython
-  - multiqc
-  - pandoc
-  - pysam
-  - python
-  - r-base
-  - r-cowplot
-  - r-data.table
-  - r-devtools
-  - r-dplyr
-  - r-dt
-  - r-ggplot2
-  - r-mass
-  - r-mgcv
-  - r-readr
-  - r-rmarkdown >=0.9.6
-  - r-stringr >=1.2.0
-  - r-testit
-  - r-tidyr
-  - r-workflowr
-  - rpy2
-  - samtools
-  - snakemake
-  - subread
-  - umi_tools
-  - verifybamid
-  - wget
+- bcftools
+- bioconductor-annotationdbi
+- bioconductor-biobase
+- bioconductor-biocgenerics
+- bioconductor-biomart
+- bioconductor-edger
+- bioconductor-iranges
+- bioconductor-limma
+- bioconductor-s4vectors
+- biopython
+- filechunkio
+- ftputil
+- htslib
+- pysam
+- pysftp
+- r-bh
+- r-bit
+- r-bit64
+- r-catools
+- r-data.table
+- r-digest
+- r-ggplot2
+- r-gplots
+- r-jsonlite
+- r-locfit
+- r-mgcv
+- r-readr
+- r-scales
+- r-yaml
+- regex
+- samtools
+- snakemake
+- subread
+- umi_tools
+- urllib3
+- verifybamid
+- aioeasywebdav
+- aiohttp
+- appdirs
+- asn1crypto
+- async-timeout
+- backports
+- backports.functools_lru_cache
+- bzip2
+- ca-certificates
+- cairo
+- certifi
+- cffi
+- chardet
+- configargparse
+- cryptography
+- curl
+- cycler
+- cython
+- dbus
+- decorator
+- docutils
+- dropbox
+- expat
+- fontconfig
+- freetype
+- future
+- gettext
+- git
+- git-lfs
+- glib
+- gmp
+- graphite2
+- gsl
+- gst-plugins-base
+- gstreamer
+- harfbuzz
+- icu
+- idna
+- ipython
+- ipython_genutils
+- jedi
+- jpeg
+- krb5
+- libffi
+- libiconv
+- libpng
+- libssh2
+- libtiff
+- libxcb
+- libxml2
+- matplotlib
+- mmtf-python
+- msgpack-python
+- multidict
+- ncurses
+- nlopt
+- olefile
+- openssl
+- pandas
+- pandoc
+- pango
+- paramiko
+- pcre
+- pexpect
+- pickleshare
+- pillow
+- pip
+- pixman
+- prompt_toolkit
+- psutil
+- ptyprocess
+- pyasn1
+- pycparser
+- pygments
+- pynacl
+- pyparsing
+- pyqt
+- python
+- python-dateutil
+- pytz
+- pyyaml
+- qt
+- r-assertthat
+- r-backports
+- r-base
+- r-base64enc
+- r-bitops
+- r-blob
+- r-codetools
+- r-colorspace
+- r-curl
+- r-dbi
+- r-devtools
+- r-dichromat
+- r-doparallel
+- r-dt
+- r-evaluate
+- r-foreach
+- r-gdata
+- r-git2r
+- r-gtable
+- r-gtools
+- r-highr
+- r-htmltools
+- r-htmlwidgets
+- r-httr
+- r-iterators
+- r-kernsmooth
+- r-knitr
+- r-labeling
+- r-lattice
+- r-lazyeval
+- r-lme4
+- r-magrittr
+- r-markdown
+- r-mass
+- r-matrix
+- r-memoise
+- r-mime
+- r-minqa
+- r-munsell
+- r-nlme
+- r-openssl
+- r-pbkrtest
+- r-pkgconfig
+- r-plogr
+- r-plyr
+- r-r6
+- r-rcolorbrewer
+- r-rcpp
+- r-rcppeigen
+- r-rcurl
+- r-reshape2
+- r-rprojroot
+- r-rsqlite
+- r-rstudioapi
+- r-stringi
+- r-testit
+- r-tidyr
+- r-whisker
+- r-withr
+- r-xml
+- ratelimiter
+- readline
+- reportlab
+- setuptools
+- simplegeneric
+- singledispatch
+- sip
+- six
+- sqlite
+- tk
+- tornado
+- traitlets
+- wcwidth
+- wheel
+- wrapt
+- xorg-libxau
+- xorg-libxdmcp
+- xz
+- yaml
+- yarl
+- zlib
+- backports.weakref
+- bcrypt
+- bleach
+- cudatoolkit
+- cudnn
+- entrypoints
+- html5lib
+- intel-openmp
+- ipykernel
+- ipywidgets
+- jinja2
+- jsonschema
+- jupyter
+- jupyter_client
+- jupyter_console
+- jupyter_core
+- libgcc
+- libgcc-ng
+- libgfortran
+- libprotobuf
+- libsodium
+- libstdcxx-ng
+- markdown
+- markupsafe
+- mistune
+- mkl
+- nbconvert
+- nbformat
+- notebook
+- numpy
+- pandocfilters
+- protobuf
+- pyzmq
+- qtconsole
+- r-bindr
+- r-bindrcpp
+- r-dbplyr
+- r-dplyr
+- r-glue
+- r-purrr
+- r-rlang
+- r-tibble
+- requests
+- rpy2
+- scipy
+- tensorflow-gpu
+- tensorflow-gpu-base
+- tensorflow-tensorboard
+- terminado
+- testpath
+- werkzeug
+- wget
+- widgetsnbextension
+- zeromq
+- bioconductor-variancepartition
+- r-callr
+- r-colorramps
+- r-cowplot
+- r-nloptr
+- r-rmarkdown
+- r-stringr
+- r-workflowr
+- pip:
+  - backports.functools-lru-cache
+  - ipython-genutils
+  - jupyter-client
+  - jupyter-console
+  - jupyter-core
+  - prompt-toolkit
+  - tensorflow
+  - umi-tools
