@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2017-11-06 Mon 09:32 -->
+<!-- 2017-11-06 Mon 12:46 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>UMI count distribution stratified by genotype</title>
@@ -235,26 +235,26 @@ for the JavaScript code in this tag.
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents">
 <ul>
-<li><a href="#org9d08f7b">Setup</a></li>
-<li><a href="#orgaa0f7bd">Read the data</a></li>
-<li><a href="#org3bc4ca8">Look at top mean-QTLs</a>
+<li><a href="#org595a736">Setup</a></li>
+<li><a href="#org520c9c6">Read the data</a></li>
+<li><a href="#org67f34c4">Look at top mean-QTLs</a>
 <ul>
-<li><a href="#orgf08c868">ZWIM7</a></li>
-<li><a href="#org78352a1">PPIP5K2</a></li>
-<li><a href="#org507d497">NUDT2</a></li>
-<li><a href="#orgab87fce">C7orf73</a></li>
-<li><a href="#orgb620854">PPIL3</a></li>
+<li><a href="#orgb1b917f">ZWIM7</a></li>
+<li><a href="#org3ae99d9">PPIP5K2</a></li>
+<li><a href="#org40f58ad">NUDT2</a></li>
+<li><a href="#org135afaa">C7orf73</a></li>
+<li><a href="#org83dedfc">PPIL3</a></li>
 </ul>
 </li>
 </ul>
 </div>
 </div>
 
-<div id="outline-container-org9d08f7b" class="outline-2">
-<h2 id="org9d08f7b">Setup</h2>
-<div class="outline-text-2" id="text-org9d08f7b">
+<div id="outline-container-org595a736" class="outline-2">
+<h2 id="org595a736">Setup</h2>
+<div class="outline-text-2" id="text-org595a736">
 <div class="org-src-container">
-<pre class="src src-shell" id="org1f97edb">sbatch $<span class="org-variable-name">RESOURCES</span> --job-name=ipython3 --output=ipython3.out
+<pre class="src src-shell" id="org22639ee">sbatch $<span class="org-variable-name">RESOURCES</span> --job-name=ipython3 --output=ipython3.out
 <span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
 <span class="org-builtin">source</span> activate scqtl
 rm -f $<span class="org-variable-name">HOME</span>/.local/share/jupyter/runtime/kernel-aksarkar.json
@@ -263,7 +263,7 @@ ipython3 kernel --ip=$(<span class="org-sh-quoted-exec">hostname</span> -i) -f k
 </div>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org849b84f">%matplotlib inline
+<pre class="src src-ipython" id="org5b68099">%matplotlib inline
 
 <span class="org-keyword">import</span> io
 <span class="org-keyword">import</span> os
@@ -276,9 +276,9 @@ ipython3 kernel --ip=$(<span class="org-sh-quoted-exec">hostname</span> -i) -f k
 </div>
 </div>
 
-<div id="outline-container-orgaa0f7bd" class="outline-2">
-<h2 id="orgaa0f7bd">Read the data</h2>
-<div class="outline-text-2" id="text-orgaa0f7bd">
+<div id="outline-container-org520c9c6" class="outline-2">
+<h2 id="org520c9c6">Read the data</h2>
+<div class="outline-text-2" id="text-org520c9c6">
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-variable-name">counts</span> = pd.read_table(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>, index_col=0)
 counts.shape
@@ -422,9 +422,9 @@ ENSG00000240344    PPIL3  rs13412214    -1.343370  1.566880e-14
 </div>
 </div>
 
-<div id="outline-container-org3bc4ca8" class="outline-2">
-<h2 id="org3bc4ca8">Look at top mean-QTLs</h2>
-<div class="outline-text-2" id="text-org3bc4ca8">
+<div id="outline-container-org67f34c4" class="outline-2">
+<h2 id="org67f34c4">Look at top mean-QTLs</h2>
+<div class="outline-text-2" id="text-org67f34c4">
 <p>
 Plot the distribution of UMI counts per cell stratified by genotype (no
 pooling by individual).
@@ -460,9 +460,9 @@ pooling by individual).
 </div>
 </div>
 
-<div id="outline-container-orgf08c868" class="outline-3">
-<h3 id="orgf08c868">ZWIM7</h3>
-<div class="outline-text-3" id="text-orgf08c868">
+<div id="outline-container-orgb1b917f" class="outline-3">
+<h3 id="orgb1b917f">ZWIM7</h3>
+<div class="outline-text-3" id="text-orgb1b917f">
 <div class="org-src-container">
 <pre class="src src-ipython">plot_umi_dist(counts, genotypes, ensembl, <span class="org-string">'ENSG00000214941'</span>, <span class="org-string">'rs73276049'</span>)
 </pre>
@@ -470,7 +470,7 @@ pooling by individual).
 
 
 <div class="figure">
-<p><img src="../docs/figure/sc-stratified-geno.org/214941.png" alt="214941.png">
+<p><img src="figure/sc-stratified-geno.org/214941.png" alt="214941.png">
 </p>
 </div>
 
@@ -493,9 +493,9 @@ are not among the individuals assayed.
 </div>
 </div>
 
-<div id="outline-container-org78352a1" class="outline-3">
-<h3 id="org78352a1">PPIP5K2</h3>
-<div class="outline-text-3" id="text-org78352a1">
+<div id="outline-container-org3ae99d9" class="outline-3">
+<h3 id="org3ae99d9">PPIP5K2</h3>
+<div class="outline-text-3" id="text-org3ae99d9">
 <div class="org-src-container">
 <pre class="src src-ipython">plot_umi_dist(counts, genotypes, ensembl, <span class="org-string">'ENSG00000145725'</span>, <span class="org-string">'rs34822'</span>)
 </pre>
@@ -503,15 +503,15 @@ are not among the individuals assayed.
 
 
 <div class="figure">
-<p><img src="./../docs/figure/sc-stratified-geno.org/145725.png" alt="145725.png">
+<p><img src="figure/sc-stratified-geno.org/145725.png" alt="145725.png">
 </p>
 </div>
 </div>
 </div>
 
-<div id="outline-container-org507d497" class="outline-3">
-<h3 id="org507d497">NUDT2</h3>
-<div class="outline-text-3" id="text-org507d497">
+<div id="outline-container-org40f58ad" class="outline-3">
+<h3 id="org40f58ad">NUDT2</h3>
+<div class="outline-text-3" id="text-org40f58ad">
 <div class="org-src-container">
 <pre class="src src-ipython">plot_umi_dist(counts, genotypes, ensembl, <span class="org-string">'ENSG00000164978'</span>, <span class="org-string">'rs7848476'</span>)
 </pre>
@@ -519,15 +519,15 @@ are not among the individuals assayed.
 
 
 <div class="figure">
-<p><img src="./../docs/figure/sc-stratified-geno.org/164978.png" alt="164978.png">
+<p><img src="figure/sc-stratified-geno.org/164978.png" alt="164978.png">
 </p>
 </div>
 </div>
 </div>
 
-<div id="outline-container-orgab87fce" class="outline-3">
-<h3 id="orgab87fce">C7orf73</h3>
-<div class="outline-text-3" id="text-orgab87fce">
+<div id="outline-container-org135afaa" class="outline-3">
+<h3 id="org135afaa">C7orf73</h3>
+<div class="outline-text-3" id="text-org135afaa">
 <div class="org-src-container">
 <pre class="src src-ipython">plot_umi_dist(counts, genotypes, ensembl, <span class="org-string">'ENSG00000243317'</span>, <span class="org-string">'rs6467603'</span>)
 </pre>
@@ -535,15 +535,15 @@ are not among the individuals assayed.
 
 
 <div class="figure">
-<p><img src="./../docs/figure/sc-stratified-geno.org/243317.png" alt="243317.png">
+<p><img src="figure/sc-stratified-geno.org/243317.png" alt="243317.png">
 </p>
 </div>
 </div>
 </div>
 
-<div id="outline-container-orgb620854" class="outline-3">
-<h3 id="orgb620854">PPIL3</h3>
-<div class="outline-text-3" id="text-orgb620854">
+<div id="outline-container-org83dedfc" class="outline-3">
+<h3 id="org83dedfc">PPIL3</h3>
+<div class="outline-text-3" id="text-org83dedfc">
 <div class="org-src-container">
 <pre class="src src-ipython">plot_umi_dist(counts, genotypes, ensembl, <span class="org-string">'ENSG00000240344'</span>, <span class="org-string">'rs13412214'</span>)
 </pre>
@@ -551,7 +551,7 @@ are not among the individuals assayed.
 
 
 <div class="figure">
-<p><img src="./../docs/figure/sc-stratified-geno.org/240344.png" alt="240344.png">
+<p><img src="figure/sc-stratified-geno.org/240344.png" alt="240344.png">
 </p>
 </div>
 </div>
@@ -560,7 +560,7 @@ are not among the individuals assayed.
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2017-11-06 Mon 09:32</p>
+<p class="date">Created: 2017-11-06 Mon 12:46</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>

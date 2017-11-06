@@ -222,13 +222,13 @@
 
 ** ZWIM7
 
-  #+BEGIN_SRC ipython :ipyfile ../docs/figure/sc-stratified-geno.org/214941.png
+  #+BEGIN_SRC ipython :ipyfile figure/sc-stratified-geno.org/214941.png
     plot_umi_dist(counts, genotypes, ensembl, 'ENSG00000214941', 'rs73276049')
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  [[file:../docs/figure/sc-stratified-geno.org/214941.png]]
+  [[file:figure/sc-stratified-geno.org/214941.png]]
   :END:
 
   At this variant, there are only two YRI individuals with genotype 2, and they
@@ -249,41 +249,41 @@
   :END:
 
 ** PPIP5K2
-  #+BEGIN_SRC ipython :ipyfile ./../docs/figure/sc-stratified-geno.org/145725.png
+  #+BEGIN_SRC ipython :ipyfile figure/sc-stratified-geno.org/145725.png
     plot_umi_dist(counts, genotypes, ensembl, 'ENSG00000145725', 'rs34822')
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  [[file:./../docs/figure/sc-stratified-geno.org/145725.png]]
+  [[file:figure/sc-stratified-geno.org/145725.png]]
   :END:
 
 ** NUDT2
-  #+BEGIN_SRC ipython :ipyfile ./../docs/figure/sc-stratified-geno.org/164978.png
+  #+BEGIN_SRC ipython :ipyfile figure/sc-stratified-geno.org/164978.png
     plot_umi_dist(counts, genotypes, ensembl, 'ENSG00000164978', 'rs7848476')
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  [[file:./../docs/figure/sc-stratified-geno.org/164978.png]]
+  [[file:figure/sc-stratified-geno.org/164978.png]]
   :END:
 
 ** C7orf73
-  #+BEGIN_SRC ipython :ipyfile ./../docs/figure/sc-stratified-geno.org/243317.png
+  #+BEGIN_SRC ipython :ipyfile figure/sc-stratified-geno.org/243317.png
     plot_umi_dist(counts, genotypes, ensembl, 'ENSG00000243317', 'rs6467603')
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  [[file:./../docs/figure/sc-stratified-geno.org/243317.png]]
+  [[file:figure/sc-stratified-geno.org/243317.png]]
   :END:
 
 ** PPIL3
-  #+BEGIN_SRC ipython :ipyfile ./../docs/figure/sc-stratified-geno.org/240344.png
+  #+BEGIN_SRC ipython :ipyfile figure/sc-stratified-geno.org/240344.png
     plot_umi_dist(counts, genotypes, ensembl, 'ENSG00000240344', 'rs13412214')
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  [[file:./../docs/figure/sc-stratified-geno.org/240344.png]]
+  [[file:figure/sc-stratified-geno.org/240344.png]]
   :END:
