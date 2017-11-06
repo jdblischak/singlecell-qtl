@@ -24,3 +24,4 @@ output:
     highlight: textmate
     include:
       after_body: include/footer.html
+    smart: false
