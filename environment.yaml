@@ -4,6 +4,7 @@ channels:
 - conda-forge
 - bioconda
 - defaults
+- anaconda
 dependencies:
 - bcftools
 - bioconductor-annotationdbi

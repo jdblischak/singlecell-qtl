@@ -1,7 +1,7 @@
 name: singlecell-qtl
 output_dir: "../docs"
 include: [".nojekyll"]
-exclude: ["include"]
+exclude: ["include", "*org"]
 navbar:
   title: singlecell-qtl
   left:
