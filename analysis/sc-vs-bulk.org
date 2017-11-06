@@ -1,0 +1,204 @@
+#+TITLE: Single cell/bulk RNA-Seq concordance
+#+AUTHOR: Abhishek Sarkar
+#+EMAIL: aksarkar@uchicago.edu
+#+OPTIONS: num:nil
+#+SETUPFILE: ~/.emacs.d/org-templates/setup.org
+#+PROPERTY: header-args:ipython+ :session kernel-aksarkar.json :results raw drawer :eval never-export :exports both :async t
+
+* Setup
+
+  #+NAME: ipython3
+  #+BEGIN_SRC shell :dir (concat (file-name-as-directory (getenv "SCRATCH")) "singlecell") :var RESOURCES="--mem=4G --time 6:00:00 --partition=broadwl"
+    sbatch $RESOURCES --job-name=ipython3 --output=ipython3.out
+    #!/bin/bash
+    source activate scqtl
+    rm -f $HOME/.local/share/jupyter/runtime/kernel-aksarkar.json
+    ipython3 kernel --ip=$(hostname -i) -f kernel-aksarkar.json
+  #+END_SRC
+
+  #+RESULTS: ipython3
+  : Submitted batch job 39986882
+
+  #+NAME: imports
+  #+BEGIN_SRC ipython
+    %matplotlib inline
+
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import pandas as pd
+    import scipy.stats as sst
+  #+END_SRC
+
+  #+RESULTS: imports
+  :RESULTS:
+  :END:
+
+* Read the data
+
+  #+BEGIN_SRC ipython
+    def load_umi_data(min_cell_count=5):
+      annotations = pd.read_table('/home/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
+      counts = pd.read_table('/home/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', index_col=0)
+      keep_individuals = annotations['chip_id'].value_counts() > min_cell_count
+      keep_cells = annotations.apply(lambda x: keep_individuals.loc[x['chip_id']], axis=1)
+      annotations = annotations.loc[keep_cells.values]
+      counts = counts.loc[:,keep_cells.values]
+      return counts, annotations, keep_individuals
+
+    def pool_by_individual(umi, annotations):
+      umi = umi.copy()
+      umi.columns = annotations['chip_id']
+      return umi.groupby(level=0, axis=1).agg(np.sum)
+
+    def load_bulk_data(keep_individuals):
+      counts = pd.read_table('/project2/gilad/data/iPSC/counts_RNAseq_iPSC.txt', header=0, index_col=0, sep=' ')
+      counts.index = [k.split('.')[0] for k in counts.index]
+      counts.columns = ['NA{}'.format(k) for k in counts.columns]
+      counts = counts.filter(items=keep_individuals[keep_individuals].index)
+      return counts
+
+    def load_normed_bulk_data(keep_individuals):
+      counts = pd.read_table('/project2/gilad/data/iPSC/qqnorm_RNAseq_run.fixed.txt.gz', header=0, index_col=3)
+      counts.index = [k.split('.')[0] for k in counts.index]
+      counts.columns = ['NA{}'.format(k) for k in counts.columns]
+      counts = counts.filter(items=keep_individuals[keep_individuals].index)
+      return counts
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  :END:
+
+  #+BEGIN_SRC ipython
+    umi, annotations, keep_individuals = load_umi_data()
+    pooled = pool_by_individual(umi, annotations)
+
+    bulk = load_bulk_data(keep_individuals)
+    normed_bulk = load_normed_bulk_data(keep_individuals)
+
+    umi.shape, pooled.shape, bulk.shape, normed_bulk.shape
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  : ((20327, 2261), (20327, 22), (14034, 20), (14034, 21))
+  :END:
+
+* Discrepancies
+
+  One individual has normalized bulk expression but not bulk counts:
+
+  #+BEGIN_SRC ipython
+    set(normed_bulk.columns) - set(bulk.columns)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  : {'NA19092'}
+  :END:
+
+  One individual has single cell expression but not bulk expression:
+
+  #+BEGIN_SRC ipython
+    set(pooled.columns) - set(normed_bulk.columns)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  : {'NA19203'}
+  :END:
+
+* Plot bulk count vs. UMI count per individual
+
+  #+BEGIN_SRC ipython
+    def plot_concordance(umi, bulk, xlabel, ylabel, output_dir):
+      for k, y in bulk.groupby(level=0, axis=1):
+        x = umi.loc[y.index,k]
+        plt.clf()
+        plt.scatter(x.values, y.values, alpha=0.25)
+        plt.plot([0, y.max()], [0, y.max()])
+        plt.title(k)
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
+        plt.savefig('{}/{}.png'.format(output_dir, k))
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  :END:
+
+  #+BEGIN_SRC ipython :results none :exports code
+    plot_concordance(pooled, bulk, 'Pooled UMI count', 'Bulk RNA-Seq count', 'figure/sc-vs-bulk.org/counts')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  70c87a9f-a7a2-445b-b4fb-96583a2d2ca5
+  :END:
+
+  file:figure/sc-vs-bulk.org/counts/NA18498.png
+  file:figure/sc-vs-bulk.org/counts/NA18499.png
+  file:figure/sc-vs-bulk.org/counts/NA18501.png
+  file:figure/sc-vs-bulk.org/counts/NA18502.png
+  file:figure/sc-vs-bulk.org/counts/NA18505.png
+  file:figure/sc-vs-bulk.org/counts/NA18507.png
+  file:figure/sc-vs-bulk.org/counts/NA18508.png
+  file:figure/sc-vs-bulk.org/counts/NA18520.png
+  file:figure/sc-vs-bulk.org/counts/NA18852.png
+  file:figure/sc-vs-bulk.org/counts/NA18853.png
+  file:figure/sc-vs-bulk.org/counts/NA18856.png
+  file:figure/sc-vs-bulk.org/counts/NA18862.png
+  file:figure/sc-vs-bulk.org/counts/NA18870.png
+  file:figure/sc-vs-bulk.org/counts/NA19098.png
+  file:figure/sc-vs-bulk.org/counts/NA19119.png
+  file:figure/sc-vs-bulk.org/counts/NA19128.png
+  file:figure/sc-vs-bulk.org/counts/NA19159.png
+  file:figure/sc-vs-bulk.org/counts/NA19190.png
+  file:figure/sc-vs-bulk.org/counts/NA19210.png
+  file:figure/sc-vs-bulk.org/counts/NA19257.png
+
+* Plot normalized bulk vs. normalized UMI count
+
+  Performing bulk RNA-Seq normalization on the pooled UMI data does not give a
+  reasonable result.
+
+  #+BEGIN_SRC ipython
+    def normalize(pooled):
+      # Standardize across individuals
+      pooled -= pooled.mean(axis=0)
+      pooled /= pooled.std(axis=0)
+      # Quantile normalize within individuals
+      N = sst.norm()
+      return pooled.apply(lambda x: N.ppf(x.rank() / len(x)), axis=0)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  :END:
+
+  #+BEGIN_SRC ipython :results none :ipyfile /scratch/midway2/aksarkar/temp.png :async nil
+    normed = normalize(pooled)
+    plot_concordance(normed, normed_bulk, 'Normalized pooled UMI count', 'Normalized bulk expression', 'figure/sc-vs-bulk.org/normed')
+  #+END_SRC
+
+  file:figure/sc-vs-bulk.org/normed/NA18498.png
+  file:figure/sc-vs-bulk.org/normed/NA18499.png
+  file:figure/sc-vs-bulk.org/normed/NA18501.png
+  file:figure/sc-vs-bulk.org/normed/NA18502.png
+  file:figure/sc-vs-bulk.org/normed/NA18505.png
+  file:figure/sc-vs-bulk.org/normed/NA18507.png
+  file:figure/sc-vs-bulk.org/normed/NA18508.png
+  file:figure/sc-vs-bulk.org/normed/NA18520.png
+  file:figure/sc-vs-bulk.org/normed/NA18852.png
+  file:figure/sc-vs-bulk.org/normed/NA18853.png
+  file:figure/sc-vs-bulk.org/normed/NA18856.png
+  file:figure/sc-vs-bulk.org/normed/NA18862.png
+  file:figure/sc-vs-bulk.org/normed/NA18870.png
+  file:figure/sc-vs-bulk.org/normed/NA19092.png
+  file:figure/sc-vs-bulk.org/normed/NA19098.png
+  file:figure/sc-vs-bulk.org/normed/NA19119.png
+  file:figure/sc-vs-bulk.org/normed/NA19128.png
+  file:figure/sc-vs-bulk.org/normed/NA19159.png
+  file:figure/sc-vs-bulk.org/normed/NA19190.png
+  file:figure/sc-vs-bulk.org/normed/NA19210.png
+  file:figure/sc-vs-bulk.org/normed/NA19257.png

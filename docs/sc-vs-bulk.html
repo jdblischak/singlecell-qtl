@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- 2017-11-06 Mon 15:35 -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Single cell/bulk RNA-Seq concordance</title>
+<meta name="generator" content="Org mode">
+<meta name="author" content="Abhishek Sarkar">
+<style type="text/css">
+ <!--/*--><![CDATA[/*><!--*/
+  .title  { text-align: center;
+             margin-bottom: .2em; }
+  .subtitle { text-align: center;
+              font-size: medium;
+              font-weight: bold;
+              margin-top:0; }
+  .todo   { font-family: monospace; color: red; }
+  .done   { font-family: monospace; color: green; }
+  .priority { font-family: monospace; color: orange; }
+  .tag    { background-color: #eee; font-family: monospace;
+            padding: 2px; font-size: 80%; font-weight: normal; }
+  .timestamp { color: #bebebe; }
+  .timestamp-kwd { color: #5f9ea0; }
+  .org-right  { margin-left: auto; margin-right: 0px;  text-align: right; }
+  .org-left   { margin-left: 0px;  margin-right: auto; text-align: left; }
+  .org-center { margin-left: auto; margin-right: auto; text-align: center; }
+  .underline { text-decoration: underline; }
+  #postamble p, #preamble p { font-size: 90%; margin: .2em; }
+  p.verse { margin-left: 3%; }
+  pre {
+    border: 1px solid #ccc;
+    box-shadow: 3px 3px 3px #eee;
+    padding: 8pt;
+    font-family: monospace;
+    overflow: auto;
+    margin: 1.2em;
+  }
+  pre.src {
+    position: relative;
+    overflow: visible;
+    padding-top: 1.2em;
+  }
+  pre.src:before {
+    display: none;
+    position: absolute;
+    background-color: white;
+    top: -10px;
+    right: 10px;
+    padding: 3px;
+    border: 1px solid black;
+  }
+  pre.src:hover:before { display: inline;}
+  /* Languages per Org manual */
+  pre.src-asymptote:before { content: 'Asymptote'; }
+  pre.src-awk:before { content: 'Awk'; }
+  pre.src-C:before { content: 'C'; }
+  /* pre.src-C++ doesn't work in CSS */
+  pre.src-clojure:before { content: 'Clojure'; }
+  pre.src-css:before { content: 'CSS'; }
+  pre.src-D:before { content: 'D'; }
+  pre.src-ditaa:before { content: 'ditaa'; }
+  pre.src-dot:before { content: 'Graphviz'; }
+  pre.src-calc:before { content: 'Emacs Calc'; }
+  pre.src-emacs-lisp:before { content: 'Emacs Lisp'; }
+  pre.src-fortran:before { content: 'Fortran'; }
+  pre.src-gnuplot:before { content: 'gnuplot'; }
+  pre.src-haskell:before { content: 'Haskell'; }
+  pre.src-hledger:before { content: 'hledger'; }
+  pre.src-java:before { content: 'Java'; }
+  pre.src-js:before { content: 'Javascript'; }
+  pre.src-latex:before { content: 'LaTeX'; }
+  pre.src-ledger:before { content: 'Ledger'; }
+  pre.src-lisp:before { content: 'Lisp'; }
+  pre.src-lilypond:before { content: 'Lilypond'; }
+  pre.src-lua:before { content: 'Lua'; }
+  pre.src-matlab:before { content: 'MATLAB'; }
+  pre.src-mscgen:before { content: 'Mscgen'; }
+  pre.src-ocaml:before { content: 'Objective Caml'; }
+  pre.src-octave:before { content: 'Octave'; }
+  pre.src-org:before { content: 'Org mode'; }
+  pre.src-oz:before { content: 'OZ'; }
+  pre.src-plantuml:before { content: 'Plantuml'; }
+  pre.src-processing:before { content: 'Processing.js'; }
+  pre.src-python:before { content: 'Python'; }
+  pre.src-R:before { content: 'R'; }
+  pre.src-ruby:before { content: 'Ruby'; }
+  pre.src-sass:before { content: 'Sass'; }
+  pre.src-scheme:before { content: 'Scheme'; }
+  pre.src-screen:before { content: 'Gnu Screen'; }
+  pre.src-sed:before { content: 'Sed'; }
+  pre.src-sh:before { content: 'shell'; }
+  pre.src-sql:before { content: 'SQL'; }
+  pre.src-sqlite:before { content: 'SQLite'; }
+  /* additional languages in org.el's org-babel-load-languages alist */
+  pre.src-forth:before { content: 'Forth'; }
+  pre.src-io:before { content: 'IO'; }
+  pre.src-J:before { content: 'J'; }
+  pre.src-makefile:before { content: 'Makefile'; }
+  pre.src-maxima:before { content: 'Maxima'; }
+  pre.src-perl:before { content: 'Perl'; }
+  pre.src-picolisp:before { content: 'Pico Lisp'; }
+  pre.src-scala:before { content: 'Scala'; }
+  pre.src-shell:before { content: 'Shell Script'; }
+  pre.src-ebnf2ps:before { content: 'ebfn2ps'; }
+  /* additional language identifiers per "defun org-babel-execute"
+       in ob-*.el */
+  pre.src-cpp:before  { content: 'C++'; }
+  pre.src-abc:before  { content: 'ABC'; }
+  pre.src-coq:before  { content: 'Coq'; }
+  pre.src-groovy:before  { content: 'Groovy'; }
+  /* additional language identifiers from org-babel-shell-names in
+     ob-shell.el: ob-shell is the only babel language using a lambda to put
+     the execution function name together. */
+  pre.src-bash:before  { content: 'bash'; }
+  pre.src-csh:before  { content: 'csh'; }
+  pre.src-ash:before  { content: 'ash'; }
+  pre.src-dash:before  { content: 'dash'; }
+  pre.src-ksh:before  { content: 'ksh'; }
+  pre.src-mksh:before  { content: 'mksh'; }
+  pre.src-posh:before  { content: 'posh'; }
+  /* Additional Emacs modes also supported by the LaTeX listings package */
+  pre.src-ada:before { content: 'Ada'; }
+  pre.src-asm:before { content: 'Assembler'; }
+  pre.src-caml:before { content: 'Caml'; }
+  pre.src-delphi:before { content: 'Delphi'; }
+  pre.src-html:before { content: 'HTML'; }
+  pre.src-idl:before { content: 'IDL'; }
+  pre.src-mercury:before { content: 'Mercury'; }
+  pre.src-metapost:before { content: 'MetaPost'; }
+  pre.src-modula-2:before { content: 'Modula-2'; }
+  pre.src-pascal:before { content: 'Pascal'; }
+  pre.src-ps:before { content: 'PostScript'; }
+  pre.src-prolog:before { content: 'Prolog'; }
+  pre.src-simula:before { content: 'Simula'; }
+  pre.src-tcl:before { content: 'tcl'; }
+  pre.src-tex:before { content: 'TeX'; }
+  pre.src-plain-tex:before { content: 'Plain TeX'; }
+  pre.src-verilog:before { content: 'Verilog'; }
+  pre.src-vhdl:before { content: 'VHDL'; }
+  pre.src-xml:before { content: 'XML'; }
+  pre.src-nxml:before { content: 'XML'; }
+  /* add a generic configuration mode; LaTeX export needs an additional
+     (add-to-list 'org-latex-listings-langs '(conf " ")) in .emacs */
+  pre.src-conf:before { content: 'Configuration File'; }
+
+  table { border-collapse:collapse; }
+  caption.t-above { caption-side: top; }
+  caption.t-bottom { caption-side: bottom; }
+  td, th { vertical-align:top;  }
+  th.org-right  { text-align: center;  }
+  th.org-left   { text-align: center;   }
+  th.org-center { text-align: center; }
+  td.org-right  { text-align: right;  }
+  td.org-left   { text-align: left;   }
+  td.org-center { text-align: center; }
+  dt { font-weight: bold; }
+  .footpara { display: inline; }
+  .footdef  { margin-bottom: 1em; }
+  .figure { padding: 1em; }
+  .figure p { text-align: center; }
+  .inlinetask {
+    padding: 10px;
+    border: 2px solid gray;
+    margin: 10px;
+    background: #ffffcc;
+  }
+  #org-div-home-and-up
+   { text-align: right; font-size: 70%; white-space: nowrap; }
+  textarea { overflow-x: auto; }
+  .linenr { font-size: smaller }
+  .code-highlighted { background-color: #ffff00; }
+  .org-info-js_info-navigation { border-style: none; }
+  #org-info-js_console-label
+    { font-size: 10px; font-weight: bold; white-space: nowrap; }
+  .org-info-js_search-highlight
+    { background-color: #ffff00; color: #000000; font-weight: bold; }
+  .org-svg { width: 90%; }
+  /*]]>*/-->
+</style>
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<link rel="stylesheet" type="text/css" href="https://www.pirilampo.org/styles/readtheorg/css/htmlize.css"/>
+<style type="text/css">body {width: 60em; margin:auto} pre.src {overflow:auto}</style>
+<script type="text/javascript">
+/*
+@licstart  The following is the entire license notice for the
+JavaScript code in this tag.
+
+Copyright (C) 2012-2017 Free Software Foundation, Inc.
+
+The JavaScript code in this tag is free software: you can
+redistribute it and/or modify it under the terms of the GNU
+General Public License (GNU GPL) as published by the Free Software
+Foundation, either version 3 of the License, or (at your option)
+any later version.  The code is distributed WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU GPL for more details.
+
+As additional permission under GNU GPL version 3 section 7, you
+may distribute non-source (e.g., minimized or compacted) forms of
+that code without the copy of the GNU GPL normally required by
+section 4, provided you include this license notice and a URL
+through which recipients can access the Corresponding Source.
+
+
+@licend  The above is the entire license notice
+for the JavaScript code in this tag.
+*/
+<!--/*--><![CDATA[/*><!--*/
+ function CodeHighlightOn(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(null != target) {
+     elem.cacheClassElem = elem.className;
+     elem.cacheClassTarget = target.className;
+     target.className = "code-highlighted";
+     elem.className   = "code-highlighted";
+   }
+ }
+ function CodeHighlightOff(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(elem.cacheClassElem)
+     elem.className = elem.cacheClassElem;
+   if(elem.cacheClassTarget)
+     target.className = elem.cacheClassTarget;
+ }
+/*]]>*///-->
+</script>
+</head>
+<body>
+<div id="content">
+<h1 class="title">Single cell/bulk RNA-Seq concordance</h1>
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#org23d047d">Setup</a></li>
+<li><a href="#orgbd22a84">Read the data</a></li>
+<li><a href="#org231ad35">Discrepancies</a></li>
+<li><a href="#org63265d0">Plot bulk count vs. UMI count per individual</a></li>
+<li><a href="#org87dfe1e">Plot normalized bulk vs. normalized UMI count</a></li>
+</ul>
+</div>
+</div>
+
+<div id="outline-container-org23d047d" class="outline-2">
+<h2 id="org23d047d">Setup</h2>
+<div class="outline-text-2" id="text-org23d047d">
+<div class="org-src-container">
+<pre class="src src-shell" id="org128549f">sbatch $<span class="org-variable-name">RESOURCES</span> --job-name=ipython3 --output=ipython3.out
+<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
+<span class="org-builtin">source</span> activate scqtl
+rm -f $<span class="org-variable-name">HOME</span>/.local/share/jupyter/runtime/kernel-aksarkar.json
+ipython3 kernel --ip=$(<span class="org-sh-quoted-exec">hostname</span> -i) -f kernel-aksarkar.json
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython" id="org56c7536">%matplotlib inline
+
+<span class="org-keyword">import</span> matplotlib.pyplot <span class="org-keyword">as</span> plt
+<span class="org-keyword">import</span> numpy <span class="org-keyword">as</span> np
+<span class="org-keyword">import</span> pandas <span class="org-keyword">as</span> pd
+<span class="org-keyword">import</span> scipy.stats <span class="org-keyword">as</span> sst
+</pre>
+</div>
+</div>
+</div>
+
+<div id="outline-container-orgbd22a84" class="outline-2">
+<h2 id="orgbd22a84">Read the data</h2>
+<div class="outline-text-2" id="text-orgbd22a84">
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">load_umi_data</span>(min_cell_count=5):
+  <span class="org-variable-name">annotations</span> = pd.read_table(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
+  <span class="org-variable-name">counts</span> = pd.read_table(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>, index_col=0)
+  <span class="org-variable-name">keep_individuals</span> = annotations[<span class="org-string">'chip_id'</span>].value_counts() &gt; min_cell_count
+  <span class="org-variable-name">keep_cells</span> = annotations.<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: keep_individuals.loc[x[<span class="org-string">'chip_id'</span>]], axis=1)
+  <span class="org-variable-name">annotations</span> = annotations.loc[keep_cells.values]
+  <span class="org-variable-name">counts</span> = counts.loc[:,keep_cells.values]
+  <span class="org-keyword">return</span> counts, annotations, keep_individuals
+
+<span class="org-keyword">def</span> <span class="org-function-name">pool_by_individual</span>(umi, annotations):
+  <span class="org-variable-name">umi</span> = umi.copy()
+  <span class="org-variable-name">umi.columns</span> = annotations[<span class="org-string">'chip_id'</span>]
+  <span class="org-keyword">return</span> umi.groupby(level=0, axis=1).agg(np.<span class="org-builtin">sum</span>)
+
+<span class="org-keyword">def</span> <span class="org-function-name">load_bulk_data</span>(keep_individuals):
+  <span class="org-variable-name">counts</span> = pd.read_table(<span class="org-string">'/project2/gilad/data/iPSC/counts_RNAseq_iPSC.txt'</span>, header=0, index_col=0, sep=<span class="org-string">' '</span>)
+  <span class="org-variable-name">counts.index</span> = [k.split(<span class="org-string">'.'</span>)[0] <span class="org-keyword">for</span> k <span class="org-keyword">in</span> counts.index]
+  <span class="org-variable-name">counts.columns</span> = [<span class="org-string">'NA{}'</span>.<span class="org-builtin">format</span>(k) <span class="org-keyword">for</span> k <span class="org-keyword">in</span> counts.columns]
+  <span class="org-variable-name">counts</span> = counts.<span class="org-builtin">filter</span>(items=keep_individuals[keep_individuals].index)
+  <span class="org-keyword">return</span> counts
+
+<span class="org-keyword">def</span> <span class="org-function-name">load_normed_bulk_data</span>(keep_individuals):
+  <span class="org-variable-name">counts</span> = pd.read_table(<span class="org-string">'/project2/gilad/data/iPSC/qqnorm_RNAseq_run.fixed.txt.gz'</span>, header=0, index_col=3)
+  <span class="org-variable-name">counts.index</span> = [k.split(<span class="org-string">'.'</span>)[0] <span class="org-keyword">for</span> k <span class="org-keyword">in</span> counts.index]
+  <span class="org-variable-name">counts.columns</span> = [<span class="org-string">'NA{}'</span>.<span class="org-builtin">format</span>(k) <span class="org-keyword">for</span> k <span class="org-keyword">in</span> counts.columns]
+  <span class="org-variable-name">counts</span> = counts.<span class="org-builtin">filter</span>(items=keep_individuals[keep_individuals].index)
+  <span class="org-keyword">return</span> counts
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">umi</span>, <span class="org-variable-name">annotations</span>, <span class="org-variable-name">keep_individuals</span> = load_umi_data()
+<span class="org-variable-name">pooled</span> = pool_by_individual(umi, annotations)
+
+<span class="org-variable-name">bulk</span> = load_bulk_data(keep_individuals)
+<span class="org-variable-name">normed_bulk</span> = load_normed_bulk_data(keep_individuals)
+
+umi.shape, pooled.shape, bulk.shape, normed_bulk.shape
+</pre>
+</div>
+
+<pre class="example">
+((20327, 2261), (20327, 22), (14034, 20), (14034, 21))
+
+</pre>
+</div>
+</div>
+
+<div id="outline-container-org231ad35" class="outline-2">
+<h2 id="org231ad35">Discrepancies</h2>
+<div class="outline-text-2" id="text-org231ad35">
+<p>
+One individual has normalized bulk expression but not bulk counts:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-builtin">set</span>(normed_bulk.columns) - <span class="org-builtin">set</span>(bulk.columns)
+</pre>
+</div>
+
+<pre class="example">
+{'NA19092'}
+
+</pre>
+
+<p>
+One individual has single cell expression but not bulk expression
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-builtin">set</span>(pooled.columns) - <span class="org-builtin">set</span>(normed_bulk.columns)
+</pre>
+</div>
+
+<pre class="example">
+{'NA19203'}
+
+</pre>
+</div>
+</div>
+
+<div id="outline-container-org63265d0" class="outline-2">
+<h2 id="org63265d0">Plot bulk count vs. UMI count per individual</h2>
+<div class="outline-text-2" id="text-org63265d0">
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">plot_concordance</span>(umi, bulk, xlabel, ylabel, output_dir):
+  <span class="org-keyword">for</span> k, y <span class="org-keyword">in</span> bulk.groupby(level=0, axis=1):
+    <span class="org-variable-name">x</span> = umi.loc[y.index,k]
+    plt.clf()
+    plt.scatter(x.values, y.values, alpha=0.25)
+    plt.plot([0, y.<span class="org-builtin">max</span>()], [0, y.<span class="org-builtin">max</span>()])
+    plt.title(k)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.savefig(<span class="org-string">'{}/{}.png'</span>.<span class="org-builtin">format</span>(output_dir, k))
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plot_concordance(pooled, bulk, <span class="org-string">'Pooled UMI count'</span>, <span class="org-string">'Bulk RNA-Seq count'</span>, <span class="org-string">'figure/sc-vs-bulk.org/counts'</span>)
+</pre>
+</div>
+
+<p>
+<img src="figure/sc-vs-bulk.org/counts/NA18498.png" alt="NA18498.png">
+<img src="figure/sc-vs-bulk.org/counts/NA18499.png" alt="NA18499.png">
+<img src="figure/sc-vs-bulk.org/counts/NA18501.png" alt="NA18501.png">
+<img src="figure/sc-vs-bulk.org/counts/NA18502.png" alt="NA18502.png">
+<img src="figure/sc-vs-bulk.org/counts/NA18505.png" alt="NA18505.png">
+<img src="figure/sc-vs-bulk.org/counts/NA18507.png" alt="NA18507.png">
+<img src="figure/sc-vs-bulk.org/counts/NA18508.png" alt="NA18508.png">
+<img src="figure/sc-vs-bulk.org/counts/NA18520.png" alt="NA18520.png">
+<img src="figure/sc-vs-bulk.org/counts/NA18852.png" alt="NA18852.png">
+<img src="figure/sc-vs-bulk.org/counts/NA18853.png" alt="NA18853.png">
+<img src="figure/sc-vs-bulk.org/counts/NA18856.png" alt="NA18856.png">
+<img src="figure/sc-vs-bulk.org/counts/NA18862.png" alt="NA18862.png">
+<img src="figure/sc-vs-bulk.org/counts/NA18870.png" alt="NA18870.png">
+<img src="figure/sc-vs-bulk.org/counts/NA19098.png" alt="NA19098.png">
+<img src="figure/sc-vs-bulk.org/counts/NA19119.png" alt="NA19119.png">
+<img src="figure/sc-vs-bulk.org/counts/NA19128.png" alt="NA19128.png">
+<img src="figure/sc-vs-bulk.org/counts/NA19159.png" alt="NA19159.png">
+<img src="figure/sc-vs-bulk.org/counts/NA19190.png" alt="NA19190.png">
+<img src="figure/sc-vs-bulk.org/counts/NA19210.png" alt="NA19210.png">
+<img src="figure/sc-vs-bulk.org/counts/NA19257.png" alt="NA19257.png">
+</p>
+</div>
+</div>
+
+<div id="outline-container-org87dfe1e" class="outline-2">
+<h2 id="org87dfe1e">Plot normalized bulk vs. normalized UMI count</h2>
+<div class="outline-text-2" id="text-org87dfe1e">
+<p>
+Performing bulk RNA-Seq normalization on the pooled UMI data does not give a
+reasonable result.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">normalize</span>(pooled):
+  <span class="org-comment-delimiter"># </span><span class="org-comment">Standardize across individuals</span>
+  <span class="org-variable-name">pooled</span> -= pooled.mean(axis=0)
+  <span class="org-variable-name">pooled</span> /= pooled.std(axis=0)
+  <span class="org-comment-delimiter"># </span><span class="org-comment">Quantile normalize within individuals</span>
+  <span class="org-variable-name">N</span> = sst.norm()
+  <span class="org-keyword">return</span> pooled.<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: N.ppf(x.rank() / <span class="org-builtin">len</span>(x)), axis=0)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">normed</span> = normalize(pooled)
+plot_concordance(normed, normed_bulk, <span class="org-string">'Normalized pooled UMI count'</span>, <span class="org-string">'Normalized bulk expression'</span>, <span class="org-string">'figure/sc-vs-bulk.org/normed'</span>)
+</pre>
+</div>
+
+<p>
+<img src="figure/sc-vs-bulk.org/normed/NA18498.png" alt="NA18498.png">
+<img src="figure/sc-vs-bulk.org/normed/NA18499.png" alt="NA18499.png">
+<img src="figure/sc-vs-bulk.org/normed/NA18501.png" alt="NA18501.png">
+<img src="figure/sc-vs-bulk.org/normed/NA18502.png" alt="NA18502.png">
+<img src="figure/sc-vs-bulk.org/normed/NA18505.png" alt="NA18505.png">
+<img src="figure/sc-vs-bulk.org/normed/NA18507.png" alt="NA18507.png">
+<img src="figure/sc-vs-bulk.org/normed/NA18508.png" alt="NA18508.png">
+<img src="figure/sc-vs-bulk.org/normed/NA18520.png" alt="NA18520.png">
+<img src="figure/sc-vs-bulk.org/normed/NA18852.png" alt="NA18852.png">
+<img src="figure/sc-vs-bulk.org/normed/NA18853.png" alt="NA18853.png">
+<img src="figure/sc-vs-bulk.org/normed/NA18856.png" alt="NA18856.png">
+<img src="figure/sc-vs-bulk.org/normed/NA18862.png" alt="NA18862.png">
+<img src="figure/sc-vs-bulk.org/normed/NA18870.png" alt="NA18870.png">
+<img src="figure/sc-vs-bulk.org/normed/NA19092.png" alt="NA19092.png">
+<img src="figure/sc-vs-bulk.org/normed/NA19098.png" alt="NA19098.png">
+<img src="figure/sc-vs-bulk.org/normed/NA19119.png" alt="NA19119.png">
+<img src="figure/sc-vs-bulk.org/normed/NA19128.png" alt="NA19128.png">
+<img src="figure/sc-vs-bulk.org/normed/NA19159.png" alt="NA19159.png">
+<img src="figure/sc-vs-bulk.org/normed/NA19190.png" alt="NA19190.png">
+<img src="figure/sc-vs-bulk.org/normed/NA19210.png" alt="NA19210.png">
+<img src="figure/sc-vs-bulk.org/normed/NA19257.png" alt="NA19257.png">
+</p>
+</div>
+</div>
+</div>
+<div id="postamble" class="status">
+<p class="author">Author: Abhishek Sarkar</p>
+<p class="date">Created: 2017-11-06 Mon 15:35</p>
+<p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
+</div>
+</body>
+</html>
