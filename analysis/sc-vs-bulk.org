@@ -74,42 +74,52 @@
 * Compute TPM
 
   #+BEGIN_SRC ipython
-    def get_gene_lengths():
-      query = """<?xml version="1.0" encoding="UTF-8"?>
-    <!DOCTYPE Query>
-    <Query  virtualSchemaName = "default" formatter = "TSV" header = "0" uniqueRows = "0" count = "" datasetConfigVersion = "0.6" >
-    <Dataset name = "hsapiens_gene_ensembl" interface = "default" >
-      <Attribute name = "ensembl_gene_id" />
-      <Attribute name = "start_position" />
-      <Attribute name = "end_position" />
-    </Dataset>
-    </Query>"""
-      resp = requests.get('http://www.ensembl.org/biomart/martservice', params={'query': query})
+    def biomart(query):
+      resp = requests.get('http://www.ensembl.org/biomart/martservice', params={'query': query.strip()})
       if resp.status_code != 200:
         raise RuntimeError
       with io.StringIO(resp.text) as f:
-        return pd.read_table(f, header=None, index_col=0).rename(columns={1: 'start', 2: 'end'})
+        return pd.read_table(f, header=None, index_col=0)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
   :END:
 
+  #+NAME: query
+  #+BEGIN_SRC xml :exports code
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE Query>
+    <Query  virtualSchemaName = "default" formatter = "TSV" header = "0" uniqueRows = "0" count = "" datasetConfigVersion = "0.6" >
+      <Dataset name = "hsapiens_gene_ensembl" interface = "default" >
+        <Attribute name = "ensembl_gene_id" />
+        <Attribute name = "exon_chrom_start" />
+        <Attribute name = "exon_chrom_end" />
+      </Dataset>
+    </Query>
+  #+END_SRC
+  
+  #+BEGIN_SRC ipython :noweb no-export
+    ensembl = biomart("""
+      <<query>>
+    """)
+  #+END_SRC
+
   #+BEGIN_SRC ipython
-    ensembl = get_gene_lengths()
-    ensembl.head()
+    total_exon_length_kb = ensembl.groupby(level=0).apply(lambda x: (x[3] - x[2]).agg(np.sum) / 1e3)
+    total_exon_length_kb.head()
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
   #+BEGIN_EXAMPLE
-                      start       end
-    0                                  
-    ENSG00000283891  55372940  55373034
-    ENSG00000251931  59450673  59450772
-    ENSG00000207766  41691585  41691678
-    ENSG00000275323  54201473  54208260
-    ENSG00000276678  10287413  10287482
+  0
+    ENSG00000000003     8.713
+    ENSG00000000005     1.871
+    ENSG00000000419     5.814
+    ENSG00000000457    15.922
+    ENSG00000000460    21.720
+    dtype: float64
   #+END_EXAMPLE
   :END:
 
@@ -117,8 +127,8 @@
     def cpm(counts):
       return counts / counts.sum(axis=0) * 1e6
 
-    def tpm(counts, ensembl, log2=False):
-      rpk = counts.add(1).rtruediv(ensembl.loc[counts.index].apply(lambda x: (x['end'] - x['start']) / 1e3, axis=1), axis='index')
+    def tpm(counts, lengths, log2=False):
+      rpk = counts.add(1).rtruediv(lengths.loc[counts.index], axis='index')
       tpm = cpm(rpk)
       if log2:
         tpm = np.log(tpm) / np.log(2)
@@ -130,8 +140,9 @@
   :END:
 
   #+BEGIN_SRC ipython
-    bulk_tpm = tpm(bulk, ensembl, log2=True)
-    pooled_tpm = tpm(umi.groupby(by=annotations['chip_id'].values, axis=1).agg(np.sum), ensembl, log2=True)
+    bulk_tpm = tpm(bulk, total_exon_length_kb, log2=True)
+    pooled_tpm = tpm(umi.groupby(by=annotations['chip_id'].values, axis=1).agg(np.sum),
+                     total_exon_length_kb, log2=True)
   #+END_SRC
 
   #+RESULTS:
@@ -198,11 +209,11 @@
 * Plot bulk vs. pooled subsets
 
   #+BEGIN_SRC ipython
-    def plot_concordance_by_num_cells(individual, umi, annotations, ensembl, bulk_tpm, output_dir):
+    def plot_concordance_by_num_cells(individual, umi, annotations, lengths, bulk_tpm, output_dir):
       bulk_tpm = bulk_tpm.loc[:,individual].to_frame()
       umi = umi.loc[:,(annotations['chip_id'] == individual).values]
-      for num_cells in np.concatenate((np.arange(1, 20), np.arange(25, umi.shape[1], 25))):
-        pooled_tpm = tpm(umi.sample(n=num_cells, axis=1).sum(axis=1).to_frame(), ensembl, log2=True)
+      for num_cells in [1, 10, 50, 100, 200]:
+        pooled_tpm = tpm(umi.sample(n=num_cells, axis=1).sum(axis=1).to_frame(), lengths, log2=True)
         merged = pooled_tpm.merge(bulk_tpm, left_index=True, right_index=True)
         merged.columns = ['x', 'y']
         plot_concordance(
@@ -220,7 +231,7 @@
       'NA18507',
       umi,
       annotations,
-      ensembl,
+      total_exon_length_kb,
       bulk_tpm,
       '/home/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/vs-cells/'
     )
@@ -238,12 +249,12 @@
   partitioning into two halves.
 
   #+BEGIN_SRC ipython
-    def plot_concordance_pooled_subsets(individual, umi, annotations, ensembl, output_dir):
+    def plot_concordance_pooled_subsets(individual, umi, annotations, lengths, output_dir):
       umi = umi.loc[:,(annotations['chip_id'] == individual).values]
       for num_cells in [1, 10, 50, 100]:
         sample = umi.sample(n=2 * num_cells, axis=1)
-        pool1 = tpm(sample.iloc[:,:num_cells].sum(axis=1).to_frame(), ensembl, log2=True)
-        pool2 = tpm(sample.iloc[:,num_cells:].sum(axis=1).to_frame(), ensembl, log2=True)
+        pool1 = tpm(sample.iloc[:,:num_cells].sum(axis=1).to_frame(), lengths, log2=True)
+        pool2 = tpm(sample.iloc[:,num_cells:].sum(axis=1).to_frame(), lengths, log2=True)
         merged = pool1.merge(pool2, left_index=True, right_index=True)
         merged.columns = ['x', 'y']
         plot_concordance(
@@ -262,7 +273,7 @@
       'NA18507',
       umi,
       annotations,
-      ensembl,
+      total_exon_length_kb,
       '/home/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/subsets/'
     )
   #+END_SRC
