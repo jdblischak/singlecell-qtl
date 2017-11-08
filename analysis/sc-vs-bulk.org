@@ -141,7 +141,7 @@
 * Plot bulk vs. pooled single cells
 
   #+BEGIN_SRC ipython
-    def plot_concordance(merged, title, filename):
+    def plot_concordance(merged, title, filename, ylabel=None):
       lim = [merged.min().min(), merged.max().max()]
       plt.clf()
       plt.scatter(merged['x'], merged['y'], alpha=0.25, color='black')
@@ -151,7 +151,9 @@
       ax.set_ylim([merged['y'].min(), merged['y'].max()])
       plt.title(title)
       plt.xlabel('scRNA-Seq $\log_2(\mathrm{TPM})$')
-      plt.ylabel('Bulk RNA-Seq $\log_2(\mathrm{TPM})$')
+      if ylabel is None:
+        ylabel = 'Bulk RNA-Seq $\log_2(\mathrm{TPM})$'
+      plt.ylabel(ylabel)
       plt.savefig(filename)
 
     def plot_concordance_by_individual(umi, bulk, output_dir):
@@ -168,7 +170,7 @@
   #+BEGIN_SRC ipython :exports code :results none
     plot_concordance_by_individual(
       pooled_tpm,
-      bulk_tpm
+      bulk_tpm,
       '/home/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/normed')
   #+END_SRC
 
@@ -205,7 +207,7 @@
         merged.columns = ['x', 'y']
         plot_concordance(
           merged,
-          '{}, {} cells'.format(individual, num_cells),
+          '{}, {} cell{}'.format(individual, num_cells, 's' if num_cells > 1 else ''),
           '{}/{}-{}.png'.format(output_dir, individual, num_cells))
   #+END_SRC
 
@@ -213,7 +215,7 @@
   :RESULTS:
   :END:
 
-  #+BEGIN_SRC ipython
+  #+BEGIN_SRC ipython :results none
     plot_concordance_by_num_cells(
       'NA18507',
       umi,
@@ -224,10 +226,48 @@
     )
   #+END_SRC
 
-  
   file:figure/sc-vs-bulk.org/vs-cells/NA18507-1.png
   file:figure/sc-vs-bulk.org/vs-cells/NA18507-10.png
   file:figure/sc-vs-bulk.org/vs-cells/NA18507-50.png
   file:figure/sc-vs-bulk.org/vs-cells/NA18507-100.png
   file:figure/sc-vs-bulk.org/vs-cells/NA18507-200.png
 
+* Plot pooled subsets vs. pooled subsets
+
+  Ensure that pools don't overlap by randomly sampling double the cells and
+  partitioning into two halves.
+
+  #+BEGIN_SRC ipython
+    def plot_concordance_pooled_subsets(individual, umi, annotations, ensembl, output_dir):
+      umi = umi.loc[:,(annotations['chip_id'] == individual).values]
+      for num_cells in [1, 10, 50, 100]:
+        sample = umi.sample(n=2 * num_cells, axis=1)
+        pool1 = tpm(sample.iloc[:,:num_cells].sum(axis=1).to_frame(), ensembl, log2=True)
+        pool2 = tpm(sample.iloc[:,num_cells:].sum(axis=1).to_frame(), ensembl, log2=True)
+        merged = pool1.merge(pool2, left_index=True, right_index=True)
+        merged.columns = ['x', 'y']
+        plot_concordance(
+          merged,
+          '{}, {} cell{}'.format(individual, num_cells, 's' if num_cells > 1 else ''),
+          '{}/{}-{}.png'.format(output_dir, individual, num_cells),
+          'scRNA-Seq $\log_2(\mathrm{TPM})$')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  :END:
+
+  #+BEGIN_SRC ipython :results none
+    plot_concordance_pooled_subsets(
+      'NA18507',
+      umi,
+      annotations,
+      ensembl,
+      '/home/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/subsets/'
+    )
+  #+END_SRC
+
+  file:figure/sc-vs-bulk.org/subsets/NA18507-1.png
+  file:figure/sc-vs-bulk.org/subsets/NA18507-10.png
+  file:figure/sc-vs-bulk.org/subsets/NA18507-50.png
+  file:figure/sc-vs-bulk.org/subsets/NA18507-100.png
