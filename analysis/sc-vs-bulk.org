@@ -3,7 +3,7 @@
 #+EMAIL: aksarkar@uchicago.edu
 #+OPTIONS: num:nil
 #+SETUPFILE: ~/.emacs.d/org-templates/setup.org
-#+PROPERTY: header-args:ipython+ :session kernel-aksarkar.json :results raw drawer :eval never-export :exports both :async t
+#+PROPERTY: header-args:ipython+ :session kernel-aksarkar.json :results raw drawer :eval never-export :exports both
 
 * Setup
 
@@ -295,3 +295,38 @@
   file:figure/sc-vs-bulk.org/subsets/NA18507-10.png
   file:figure/sc-vs-bulk.org/subsets/NA18507-50.png
   file:figure/sc-vs-bulk.org/subsets/NA18507-100.png
+
+* Plot bulk vs. bulk
+
+  #+BEGIN_SRC ipython
+    def plot_concordance_bulk(bulk_tpm, output_dir):
+      for i in range(bulk_tpm.shape[1]):
+        for j in range(i + 1, bulk_tpm.shape[1]):
+          merged = bulk_tpm.iloc[:,i].to_frame().merge(
+            bulk_tpm.iloc[:,j].to_frame(), left_index=True, right_index=True)
+          merged.columns = ['x', 'y']
+          id1 = bulk_tpm.columns[i]
+          id2 = bulk_tpm.columns[j]
+          plot_concordance(
+            merged,
+            '{} vs. {}'.format(id1, id2),
+            '{}/{}-{}.png'.format(output_dir, id1, id2))
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  :END:
+
+  #+BEGIN_SRC ipython :results none
+    plot_concordance_bulk(
+      bulk_tpm,
+      '/home/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/bulk-vs-bulk/')
+  #+END_SRC
+
+  High concordance:
+
+  file:figure/sc-vs-bulk.org/bulk-vs-bulk/NA18499-NA19159.png
+
+  Lower concordance:
+
+  file:figure/sc-vs-bulk.org/bulk-vs-bulk/NA18505-NA19119.png
