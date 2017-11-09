@@ -17,7 +17,7 @@
   #+END_SRC
 
   #+RESULTS: ipython3
-  : Submitted batch job 40040751
+  : Submitted batch job 40076977
 
   #+NAME: imports
   #+BEGIN_SRC ipython
@@ -105,8 +105,12 @@
     """)
   #+END_SRC
 
+  #+RESULTS:
+  :RESULTS:
+  :END:
+
   #+BEGIN_SRC ipython
-    total_exon_length_kb = ensembl.groupby(level=0).apply(lambda x: (x[3] - x[2]).agg(np.sum) / 1e3)
+    total_exon_length_kb = ensembl.groupby(level=0).apply(lambda x: (x[2] - x[1]).agg(np.sum) / 1e3)
     total_exon_length_kb.head()
   #+END_SRC
 
@@ -128,10 +132,14 @@
       return counts / counts.sum(axis=0) * 1e6
 
     def tpm(counts, lengths, log2=False):
-      rpk = counts.add(1).rtruediv(lengths.loc[counts.index], axis='index')
+      common = counts.merge(lengths.to_frame(), left_index=True, right_index=True)
+      rpk = counts.loc[common.index].values / lengths.loc[common.index].values.reshape(-1, 1)
+      assert not np.isnan(rpk).any()
+      assert np.isfinite(rpk).all()
+      rpk = pd.DataFrame(rpk, index=common.index, columns=counts.columns)
       tpm = cpm(rpk)
       if log2:
-        tpm = np.log(tpm) / np.log(2)
+        tpm = np.log(tpm + 1) / np.log(2)
       return tpm
   #+END_SRC
 
@@ -152,10 +160,14 @@
 * Plot bulk vs. pooled single cells
 
   #+BEGIN_SRC ipython
-    def plot_concordance(merged, title, filename, ylabel=None):
+    def plot_concordance(merged, title, filename, ylabel=None, **kwargs):
       lim = [merged.min().min(), merged.max().max()]
       plt.clf()
-      plt.scatter(merged['x'], merged['y'], alpha=0.25, color='black')
+      if 'gridsize' not in kwargs:
+        kwargs['gridsize'] = 40
+      plt.hexbin(merged['x'], merged['y'], cmap='Reds', **kwargs)
+      cb = plt.colorbar()
+      cb.set_label('Number of genes')
       plt.plot(lim, lim, color='red')
       ax = plt.gca()
       ax.set_xlim([merged['x'].min(), merged['x'].max()])
@@ -261,7 +273,8 @@
           merged,
           '{}, {} cell{}'.format(individual, num_cells, 's' if num_cells > 1 else ''),
           '{}/{}-{}.png'.format(output_dir, individual, num_cells),
-          'scRNA-Seq $\log_2(\mathrm{TPM})$')
+          ylabel='scRNA-Seq $\log_2(\mathrm{TPM})$',
+          gridsize=15)
   #+END_SRC
 
   #+RESULTS:
