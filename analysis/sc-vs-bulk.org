@@ -23,6 +23,7 @@
   #+BEGIN_SRC ipython
     %matplotlib inline
 
+    import colorcet
     import io
     import matplotlib.pyplot as plt
     import numpy as np
@@ -160,12 +161,12 @@
 * Plot bulk vs. pooled single cells
 
   #+BEGIN_SRC ipython
-    def plot_concordance(merged, title, filename, ylabel=None, **kwargs):
+    def plot_concordance(merged, title, filename, xlabel=None, ylabel=None, **kwargs):
       lim = [merged.min().min(), merged.max().max()]
       plt.clf()
       if 'gridsize' not in kwargs:
         kwargs['gridsize'] = 40
-      plt.hexbin(merged['x'], merged['y'], cmap='Reds', **kwargs)
+      plt.hexbin(merged['x'], merged['y'], cmap=colorcet.cm['blues'], **kwargs)
       cb = plt.colorbar()
       cb.set_label('Number of genes')
       plt.plot(lim, lim, color='red')
@@ -173,9 +174,11 @@
       ax.set_xlim([merged['x'].min(), merged['x'].max()])
       ax.set_ylim([merged['y'].min(), merged['y'].max()])
       plt.title(title)
-      plt.xlabel('scRNA-Seq $\log_2(\mathrm{TPM})$')
+      if xlabel is None:
+        xlabel = 'scRNA-Seq $\log_2(\mathrm{TPM} + 1) $'
       if ylabel is None:
-        ylabel = 'Bulk RNA-Seq $\log_2(\mathrm{TPM})$'
+        ylabel = 'Bulk RNA-Seq $\log_2(\mathrm{TPM} + 1)$'
+      plt.xlabel(xlabel)
       plt.ylabel(ylabel)
       plt.savefig(filename)
 
@@ -273,7 +276,7 @@
           merged,
           '{}, {} cell{}'.format(individual, num_cells, 's' if num_cells > 1 else ''),
           '{}/{}-{}.png'.format(output_dir, individual, num_cells),
-          ylabel='scRNA-Seq $\log_2(\mathrm{TPM})$',
+          ylabel='scRNA-Seq $\log_2(\mathrm{TPM} + 1)$',
           gridsize=15)
   #+END_SRC
 
@@ -310,7 +313,8 @@
           plot_concordance(
             merged,
             '{} vs. {}'.format(id1, id2),
-            '{}/{}-{}.png'.format(output_dir, id1, id2))
+            '{}/{}-{}.png'.format(output_dir, id1, id2),
+            xlabel='Bulk RNA-Seq $\log_2(\mathrm{TPM} + 1)$')
   #+END_SRC
 
   #+RESULTS:
