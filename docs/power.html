@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- 2017-11-13 Mon 11:14 -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Power to detect QTLs in single cell data</title>
+<meta name="generator" content="Org mode">
+<meta name="author" content="Abhishek Sarkar">
+<style type="text/css">
+ <!--/*--><![CDATA[/*><!--*/
+  .title  { text-align: center;
+             margin-bottom: .2em; }
+  .subtitle { text-align: center;
+              font-size: medium;
+              font-weight: bold;
+              margin-top:0; }
+  .todo   { font-family: monospace; color: red; }
+  .done   { font-family: monospace; color: green; }
+  .priority { font-family: monospace; color: orange; }
+  .tag    { background-color: #eee; font-family: monospace;
+            padding: 2px; font-size: 80%; font-weight: normal; }
+  .timestamp { color: #bebebe; }
+  .timestamp-kwd { color: #5f9ea0; }
+  .org-right  { margin-left: auto; margin-right: 0px;  text-align: right; }
+  .org-left   { margin-left: 0px;  margin-right: auto; text-align: left; }
+  .org-center { margin-left: auto; margin-right: auto; text-align: center; }
+  .underline { text-decoration: underline; }
+  #postamble p, #preamble p { font-size: 90%; margin: .2em; }
+  p.verse { margin-left: 3%; }
+  pre {
+    border: 1px solid #ccc;
+    box-shadow: 3px 3px 3px #eee;
+    padding: 8pt;
+    font-family: monospace;
+    overflow: auto;
+    margin: 1.2em;
+  }
+  pre.src {
+    position: relative;
+    overflow: visible;
+    padding-top: 1.2em;
+  }
+  pre.src:before {
+    display: none;
+    position: absolute;
+    background-color: white;
+    top: -10px;
+    right: 10px;
+    padding: 3px;
+    border: 1px solid black;
+  }
+  pre.src:hover:before { display: inline;}
+  /* Languages per Org manual */
+  pre.src-asymptote:before { content: 'Asymptote'; }
+  pre.src-awk:before { content: 'Awk'; }
+  pre.src-C:before { content: 'C'; }
+  /* pre.src-C++ doesn't work in CSS */
+  pre.src-clojure:before { content: 'Clojure'; }
+  pre.src-css:before { content: 'CSS'; }
+  pre.src-D:before { content: 'D'; }
+  pre.src-ditaa:before { content: 'ditaa'; }
+  pre.src-dot:before { content: 'Graphviz'; }
+  pre.src-calc:before { content: 'Emacs Calc'; }
+  pre.src-emacs-lisp:before { content: 'Emacs Lisp'; }
+  pre.src-fortran:before { content: 'Fortran'; }
+  pre.src-gnuplot:before { content: 'gnuplot'; }
+  pre.src-haskell:before { content: 'Haskell'; }
+  pre.src-hledger:before { content: 'hledger'; }
+  pre.src-java:before { content: 'Java'; }
+  pre.src-js:before { content: 'Javascript'; }
+  pre.src-latex:before { content: 'LaTeX'; }
+  pre.src-ledger:before { content: 'Ledger'; }
+  pre.src-lisp:before { content: 'Lisp'; }
+  pre.src-lilypond:before { content: 'Lilypond'; }
+  pre.src-lua:before { content: 'Lua'; }
+  pre.src-matlab:before { content: 'MATLAB'; }
+  pre.src-mscgen:before { content: 'Mscgen'; }
+  pre.src-ocaml:before { content: 'Objective Caml'; }
+  pre.src-octave:before { content: 'Octave'; }
+  pre.src-org:before { content: 'Org mode'; }
+  pre.src-oz:before { content: 'OZ'; }
+  pre.src-plantuml:before { content: 'Plantuml'; }
+  pre.src-processing:before { content: 'Processing.js'; }
+  pre.src-python:before { content: 'Python'; }
+  pre.src-R:before { content: 'R'; }
+  pre.src-ruby:before { content: 'Ruby'; }
+  pre.src-sass:before { content: 'Sass'; }
+  pre.src-scheme:before { content: 'Scheme'; }
+  pre.src-screen:before { content: 'Gnu Screen'; }
+  pre.src-sed:before { content: 'Sed'; }
+  pre.src-sh:before { content: 'shell'; }
+  pre.src-sql:before { content: 'SQL'; }
+  pre.src-sqlite:before { content: 'SQLite'; }
+  /* additional languages in org.el's org-babel-load-languages alist */
+  pre.src-forth:before { content: 'Forth'; }
+  pre.src-io:before { content: 'IO'; }
+  pre.src-J:before { content: 'J'; }
+  pre.src-makefile:before { content: 'Makefile'; }
+  pre.src-maxima:before { content: 'Maxima'; }
+  pre.src-perl:before { content: 'Perl'; }
+  pre.src-picolisp:before { content: 'Pico Lisp'; }
+  pre.src-scala:before { content: 'Scala'; }
+  pre.src-shell:before { content: 'Shell Script'; }
+  pre.src-ebnf2ps:before { content: 'ebfn2ps'; }
+  /* additional language identifiers per "defun org-babel-execute"
+       in ob-*.el */
+  pre.src-cpp:before  { content: 'C++'; }
+  pre.src-abc:before  { content: 'ABC'; }
+  pre.src-coq:before  { content: 'Coq'; }
+  pre.src-groovy:before  { content: 'Groovy'; }
+  /* additional language identifiers from org-babel-shell-names in
+     ob-shell.el: ob-shell is the only babel language using a lambda to put
+     the execution function name together. */
+  pre.src-bash:before  { content: 'bash'; }
+  pre.src-csh:before  { content: 'csh'; }
+  pre.src-ash:before  { content: 'ash'; }
+  pre.src-dash:before  { content: 'dash'; }
+  pre.src-ksh:before  { content: 'ksh'; }
+  pre.src-mksh:before  { content: 'mksh'; }
+  pre.src-posh:before  { content: 'posh'; }
+  /* Additional Emacs modes also supported by the LaTeX listings package */
+  pre.src-ada:before { content: 'Ada'; }
+  pre.src-asm:before { content: 'Assembler'; }
+  pre.src-caml:before { content: 'Caml'; }
+  pre.src-delphi:before { content: 'Delphi'; }
+  pre.src-html:before { content: 'HTML'; }
+  pre.src-idl:before { content: 'IDL'; }
+  pre.src-mercury:before { content: 'Mercury'; }
+  pre.src-metapost:before { content: 'MetaPost'; }
+  pre.src-modula-2:before { content: 'Modula-2'; }
+  pre.src-pascal:before { content: 'Pascal'; }
+  pre.src-ps:before { content: 'PostScript'; }
+  pre.src-prolog:before { content: 'Prolog'; }
+  pre.src-simula:before { content: 'Simula'; }
+  pre.src-tcl:before { content: 'tcl'; }
+  pre.src-tex:before { content: 'TeX'; }
+  pre.src-plain-tex:before { content: 'Plain TeX'; }
+  pre.src-verilog:before { content: 'Verilog'; }
+  pre.src-vhdl:before { content: 'VHDL'; }
+  pre.src-xml:before { content: 'XML'; }
+  pre.src-nxml:before { content: 'XML'; }
+  /* add a generic configuration mode; LaTeX export needs an additional
+     (add-to-list 'org-latex-listings-langs '(conf " ")) in .emacs */
+  pre.src-conf:before { content: 'Configuration File'; }
+
+  table { border-collapse:collapse; }
+  caption.t-above { caption-side: top; }
+  caption.t-bottom { caption-side: bottom; }
+  td, th { vertical-align:top;  }
+  th.org-right  { text-align: center;  }
+  th.org-left   { text-align: center;   }
+  th.org-center { text-align: center; }
+  td.org-right  { text-align: right;  }
+  td.org-left   { text-align: left;   }
+  td.org-center { text-align: center; }
+  dt { font-weight: bold; }
+  .footpara { display: inline; }
+  .footdef  { margin-bottom: 1em; }
+  .figure { padding: 1em; }
+  .figure p { text-align: center; }
+  .inlinetask {
+    padding: 10px;
+    border: 2px solid gray;
+    margin: 10px;
+    background: #ffffcc;
+  }
+  #org-div-home-and-up
+   { text-align: right; font-size: 70%; white-space: nowrap; }
+  textarea { overflow-x: auto; }
+  .linenr { font-size: smaller }
+  .code-highlighted { background-color: #ffff00; }
+  .org-info-js_info-navigation { border-style: none; }
+  #org-info-js_console-label
+    { font-size: 10px; font-weight: bold; white-space: nowrap; }
+  .org-info-js_search-highlight
+    { background-color: #ffff00; color: #000000; font-weight: bold; }
+  .org-svg { width: 90%; }
+  /*]]>*/-->
+</style>
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<link rel="stylesheet" type="text/css" href="https://www.pirilampo.org/styles/readtheorg/css/htmlize.css"/>
+<style type="text/css">body {width: 60em; margin:auto} pre.src {overflow:auto}</style>
+<script type="text/javascript">
+/*
+@licstart  The following is the entire license notice for the
+JavaScript code in this tag.
+
+Copyright (C) 2012-2017 Free Software Foundation, Inc.
+
+The JavaScript code in this tag is free software: you can
+redistribute it and/or modify it under the terms of the GNU
+General Public License (GNU GPL) as published by the Free Software
+Foundation, either version 3 of the License, or (at your option)
+any later version.  The code is distributed WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU GPL for more details.
+
+As additional permission under GNU GPL version 3 section 7, you
+may distribute non-source (e.g., minimized or compacted) forms of
+that code without the copy of the GNU GPL normally required by
+section 4, provided you include this license notice and a URL
+through which recipients can access the Corresponding Source.
+
+
+@licend  The above is the entire license notice
+for the JavaScript code in this tag.
+*/
+<!--/*--><![CDATA[/*><!--*/
+ function CodeHighlightOn(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(null != target) {
+     elem.cacheClassElem = elem.className;
+     elem.cacheClassTarget = target.className;
+     target.className = "code-highlighted";
+     elem.className   = "code-highlighted";
+   }
+ }
+ function CodeHighlightOff(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(elem.cacheClassElem)
+     elem.className = elem.cacheClassElem;
+   if(elem.cacheClassTarget)
+     target.className = elem.cacheClassTarget;
+ }
+/*]]>*///-->
+</script>
+</head>
+<body>
+<div id="content">
+<h1 class="title">Power to detect QTLs in single cell data</h1>
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#orge7665bb">Introduction</a></li>
+<li><a href="#org00811b7">Distribution of library sizes</a></li>
+<li><a href="#org50b94a7">Distribution of moments</a></li>
+<li><a href="#org46dc3fc">Mean-variance relationship</a></li>
+<li><a href="#org7d315c0">Sample from bulk RNA-Seq to generate scRNA-Seq</a></li>
+</ul>
+</div>
+</div>
+
+<div id="outline-container-orge7665bb" class="outline-2">
+<h2 id="orge7665bb">Introduction</h2>
+<div class="outline-text-2" id="text-orge7665bb">
+<p>
+Our goal here is to use bulk RNA-Seq data on 59 iPSCs to simulate
+single cell RNA-Seq data in the same individuals and estimate power to detect
+mean and variance-effect QTLs.
+</p>
+
+<p>
+<a href="https://dx.doi.org/10.1186/s13059-017-1305-0">Zappia et al. 2017</a> give a method to generate scRNA-Seq data from scRNA-Seq
+data. Along the way, they use a number of distributions to validate that
+their generated data captures the relevant aspects of the generative
+process.
+</p>
+</div>
+</div>
+
+<div id="outline-container-org00811b7" class="outline-2">
+<h2 id="org00811b7">Distribution of library sizes</h2>
+<div class="outline-text-2" id="text-org00811b7">
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">plot_lib_sizes</span>(lib_sizes, title, filename):
+  plt.clf()
+  plt.hist(lib_sizes, bins=30)
+  plt.xlabel(<span class="org-string">'Total UMI count per cell'</span>)
+  plt.ylabel(<span class="org-string">'Number of cells'</span>)
+  plt.title(title)
+  plt.savefig(filename)
+
+<span class="org-keyword">def</span> <span class="org-function-name">plot_lib_sizes_by_individual</span>(umi, annotations, output_dir):
+  <span class="org-variable-name">lib_sizes</span> = pd.DataFrame(<span class="org-builtin">list</span>(<span class="org-builtin">zip</span>(annotations[<span class="org-string">'chip_id'</span>], umi.<span class="org-builtin">sum</span>(axis=0))))
+  <span class="org-keyword">for</span> k, g <span class="org-keyword">in</span> lib_sizes.groupby(0):
+    plot_lib_sizes(g.loc[:,1], k, <span class="org-string">'{}/{}.png'</span>.<span class="org-builtin">format</span>(output_dir, k))
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plot_lib_sizes_by_individual(
+  umi,
+  annotations,
+  <span class="org-string">'/home/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/lib-sizes'</span>)
+</pre>
+</div>
+
+<p>
+<img src="figure/power.org/lib-sizes/NA18498.png" alt="NA18498.png">
+<img src="figure/power.org/lib-sizes/NA18499.png" alt="NA18499.png">
+<img src="figure/power.org/lib-sizes/NA18501.png" alt="NA18501.png">
+<img src="figure/power.org/lib-sizes/NA18502.png" alt="NA18502.png">
+<img src="figure/power.org/lib-sizes/NA18505.png" alt="NA18505.png">
+<img src="figure/power.org/lib-sizes/NA18507.png" alt="NA18507.png">
+<img src="figure/power.org/lib-sizes/NA18508.png" alt="NA18508.png">
+<img src="figure/power.org/lib-sizes/NA18520.png" alt="NA18520.png">
+<img src="figure/power.org/lib-sizes/NA18852.png" alt="NA18852.png">
+<img src="figure/power.org/lib-sizes/NA18853.png" alt="NA18853.png">
+<img src="figure/power.org/lib-sizes/NA18856.png" alt="NA18856.png">
+<img src="figure/power.org/lib-sizes/NA18862.png" alt="NA18862.png">
+<img src="figure/power.org/lib-sizes/NA18870.png" alt="NA18870.png">
+<img src="figure/power.org/lib-sizes/NA19092.png" alt="NA19092.png">
+<img src="figure/power.org/lib-sizes/NA19098.png" alt="NA19098.png">
+<img src="figure/power.org/lib-sizes/NA19119.png" alt="NA19119.png">
+<img src="figure/power.org/lib-sizes/NA19128.png" alt="NA19128.png">
+<img src="figure/power.org/lib-sizes/NA19159.png" alt="NA19159.png">
+<img src="figure/power.org/lib-sizes/NA19190.png" alt="NA19190.png">
+<img src="figure/power.org/lib-sizes/NA19203.png" alt="NA19203.png">
+<img src="figure/power.org/lib-sizes/NA19210.png" alt="NA19210.png">
+<img src="figure/power.org/lib-sizes/NA19257.png" alt="NA19257.png">
+</p>
+</div>
+</div>
+
+<div id="outline-container-org50b94a7" class="outline-2">
+<h2 id="org50b94a7">Distribution of moments</h2>
+<div class="outline-text-2" id="text-org50b94a7">
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">moments</span> = (tpm(umi.loc[keep], total_exon_length_kb, log2=<span class="org-constant">True</span>)
+           .transpose()
+           .groupby(by=annotations[<span class="org-string">'chip_id'</span>].values)
+           .agg([np.mean, np.var]))
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">plot_moments</span>(moments, title, filename):
+  plt.clf()
+  <span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(1, 2)
+  ax[0].hist(moments.loc[:,<span class="org-string">'mean'</span>], bins=30, histtype=<span class="org-string">'step'</span>)
+  ax[0].set_xlabel(<span class="org-string">'Mean $\log_2(TPM + 1)$'</span>)
+  ax[0].set_ylabel(<span class="org-string">'Number of genes'</span>)
+  ax[1].hist(moments.loc[:,<span class="org-string">'var'</span>], bins=30, histtype=<span class="org-string">'step'</span>)
+  ax[1].set_xlabel(<span class="org-string">'Variance $\log_2(TPM + 1)$'</span>)
+  fig.suptitle(title)
+  plt.tight_layout(rect=[0, 0, 1, 0.95])
+  plt.savefig(filename)
+  plt.close()
+
+<span class="org-keyword">def</span> <span class="org-function-name">plot_moments_by_individual</span>(moments, output_dir):
+  <span class="org-keyword">for</span> ind, row <span class="org-keyword">in</span> moments.iterrows():
+    plot_moments(row, ind, <span class="org-string">'{}/{}.png'</span>.<span class="org-builtin">format</span>(output_dir, ind))
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plot_moments_by_individual(moments, <span class="org-string">'/home/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/moments/'</span>)
+</pre>
+</div>
+
+<p>
+<img src="figure/power.org/moments/NA18498.png" alt="NA18498.png">
+<img src="figure/power.org/moments/NA18499.png" alt="NA18499.png">
+<img src="figure/power.org/moments/NA18501.png" alt="NA18501.png">
+<img src="figure/power.org/moments/NA18502.png" alt="NA18502.png">
+<img src="figure/power.org/moments/NA18505.png" alt="NA18505.png">
+<img src="figure/power.org/moments/NA18507.png" alt="NA18507.png">
+<img src="figure/power.org/moments/NA18508.png" alt="NA18508.png">
+<img src="figure/power.org/moments/NA18520.png" alt="NA18520.png">
+<img src="figure/power.org/moments/NA18852.png" alt="NA18852.png">
+<img src="figure/power.org/moments/NA18853.png" alt="NA18853.png">
+<img src="figure/power.org/moments/NA18856.png" alt="NA18856.png">
+<img src="figure/power.org/moments/NA18862.png" alt="NA18862.png">
+<img src="figure/power.org/moments/NA18870.png" alt="NA18870.png">
+<img src="figure/power.org/moments/NA19092.png" alt="NA19092.png">
+<img src="figure/power.org/moments/NA19098.png" alt="NA19098.png">
+<img src="figure/power.org/moments/NA19119.png" alt="NA19119.png">
+<img src="figure/power.org/moments/NA19128.png" alt="NA19128.png">
+<img src="figure/power.org/moments/NA19159.png" alt="NA19159.png">
+<img src="figure/power.org/moments/NA19190.png" alt="NA19190.png">
+<img src="figure/power.org/moments/NA19203.png" alt="NA19203.png">
+<img src="figure/power.org/moments/NA19210.png" alt="NA19210.png">
+<img src="figure/power.org/moments/NA19257.png" alt="NA19257.png">
+</p>
+</div>
+</div>
+
+<div id="outline-container-org46dc3fc" class="outline-2">
+<h2 id="org46dc3fc">Mean-variance relationship</h2>
+<div class="outline-text-2" id="text-org46dc3fc">
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">plot_mean_var</span>(moments, title, filename):
+  plt.clf()
+  plt.hexbin(moments.loc[:,<span class="org-string">'mean'</span>], moments.loc[:,<span class="org-string">'var'</span>], cmap=colorcet.cm[<span class="org-string">'blues'</span>], gridsize=10)
+  plt.xlabel(<span class="org-string">'Mean $\log_2(\mathrm{TPM} + 1)$'</span>)
+  plt.ylabel(<span class="org-string">'Variance $\log_2(\mathrm{TPM} + 1)$'</span>)
+  <span class="org-variable-name">cb</span> = plt.colorbar()
+  cb.set_label(<span class="org-string">'Number of genes'</span>)
+  plt.title(title)
+  plt.savefig(filename)
+
+<span class="org-keyword">def</span> <span class="org-function-name">plot_mean_var_by_individual</span>(moments, output_dir):
+  <span class="org-keyword">for</span> ind, row <span class="org-keyword">in</span> moments.iterrows():
+    plot_mean_var(row, ind, <span class="org-string">'{}/{}.png'</span>.<span class="org-builtin">format</span>(output_dir, ind))
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plot_mean_var_by_individual(
+  moments,
+  <span class="org-string">'/home/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/mean-var/'</span>)
+</pre>
+</div>
+
+<p>
+<img src="figure/power.org/mean-var/NA18498.png" alt="NA18498.png">
+<img src="figure/power.org/mean-var/NA18499.png" alt="NA18499.png">
+<img src="figure/power.org/mean-var/NA18501.png" alt="NA18501.png">
+<img src="figure/power.org/mean-var/NA18502.png" alt="NA18502.png">
+<img src="figure/power.org/mean-var/NA18505.png" alt="NA18505.png">
+<img src="figure/power.org/mean-var/NA18507.png" alt="NA18507.png">
+<img src="figure/power.org/mean-var/NA18508.png" alt="NA18508.png">
+<img src="figure/power.org/mean-var/NA18520.png" alt="NA18520.png">
+<img src="figure/power.org/mean-var/NA18852.png" alt="NA18852.png">
+<img src="figure/power.org/mean-var/NA18853.png" alt="NA18853.png">
+<img src="figure/power.org/mean-var/NA18856.png" alt="NA18856.png">
+<img src="figure/power.org/mean-var/NA18862.png" alt="NA18862.png">
+<img src="figure/power.org/mean-var/NA18870.png" alt="NA18870.png">
+<img src="figure/power.org/mean-var/NA19092.png" alt="NA19092.png">
+<img src="figure/power.org/mean-var/NA19098.png" alt="NA19098.png">
+<img src="figure/power.org/mean-var/NA19119.png" alt="NA19119.png">
+<img src="figure/power.org/mean-var/NA19128.png" alt="NA19128.png">
+<img src="figure/power.org/mean-var/NA19159.png" alt="NA19159.png">
+<img src="figure/power.org/mean-var/NA19190.png" alt="NA19190.png">
+<img src="figure/power.org/mean-var/NA19203.png" alt="NA19203.png">
+<img src="figure/power.org/mean-var/NA19210.png" alt="NA19210.png">
+<img src="figure/power.org/mean-var/NA19257.png" alt="NA19257.png">
+</p>
+</div>
+</div>
+<div id="outline-container-org7d315c0" class="outline-2">
+<h2 id="org7d315c0">Sample from bulk RNA-Seq to generate scRNA-Seq</h2>
+<div class="outline-text-2" id="text-org7d315c0">
+<p>
+Focus on one individual (NA18507), and generate a new set of single cells by
+drawing counts to match the total UMI counts of the original cells
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">_generate_cells</span>(individual, bulk, umi, annotations):
+  <span class="org-keyword">for</span> cell_count <span class="org-keyword">in</span> umi.loc[:,(annotations[<span class="org-string">'chip_id'</span>] == individual).values].<span class="org-builtin">sum</span>():
+    <span class="org-keyword">yield</span> np.random.binomial(n=bulk[individual], p=cell_count / bulk[individual].<span class="org-builtin">sum</span>())
+
+<span class="org-keyword">def</span> <span class="org-function-name">generate_cells</span>(individual, bulk, umi, annotations):
+  <span class="org-keyword">return</span> (pd.DataFrame(<span class="org-builtin">list</span>(_generate_cells(individual, bulk, umi, annotations)))
+          .transpose()
+          .set_index(bulk.index))
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">generated_umi</span> = generate_cells(<span class="org-string">'NA18507'</span>, bulk, umi, annotations)
+<span class="org-variable-name">generated_moments</span> = (tpm(generated_umi, total_exon_length_kb, log2=<span class="org-constant">True</span>)
+                     .transpose()
+                     .groupby(np.zeros(generated_umi.shape[1]))
+                     .agg([np.mean, np.var]))
+<span class="org-variable-name">generated_moments.index</span> = [<span class="org-string">'syn0'</span>]
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plot_moments(
+  generated_moments.iloc[0],
+  <span class="org-string">'Synthetic NA18507'</span>,
+  <span class="org-string">'/home/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/moments/NA18507-generated.png'</span>)
+plot_mean_var(
+  generated_moments.iloc[0],
+  <span class="org-string">'Synthetic NA18507'</span>,
+  <span class="org-string">'/home/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/mean-var/NA18507-generated.png'</span>)
+</pre>
+</div>
+
+<p>
+<img src="figure/power.org/moments/NA18507-generated.png" alt="NA18507-generated.png">
+<img src="figure/power.org/mean-var/NA18507-generated.png" alt="NA18507-generated.png">
+</p>
+</div>
+</div>
+</div>
+<div id="postamble" class="status">
+<p class="author">Author: Abhishek Sarkar</p>
+<p class="date">Created: 2017-11-13 Mon 11:14</p>
+<p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
+</div>
+</body>
+</html>
