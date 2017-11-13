@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2017-11-13 Mon 11:14 -->
+<!-- 2017-11-13 Mon 13:59 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Power to detect QTLs in single cell data</title>
@@ -235,22 +235,23 @@ for the JavaScript code in this tag.
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents">
 <ul>
-<li><a href="#orge7665bb">Introduction</a></li>
-<li><a href="#org00811b7">Distribution of library sizes</a></li>
-<li><a href="#org50b94a7">Distribution of moments</a></li>
-<li><a href="#org46dc3fc">Mean-variance relationship</a></li>
-<li><a href="#org7d315c0">Sample from bulk RNA-Seq to generate scRNA-Seq</a></li>
+<li><a href="#orgf9fdb5e">Introduction</a></li>
+<li><a href="#org7259a8c">Distribution of library sizes</a></li>
+<li><a href="#org9043525">Distribution of moments</a></li>
+<li><a href="#orgb618a75">Mean-variance relationship</a></li>
+<li><a href="#org2628191">Mean-zero relationship</a></li>
+<li><a href="#org9549524">Sample from bulk RNA-Seq to generate scRNA-Seq</a></li>
 </ul>
 </div>
 </div>
 
-<div id="outline-container-orge7665bb" class="outline-2">
-<h2 id="orge7665bb">Introduction</h2>
-<div class="outline-text-2" id="text-orge7665bb">
+<div id="outline-container-orgf9fdb5e" class="outline-2">
+<h2 id="orgf9fdb5e">Introduction</h2>
+<div class="outline-text-2" id="text-orgf9fdb5e">
 <p>
-Our goal here is to use bulk RNA-Seq data on 59 iPSCs to simulate
-single cell RNA-Seq data in the same individuals and estimate power to detect
-mean and variance-effect QTLs.
+Our goal here is to use bulk RNA-Seq data on iPSCs from 63 individuals to
+simulate single cell RNA-Seq data in the same individuals and estimate power
+to detect mean and variance-effect QTLs.
 </p>
 
 <p>
@@ -262,9 +263,9 @@ process.
 </div>
 </div>
 
-<div id="outline-container-org00811b7" class="outline-2">
-<h2 id="org00811b7">Distribution of library sizes</h2>
-<div class="outline-text-2" id="text-org00811b7">
+<div id="outline-container-org7259a8c" class="outline-2">
+<h2 id="org7259a8c">Distribution of library sizes</h2>
+<div class="outline-text-2" id="text-org7259a8c">
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">plot_lib_sizes</span>(lib_sizes, title, filename):
   plt.clf()
@@ -316,9 +317,9 @@ process.
 </div>
 </div>
 
-<div id="outline-container-org50b94a7" class="outline-2">
-<h2 id="org50b94a7">Distribution of moments</h2>
-<div class="outline-text-2" id="text-org50b94a7">
+<div id="outline-container-org9043525" class="outline-2">
+<h2 id="org9043525">Distribution of moments</h2>
+<div class="outline-text-2" id="text-org9043525">
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-variable-name">moments</span> = (tpm(umi.loc[keep], total_exon_length_kb, log2=<span class="org-constant">True</span>)
            .transpose()
@@ -379,9 +380,9 @@ process.
 </div>
 </div>
 
-<div id="outline-container-org46dc3fc" class="outline-2">
-<h2 id="org46dc3fc">Mean-variance relationship</h2>
-<div class="outline-text-2" id="text-org46dc3fc">
+<div id="outline-container-orgb618a75" class="outline-2">
+<h2 id="orgb618a75">Mean-variance relationship</h2>
+<div class="outline-text-2" id="text-orgb618a75">
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">plot_mean_var</span>(moments, title, filename):
   plt.clf()
@@ -432,9 +433,120 @@ process.
 </p>
 </div>
 </div>
-<div id="outline-container-org7d315c0" class="outline-2">
-<h2 id="org7d315c0">Sample from bulk RNA-Seq to generate scRNA-Seq</h2>
-<div class="outline-text-2" id="text-org7d315c0">
+<div id="outline-container-org2628191" class="outline-2">
+<h2 id="org2628191">Mean-zero relationship</h2>
+<div class="outline-text-2" id="text-org2628191">
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">nonmissingness</span>(umi, annotations):
+  <span class="org-keyword">return</span> (umi.astype(<span class="org-builtin">bool</span>)
+          .groupby(by=annotations[<span class="org-string">'chip_id'</span>].values, axis=1)
+          .agg(<span class="org-keyword">lambda</span> x: x.values.<span class="org-builtin">sum</span>(axis=1) / x.shape[1]))
+
+<span class="org-keyword">def</span> <span class="org-function-name">plot_mean_zero</span>(moments, nonmissing, output_file):
+  plt.clf()
+  plt.hexbin(moments.loc[:,<span class="org-string">'mean'</span>], nonmissing.loc[:,<span class="org-string">'mean'</span>], cmap=colorcet.cm[<span class="org-string">'blues'</span>], gridsize=10)
+  <span class="org-variable-name">cb</span> = plt.colorbar()
+  cb.set_label(<span class="org-string">'Number of genes'</span>)
+  plt.xlabel(<span class="org-string">'Mean $\log_2(TPM + 1)$'</span>)
+  plt.ylabel(<span class="org-string">'Proportion of cells with non-zero UMI count'</span>)
+  plt.savefig(output_file)
+  plt.close()
+
+<span class="org-keyword">def</span> <span class="org-function-name">plot_mean_zero_by_individual</span>(moments, umi, annotations, output_dir):
+  <span class="org-variable-name">nonmissing</span> = nonmissingness(umi, annotations)
+  <span class="org-keyword">for</span> ind, row <span class="org-keyword">in</span> moments.iterrows():
+    <span class="org-variable-name">m1</span>, <span class="org-variable-name">m2</span> = row.align(nonmissing.loc[:,ind], level=0, join=<span class="org-string">'inner'</span>)
+    plot_mean_zero(m1, m2, <span class="org-string">'{}/{}.png'</span>.<span class="org-builtin">format</span>(output_dir, ind))
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plot_mean_zero_by_individual(
+  moments,
+  umi,
+  annotations,
+  <span class="org-string">'/home/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/mean-zero'</span>)
+</pre>
+</div>
+
+<p>
+<img src="figure/power.org/mean-zero/NA18498.png" alt="NA18498.png">
+<img src="figure/power.org/mean-zero/NA18499.png" alt="NA18499.png">
+<img src="figure/power.org/mean-zero/NA18501.png" alt="NA18501.png">
+<img src="figure/power.org/mean-zero/NA18502.png" alt="NA18502.png">
+<img src="figure/power.org/mean-zero/NA18505.png" alt="NA18505.png">
+<img src="figure/power.org/mean-zero/NA18507.png" alt="NA18507.png">
+<img src="figure/power.org/mean-zero/NA18508.png" alt="NA18508.png">
+<img src="figure/power.org/mean-zero/NA18520.png" alt="NA18520.png">
+<img src="figure/power.org/mean-zero/NA18852.png" alt="NA18852.png">
+<img src="figure/power.org/mean-zero/NA18853.png" alt="NA18853.png">
+<img src="figure/power.org/mean-zero/NA18856.png" alt="NA18856.png">
+<img src="figure/power.org/mean-zero/NA18862.png" alt="NA18862.png">
+<img src="figure/power.org/mean-zero/NA18870.png" alt="NA18870.png">
+<img src="figure/power.org/mean-zero/NA19092.png" alt="NA19092.png">
+<img src="figure/power.org/mean-zero/NA19098.png" alt="NA19098.png">
+<img src="figure/power.org/mean-zero/NA19119.png" alt="NA19119.png">
+<img src="figure/power.org/mean-zero/NA19128.png" alt="NA19128.png">
+<img src="figure/power.org/mean-zero/NA19159.png" alt="NA19159.png">
+<img src="figure/power.org/mean-zero/NA19190.png" alt="NA19190.png">
+<img src="figure/power.org/mean-zero/NA19203.png" alt="NA19203.png">
+<img src="figure/power.org/mean-zero/NA19210.png" alt="NA19210.png">
+<img src="figure/power.org/mean-zero/NA19257.png" alt="NA19257.png">  
+</p>
+
+<p>
+Unlike Zappia et al., we can investigate the dropout rate as a function of
+bulk RNA-Seq level.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">plot_bulk_mean_zero_by_individual</span>(bulk, umi, annotations, output_dir):
+  <span class="org-variable-name">bulk</span> = tpm(bulk, total_exon_length_kb, log2=<span class="org-constant">True</span>)
+  <span class="org-variable-name">bulk</span>[<span class="org-string">'gene'</span>] = bulk.index
+  <span class="org-variable-name">bulk</span>[<span class="org-string">'mean'</span>] = <span class="org-string">'mean'</span>
+  <span class="org-variable-name">bulk</span> = bulk.set_index([<span class="org-string">'gene'</span>, <span class="org-string">'mean'</span>])
+  plot_mean_zero_by_individual(bulk.transpose(), umi, annotations, output_dir)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plot_bulk_mean_zero_by_individual(
+  bulk,
+  umi,
+  annotations,
+  <span class="org-string">'/home/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/bulk-mean-zero'</span>)
+</pre>
+</div>
+
+<p>
+<img src="figure/power.org/bulk-mean-zero/NA18498.png" alt="NA18498.png">
+<img src="figure/power.org/bulk-mean-zero/NA18499.png" alt="NA18499.png">
+<img src="figure/power.org/bulk-mean-zero/NA18501.png" alt="NA18501.png">
+<img src="figure/power.org/bulk-mean-zero/NA18502.png" alt="NA18502.png">
+<img src="figure/power.org/bulk-mean-zero/NA18505.png" alt="NA18505.png">
+<img src="figure/power.org/bulk-mean-zero/NA18507.png" alt="NA18507.png">
+<img src="figure/power.org/bulk-mean-zero/NA18508.png" alt="NA18508.png">
+<img src="figure/power.org/bulk-mean-zero/NA18520.png" alt="NA18520.png">
+<img src="figure/power.org/bulk-mean-zero/NA18852.png" alt="NA18852.png">
+<img src="figure/power.org/bulk-mean-zero/NA18853.png" alt="NA18853.png">
+<img src="figure/power.org/bulk-mean-zero/NA18856.png" alt="NA18856.png">
+<img src="figure/power.org/bulk-mean-zero/NA18862.png" alt="NA18862.png">
+<img src="figure/power.org/bulk-mean-zero/NA18870.png" alt="NA18870.png">
+<img src="figure/power.org/bulk-mean-zero/NA19092.png" alt="NA19092.png">
+<img src="figure/power.org/bulk-mean-zero/NA19098.png" alt="NA19098.png">
+<img src="figure/power.org/bulk-mean-zero/NA19119.png" alt="NA19119.png">
+<img src="figure/power.org/bulk-mean-zero/NA19128.png" alt="NA19128.png">
+<img src="figure/power.org/bulk-mean-zero/NA19159.png" alt="NA19159.png">
+<img src="figure/power.org/bulk-mean-zero/NA19190.png" alt="NA19190.png">
+<img src="figure/power.org/bulk-mean-zero/NA19210.png" alt="NA19210.png">
+<img src="figure/power.org/bulk-mean-zero/NA19257.png" alt="NA19257.png">  
+</p>
+</div>
+</div>
+
+<div id="outline-container-org9549524" class="outline-2">
+<h2 id="org9549524">Sample from bulk RNA-Seq to generate scRNA-Seq</h2>
+<div class="outline-text-2" id="text-org9549524">
 <p>
 Focus on one individual (NA18507), and generate a new set of single cells by
 drawing counts to match the total UMI counts of the original cells
@@ -483,7 +595,7 @@ plot_mean_var(
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2017-11-13 Mon 11:14</p>
+<p class="date">Created: 2017-11-13 Mon 13:59</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>

@@ -331,6 +331,116 @@
   file:figure/power.org/mean-var/NA19203.png
   file:figure/power.org/mean-var/NA19210.png
   file:figure/power.org/mean-var/NA19257.png
+* Mean-zero relationship
+  
+  #+BEGIN_SRC ipython
+    def nonmissingness(umi, annotations):
+      return (umi.astype(bool)
+              .groupby(by=annotations['chip_id'].values, axis=1)
+              .agg(lambda x: x.values.sum(axis=1) / x.shape[1]))
+
+    def plot_mean_zero(moments, nonmissing, output_file):
+      plt.clf()
+      plt.hexbin(moments.loc[:,'mean'], nonmissing.loc[:,'mean'], cmap=colorcet.cm['blues'], gridsize=10)
+      cb = plt.colorbar()
+      cb.set_label('Number of genes')
+      plt.xlabel('Mean $\log_2(TPM + 1)$')
+      plt.ylabel('Proportion of cells with non-zero UMI count')
+      plt.savefig(output_file)
+      plt.close()
+
+    def plot_mean_zero_by_individual(moments, umi, annotations, output_dir):
+      nonmissing = nonmissingness(umi, annotations)
+      for ind, row in moments.iterrows():
+        m1, m2 = row.align(nonmissing.loc[:,ind], level=0, join='inner')
+        plot_mean_zero(m1, m2, '{}/{}.png'.format(output_dir, ind))
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  :END:
+
+  #+BEGIN_SRC ipython :exports code :results none
+    plot_mean_zero_by_individual(
+      moments,
+      umi,
+      annotations,
+      '/home/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/mean-zero')
+  #+END_SRC
+
+  file:figure/power.org/mean-zero/NA18498.png
+  file:figure/power.org/mean-zero/NA18499.png
+  file:figure/power.org/mean-zero/NA18501.png
+  file:figure/power.org/mean-zero/NA18502.png
+  file:figure/power.org/mean-zero/NA18505.png
+  file:figure/power.org/mean-zero/NA18507.png
+  file:figure/power.org/mean-zero/NA18508.png
+  file:figure/power.org/mean-zero/NA18520.png
+  file:figure/power.org/mean-zero/NA18852.png
+  file:figure/power.org/mean-zero/NA18853.png
+  file:figure/power.org/mean-zero/NA18856.png
+  file:figure/power.org/mean-zero/NA18862.png
+  file:figure/power.org/mean-zero/NA18870.png
+  file:figure/power.org/mean-zero/NA19092.png
+  file:figure/power.org/mean-zero/NA19098.png
+  file:figure/power.org/mean-zero/NA19119.png
+  file:figure/power.org/mean-zero/NA19128.png
+  file:figure/power.org/mean-zero/NA19159.png
+  file:figure/power.org/mean-zero/NA19190.png
+  file:figure/power.org/mean-zero/NA19203.png
+  file:figure/power.org/mean-zero/NA19210.png
+  file:figure/power.org/mean-zero/NA19257.png  
+
+  Unlike Zappia et al., we can investigate the dropout rate as a function of
+  bulk RNA-Seq level.
+
+  #+BEGIN_SRC ipython
+    def plot_bulk_mean_zero_by_individual(bulk, umi, annotations, output_dir):
+      bulk = tpm(bulk, total_exon_length_kb, log2=True)
+      bulk['gene'] = bulk.index
+      bulk['mean'] = 'mean'
+      bulk = bulk.set_index(['gene', 'mean'])
+      plot_mean_zero_by_individual(bulk.transpose(), umi, annotations, output_dir)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  :END:
+
+  #+BEGIN_SRC ipython
+    plot_bulk_mean_zero_by_individual(
+      bulk,
+      umi,
+      annotations,
+      '/home/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/bulk-mean-zero')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  :END:
+
+  file:figure/power.org/bulk-mean-zero/NA18498.png
+  file:figure/power.org/bulk-mean-zero/NA18499.png
+  file:figure/power.org/bulk-mean-zero/NA18501.png
+  file:figure/power.org/bulk-mean-zero/NA18502.png
+  file:figure/power.org/bulk-mean-zero/NA18505.png
+  file:figure/power.org/bulk-mean-zero/NA18507.png
+  file:figure/power.org/bulk-mean-zero/NA18508.png
+  file:figure/power.org/bulk-mean-zero/NA18520.png
+  file:figure/power.org/bulk-mean-zero/NA18852.png
+  file:figure/power.org/bulk-mean-zero/NA18853.png
+  file:figure/power.org/bulk-mean-zero/NA18856.png
+  file:figure/power.org/bulk-mean-zero/NA18862.png
+  file:figure/power.org/bulk-mean-zero/NA18870.png
+  file:figure/power.org/bulk-mean-zero/NA19092.png
+  file:figure/power.org/bulk-mean-zero/NA19098.png
+  file:figure/power.org/bulk-mean-zero/NA19119.png
+  file:figure/power.org/bulk-mean-zero/NA19128.png
+  file:figure/power.org/bulk-mean-zero/NA19159.png
+  file:figure/power.org/bulk-mean-zero/NA19190.png
+  file:figure/power.org/bulk-mean-zero/NA19210.png
+  file:figure/power.org/bulk-mean-zero/NA19257.png  
+
 * Sample from bulk RNA-Seq to generate scRNA-Seq
 
   Focus on one individual (NA18507), and generate a new set of single cells by
