@@ -1,14 +1,10 @@
 #+TITLE: Single cell/bulk RNA-Seq concordance
-#+AUTHOR: Abhishek Sarkar
-#+EMAIL: aksarkar@uchicago.edu
-#+OPTIONS: num:nil
-#+SETUPFILE: ~/.emacs.d/org-templates/setup.org
-#+PROPERTY: header-args:ipython+ :session kernel-aksarkar.json :results raw drawer :eval never-export :exports both
+#+SETUPFILE: setup.org
 
 * Setup
 
   #+NAME: ipython3
-  #+BEGIN_SRC shell :dir (concat (file-name-as-directory (getenv "SCRATCH")) "singlecell") :var RESOURCES="--mem=16G --time 6:00:00 --partition=broadwl"
+  #+BEGIN_SRC shell /scratch/midway2/aksarkar/singlecell/ :var RESOURCES="--mem=16G --time 6:00:00 --partition=broadwl"
     sbatch $RESOURCES --job-name=ipython3 --output=ipython3.out
     #!/bin/bash
     source activate scqtl
@@ -17,17 +13,20 @@
   #+END_SRC
 
   #+RESULTS: ipython3
-  : Submitted batch job 40076977
+  : Submitted batch job 40469052
 
   #+NAME: imports
   #+BEGIN_SRC ipython
     %matplotlib inline
 
     import colorcet
+    import gzip
     import io
     import matplotlib.pyplot as plt
     import numpy as np
+    import os
     import pandas as pd
+    import re
     import requests
     import scipy.stats as sst
   #+END_SRC
@@ -38,6 +37,13 @@
 
 * Read the data
 
+  Use ~kallisto~ TPM for the bulk RNA-Seq data on the iPSCs.
+
+  Our preliminary experiments normalizing gene-level counts after the fact did
+  not give reasonable results.
+
+  Importantly, on the bulk side we filter out genes with gene-level TPM < 1.
+
   #+BEGIN_SRC ipython
     def load_umi_data(min_cell_count=5):
       annotations = pd.read_table('/home/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
@@ -46,14 +52,19 @@
       keep_cells = annotations.apply(lambda x: keep_individuals.loc[x['chip_id']], axis=1)
       annotations = annotations.loc[keep_cells.values]
       counts = counts.loc[:,keep_cells.values]
-      return counts, annotations, keep_individuals
+      return counts, annotations
 
-    def load_bulk_data(keep_individuals):
-      counts = pd.read_table('/project2/gilad/data/iPSC/counts_RNAseq_iPSC.txt', header=0, index_col=0, sep=' ')
-      counts.index = [k.split('.')[0] for k in counts.index]
-      counts.columns = ['NA{}'.format(k) for k in counts.columns]
-      counts = counts.filter(items=keep_individuals[keep_individuals].index)
-      return counts
+    def load_bulk_data():
+      return (pd.read_table('/project2/gilad/singlecell-qtl/bulk/kallisto_cardio.txt.gz', sep=' ', index_col='gene').
+              # ID goes "transcript|gene|..."
+              groupby(lambda x: x.split('|')[1].split('.')[0]).
+              # Gene level TPM is sum of transcript level TPM
+              agg(np.sum).
+              # IMPORTANT: Filter out TPM < 1
+              mask(lambda x: x < 1).
+              applymap(lambda x: np.log(x + 1) / np.log(2)).
+              rename(columns=lambda x: 'NA{}'.format(x[1:]) if x[0] == 'H' else x)
+              .filter(regex='^NA'))
   #+END_SRC
 
   #+RESULTS:
@@ -61,107 +72,22 @@
   :END:
 
   #+BEGIN_SRC ipython
-    umi, annotations, keep_individuals = load_umi_data()
-    bulk = load_bulk_data(keep_individuals)
+    umi, annotations = load_umi_data()
+    bulk = load_bulk_data()
 
     umi.shape, bulk.shape
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  : ((20327, 2261), (14034, 20))
-  :END:
-
-* Compute TPM
-
-  #+BEGIN_SRC ipython
-    def biomart(query):
-      resp = requests.get('http://www.ensembl.org/biomart/martservice', params={'query': query.strip()})
-      if resp.status_code != 200:
-        raise RuntimeError
-      with io.StringIO(resp.text) as f:
-        return pd.read_table(f, header=None, index_col=0)
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  :END:
-
-  #+NAME: query
-  #+BEGIN_SRC xml :exports code
-    <?xml version="1.0" encoding="UTF-8"?>
-    <!DOCTYPE Query>
-    <Query  virtualSchemaName = "default" formatter = "TSV" header = "0" uniqueRows = "0" count = "" datasetConfigVersion = "0.6" >
-      <Dataset name = "hsapiens_gene_ensembl" interface = "default" >
-        <Attribute name = "ensembl_gene_id" />
-        <Attribute name = "exon_chrom_start" />
-        <Attribute name = "exon_chrom_end" />
-      </Dataset>
-    </Query>
-  #+END_SRC
-  
-  #+BEGIN_SRC ipython :noweb no-export
-    ensembl = biomart("""
-      <<query>>
-    """)
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
+  : ((20327, 2261), (34608, 15))
   :END:
 
   #+BEGIN_SRC ipython
-    total_exon_length_kb = ensembl.groupby(level=0).apply(lambda x: (x[2] - x[1]).agg(np.sum) / 1e3)
-    total_exon_length_kb.head()
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  #+BEGIN_EXAMPLE
-  0
-    ENSG00000000003     8.713
-    ENSG00000000005     1.871
-    ENSG00000000419     5.814
-    ENSG00000000457    15.922
-    ENSG00000000460    21.720
-    dtype: float64
-  #+END_EXAMPLE
-  :END:
-
-  #+BEGIN_SRC ipython
-    def cpm(counts):
-      return counts / counts.sum(axis=0) * 1e6
-
-    def tpm(counts, lengths, log2=False):
-      common = counts.merge(lengths.to_frame(), left_index=True, right_index=True)
-      rpk = counts.loc[common.index].values / lengths.loc[common.index].values.reshape(-1, 1)
-      assert not np.isnan(rpk).any()
-      assert np.isfinite(rpk).all()
-      rpk = pd.DataFrame(rpk, index=common.index, columns=counts.columns)
-      tpm = cpm(rpk)
-      if log2:
-        tpm = np.log(tpm + 1) / np.log(2)
-      return tpm
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  :END:
-
-  #+BEGIN_SRC ipython
-    bulk_tpm = tpm(bulk, total_exon_length_kb, log2=True)
-    pooled_tpm = tpm(umi.groupby(by=annotations['chip_id'].values, axis=1).agg(np.sum),
-                     total_exon_length_kb, log2=True)
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  :END:
-
-* Plot bulk vs. pooled single cells
-
-  #+BEGIN_SRC ipython
-    def plot_concordance(merged, title, filename, xlabel=None, ylabel=None, **kwargs):
+    def plot_concordance(x, y, title, filename, xlabel=None, ylabel=None, **kwargs):
+      """Plot hexbin of concordance"""
+      merged = x.merge(y, left_index=True, right_index=True)
+      merged.columns = ['x', 'y']
       lim = [merged.min().min(), merged.max().max()]
       plt.clf()
       if 'gridsize' not in kwargs:
@@ -175,18 +101,37 @@
       ax.set_ylim([merged['y'].min(), merged['y'].max()])
       plt.title(title)
       if xlabel is None:
-        xlabel = 'scRNA-Seq $\log_2(\mathrm{TPM} + 1) $'
+        xlabel = 'scRNA-Seq $\log_2(\mathrm{CPM} + 1) $'
       if ylabel is None:
         ylabel = 'Bulk RNA-Seq $\log_2(\mathrm{TPM} + 1)$'
       plt.xlabel(xlabel)
       plt.ylabel(ylabel)
       plt.savefig(filename)
 
-    def plot_concordance_by_individual(umi, bulk, output_dir):
-      for k, y in bulk.groupby(level=0, axis=1):
-        merged = pd.DataFrame(umi.loc[:,k]).merge(y, left_index=True, right_index=True)
-        merged.columns = ['x', 'y']
-        plot_concordance(merged, k, '{}/{}.png'.format(output_dir, k))
+    def cpm(counts, log2=False):
+      cpm = counts / counts.sum(axis=0) * 1e6
+      if log2:
+        cpm = np.log(cpm + 1) / np.log(2)
+      return cpm
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  :END:
+
+* Plot bulk vs. pooled single cells
+
+  #+BEGIN_SRC ipython
+    def plot_concordance_by_individual(umi, annotations, bulk, output_dir):
+      bulk, pooled_cpm = bulk.align(
+        cpm(umi.groupby(by=annotations['chip_id'].values, axis=1).agg(np.sum), log2=True),
+        axis=1, join='inner')
+      for k in bulk:
+        plot_concordance(
+          x=pooled_cpm[k].to_frame(),
+          y=bulk[k].to_frame(),
+          title=k,
+          filename='{}/{}.png'.format(output_dir, k))
   #+END_SRC
 
   #+RESULTS:
@@ -195,46 +140,37 @@
 
   #+BEGIN_SRC ipython :exports code :results none
     plot_concordance_by_individual(
-      pooled_tpm,
-      bulk_tpm,
+      umi,
+      annotations,
+      bulk,
       '/home/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/normed')
   #+END_SRC
 
   file:figure/sc-vs-bulk.org/normed/NA18498.png
-  file:figure/sc-vs-bulk.org/normed/NA18499.png
   file:figure/sc-vs-bulk.org/normed/NA18501.png
   file:figure/sc-vs-bulk.org/normed/NA18502.png
   file:figure/sc-vs-bulk.org/normed/NA18505.png
   file:figure/sc-vs-bulk.org/normed/NA18507.png
   file:figure/sc-vs-bulk.org/normed/NA18508.png
   file:figure/sc-vs-bulk.org/normed/NA18520.png
-  file:figure/sc-vs-bulk.org/normed/NA18852.png
-  file:figure/sc-vs-bulk.org/normed/NA18853.png
-  file:figure/sc-vs-bulk.org/normed/NA18856.png
-  file:figure/sc-vs-bulk.org/normed/NA18862.png
-  file:figure/sc-vs-bulk.org/normed/NA18870.png
-  file:figure/sc-vs-bulk.org/normed/NA19098.png
-  file:figure/sc-vs-bulk.org/normed/NA19119.png
-  file:figure/sc-vs-bulk.org/normed/NA19128.png
-  file:figure/sc-vs-bulk.org/normed/NA19159.png
-  file:figure/sc-vs-bulk.org/normed/NA19190.png
-  file:figure/sc-vs-bulk.org/normed/NA19210.png
-  file:figure/sc-vs-bulk.org/normed/NA19257.png
 
 * Plot bulk vs. pooled subsets
 
+  Plot concordance between bulk vs pools of single cells, focusing on genes
+  which have log-transformed expression at least 1 in both assays.
+
   #+BEGIN_SRC ipython
-    def plot_concordance_by_num_cells(individual, umi, annotations, lengths, bulk_tpm, output_dir):
-      bulk_tpm = bulk_tpm.loc[:,individual].to_frame()
+    def plot_concordance_by_num_cells(individual, umi, annotations, bulk_tpm, output_dir):
+      bulk_tpm = bulk_tpm[individual].to_frame()
       umi = umi.loc[:,(annotations['chip_id'] == individual).values]
       for num_cells in [1, 10, 50, 100, 200]:
-        pooled_tpm = tpm(umi.sample(n=num_cells, axis=1).sum(axis=1).to_frame(), lengths, log2=True)
-        merged = pooled_tpm.merge(bulk_tpm, left_index=True, right_index=True)
-        merged.columns = ['x', 'y']
+        pooled_cpm = cpm(umi.sample(n=num_cells, axis=1).sum(axis=1).to_frame(), log2=True)
         plot_concordance(
-          merged,
-          '{}, {} cell{}'.format(individual, num_cells, 's' if num_cells > 1 else ''),
-          '{}/{}-{}.png'.format(output_dir, individual, num_cells))
+          x=pooled_cpm,
+          y=bulk_tpm,
+          title='{}, {} cell{}'.format(individual, num_cells, 's' if num_cells > 1 else ''),
+          filename='{}/{}-{}.png'.format(output_dir, individual, num_cells),
+          gridsize=20)
   #+END_SRC
 
   #+RESULTS:
@@ -246,8 +182,7 @@
       'NA18507',
       umi,
       annotations,
-      total_exon_length_kb,
-      bulk_tpm,
+      bulk,
       '/home/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/vs-cells/'
     )
   #+END_SRC
@@ -264,19 +199,18 @@
   partitioning into two halves.
 
   #+BEGIN_SRC ipython
-    def plot_concordance_pooled_subsets(individual, umi, annotations, lengths, output_dir):
+    def plot_concordance_pooled_subsets(individual, umi, annotations, output_dir):
       umi = umi.loc[:,(annotations['chip_id'] == individual).values]
       for num_cells in [1, 10, 50, 100]:
         sample = umi.sample(n=2 * num_cells, axis=1)
-        pool1 = tpm(sample.iloc[:,:num_cells].sum(axis=1).to_frame(), lengths, log2=True)
-        pool2 = tpm(sample.iloc[:,num_cells:].sum(axis=1).to_frame(), lengths, log2=True)
-        merged = pool1.merge(pool2, left_index=True, right_index=True)
-        merged.columns = ['x', 'y']
+        pool1 = cpm(sample.iloc[:,:num_cells].sum(axis=1).to_frame(), log2=True)
+        pool2 = cpm(sample.iloc[:,num_cells:].sum(axis=1).to_frame(), log2=True)
         plot_concordance(
-          merged,
-          '{}, {} cell{}'.format(individual, num_cells, 's' if num_cells > 1 else ''),
-          '{}/{}-{}.png'.format(output_dir, individual, num_cells),
-          ylabel='scRNA-Seq $\log_2(\mathrm{TPM} + 1)$',
+          x=pool1,
+          y=pool2,
+          title='{}, {} cell{}'.format(individual, num_cells, 's' if num_cells > 1 else ''),
+          filename='{}/{}-{}.png'.format(output_dir, individual, num_cells),
+          ylabel='scRNA-Seq $\log_2(\mathrm{CPM} + 1)$',
           gridsize=15)
   #+END_SRC
 
@@ -289,7 +223,6 @@
       'NA18507',
       umi,
       annotations,
-      total_exon_length_kb,
       '/home/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/subsets/'
     )
   #+END_SRC
@@ -298,39 +231,3 @@
   file:figure/sc-vs-bulk.org/subsets/NA18507-10.png
   file:figure/sc-vs-bulk.org/subsets/NA18507-50.png
   file:figure/sc-vs-bulk.org/subsets/NA18507-100.png
-
-* Plot bulk vs. bulk
-
-  #+BEGIN_SRC ipython
-    def plot_concordance_bulk(bulk_tpm, output_dir):
-      for i in range(bulk_tpm.shape[1]):
-        for j in range(i + 1, bulk_tpm.shape[1]):
-          merged = bulk_tpm.iloc[:,i].to_frame().merge(
-            bulk_tpm.iloc[:,j].to_frame(), left_index=True, right_index=True)
-          merged.columns = ['x', 'y']
-          id1 = bulk_tpm.columns[i]
-          id2 = bulk_tpm.columns[j]
-          plot_concordance(
-            merged,
-            '{} vs. {}'.format(id1, id2),
-            '{}/{}-{}.png'.format(output_dir, id1, id2),
-            xlabel='Bulk RNA-Seq $\log_2(\mathrm{TPM} + 1)$')
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  :END:
-
-  #+BEGIN_SRC ipython :results none
-    plot_concordance_bulk(
-      bulk_tpm,
-      '/home/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/bulk-vs-bulk/')
-  #+END_SRC
-
-  High concordance:
-
-  file:figure/sc-vs-bulk.org/bulk-vs-bulk/NA18499-NA19159.png
-
-  Lower concordance:
-
-  file:figure/sc-vs-bulk.org/bulk-vs-bulk/NA18505-NA19119.png

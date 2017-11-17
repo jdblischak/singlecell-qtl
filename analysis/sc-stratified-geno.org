@@ -1,14 +1,10 @@
 #+TITLE: UMI count distribution stratified by genotype
-#+AUTHOR: Abhishek Sarkar
-#+EMAIL: aksarkar@uchicago.edu
-#+OPTIONS: num:nil
-#+SETUPFILE: ~/.emacs.d/org-templates/setup.org
-#+PROPERTY: header-args:ipython+ :session kernel-aksarkar.json :results raw drawer :eval never-export :exports both
+#+SETUPFILE: setup.org
 
 * Setup
 
   #+NAME: ipython3
-  #+BEGIN_SRC shell :dir (concat (file-name-as-directory (getenv "SCRATCH")) "singlecell") :var RESOURCES="--mem=32G --time 1:00:00 --partition=broadwl"
+  #+BEGIN_SRC shell :dir /scratch/midway2/aksarkar/singlecell :var RESOURCES="--mem=32G --time 1:00:00 --partition=broadwl"
     sbatch $RESOURCES --job-name=ipython3 --output=ipython3.out
     #!/bin/bash
     source activate scqtl

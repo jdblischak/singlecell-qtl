@@ -1,0 +1,8 @@
+#+AUTHOR: Abhishek Sarkar
+#+EMAIL: aksarkar@uchicago.edu
+#+OPTIONS: num:nil
+#+HTML_DOCTYPE: html5
+#+HTML_HEAD: <link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="https://www.pirilampo.org/styles/readtheorg/css/htmlize.css"/>
+#+HTML_HEAD: <style type="text/css">body {width: 60em; margin:auto} pre.src {overflow:auto}</style>
+#+PROPERTY: header-args:ipython+ :session kernel-aksarkar.json :results raw drawer :eval never-export :exports both

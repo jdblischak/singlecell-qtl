@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2017-11-13 Mon 12:56 -->
+<!-- 2017-11-20 Mon 16:27 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Single cell/bulk RNA-Seq concordance</title>
@@ -235,22 +235,20 @@ for the JavaScript code in this tag.
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents">
 <ul>
-<li><a href="#org26e146b">Setup</a></li>
-<li><a href="#org4ddb6c1">Read the data</a></li>
-<li><a href="#orgc8f3751">Compute TPM</a></li>
-<li><a href="#org5e8cdaf">Plot bulk vs. pooled single cells</a></li>
-<li><a href="#org05ca34b">Plot bulk vs. pooled subsets</a></li>
-<li><a href="#orgfe241d6">Plot pooled subsets vs. pooled subsets</a></li>
-<li><a href="#orgf3578e0">Plot bulk vs. bulk</a></li>
+<li><a href="#org17b1adf">Setup</a></li>
+<li><a href="#org9dc0ab8">Read the data</a></li>
+<li><a href="#org0990943">Plot bulk vs. pooled single cells</a></li>
+<li><a href="#org01c28c5">Plot bulk vs. pooled subsets</a></li>
+<li><a href="#org5447922">Plot pooled subsets vs. pooled subsets</a></li>
 </ul>
 </div>
 </div>
 
-<div id="outline-container-org26e146b" class="outline-2">
-<h2 id="org26e146b">Setup</h2>
-<div class="outline-text-2" id="text-org26e146b">
+<div id="outline-container-org17b1adf" class="outline-2">
+<h2 id="org17b1adf">Setup</h2>
+<div class="outline-text-2" id="text-org17b1adf">
 <div class="org-src-container">
-<pre class="src src-shell" id="orgb2bacea">sbatch $<span class="org-variable-name">RESOURCES</span> --job-name=ipython3 --output=ipython3.out
+<pre class="src src-shell" id="org3c9949b">sbatch $<span class="org-variable-name">RESOURCES</span> --job-name=ipython3 --output=ipython3.out
 <span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
 <span class="org-builtin">source</span> activate scqtl
 rm -f $<span class="org-variable-name">HOME</span>/.local/share/jupyter/runtime/kernel-aksarkar.json
@@ -259,13 +257,16 @@ ipython3 kernel --ip=$(<span class="org-sh-quoted-exec">hostname</span> -i) -f k
 </div>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org51f338e">%matplotlib inline
+<pre class="src src-ipython" id="org9885b80">%matplotlib inline
 
 <span class="org-keyword">import</span> colorcet
+<span class="org-keyword">import</span> gzip
 <span class="org-keyword">import</span> io
 <span class="org-keyword">import</span> matplotlib.pyplot <span class="org-keyword">as</span> plt
 <span class="org-keyword">import</span> numpy <span class="org-keyword">as</span> np
+<span class="org-keyword">import</span> os
 <span class="org-keyword">import</span> pandas <span class="org-keyword">as</span> pd
+<span class="org-keyword">import</span> re
 <span class="org-keyword">import</span> requests
 <span class="org-keyword">import</span> scipy.stats <span class="org-keyword">as</span> sst
 </pre>
@@ -273,9 +274,22 @@ ipython3 kernel --ip=$(<span class="org-sh-quoted-exec">hostname</span> -i) -f k
 </div>
 </div>
 
-<div id="outline-container-org4ddb6c1" class="outline-2">
-<h2 id="org4ddb6c1">Read the data</h2>
-<div class="outline-text-2" id="text-org4ddb6c1">
+<div id="outline-container-org9dc0ab8" class="outline-2">
+<h2 id="org9dc0ab8">Read the data</h2>
+<div class="outline-text-2" id="text-org9dc0ab8">
+<p>
+Use <code>kallisto</code> TPM for the bulk RNA-Seq data on the iPSCs.
+</p>
+
+<p>
+Our preliminary experiments normalizing gene-level counts after the fact did
+not give reasonable results.
+</p>
+
+<p>
+Importantly, on the bulk side we filter out genes with gene-level TPM &lt; 1.
+</p>
+
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">load_umi_data</span>(min_cell_count=5):
   <span class="org-variable-name">annotations</span> = pd.read_table(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
@@ -284,112 +298,40 @@ ipython3 kernel --ip=$(<span class="org-sh-quoted-exec">hostname</span> -i) -f k
   <span class="org-variable-name">keep_cells</span> = annotations.<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: keep_individuals.loc[x[<span class="org-string">'chip_id'</span>]], axis=1)
   <span class="org-variable-name">annotations</span> = annotations.loc[keep_cells.values]
   <span class="org-variable-name">counts</span> = counts.loc[:,keep_cells.values]
-  <span class="org-keyword">return</span> counts, annotations, keep_individuals
+  <span class="org-keyword">return</span> counts, annotations
 
-<span class="org-keyword">def</span> <span class="org-function-name">load_bulk_data</span>(keep_individuals):
-  <span class="org-variable-name">counts</span> = pd.read_table(<span class="org-string">'/project2/gilad/data/iPSC/counts_RNAseq_iPSC.txt'</span>, header=0, index_col=0, sep=<span class="org-string">' '</span>)
-  <span class="org-variable-name">counts.index</span> = [k.split(<span class="org-string">'.'</span>)[0] <span class="org-keyword">for</span> k <span class="org-keyword">in</span> counts.index]
-  <span class="org-variable-name">counts.columns</span> = [<span class="org-string">'NA{}'</span>.<span class="org-builtin">format</span>(k) <span class="org-keyword">for</span> k <span class="org-keyword">in</span> counts.columns]
-  <span class="org-variable-name">counts</span> = counts.<span class="org-builtin">filter</span>(items=keep_individuals[keep_individuals].index)
-  <span class="org-keyword">return</span> counts
+<span class="org-keyword">def</span> <span class="org-function-name">load_bulk_data</span>():
+  <span class="org-keyword">return</span> (pd.read_table(<span class="org-string">'/project2/gilad/singlecell-qtl/bulk/kallisto_cardio.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=<span class="org-string">'gene'</span>).
+          <span class="org-comment-delimiter"># </span><span class="org-comment">ID goes "transcript|gene|..."</span>
+          groupby(<span class="org-keyword">lambda</span> x: x.split(<span class="org-string">'|'</span>)[1].split(<span class="org-string">'.'</span>)[0]).
+          <span class="org-comment-delimiter"># </span><span class="org-comment">Gene level TPM is sum of transcript level TPM</span>
+          agg(np.<span class="org-builtin">sum</span>).
+          <span class="org-comment-delimiter"># </span><span class="org-comment">IMPORTANT: Filter out TPM &lt; 1</span>
+          mask(<span class="org-keyword">lambda</span> x: x &lt; 1).
+          applymap(<span class="org-keyword">lambda</span> x: np.log(x + 1) / np.log(2)).
+          rename(columns=<span class="org-keyword">lambda</span> x: <span class="org-string">'NA{}'</span>.<span class="org-builtin">format</span>(x[1:]) <span class="org-keyword">if</span> x[0] == <span class="org-string">'H'</span> <span class="org-keyword">else</span> x)
+          .<span class="org-builtin">filter</span>(regex=<span class="org-string">'^NA'</span>))
 </pre>
 </div>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">umi</span>, <span class="org-variable-name">annotations</span>, <span class="org-variable-name">keep_individuals</span> = load_umi_data()
-<span class="org-variable-name">bulk</span> = load_bulk_data(keep_individuals)
+<pre class="src src-ipython"><span class="org-variable-name">umi</span>, <span class="org-variable-name">annotations</span> = load_umi_data()
+<span class="org-variable-name">bulk</span> = load_bulk_data()
 
 umi.shape, bulk.shape
 </pre>
 </div>
 
 <pre class="example">
-((20327, 2261), (14034, 20))
+((20327, 2261), (34608, 15))
 
-</pre>
-</div>
-</div>
-
-<div id="outline-container-orgc8f3751" class="outline-2">
-<h2 id="orgc8f3751">Compute TPM</h2>
-<div class="outline-text-2" id="text-orgc8f3751">
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">biomart</span>(query):
-  <span class="org-variable-name">resp</span> = requests.get(<span class="org-string">'http://www.ensembl.org/biomart/martservice'</span>, params={<span class="org-string">'query'</span>: query.strip()})
-  <span class="org-keyword">if</span> resp.status_code != 200:
-    <span class="org-keyword">raise</span> <span class="org-type">RuntimeError</span>
-  <span class="org-keyword">with</span> io.StringIO(resp.text) <span class="org-keyword">as</span> f:
-    <span class="org-keyword">return</span> pd.read_table(f, header=<span class="org-constant">None</span>, index_col=0)
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-xml" id="orgc1ea4d3"><span class="org-nxml-processing-instruction-delimiter">&lt;?</span><span class="org-nxml-processing-instruction-target">xml</span> <span class="org-nxml-attribute-local-name">version</span>=<span class="org-nxml-attribute-value-delimiter">"</span><span class="org-nxml-attribute-value">1.0</span><span class="org-nxml-attribute-value-delimiter">"</span> <span class="org-nxml-attribute-local-name">encoding</span>=<span class="org-nxml-attribute-value-delimiter">"</span><span class="org-nxml-attribute-value">UTF-8</span><span class="org-nxml-attribute-value-delimiter">"</span><span class="org-nxml-processing-instruction-delimiter">?&gt;</span>
-<span class="org-nxml-markup-declaration-delimiter">&lt;!</span><span class="org-nxml-prolog-keyword">DOCTYPE</span> Query<span class="org-nxml-markup-declaration-delimiter">&gt;</span>
-<span class="org-nxml-tag-delimiter">&lt;</span><span class="org-nxml-element-local-name">Query</span>  <span class="org-nxml-attribute-local-name">virtualSchemaName</span> = <span class="org-nxml-attribute-value-delimiter">"</span><span class="org-nxml-attribute-value">default</span><span class="org-nxml-attribute-value-delimiter">"</span> <span class="org-nxml-attribute-local-name">formatter</span> = <span class="org-nxml-attribute-value-delimiter">"</span><span class="org-nxml-attribute-value">TSV</span><span class="org-nxml-attribute-value-delimiter">"</span> <span class="org-nxml-attribute-local-name">header</span> = <span class="org-nxml-attribute-value-delimiter">"</span><span class="org-nxml-attribute-value">0</span><span class="org-nxml-attribute-value-delimiter">"</span> <span class="org-nxml-attribute-local-name">uniqueRows</span> = <span class="org-nxml-attribute-value-delimiter">"</span><span class="org-nxml-attribute-value">0</span><span class="org-nxml-attribute-value-delimiter">"</span> <span class="org-nxml-attribute-local-name">count</span> = <span class="org-nxml-attribute-value-delimiter">""</span> <span class="org-nxml-attribute-local-name">datasetConfigVersion</span> = <span class="org-nxml-attribute-value-delimiter">"</span><span class="org-nxml-attribute-value">0.6</span><span class="org-nxml-attribute-value-delimiter">"</span> <span class="org-nxml-tag-delimiter">&gt;</span>
-  <span class="org-nxml-tag-delimiter">&lt;</span><span class="org-nxml-element-local-name">Dataset</span> <span class="org-nxml-attribute-local-name">name</span> = <span class="org-nxml-attribute-value-delimiter">"</span><span class="org-nxml-attribute-value">hsapiens_gene_ensembl</span><span class="org-nxml-attribute-value-delimiter">"</span> <span class="org-nxml-attribute-local-name">interface</span> = <span class="org-nxml-attribute-value-delimiter">"</span><span class="org-nxml-attribute-value">default</span><span class="org-nxml-attribute-value-delimiter">"</span> <span class="org-nxml-tag-delimiter">&gt;</span>
-    <span class="org-nxml-tag-delimiter">&lt;</span><span class="org-nxml-element-local-name">Attribute</span> <span class="org-nxml-attribute-local-name">name</span> = <span class="org-nxml-attribute-value-delimiter">"</span><span class="org-nxml-attribute-value">ensembl_gene_id</span><span class="org-nxml-attribute-value-delimiter">"</span> <span class="org-nxml-tag-slash">/</span><span class="org-nxml-tag-delimiter">&gt;</span>
-    <span class="org-nxml-tag-delimiter">&lt;</span><span class="org-nxml-element-local-name">Attribute</span> <span class="org-nxml-attribute-local-name">name</span> = <span class="org-nxml-attribute-value-delimiter">"</span><span class="org-nxml-attribute-value">exon_chrom_start</span><span class="org-nxml-attribute-value-delimiter">"</span> <span class="org-nxml-tag-slash">/</span><span class="org-nxml-tag-delimiter">&gt;</span>
-    <span class="org-nxml-tag-delimiter">&lt;</span><span class="org-nxml-element-local-name">Attribute</span> <span class="org-nxml-attribute-local-name">name</span> = <span class="org-nxml-attribute-value-delimiter">"</span><span class="org-nxml-attribute-value">exon_chrom_end</span><span class="org-nxml-attribute-value-delimiter">"</span> <span class="org-nxml-tag-slash">/</span><span class="org-nxml-tag-delimiter">&gt;</span>
-  <span class="org-nxml-tag-delimiter">&lt;</span><span class="org-nxml-tag-slash">/</span><span class="org-nxml-element-local-name">Dataset</span><span class="org-nxml-tag-delimiter">&gt;</span>
-<span class="org-nxml-tag-delimiter">&lt;</span><span class="org-nxml-tag-slash">/</span><span class="org-nxml-element-local-name">Query</span><span class="org-nxml-tag-delimiter">&gt;</span>
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">ensembl</span> = biomart(<span class="org-string">"""</span>
-<span class="org-string">  &lt;&lt;query&gt;&gt;</span>
-<span class="org-string">"""</span>)
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">total_exon_length_kb</span> = ensembl.groupby(level=0).<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: (x[2] - x[1]).agg(np.<span class="org-builtin">sum</span>) / 1e3)
-total_exon_length_kb.head()
-</pre>
-</div>
-
-<pre class="example">
-0
-  ENSG00000000003     8.713
-  ENSG00000000005     1.871
-  ENSG00000000419     5.814
-  ENSG00000000457    15.922
-  ENSG00000000460    21.720
-  dtype: float64
 </pre>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">cpm</span>(counts):
-  <span class="org-keyword">return</span> counts / counts.<span class="org-builtin">sum</span>(axis=0) * 1e6
-
-<span class="org-keyword">def</span> <span class="org-function-name">tpm</span>(counts, lengths, log2=<span class="org-constant">False</span>):
-  <span class="org-variable-name">common</span> = counts.merge(lengths.to_frame(), left_index=<span class="org-constant">True</span>, right_index=<span class="org-constant">True</span>)
-  <span class="org-variable-name">rpk</span> = counts.loc[common.index].values / lengths.loc[common.index].values.reshape(-1, 1)
-  <span class="org-keyword">assert</span> <span class="org-keyword">not</span> np.isnan(rpk).<span class="org-builtin">any</span>()
-  <span class="org-keyword">assert</span> np.isfinite(rpk).<span class="org-builtin">all</span>()
-  <span class="org-variable-name">rpk</span> = pd.DataFrame(rpk, index=common.index, columns=counts.columns)
-  <span class="org-variable-name">tpm</span> = cpm(rpk)
-  <span class="org-keyword">if</span> log2:
-    <span class="org-variable-name">tpm</span> = np.log(tpm + 1) / np.log(2)
-  <span class="org-keyword">return</span> tpm
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">bulk_tpm</span> = tpm(bulk, total_exon_length_kb, log2=<span class="org-constant">True</span>)
-<span class="org-variable-name">pooled_tpm</span> = tpm(umi.groupby(by=annotations[<span class="org-string">'chip_id'</span>].values, axis=1).agg(np.<span class="org-builtin">sum</span>),
-                 total_exon_length_kb, log2=<span class="org-constant">True</span>)
-</pre>
-</div>
-</div>
-</div>
-
-<div id="outline-container-org5e8cdaf" class="outline-2">
-<h2 id="org5e8cdaf">Plot bulk vs. pooled single cells</h2>
-<div class="outline-text-2" id="text-org5e8cdaf">
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">plot_concordance</span>(merged, title, filename, xlabel=<span class="org-constant">None</span>, ylabel=<span class="org-constant">None</span>, **kwargs):
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">plot_concordance</span>(x, y, title, filename, xlabel=<span class="org-constant">None</span>, ylabel=<span class="org-constant">None</span>, **kwargs):
+  <span class="org-doc">"""Plot hexbin of concordance"""</span>
+  <span class="org-variable-name">merged</span> = x.merge(y, left_index=<span class="org-constant">True</span>, right_index=<span class="org-constant">True</span>)
+  <span class="org-variable-name">merged.columns</span> = [<span class="org-string">'x'</span>, <span class="org-string">'y'</span>]
   <span class="org-variable-name">lim</span> = [merged.<span class="org-builtin">min</span>().<span class="org-builtin">min</span>(), merged.<span class="org-builtin">max</span>().<span class="org-builtin">max</span>()]
   plt.clf()
   <span class="org-keyword">if</span> <span class="org-string">'gridsize'</span> <span class="org-keyword">not</span> <span class="org-keyword">in</span> kwargs:
@@ -403,69 +345,81 @@ total_exon_length_kb.head()
   ax.set_ylim([merged[<span class="org-string">'y'</span>].<span class="org-builtin">min</span>(), merged[<span class="org-string">'y'</span>].<span class="org-builtin">max</span>()])
   plt.title(title)
   <span class="org-keyword">if</span> xlabel <span class="org-keyword">is</span> <span class="org-constant">None</span>:
-    <span class="org-variable-name">xlabel</span> = <span class="org-string">'scRNA-Seq $\log_2(\mathrm{TPM} + 1) $'</span>
+    <span class="org-variable-name">xlabel</span> = <span class="org-string">'scRNA-Seq $\log_2(\mathrm{CPM} + 1) $'</span>
   <span class="org-keyword">if</span> ylabel <span class="org-keyword">is</span> <span class="org-constant">None</span>:
     <span class="org-variable-name">ylabel</span> = <span class="org-string">'Bulk RNA-Seq $\log_2(\mathrm{TPM} + 1)$'</span>
   plt.xlabel(xlabel)
   plt.ylabel(ylabel)
   plt.savefig(filename)
 
-<span class="org-keyword">def</span> <span class="org-function-name">plot_concordance_by_individual</span>(umi, bulk, output_dir):
-  <span class="org-keyword">for</span> k, y <span class="org-keyword">in</span> bulk.groupby(level=0, axis=1):
-    <span class="org-variable-name">merged</span> = pd.DataFrame(umi.loc[:,k]).merge(y, left_index=<span class="org-constant">True</span>, right_index=<span class="org-constant">True</span>)
-    <span class="org-variable-name">merged.columns</span> = [<span class="org-string">'x'</span>, <span class="org-string">'y'</span>]
-    plot_concordance(merged, k, <span class="org-string">'{}/{}.png'</span>.<span class="org-builtin">format</span>(output_dir, k))
+<span class="org-keyword">def</span> <span class="org-function-name">cpm</span>(counts, log2=<span class="org-constant">False</span>):
+  <span class="org-variable-name">cpm</span> = counts / counts.<span class="org-builtin">sum</span>(axis=0) * 1e6
+  <span class="org-keyword">if</span> log2:
+    <span class="org-variable-name">cpm</span> = np.log(cpm + 1) / np.log(2)
+  <span class="org-keyword">return</span> cpm
+</pre>
+</div>
+</div>
+</div>
+
+<div id="outline-container-org0990943" class="outline-2">
+<h2 id="org0990943">Plot bulk vs. pooled single cells</h2>
+<div class="outline-text-2" id="text-org0990943">
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">plot_concordance_by_individual</span>(umi, annotations, bulk, output_dir):
+  <span class="org-variable-name">bulk</span>, <span class="org-variable-name">pooled_cpm</span> = bulk.align(
+    cpm(umi.groupby(by=annotations[<span class="org-string">'chip_id'</span>].values, axis=1).agg(np.<span class="org-builtin">sum</span>), log2=<span class="org-constant">True</span>),
+    axis=1, join=<span class="org-string">'inner'</span>)
+  <span class="org-keyword">for</span> k <span class="org-keyword">in</span> bulk:
+    plot_concordance(
+      x=pooled_cpm[k].to_frame(),
+      y=bulk[k].to_frame(),
+      title=k,
+      filename=<span class="org-string">'{}/{}.png'</span>.<span class="org-builtin">format</span>(output_dir, k))
 </pre>
 </div>
 
 <div class="org-src-container">
 <pre class="src src-ipython">plot_concordance_by_individual(
-  pooled_tpm,
-  bulk_tpm,
+  umi,
+  annotations,
+  bulk,
   <span class="org-string">'/home/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/normed'</span>)
 </pre>
 </div>
 
 <p>
 <img src="figure/sc-vs-bulk.org/normed/NA18498.png" alt="NA18498.png">
-<img src="figure/sc-vs-bulk.org/normed/NA18499.png" alt="NA18499.png">
 <img src="figure/sc-vs-bulk.org/normed/NA18501.png" alt="NA18501.png">
 <img src="figure/sc-vs-bulk.org/normed/NA18502.png" alt="NA18502.png">
 <img src="figure/sc-vs-bulk.org/normed/NA18505.png" alt="NA18505.png">
 <img src="figure/sc-vs-bulk.org/normed/NA18507.png" alt="NA18507.png">
 <img src="figure/sc-vs-bulk.org/normed/NA18508.png" alt="NA18508.png">
 <img src="figure/sc-vs-bulk.org/normed/NA18520.png" alt="NA18520.png">
-<img src="figure/sc-vs-bulk.org/normed/NA18852.png" alt="NA18852.png">
-<img src="figure/sc-vs-bulk.org/normed/NA18853.png" alt="NA18853.png">
-<img src="figure/sc-vs-bulk.org/normed/NA18856.png" alt="NA18856.png">
-<img src="figure/sc-vs-bulk.org/normed/NA18862.png" alt="NA18862.png">
-<img src="figure/sc-vs-bulk.org/normed/NA18870.png" alt="NA18870.png">
-<img src="figure/sc-vs-bulk.org/normed/NA19098.png" alt="NA19098.png">
-<img src="figure/sc-vs-bulk.org/normed/NA19119.png" alt="NA19119.png">
-<img src="figure/sc-vs-bulk.org/normed/NA19128.png" alt="NA19128.png">
-<img src="figure/sc-vs-bulk.org/normed/NA19159.png" alt="NA19159.png">
-<img src="figure/sc-vs-bulk.org/normed/NA19190.png" alt="NA19190.png">
-<img src="figure/sc-vs-bulk.org/normed/NA19210.png" alt="NA19210.png">
-<img src="figure/sc-vs-bulk.org/normed/NA19257.png" alt="NA19257.png">
 </p>
 </div>
 </div>
 
-<div id="outline-container-org05ca34b" class="outline-2">
-<h2 id="org05ca34b">Plot bulk vs. pooled subsets</h2>
-<div class="outline-text-2" id="text-org05ca34b">
+<div id="outline-container-org01c28c5" class="outline-2">
+<h2 id="org01c28c5">Plot bulk vs. pooled subsets</h2>
+<div class="outline-text-2" id="text-org01c28c5">
+<p>
+Plot concordance between bulk vs pools of single cells, focusing on genes
+which have log-transformed expression at least 1 in both assays.
+</p>
+
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">plot_concordance_by_num_cells</span>(individual, umi, annotations, lengths, bulk_tpm, output_dir):
-  <span class="org-variable-name">bulk_tpm</span> = bulk_tpm.loc[:,individual].to_frame()
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">plot_concordance_by_num_cells</span>(individual, umi, annotations, bulk_tpm, output_dir):
+  <span class="org-variable-name">bulk_tpm</span> = bulk_tpm[individual].to_frame()
   <span class="org-variable-name">umi</span> = umi.loc[:,(annotations[<span class="org-string">'chip_id'</span>] == individual).values]
   <span class="org-keyword">for</span> num_cells <span class="org-keyword">in</span> [1, 10, 50, 100, 200]:
-    <span class="org-variable-name">pooled_tpm</span> = tpm(umi.sample(n=num_cells, axis=1).<span class="org-builtin">sum</span>(axis=1).to_frame(), lengths, log2=<span class="org-constant">True</span>)
-    <span class="org-variable-name">merged</span> = pooled_tpm.merge(bulk_tpm, left_index=<span class="org-constant">True</span>, right_index=<span class="org-constant">True</span>)
-    <span class="org-variable-name">merged.columns</span> = [<span class="org-string">'x'</span>, <span class="org-string">'y'</span>]
+    <span class="org-variable-name">pooled_cpm</span> = cpm(umi.sample(n=num_cells, axis=1).<span class="org-builtin">sum</span>(axis=1).to_frame(), log2=<span class="org-constant">True</span>)
     plot_concordance(
-      merged,
-      <span class="org-string">'{}, {} cell{}'</span>.<span class="org-builtin">format</span>(individual, num_cells, <span class="org-string">'s'</span> <span class="org-keyword">if</span> num_cells &gt; 1 <span class="org-keyword">else</span> <span class="org-string">''</span>),
-      <span class="org-string">'{}/{}-{}.png'</span>.<span class="org-builtin">format</span>(output_dir, individual, num_cells))
+      x=pooled_cpm,
+      y=bulk_tpm,
+      title=<span class="org-string">'{}, {} cell{}'</span>.<span class="org-builtin">format</span>(individual, num_cells, <span class="org-string">'s'</span> <span class="org-keyword">if</span> num_cells &gt; 1 <span class="org-keyword">else</span> <span class="org-string">''</span>),
+      filename=<span class="org-string">'{}/{}-{}.png'</span>.<span class="org-builtin">format</span>(output_dir, individual, num_cells),
+      gridsize=20)
 </pre>
 </div>
 
@@ -474,8 +428,7 @@ total_exon_length_kb.head()
   <span class="org-string">'NA18507'</span>,
   umi,
   annotations,
-  total_exon_length_kb,
-  bulk_tpm,
+  bulk,
   <span class="org-string">'/home/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/vs-cells/'</span>
 )
 </pre>
@@ -491,28 +444,27 @@ total_exon_length_kb.head()
 </div>
 </div>
 
-<div id="outline-container-orgfe241d6" class="outline-2">
-<h2 id="orgfe241d6">Plot pooled subsets vs. pooled subsets</h2>
-<div class="outline-text-2" id="text-orgfe241d6">
+<div id="outline-container-org5447922" class="outline-2">
+<h2 id="org5447922">Plot pooled subsets vs. pooled subsets</h2>
+<div class="outline-text-2" id="text-org5447922">
 <p>
 Ensure that pools don't overlap by randomly sampling double the cells and
 partitioning into two halves.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">plot_concordance_pooled_subsets</span>(individual, umi, annotations, lengths, output_dir):
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">plot_concordance_pooled_subsets</span>(individual, umi, annotations, output_dir):
   <span class="org-variable-name">umi</span> = umi.loc[:,(annotations[<span class="org-string">'chip_id'</span>] == individual).values]
   <span class="org-keyword">for</span> num_cells <span class="org-keyword">in</span> [1, 10, 50, 100]:
     <span class="org-variable-name">sample</span> = umi.sample(n=2 * num_cells, axis=1)
-    <span class="org-variable-name">pool1</span> = tpm(sample.iloc[:,:num_cells].<span class="org-builtin">sum</span>(axis=1).to_frame(), lengths, log2=<span class="org-constant">True</span>)
-    <span class="org-variable-name">pool2</span> = tpm(sample.iloc[:,num_cells:].<span class="org-builtin">sum</span>(axis=1).to_frame(), lengths, log2=<span class="org-constant">True</span>)
-    <span class="org-variable-name">merged</span> = pool1.merge(pool2, left_index=<span class="org-constant">True</span>, right_index=<span class="org-constant">True</span>)
-    <span class="org-variable-name">merged.columns</span> = [<span class="org-string">'x'</span>, <span class="org-string">'y'</span>]
+    <span class="org-variable-name">pool1</span> = cpm(sample.iloc[:,:num_cells].<span class="org-builtin">sum</span>(axis=1).to_frame(), log2=<span class="org-constant">True</span>)
+    <span class="org-variable-name">pool2</span> = cpm(sample.iloc[:,num_cells:].<span class="org-builtin">sum</span>(axis=1).to_frame(), log2=<span class="org-constant">True</span>)
     plot_concordance(
-      merged,
-      <span class="org-string">'{}, {} cell{}'</span>.<span class="org-builtin">format</span>(individual, num_cells, <span class="org-string">'s'</span> <span class="org-keyword">if</span> num_cells &gt; 1 <span class="org-keyword">else</span> <span class="org-string">''</span>),
-      <span class="org-string">'{}/{}-{}.png'</span>.<span class="org-builtin">format</span>(output_dir, individual, num_cells),
-      ylabel=<span class="org-string">'scRNA-Seq $\log_2(\mathrm{TPM} + 1)$'</span>,
+      x=pool1,
+      y=pool2,
+      title=<span class="org-string">'{}, {} cell{}'</span>.<span class="org-builtin">format</span>(individual, num_cells, <span class="org-string">'s'</span> <span class="org-keyword">if</span> num_cells &gt; 1 <span class="org-keyword">else</span> <span class="org-string">''</span>),
+      filename=<span class="org-string">'{}/{}-{}.png'</span>.<span class="org-builtin">format</span>(output_dir, individual, num_cells),
+      ylabel=<span class="org-string">'scRNA-Seq $\log_2(\mathrm{CPM} + 1)$'</span>,
       gridsize=15)
 </pre>
 </div>
@@ -522,7 +474,6 @@ partitioning into two halves.
   <span class="org-string">'NA18507'</span>,
   umi,
   annotations,
-  total_exon_length_kb,
   <span class="org-string">'/home/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/subsets/'</span>
 )
 </pre>
@@ -536,59 +487,10 @@ partitioning into two halves.
 </p>
 </div>
 </div>
-
-<div id="outline-container-orgf3578e0" class="outline-2">
-<h2 id="orgf3578e0">Plot bulk vs. bulk</h2>
-<div class="outline-text-2" id="text-orgf3578e0">
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">plot_concordance_bulk</span>(bulk_tpm, output_dir):
-  <span class="org-keyword">for</span> i <span class="org-keyword">in</span> <span class="org-builtin">range</span>(bulk_tpm.shape[1]):
-    <span class="org-keyword">for</span> j <span class="org-keyword">in</span> <span class="org-builtin">range</span>(i + 1, bulk_tpm.shape[1]):
-      <span class="org-variable-name">merged</span> = bulk_tpm.iloc[:,i].to_frame().merge(
-        bulk_tpm.iloc[:,j].to_frame(), left_index=<span class="org-constant">True</span>, right_index=<span class="org-constant">True</span>)
-      <span class="org-variable-name">merged.columns</span> = [<span class="org-string">'x'</span>, <span class="org-string">'y'</span>]
-      <span class="org-variable-name">id1</span> = bulk_tpm.columns[i]
-      <span class="org-variable-name">id2</span> = bulk_tpm.columns[j]
-      plot_concordance(
-        merged,
-        <span class="org-string">'{} vs. {}'</span>.<span class="org-builtin">format</span>(id1, id2),
-        <span class="org-string">'{}/{}-{}.png'</span>.<span class="org-builtin">format</span>(output_dir, id1, id2),
-        xlabel=<span class="org-string">'Bulk RNA-Seq $\log_2(\mathrm{TPM} + 1)$'</span>)
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython">plot_concordance_bulk(
-  bulk_tpm,
-  <span class="org-string">'/home/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/bulk-vs-bulk/'</span>)
-</pre>
-</div>
-
-<p>
-High concordance:
-</p>
-
-
-<div class="figure">
-<p><img src="figure/sc-vs-bulk.org/bulk-vs-bulk/NA18499-NA19159.png" alt="NA18499-NA19159.png">
-</p>
-</div>
-
-<p>
-Lower concordance:
-</p>
-
-
-<div class="figure">
-<p><img src="figure/sc-vs-bulk.org/bulk-vs-bulk/NA18505-NA19119.png" alt="NA18505-NA19119.png">
-</p>
-</div>
-</div>
-</div>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2017-11-13 Mon 12:56</p>
+<p class="date">Created: 2017-11-20 Mon 16:27</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
