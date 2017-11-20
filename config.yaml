@@ -10,8 +10,9 @@
 
 # Paths must end with forward slash
 
-# Enter the absolute path to the local directory to store the final data files
-dir_data: /home/jdblischak/singlecell-qtl/data/
+# Enter the path (absolute or relative to the Snakefile) to the local directory
+# to store the final data files.
+dir_data: data/
 
 # Enter the absolute path to a scratch directory for writing temporary files
 dir_scratch: /scratch/midway2/jdblischak/

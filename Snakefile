@@ -210,8 +210,8 @@ rule gather_exons:
 localrules: index_bam, index_bam_dedup
 
 rule target_counts:
-    input: bam = expand(dir_counts + "{chip}/{chip}-{row}{col}.txt", \
-                        chip = chips, row = rows, col = cols)
+    input: counts = expand(dir_counts + "{chip}/{chip}-{row}{col}.txt", \
+                           chip = chips, row = rows, col = cols)
 
 rule target_bam:
     input: bam = expand(dir_bam + "{chip}/{chip}-{row}{col}-sort.bam", \
