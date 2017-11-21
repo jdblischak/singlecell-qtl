@@ -4,8 +4,8 @@
 * Setup
 
   #+NAME: ipython3
-  #+BEGIN_SRC shell /scratch/midway2/aksarkar/singlecell/ :var RESOURCES="--mem=16G --time 6:00:00 --partition=broadwl"
-    sbatch $RESOURCES --job-name=ipython3 --output=ipython3.out
+  #+BEGIN_SRC shell :dir /scratch/midway2/aksarkar/singlecell/ :var memory="16G" :var runtime="6:00:00" :var partition="broadwl"
+    sbatch ${memory/#/--mem=} ${runtime/#/--time=} ${partition/#/--partition=} --job-name=ipython3 --output=ipython3.out
     #!/bin/bash
     source activate scqtl
     rm -f $HOME/.local/share/jupyter/runtime/kernel-aksarkar.json
@@ -13,7 +13,7 @@
   #+END_SRC
 
   #+RESULTS: ipython3
-  : Submitted batch job 40469052
+  : Submitted batch job 40644776
 
   #+NAME: imports
   #+BEGIN_SRC ipython
@@ -44,6 +44,7 @@
 
   Importantly, on the bulk side we filter out genes with gene-level TPM < 1.
 
+  #+NAME: load-data-defs
   #+BEGIN_SRC ipython
     def load_umi_data(min_cell_count=5):
       annotations = pd.read_table('/home/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
@@ -71,6 +72,7 @@
   :RESULTS:
   :END:
 
+  #+NAME: load-data
   #+BEGIN_SRC ipython
     umi, annotations = load_umi_data()
     bulk = load_bulk_data()
@@ -83,6 +85,7 @@
   : ((20327, 2261), (34608, 15))
   :END:
 
+  #+NAME: concordance-def
   #+BEGIN_SRC ipython
     def plot_concordance(x, y, title, filename, xlabel=None, ylabel=None, **kwargs):
       """Plot hexbin of concordance"""

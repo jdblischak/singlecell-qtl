@@ -1,39 +1,36 @@
 #+TITLE: Power to detect QTLs in single cell data
-#+AUTHOR: Abhishek Sarkar
-#+EMAIL: aksarkar@uchicago.edu
-#+SETUPFILE: /home/aksarkar/.emacs.d/org-templates/setup.org
+#+SETUPFILE: setup.org
 
 * Introduction
 
-  Our goal here is to use bulk RNA-Seq data on iPSCs from 63 individuals to
-  simulate single cell RNA-Seq data in the same individuals and estimate power
-  to detect mean and variance-effect QTLs.
-
-  [[https://dx.doi.org/10.1186/s13059-017-1305-0][Zappia et al. 2017]] give a method to generate scRNA-Seq data from scRNA-Seq
-  data. Along the way, they use a number of distributions to validate that
-  their generated data captures the relevant aspects of the generative
-  process.
+  Our goal here is estimate power to detect mean and variance-effect QTLs. The
+  strategy is to resample the single cell RNA-Seq data to generate datasets
+  with equal patterns of dropout, overdispersion, mean-variance
+  dependence, etc.
 
 * Setup                                                            :noexport:
 
-  #+NAME: ipython3
-  #+BEGIN_SRC shell :dir (concat (file-name-as-directory (getenv "SCRATCH")) "singlecell") :var RESOURCES="--mem=16G --time 6:00:00 --partition=broadwl"
-    sbatch $RESOURCES --job-name=ipython3 --output=ipython3.out
-    #!/bin/bash
-    source activate scqtl
-    rm -f $HOME/.local/share/jupyter/runtime/kernel-aksarkar.json
-    ipython3 kernel --ip=$(hostname -i) -f kernel-aksarkar.json
+  #+BEGIN_SRC emacs-lisp
+    (org-babel-lob-ingest "/home/aksarkar/projects/singlecell-qtl/analysis/sc-vs-bulk.org")
   #+END_SRC
 
-  #+RESULTS: ipython3
-  : Submitted batch job 40201141
+  #+RESULTS:
+  : 5
+
+  #+CALL: ipython3()
+
+  #+RESULTS:
+  : Submitted batch job 40644784
 
   #+NAME: imports
   #+BEGIN_SRC ipython
     %matplotlib inline
 
+    import collections
     import colorcet
+    import gzip
     import io
+    import matplotlib.cm
     import matplotlib.pyplot as plt
     import numpy as np
     import pandas as pd
@@ -45,445 +42,177 @@
   :RESULTS:
   :END:
 
-* Read the data                                                    :noexport:
-
-  #+BEGIN_SRC ipython
-    def load_umi_data(min_cell_count=5):
-      annotations = pd.read_table('/home/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
-      counts = pd.read_table('/home/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', index_col=0)
-      keep_individuals = annotations['chip_id'].value_counts() > min_cell_count
-      keep_cells = annotations.apply(lambda x: keep_individuals.loc[x['chip_id']], axis=1)
-      annotations = annotations.loc[keep_cells.values]
-      counts = counts.loc[:,keep_cells.values]
-      return counts, annotations, keep_individuals
-
-    def load_bulk_data(keep_individuals):
-      counts = pd.read_table('/project2/gilad/data/iPSC/counts_RNAseq_iPSC.txt', header=0, index_col=0, sep=' ')
-      counts.index = [k.split('.')[0] for k in counts.index]
-      counts.columns = ['NA{}'.format(k) for k in counts.columns]
-      counts = counts.filter(items=keep_individuals[keep_individuals].index)
-      return counts
-  #+END_SRC
+  #+CALL: load-data-defs()
 
   #+RESULTS:
   :RESULTS:
   :END:
 
-  #+BEGIN_SRC ipython
-    umi, annotations, keep_individuals = load_umi_data()
-    bulk = load_bulk_data(keep_individuals)
-
-    umi.shape, bulk.shape
-  #+END_SRC
+  #+CALL: load-data()
 
   #+RESULTS:
   :RESULTS:
-  : ((20327, 2261), (14034, 20))
+  : ((20327, 2261), (34608, 15))
   :END:
 
-* Compute TPM                                                      :noexport:
+* Resample scRNA-Seq
 
+  Assuming the true single cells all came from one individual, generate new
+  single cells by sampling counts for each gene iid. with replacement. This
+  method assumes genes are independent, which is justified only if we perform
+  analysis one gene at a time.
+
+  To generate a new data set (with multiple individuals), randomly sample
+  individuals with replacement, and generate a new set of single cells for each
+  sampled individual.
+
+  #+NAME: simulate
   #+BEGIN_SRC ipython
-    def biomart(query):
-      resp = requests.get('http://www.ensembl.org/biomart/martservice', params={'query': query.strip()})
-      if resp.status_code != 200:
-        raise RuntimeError
-      with io.StringIO(resp.text) as f:
-        return pd.read_table(f, header=None, index_col=0)
+    def sample_cells(umi, n=1):
+      """Return a sampled matrix of UMI counts
+
+      Assume the input matrix is UMI for a single individal. Sample gene counts
+      i.i.d. from the empirical distribution of counts
+
+      """
+      result = np.zeros((umi.shape[0], n))
+      for i, row in enumerate(umi.values):
+        result[i] = np.random.choice(row, size=n, replace=True)
+      return pd.DataFrame(result, index=umi.index)
+
+    def sample_individuals(umi, annotations, num_individuals=None, num_cells=100):
+      """Return a sampled matrix of UMI counts for multiple individuals
+
+      num_individuals - # individuals to sample (default: equal number)
+      num_cells - # cells to sample for each sampled individual
+
+      Returns:
+
+      umi - matrix of counts
+      individuals - list of resampled IDs
+
+      """
+      if num_individuals is None:
+        num_individuals = len(lookup)
+      individuals = list(np.random.choice(annotations['chip_id'].unique(), size=num_individuals, replace=True))
+      result = pd.DataFrame(index=umi.index)
+      for k in individuals:
+        result = result.merge(
+          sample_cells(umi.loc[:,(annotations['chip_id'] == k).values], n=num_cells),
+          left_index=True,
+          right_index=True)
+      return result, individuals
   #+END_SRC
 
-  #+RESULTS:
+  #+RESULTS: simulate
   :RESULTS:
   :END:
 
-  #+NAME: query
-  #+BEGIN_SRC xml :exports code
-    <?xml version="1.0" encoding="UTF-8"?>
-    <!DOCTYPE Query>
-    <Query  virtualSchemaName = "default" formatter = "TSV" header = "0" uniqueRows = "0" count = "" datasetConfigVersion = "0.6" >
-      <Dataset name = "hsapiens_gene_ensembl" interface = "default" >
-        <Attribute name = "ensembl_gene_id" />
-        <Attribute name = "exon_chrom_start" />
-        <Attribute name = "exon_chrom_end" />
-      </Dataset>
-    </Query>
-  #+END_SRC
-  
-  #+BEGIN_SRC ipython :noweb no-export
-    ensembl = biomart("""
-      <<query>>
-    """)
-  #+END_SRC
+* Plot concordance between simulated and real data
 
-  #+RESULTS:
-  :RESULTS:
-  :END:
-
-  #+BEGIN_SRC ipython
-    total_exon_length_kb = ensembl.groupby(level=0).apply(lambda x: (x[2] - x[1]).agg(np.sum) / 1e3)
-    total_exon_length_kb.head()
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  #+BEGIN_EXAMPLE
-  0
-    ENSG00000000003     8.713
-    ENSG00000000005     1.871
-    ENSG00000000419     5.814
-    ENSG00000000457    15.922
-    ENSG00000000460    21.720
-    dtype: float64
-  #+END_EXAMPLE
-  :END:
-
-  #+BEGIN_SRC ipython
-    def cpm(counts):
-      return counts / counts.sum(axis=0) * 1e6
-
-    def tpm(counts, lengths, log2=False):
-      common = counts.merge(lengths.to_frame(), left_index=True, right_index=True)
-      rpk = counts.loc[common.index].values / lengths.loc[common.index].values.reshape(-1, 1)
-      assert not np.isnan(rpk).any()
-      assert np.isfinite(rpk).all()
-      rpk = pd.DataFrame(rpk, index=common.index, columns=counts.columns)
-      tpm = cpm(rpk)
-      if log2:
-        tpm = np.log(tpm + 1) / np.log(2)
-      return tpm
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  :END:
-
-  #+BEGIN_SRC ipython
-    bulk_tpm = tpm(bulk, total_exon_length_kb, log2=True)
-    pooled_tpm = tpm(umi.groupby(by=annotations['chip_id'].values, axis=1).agg(np.sum),
-                     total_exon_length_kb, log2=True)
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  :END:
-
-* Distribution of library sizes
-
-  #+BEGIN_SRC ipython
-    def plot_lib_sizes(lib_sizes, title, filename):
-      plt.clf()
-      plt.hist(lib_sizes, bins=30)
-      plt.xlabel('Total UMI count per cell')
-      plt.ylabel('Number of cells')
-      plt.title(title)
-      plt.savefig(filename)
-
-    def plot_lib_sizes_by_individual(umi, annotations, output_dir):
-      lib_sizes = pd.DataFrame(list(zip(annotations['chip_id'], umi.sum(axis=0))))
-      for k, g in lib_sizes.groupby(0):
-        plot_lib_sizes(g.loc[:,1], k, '{}/{}.png'.format(output_dir, k))
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  :END:
-
-  #+BEGIN_SRC ipython :exports code :results none
-    plot_lib_sizes_by_individual(
-      umi,
-      annotations,
-      '/home/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/lib-sizes')
-  #+END_SRC
-
-  file:figure/power.org/lib-sizes/NA18498.png
-  file:figure/power.org/lib-sizes/NA18499.png
-  file:figure/power.org/lib-sizes/NA18501.png
-  file:figure/power.org/lib-sizes/NA18502.png
-  file:figure/power.org/lib-sizes/NA18505.png
-  file:figure/power.org/lib-sizes/NA18507.png
-  file:figure/power.org/lib-sizes/NA18508.png
-  file:figure/power.org/lib-sizes/NA18520.png
-  file:figure/power.org/lib-sizes/NA18852.png
-  file:figure/power.org/lib-sizes/NA18853.png
-  file:figure/power.org/lib-sizes/NA18856.png
-  file:figure/power.org/lib-sizes/NA18862.png
-  file:figure/power.org/lib-sizes/NA18870.png
-  file:figure/power.org/lib-sizes/NA19092.png
-  file:figure/power.org/lib-sizes/NA19098.png
-  file:figure/power.org/lib-sizes/NA19119.png
-  file:figure/power.org/lib-sizes/NA19128.png
-  file:figure/power.org/lib-sizes/NA19159.png
-  file:figure/power.org/lib-sizes/NA19190.png
-  file:figure/power.org/lib-sizes/NA19203.png
-  file:figure/power.org/lib-sizes/NA19210.png
-  file:figure/power.org/lib-sizes/NA19257.png
-
-* Distribution of moments
-
-  #+BEGIN_SRC ipython
-    moments = (tpm(umi.loc[keep], total_exon_length_kb, log2=True)
-               .transpose()
-               .groupby(by=annotations['chip_id'].values)
-               .agg([np.mean, np.var]))
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  :END:
-
-  #+BEGIN_SRC ipython
-    def plot_moments(moments, title, filename):
-      plt.clf()
-      fig, ax = plt.subplots(1, 2)
-      ax[0].hist(moments.loc[:,'mean'], bins=30, histtype='step')
-      ax[0].set_xlabel('Mean $\log_2(TPM + 1)$')
-      ax[0].set_ylabel('Number of genes')
-      ax[1].hist(moments.loc[:,'var'], bins=30, histtype='step')
-      ax[1].set_xlabel('Variance $\log_2(TPM + 1)$')
-      fig.suptitle(title)
-      plt.tight_layout(rect=[0, 0, 1, 0.95])
-      plt.savefig(filename)
-      plt.close()
-
-    def plot_moments_by_individual(moments, output_dir):
-      for ind, row in moments.iterrows():
-        plot_moments(row, ind, '{}/{}.png'.format(output_dir, ind))
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  :END:
-
-  #+BEGIN_SRC ipython :exports code :results none
-    plot_moments_by_individual(moments, '/home/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/moments/')
-  #+END_SRC
-
-  file:figure/power.org/moments/NA18498.png
-  file:figure/power.org/moments/NA18499.png
-  file:figure/power.org/moments/NA18501.png
-  file:figure/power.org/moments/NA18502.png
-  file:figure/power.org/moments/NA18505.png
-  file:figure/power.org/moments/NA18507.png
-  file:figure/power.org/moments/NA18508.png
-  file:figure/power.org/moments/NA18520.png
-  file:figure/power.org/moments/NA18852.png
-  file:figure/power.org/moments/NA18853.png
-  file:figure/power.org/moments/NA18856.png
-  file:figure/power.org/moments/NA18862.png
-  file:figure/power.org/moments/NA18870.png
-  file:figure/power.org/moments/NA19092.png
-  file:figure/power.org/moments/NA19098.png
-  file:figure/power.org/moments/NA19119.png
-  file:figure/power.org/moments/NA19128.png
-  file:figure/power.org/moments/NA19159.png
-  file:figure/power.org/moments/NA19190.png
-  file:figure/power.org/moments/NA19203.png
-  file:figure/power.org/moments/NA19210.png
-  file:figure/power.org/moments/NA19257.png
-  
-* Mean-variance relationship
-
-  #+BEGIN_SRC ipython
-    def plot_mean_var(moments, title, filename):
-      plt.clf()
-      plt.hexbin(moments.loc[:,'mean'], moments.loc[:,'var'], cmap=colorcet.cm['blues'], gridsize=10)
-      plt.xlabel('Mean $\log_2(\mathrm{TPM} + 1)$')
-      plt.ylabel('Variance $\log_2(\mathrm{TPM} + 1)$')
-      cb = plt.colorbar()
-      cb.set_label('Number of genes')
-      plt.title(title)
-      plt.savefig(filename)
-
-    def plot_mean_var_by_individual(moments, output_dir):
-      for ind, row in moments.iterrows():
-        plot_mean_var(row, ind, '{}/{}.png'.format(output_dir, ind))
-  #+END_SRC
+  #+CALL: concordance-def()
 
   #+RESULTS:
   :RESULTS:
   :END:
 
   #+BEGIN_SRC ipython :results none
-    plot_mean_var_by_individual(
-      moments,
-      '/home/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/mean-var/')
+    pools = [cpm(sample_cells(umi.loc[:,(annotations['chip_id'] == 'NA18507').values], n=100).agg(np.sum, axis=1), log2=True).to_frame()
+             for _ in range(2)]
+
+    plot_concordance(
+      x=pools[0],
+      xlabel='Simulated single cell $\log_2(CPM + 1)$',
+      y=bulk['NA18507'].to_frame(),
+      ylabel='Bulk $\log_2(TPM + 1)$',
+      title='NA18507',
+      filename='/home/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/sim/sc-vs-bulk.png')
+    plot_concordance(
+      x=pools[0],
+      xlabel='Simulated single cell $\log_2(CPM + 1)$',
+      y=pools[1],
+      ylabel='Simulated single cell $\log_2(CPM + 1)$',
+      title='NA18507',
+      filename='/home/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/sim/sc-vs-sc.png',
+      gridsize=15)
   #+END_SRC
 
-  file:figure/power.org/mean-var/NA18498.png
-  file:figure/power.org/mean-var/NA18499.png
-  file:figure/power.org/mean-var/NA18501.png
-  file:figure/power.org/mean-var/NA18502.png
-  file:figure/power.org/mean-var/NA18505.png
-  file:figure/power.org/mean-var/NA18507.png
-  file:figure/power.org/mean-var/NA18508.png
-  file:figure/power.org/mean-var/NA18520.png
-  file:figure/power.org/mean-var/NA18852.png
-  file:figure/power.org/mean-var/NA18853.png
-  file:figure/power.org/mean-var/NA18856.png
-  file:figure/power.org/mean-var/NA18862.png
-  file:figure/power.org/mean-var/NA18870.png
-  file:figure/power.org/mean-var/NA19092.png
-  file:figure/power.org/mean-var/NA19098.png
-  file:figure/power.org/mean-var/NA19119.png
-  file:figure/power.org/mean-var/NA19128.png
-  file:figure/power.org/mean-var/NA19159.png
-  file:figure/power.org/mean-var/NA19190.png
-  file:figure/power.org/mean-var/NA19203.png
-  file:figure/power.org/mean-var/NA19210.png
-  file:figure/power.org/mean-var/NA19257.png
-* Mean-zero relationship
-  
-  #+BEGIN_SRC ipython
-    def nonmissingness(umi, annotations):
-      return (umi.astype(bool)
-              .groupby(by=annotations['chip_id'].values, axis=1)
-              .agg(lambda x: x.values.sum(axis=1) / x.shape[1]))
+  The true concordance, [[file:sc-vs-bulk.org::*Plot%20bulk%20vs.%20pooled%20single%20cells][as previously computed]]:
 
-    def plot_mean_zero(moments, nonmissing, output_file):
+  file:figure/sc-vs-bulk.org/normed/NA18507.png
+  file:figure/sc-vs-bulk.org/subsets/NA18507-100.png
+
+  Generated single cell. vs bulk and single cell vs. single cell concordance:
+
+  file:figure/power.org/sim/sc-vs-bulk.png
+  file:figure/power.org/sim/sc-vs-sc.png
+
+* Simulate at a bulk RNA-Seq QTL
+
+  Consider the gene /ZWIM7/, for which the strongest mean eQTL is
+  ~rs73276049~. We previously plotted the distribution of UMI counts stratified
+  by genotype:
+
+  file:figure/sc-stratified-geno.org/214941.png
+
+  Get the genotype for each individual:
+
+  #+BEGIN_SRC ipython
+    def extract_genotypes(f, rsid):
+      head = next(f).split()
+      for line in f:
+        record = line.split()
+        if record[2] == rsid:
+          return {'NA{}'.format(k): int(np.round(float(v))) for k, v in zip(head, record) if k[0] == '1'}
+      return dict()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  :END:
+
+  #+BEGIN_SRC ipython
+    with gzip.open('/project/compbio/jointLCLs/genotype/hg19/YRI/genotypesYRI.gen.txt.gz', 'rt') as f:
+      lookup = extract_genotypes(f, 'rs73276049')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  :END:
+
+  Simulate new cohorts varying the sample size, stratify on genotype, and plot:
+
+  1. the distribution of simulated UMI counts
+  2. the mean UMI count
+
+  #+BEGIN_SRC ipython :results none
+    colors = {k: matplotlib.cm.get_cmap('Set1').colors[k] for k in range(-1, 3)}
+    for n in [20, 40, 60, 80]:
+      sampled_umi, individuals = sample_individuals(umi, annotations, num_individuals=n)
       plt.clf()
-      plt.hexbin(moments.loc[:,'mean'], nonmissing.loc[:,'mean'], cmap=colorcet.cm['blues'], gridsize=10)
-      cb = plt.colorbar()
-      cb.set_label('Number of genes')
-      plt.xlabel('Mean $\log_2(TPM + 1)$')
-      plt.ylabel('Proportion of cells with non-zero UMI count')
-      plt.savefig(output_file)
-      plt.close()
-
-    def plot_mean_zero_by_individual(moments, umi, annotations, output_dir):
-      nonmissing = nonmissingness(umi, annotations)
-      for ind, row in moments.iterrows():
-        m1, m2 = row.align(nonmissing.loc[:,ind], level=0, join='inner')
-        plot_mean_zero(m1, m2, '{}/{}.png'.format(output_dir, ind))
+      # We need to handle missing genotypes because NA19092 isn't in the genotype
+      # matrix
+      for k, g in sampled_umi.loc['ENSG00000214941'].groupby([lookup.get(k, -1) for k in individuals for _ in range(100)]):
+        if k >= 0:
+          plt.hist(g, histtype='step', bins=np.arange(g.max()).astype(np.float32), color=colors[k])
+          plt.axvline(x=g.mean(), color=colors[k], label=int(k))
+      plt.title('ZWIM7, {} individuals, 100 cells'.format(n))
+      plt.ylabel('Number of cells')
+      plt.xlabel('UMI count')
+      plt.gca().legend()
+      plt.savefig('/home/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/sim/ZWIM7-{}.png'.format(n))
   #+END_SRC
 
-  #+RESULTS:
-  :RESULTS:
-  :END:
+  file:figure/power.org/sim/ZWIM7-20.png
+  file:figure/power.org/sim/ZWIM7-40.png
+  file:figure/power.org/sim/ZWIM7-60.png
+  file:figure/power.org/sim/ZWIM7-80.png
 
-  #+BEGIN_SRC ipython :exports code :results none
-    plot_mean_zero_by_individual(
-      moments,
-      umi,
-      annotations,
-      '/home/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/mean-zero')
-  #+END_SRC
+* Open problems
 
-  file:figure/power.org/mean-zero/NA18498.png
-  file:figure/power.org/mean-zero/NA18499.png
-  file:figure/power.org/mean-zero/NA18501.png
-  file:figure/power.org/mean-zero/NA18502.png
-  file:figure/power.org/mean-zero/NA18505.png
-  file:figure/power.org/mean-zero/NA18507.png
-  file:figure/power.org/mean-zero/NA18508.png
-  file:figure/power.org/mean-zero/NA18520.png
-  file:figure/power.org/mean-zero/NA18852.png
-  file:figure/power.org/mean-zero/NA18853.png
-  file:figure/power.org/mean-zero/NA18856.png
-  file:figure/power.org/mean-zero/NA18862.png
-  file:figure/power.org/mean-zero/NA18870.png
-  file:figure/power.org/mean-zero/NA19092.png
-  file:figure/power.org/mean-zero/NA19098.png
-  file:figure/power.org/mean-zero/NA19119.png
-  file:figure/power.org/mean-zero/NA19128.png
-  file:figure/power.org/mean-zero/NA19159.png
-  file:figure/power.org/mean-zero/NA19190.png
-  file:figure/power.org/mean-zero/NA19203.png
-  file:figure/power.org/mean-zero/NA19210.png
-  file:figure/power.org/mean-zero/NA19257.png  
+  1. If we estimate the effect size distribution from real data, and use the
+     estimated effect sizes to perform the power calculation, we need to
+     account for winner's curse
+  2. Confounder correction on the UMI counts
+  3. Confounder correction on the genotypes
 
-  Unlike Zappia et al., we can investigate the dropout rate as a function of
-  bulk RNA-Seq level.
-
-  #+BEGIN_SRC ipython
-    def plot_bulk_mean_zero_by_individual(bulk, umi, annotations, output_dir):
-      bulk = tpm(bulk, total_exon_length_kb, log2=True)
-      bulk['gene'] = bulk.index
-      bulk['mean'] = 'mean'
-      bulk = bulk.set_index(['gene', 'mean'])
-      plot_mean_zero_by_individual(bulk.transpose(), umi, annotations, output_dir)
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  :END:
-
-  #+BEGIN_SRC ipython
-    plot_bulk_mean_zero_by_individual(
-      bulk,
-      umi,
-      annotations,
-      '/home/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/bulk-mean-zero')
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  :END:
-
-  file:figure/power.org/bulk-mean-zero/NA18498.png
-  file:figure/power.org/bulk-mean-zero/NA18499.png
-  file:figure/power.org/bulk-mean-zero/NA18501.png
-  file:figure/power.org/bulk-mean-zero/NA18502.png
-  file:figure/power.org/bulk-mean-zero/NA18505.png
-  file:figure/power.org/bulk-mean-zero/NA18507.png
-  file:figure/power.org/bulk-mean-zero/NA18508.png
-  file:figure/power.org/bulk-mean-zero/NA18520.png
-  file:figure/power.org/bulk-mean-zero/NA18852.png
-  file:figure/power.org/bulk-mean-zero/NA18853.png
-  file:figure/power.org/bulk-mean-zero/NA18856.png
-  file:figure/power.org/bulk-mean-zero/NA18862.png
-  file:figure/power.org/bulk-mean-zero/NA18870.png
-  file:figure/power.org/bulk-mean-zero/NA19092.png
-  file:figure/power.org/bulk-mean-zero/NA19098.png
-  file:figure/power.org/bulk-mean-zero/NA19119.png
-  file:figure/power.org/bulk-mean-zero/NA19128.png
-  file:figure/power.org/bulk-mean-zero/NA19159.png
-  file:figure/power.org/bulk-mean-zero/NA19190.png
-  file:figure/power.org/bulk-mean-zero/NA19210.png
-  file:figure/power.org/bulk-mean-zero/NA19257.png  
-
-* Sample from bulk RNA-Seq to generate scRNA-Seq
-
-  Focus on one individual (NA18507), and generate a new set of single cells by
-  drawing counts to match the total UMI counts of the original cells
-
-  #+BEGIN_SRC ipython
-    def _generate_cells(individual, bulk, umi, annotations):
-      for cell_count in umi.loc[:,(annotations['chip_id'] == individual).values].sum():
-        yield np.random.binomial(n=bulk[individual], p=cell_count / bulk[individual].sum())
-
-    def generate_cells(individual, bulk, umi, annotations):
-      return (pd.DataFrame(list(_generate_cells(individual, bulk, umi, annotations)))
-              .transpose()
-              .set_index(bulk.index))
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  :END:
-
-  #+BEGIN_SRC ipython
-    generated_umi = generate_cells('NA18507', bulk, umi, annotations)
-    generated_moments = (tpm(generated_umi, total_exon_length_kb, log2=True)
-                         .transpose()
-                         .groupby(np.zeros(generated_umi.shape[1]))
-                         .agg([np.mean, np.var]))
-    generated_moments.index = ['syn0']
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  :END:
-
-  #+BEGIN_SRC ipython :exports code :results none
-    plot_moments(
-      generated_moments.iloc[0],
-      'Synthetic NA18507',
-      '/home/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/moments/NA18507-generated.png')
-    plot_mean_var(
-      generated_moments.iloc[0],
-      'Synthetic NA18507',
-      '/home/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/mean-var/NA18507-generated.png')
-  #+END_SRC
-
-  file:figure/power.org/moments/NA18507-generated.png
-  file:figure/power.org/mean-var/NA18507-generated.png

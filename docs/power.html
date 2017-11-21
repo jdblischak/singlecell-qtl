@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2017-11-13 Mon 13:59 -->
+<!-- 2017-12-04 Mon 13:23 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Power to detect QTLs in single cell data</title>
@@ -236,11 +236,10 @@ for the JavaScript code in this tag.
 <div id="text-table-of-contents">
 <ul>
 <li><a href="#orgf9fdb5e">Introduction</a></li>
-<li><a href="#org7259a8c">Distribution of library sizes</a></li>
-<li><a href="#org9043525">Distribution of moments</a></li>
-<li><a href="#orgb618a75">Mean-variance relationship</a></li>
-<li><a href="#org2628191">Mean-zero relationship</a></li>
-<li><a href="#org9549524">Sample from bulk RNA-Seq to generate scRNA-Seq</a></li>
+<li><a href="#org2a3b9fe">Resample scRNA-Seq</a></li>
+<li><a href="#org0b73441">Plot concordance between simulated and real data</a></li>
+<li><a href="#orgab2a8e9">Simulate at a bulk RNA-Seq QTL</a></li>
+<li><a href="#org7eb4bf1">Open problems</a></li>
 </ul>
 </div>
 </div>
@@ -249,353 +248,204 @@ for the JavaScript code in this tag.
 <h2 id="orgf9fdb5e">Introduction</h2>
 <div class="outline-text-2" id="text-orgf9fdb5e">
 <p>
-Our goal here is to use bulk RNA-Seq data on iPSCs from 63 individuals to
-simulate single cell RNA-Seq data in the same individuals and estimate power
-to detect mean and variance-effect QTLs.
+Our goal here is estimate power to detect mean and variance-effect QTLs. The
+strategy is to resample the single cell RNA-Seq data to generate datasets
+with equal patterns of dropout, overdispersion, mean-variance
+dependence, etc.
+</p>
+</div>
+</div>
+
+<div id="outline-container-org2a3b9fe" class="outline-2">
+<h2 id="org2a3b9fe">Resample scRNA-Seq</h2>
+<div class="outline-text-2" id="text-org2a3b9fe">
+<p>
+Assuming the true single cells all came from one individual, generate new
+single cells by sampling counts for each gene iid. with replacement. This
+method assumes genes are independent, which is justified only if we perform
+analysis one gene at a time.
 </p>
 
 <p>
-<a href="https://dx.doi.org/10.1186/s13059-017-1305-0">Zappia et al. 2017</a> give a method to generate scRNA-Seq data from scRNA-Seq
-data. Along the way, they use a number of distributions to validate that
-their generated data captures the relevant aspects of the generative
-process.
+To generate a new data set (with multiple individuals), randomly sample
+individuals with replacement, and generate a new set of single cells for each
+sampled individual.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython" id="orgf37f61e"><span class="org-keyword">def</span> <span class="org-function-name">sample_cells</span>(umi, n=1):
+  <span class="org-doc">"""Return a sampled matrix of UMI counts</span>
+
+<span class="org-doc">  Assume the input matrix is UMI for a single individal. Sample gene counts</span>
+<span class="org-doc">  i.i.d. from the empirical distribution of counts</span>
+
+<span class="org-doc">  """</span>
+  <span class="org-variable-name">result</span> = np.zeros((umi.shape[0], n))
+  <span class="org-keyword">for</span> i, row <span class="org-keyword">in</span> <span class="org-builtin">enumerate</span>(umi.values):
+    <span class="org-variable-name">result</span>[i] = np.random.choice(row, size=n, replace=<span class="org-constant">True</span>)
+  <span class="org-keyword">return</span> pd.DataFrame(result, index=umi.index)
+
+<span class="org-keyword">def</span> <span class="org-function-name">sample_individuals</span>(umi, annotations, num_individuals=<span class="org-constant">None</span>, num_cells=100):
+  <span class="org-doc">"""Return a sampled matrix of UMI counts for multiple individuals</span>
+
+<span class="org-doc">  num_individuals - # individuals to sample (default: equal number)</span>
+<span class="org-doc">  num_cells - # cells to sample for each sampled individual</span>
+
+<span class="org-doc">  Returns:</span>
+
+<span class="org-doc">  umi - matrix of counts</span>
+<span class="org-doc">  individuals - list of resampled IDs</span>
+
+<span class="org-doc">  """</span>
+  <span class="org-keyword">if</span> num_individuals <span class="org-keyword">is</span> <span class="org-constant">None</span>:
+    <span class="org-variable-name">num_individuals</span> = <span class="org-builtin">len</span>(lookup)
+  <span class="org-variable-name">individuals</span> = <span class="org-builtin">list</span>(np.random.choice(annotations[<span class="org-string">'chip_id'</span>].unique(), size=num_individuals, replace=<span class="org-constant">True</span>))
+  <span class="org-variable-name">result</span> = pd.DataFrame(index=umi.index)
+  <span class="org-keyword">for</span> k <span class="org-keyword">in</span> individuals:
+    <span class="org-variable-name">result</span> = result.merge(
+      sample_cells(umi.loc[:,(annotations[<span class="org-string">'chip_id'</span>] == k).values], n=num_cells),
+      left_index=<span class="org-constant">True</span>,
+      right_index=<span class="org-constant">True</span>)
+  <span class="org-keyword">return</span> result, individuals
+</pre>
+</div>
+</div>
+</div>
+
+<div id="outline-container-org0b73441" class="outline-2">
+<h2 id="org0b73441">Plot concordance between simulated and real data</h2>
+<div class="outline-text-2" id="text-org0b73441">
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">pools</span> = [cpm(sample_cells(umi.loc[:,(annotations[<span class="org-string">'chip_id'</span>] == <span class="org-string">'NA18507'</span>).values], n=100).agg(np.<span class="org-builtin">sum</span>, axis=1), log2=<span class="org-constant">True</span>).to_frame()
+         <span class="org-keyword">for</span> _ <span class="org-keyword">in</span> <span class="org-builtin">range</span>(2)]
+
+plot_concordance(
+  x=pools[0],
+  xlabel=<span class="org-string">'Simulated single cell $\log_2(CPM + 1)$'</span>,
+  y=bulk[<span class="org-string">'NA18507'</span>].to_frame(),
+  ylabel=<span class="org-string">'Bulk $\log_2(TPM + 1)$'</span>,
+  title=<span class="org-string">'NA18507'</span>,
+  filename=<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/sim/sc-vs-bulk.png'</span>)
+plot_concordance(
+  x=pools[0],
+  xlabel=<span class="org-string">'Simulated single cell $\log_2(CPM + 1)$'</span>,
+  y=pools[1],
+  ylabel=<span class="org-string">'Simulated single cell $\log_2(CPM + 1)$'</span>,
+  title=<span class="org-string">'NA18507'</span>,
+  filename=<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/sim/sc-vs-sc.png'</span>,
+  gridsize=15)
+</pre>
+</div>
+
+<p>
+The true concordance, <a href="sc-vs-bulk.html#org6962fbe">as previously computed</a>:
+</p>
+
+<p>
+<img src="figure/sc-vs-bulk.org/normed/NA18507.png" alt="NA18507.png">
+<img src="figure/sc-vs-bulk.org/subsets/NA18507-100.png" alt="NA18507-100.png">
+</p>
+
+<p>
+Generated single cell. vs bulk and single cell vs. single cell concordance:
+</p>
+
+<p>
+<img src="figure/power.org/sim/sc-vs-bulk.png" alt="sc-vs-bulk.png">
+<img src="figure/power.org/sim/sc-vs-sc.png" alt="sc-vs-sc.png">
 </p>
 </div>
 </div>
 
-<div id="outline-container-org7259a8c" class="outline-2">
-<h2 id="org7259a8c">Distribution of library sizes</h2>
-<div class="outline-text-2" id="text-org7259a8c">
+<div id="outline-container-orgab2a8e9" class="outline-2">
+<h2 id="orgab2a8e9">Simulate at a bulk RNA-Seq QTL</h2>
+<div class="outline-text-2" id="text-orgab2a8e9">
+<p>
+Consider the gene <i>ZWIM7</i>, for which the strongest mean eQTL is
+<code>rs73276049</code>. We previously plotted the distribution of UMI counts stratified
+by genotype:
+</p>
+
+
+<div class="figure">
+<p><img src="figure/sc-stratified-geno.org/214941.png" alt="214941.png">
+</p>
+</div>
+
+<p>
+Get the genotype for each individual:
+</p>
+
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">plot_lib_sizes</span>(lib_sizes, title, filename):
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">extract_genotypes</span>(f, rsid):
+  <span class="org-variable-name">head</span> = <span class="org-builtin">next</span>(f).split()
+  <span class="org-keyword">for</span> line <span class="org-keyword">in</span> f:
+    <span class="org-variable-name">record</span> = line.split()
+    <span class="org-keyword">if</span> record[2] == rsid:
+      <span class="org-keyword">return</span> {<span class="org-string">'NA{}'</span>.<span class="org-builtin">format</span>(k): <span class="org-builtin">int</span>(np.<span class="org-builtin">round</span>(<span class="org-builtin">float</span>(v))) <span class="org-keyword">for</span> k, v <span class="org-keyword">in</span> <span class="org-builtin">zip</span>(head, record) <span class="org-keyword">if</span> k[0] == <span class="org-string">'1'</span>}
+  <span class="org-keyword">return</span> <span class="org-builtin">dict</span>()
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">with</span> gzip.<span class="org-builtin">open</span>(<span class="org-string">'/project/compbio/jointLCLs/genotype/hg19/YRI/genotypesYRI.gen.txt.gz'</span>, <span class="org-string">'rt'</span>) <span class="org-keyword">as</span> f:
+  <span class="org-variable-name">lookup</span> = extract_genotypes(f, <span class="org-string">'rs73276049'</span>)
+</pre>
+</div>
+
+<p>
+Simulate new cohorts varying the sample size, stratify on genotype, and plot:
+</p>
+
+<ol class="org-ol">
+<li>the distribution of simulated UMI counts</li>
+<li>the mean UMI count</li>
+</ol>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">colors</span> = {k: matplotlib.cm.get_cmap(<span class="org-string">'Set1'</span>).colors[k] <span class="org-keyword">for</span> k <span class="org-keyword">in</span> <span class="org-builtin">range</span>(-1, 3)}
+<span class="org-keyword">for</span> n <span class="org-keyword">in</span> [20, 40, 60, 80]:
+  <span class="org-variable-name">sampled_umi</span>, <span class="org-variable-name">individuals</span> = sample_individuals(umi, annotations, num_individuals=n)
   plt.clf()
-  plt.hist(lib_sizes, bins=30)
-  plt.xlabel(<span class="org-string">'Total UMI count per cell'</span>)
+  <span class="org-comment-delimiter"># </span><span class="org-comment">We need to handle missing genotypes because NA19092 isn't in the genotype</span>
+  <span class="org-comment-delimiter"># </span><span class="org-comment">matrix</span>
+  <span class="org-keyword">for</span> k, g <span class="org-keyword">in</span> sampled_umi.loc[<span class="org-string">'ENSG00000214941'</span>].groupby([lookup.get(k, -1) <span class="org-keyword">for</span> k <span class="org-keyword">in</span> individuals <span class="org-keyword">for</span> _ <span class="org-keyword">in</span> <span class="org-builtin">range</span>(100)]):
+    <span class="org-keyword">if</span> k &gt;= 0:
+      plt.hist(g, histtype=<span class="org-string">'step'</span>, bins=np.arange(g.<span class="org-builtin">max</span>()).astype(np.float32), color=colors[k])
+      plt.axvline(x=g.mean(), color=colors[k], label=<span class="org-builtin">int</span>(k))
+  plt.title(<span class="org-string">'ZWIM7, {} individuals, 100 cells'</span>.<span class="org-builtin">format</span>(n))
   plt.ylabel(<span class="org-string">'Number of cells'</span>)
-  plt.title(title)
-  plt.savefig(filename)
-
-<span class="org-keyword">def</span> <span class="org-function-name">plot_lib_sizes_by_individual</span>(umi, annotations, output_dir):
-  <span class="org-variable-name">lib_sizes</span> = pd.DataFrame(<span class="org-builtin">list</span>(<span class="org-builtin">zip</span>(annotations[<span class="org-string">'chip_id'</span>], umi.<span class="org-builtin">sum</span>(axis=0))))
-  <span class="org-keyword">for</span> k, g <span class="org-keyword">in</span> lib_sizes.groupby(0):
-    plot_lib_sizes(g.loc[:,1], k, <span class="org-string">'{}/{}.png'</span>.<span class="org-builtin">format</span>(output_dir, k))
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython">plot_lib_sizes_by_individual(
-  umi,
-  annotations,
-  <span class="org-string">'/home/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/lib-sizes'</span>)
+  plt.xlabel(<span class="org-string">'UMI count'</span>)
+  plt.gca().legend()
+  plt.savefig(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/sim/ZWIM7-{}.png'</span>.<span class="org-builtin">format</span>(n))
 </pre>
 </div>
 
 <p>
-<img src="figure/power.org/lib-sizes/NA18498.png" alt="NA18498.png">
-<img src="figure/power.org/lib-sizes/NA18499.png" alt="NA18499.png">
-<img src="figure/power.org/lib-sizes/NA18501.png" alt="NA18501.png">
-<img src="figure/power.org/lib-sizes/NA18502.png" alt="NA18502.png">
-<img src="figure/power.org/lib-sizes/NA18505.png" alt="NA18505.png">
-<img src="figure/power.org/lib-sizes/NA18507.png" alt="NA18507.png">
-<img src="figure/power.org/lib-sizes/NA18508.png" alt="NA18508.png">
-<img src="figure/power.org/lib-sizes/NA18520.png" alt="NA18520.png">
-<img src="figure/power.org/lib-sizes/NA18852.png" alt="NA18852.png">
-<img src="figure/power.org/lib-sizes/NA18853.png" alt="NA18853.png">
-<img src="figure/power.org/lib-sizes/NA18856.png" alt="NA18856.png">
-<img src="figure/power.org/lib-sizes/NA18862.png" alt="NA18862.png">
-<img src="figure/power.org/lib-sizes/NA18870.png" alt="NA18870.png">
-<img src="figure/power.org/lib-sizes/NA19092.png" alt="NA19092.png">
-<img src="figure/power.org/lib-sizes/NA19098.png" alt="NA19098.png">
-<img src="figure/power.org/lib-sizes/NA19119.png" alt="NA19119.png">
-<img src="figure/power.org/lib-sizes/NA19128.png" alt="NA19128.png">
-<img src="figure/power.org/lib-sizes/NA19159.png" alt="NA19159.png">
-<img src="figure/power.org/lib-sizes/NA19190.png" alt="NA19190.png">
-<img src="figure/power.org/lib-sizes/NA19203.png" alt="NA19203.png">
-<img src="figure/power.org/lib-sizes/NA19210.png" alt="NA19210.png">
-<img src="figure/power.org/lib-sizes/NA19257.png" alt="NA19257.png">
+<img src="figure/power.org/sim/ZWIM7-20.png" alt="ZWIM7-20.png">
+<img src="figure/power.org/sim/ZWIM7-40.png" alt="ZWIM7-40.png">
+<img src="figure/power.org/sim/ZWIM7-60.png" alt="ZWIM7-60.png">
+<img src="figure/power.org/sim/ZWIM7-80.png" alt="ZWIM7-80.png">
 </p>
 </div>
 </div>
 
-<div id="outline-container-org9043525" class="outline-2">
-<h2 id="org9043525">Distribution of moments</h2>
-<div class="outline-text-2" id="text-org9043525">
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">moments</span> = (tpm(umi.loc[keep], total_exon_length_kb, log2=<span class="org-constant">True</span>)
-           .transpose()
-           .groupby(by=annotations[<span class="org-string">'chip_id'</span>].values)
-           .agg([np.mean, np.var]))
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">plot_moments</span>(moments, title, filename):
-  plt.clf()
-  <span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(1, 2)
-  ax[0].hist(moments.loc[:,<span class="org-string">'mean'</span>], bins=30, histtype=<span class="org-string">'step'</span>)
-  ax[0].set_xlabel(<span class="org-string">'Mean $\log_2(TPM + 1)$'</span>)
-  ax[0].set_ylabel(<span class="org-string">'Number of genes'</span>)
-  ax[1].hist(moments.loc[:,<span class="org-string">'var'</span>], bins=30, histtype=<span class="org-string">'step'</span>)
-  ax[1].set_xlabel(<span class="org-string">'Variance $\log_2(TPM + 1)$'</span>)
-  fig.suptitle(title)
-  plt.tight_layout(rect=[0, 0, 1, 0.95])
-  plt.savefig(filename)
-  plt.close()
-
-<span class="org-keyword">def</span> <span class="org-function-name">plot_moments_by_individual</span>(moments, output_dir):
-  <span class="org-keyword">for</span> ind, row <span class="org-keyword">in</span> moments.iterrows():
-    plot_moments(row, ind, <span class="org-string">'{}/{}.png'</span>.<span class="org-builtin">format</span>(output_dir, ind))
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython">plot_moments_by_individual(moments, <span class="org-string">'/home/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/moments/'</span>)
-</pre>
-</div>
-
-<p>
-<img src="figure/power.org/moments/NA18498.png" alt="NA18498.png">
-<img src="figure/power.org/moments/NA18499.png" alt="NA18499.png">
-<img src="figure/power.org/moments/NA18501.png" alt="NA18501.png">
-<img src="figure/power.org/moments/NA18502.png" alt="NA18502.png">
-<img src="figure/power.org/moments/NA18505.png" alt="NA18505.png">
-<img src="figure/power.org/moments/NA18507.png" alt="NA18507.png">
-<img src="figure/power.org/moments/NA18508.png" alt="NA18508.png">
-<img src="figure/power.org/moments/NA18520.png" alt="NA18520.png">
-<img src="figure/power.org/moments/NA18852.png" alt="NA18852.png">
-<img src="figure/power.org/moments/NA18853.png" alt="NA18853.png">
-<img src="figure/power.org/moments/NA18856.png" alt="NA18856.png">
-<img src="figure/power.org/moments/NA18862.png" alt="NA18862.png">
-<img src="figure/power.org/moments/NA18870.png" alt="NA18870.png">
-<img src="figure/power.org/moments/NA19092.png" alt="NA19092.png">
-<img src="figure/power.org/moments/NA19098.png" alt="NA19098.png">
-<img src="figure/power.org/moments/NA19119.png" alt="NA19119.png">
-<img src="figure/power.org/moments/NA19128.png" alt="NA19128.png">
-<img src="figure/power.org/moments/NA19159.png" alt="NA19159.png">
-<img src="figure/power.org/moments/NA19190.png" alt="NA19190.png">
-<img src="figure/power.org/moments/NA19203.png" alt="NA19203.png">
-<img src="figure/power.org/moments/NA19210.png" alt="NA19210.png">
-<img src="figure/power.org/moments/NA19257.png" alt="NA19257.png">
-</p>
-</div>
-</div>
-
-<div id="outline-container-orgb618a75" class="outline-2">
-<h2 id="orgb618a75">Mean-variance relationship</h2>
-<div class="outline-text-2" id="text-orgb618a75">
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">plot_mean_var</span>(moments, title, filename):
-  plt.clf()
-  plt.hexbin(moments.loc[:,<span class="org-string">'mean'</span>], moments.loc[:,<span class="org-string">'var'</span>], cmap=colorcet.cm[<span class="org-string">'blues'</span>], gridsize=10)
-  plt.xlabel(<span class="org-string">'Mean $\log_2(\mathrm{TPM} + 1)$'</span>)
-  plt.ylabel(<span class="org-string">'Variance $\log_2(\mathrm{TPM} + 1)$'</span>)
-  <span class="org-variable-name">cb</span> = plt.colorbar()
-  cb.set_label(<span class="org-string">'Number of genes'</span>)
-  plt.title(title)
-  plt.savefig(filename)
-
-<span class="org-keyword">def</span> <span class="org-function-name">plot_mean_var_by_individual</span>(moments, output_dir):
-  <span class="org-keyword">for</span> ind, row <span class="org-keyword">in</span> moments.iterrows():
-    plot_mean_var(row, ind, <span class="org-string">'{}/{}.png'</span>.<span class="org-builtin">format</span>(output_dir, ind))
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython">plot_mean_var_by_individual(
-  moments,
-  <span class="org-string">'/home/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/mean-var/'</span>)
-</pre>
-</div>
-
-<p>
-<img src="figure/power.org/mean-var/NA18498.png" alt="NA18498.png">
-<img src="figure/power.org/mean-var/NA18499.png" alt="NA18499.png">
-<img src="figure/power.org/mean-var/NA18501.png" alt="NA18501.png">
-<img src="figure/power.org/mean-var/NA18502.png" alt="NA18502.png">
-<img src="figure/power.org/mean-var/NA18505.png" alt="NA18505.png">
-<img src="figure/power.org/mean-var/NA18507.png" alt="NA18507.png">
-<img src="figure/power.org/mean-var/NA18508.png" alt="NA18508.png">
-<img src="figure/power.org/mean-var/NA18520.png" alt="NA18520.png">
-<img src="figure/power.org/mean-var/NA18852.png" alt="NA18852.png">
-<img src="figure/power.org/mean-var/NA18853.png" alt="NA18853.png">
-<img src="figure/power.org/mean-var/NA18856.png" alt="NA18856.png">
-<img src="figure/power.org/mean-var/NA18862.png" alt="NA18862.png">
-<img src="figure/power.org/mean-var/NA18870.png" alt="NA18870.png">
-<img src="figure/power.org/mean-var/NA19092.png" alt="NA19092.png">
-<img src="figure/power.org/mean-var/NA19098.png" alt="NA19098.png">
-<img src="figure/power.org/mean-var/NA19119.png" alt="NA19119.png">
-<img src="figure/power.org/mean-var/NA19128.png" alt="NA19128.png">
-<img src="figure/power.org/mean-var/NA19159.png" alt="NA19159.png">
-<img src="figure/power.org/mean-var/NA19190.png" alt="NA19190.png">
-<img src="figure/power.org/mean-var/NA19203.png" alt="NA19203.png">
-<img src="figure/power.org/mean-var/NA19210.png" alt="NA19210.png">
-<img src="figure/power.org/mean-var/NA19257.png" alt="NA19257.png">
-</p>
-</div>
-</div>
-<div id="outline-container-org2628191" class="outline-2">
-<h2 id="org2628191">Mean-zero relationship</h2>
-<div class="outline-text-2" id="text-org2628191">
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">nonmissingness</span>(umi, annotations):
-  <span class="org-keyword">return</span> (umi.astype(<span class="org-builtin">bool</span>)
-          .groupby(by=annotations[<span class="org-string">'chip_id'</span>].values, axis=1)
-          .agg(<span class="org-keyword">lambda</span> x: x.values.<span class="org-builtin">sum</span>(axis=1) / x.shape[1]))
-
-<span class="org-keyword">def</span> <span class="org-function-name">plot_mean_zero</span>(moments, nonmissing, output_file):
-  plt.clf()
-  plt.hexbin(moments.loc[:,<span class="org-string">'mean'</span>], nonmissing.loc[:,<span class="org-string">'mean'</span>], cmap=colorcet.cm[<span class="org-string">'blues'</span>], gridsize=10)
-  <span class="org-variable-name">cb</span> = plt.colorbar()
-  cb.set_label(<span class="org-string">'Number of genes'</span>)
-  plt.xlabel(<span class="org-string">'Mean $\log_2(TPM + 1)$'</span>)
-  plt.ylabel(<span class="org-string">'Proportion of cells with non-zero UMI count'</span>)
-  plt.savefig(output_file)
-  plt.close()
-
-<span class="org-keyword">def</span> <span class="org-function-name">plot_mean_zero_by_individual</span>(moments, umi, annotations, output_dir):
-  <span class="org-variable-name">nonmissing</span> = nonmissingness(umi, annotations)
-  <span class="org-keyword">for</span> ind, row <span class="org-keyword">in</span> moments.iterrows():
-    <span class="org-variable-name">m1</span>, <span class="org-variable-name">m2</span> = row.align(nonmissing.loc[:,ind], level=0, join=<span class="org-string">'inner'</span>)
-    plot_mean_zero(m1, m2, <span class="org-string">'{}/{}.png'</span>.<span class="org-builtin">format</span>(output_dir, ind))
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython">plot_mean_zero_by_individual(
-  moments,
-  umi,
-  annotations,
-  <span class="org-string">'/home/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/mean-zero'</span>)
-</pre>
-</div>
-
-<p>
-<img src="figure/power.org/mean-zero/NA18498.png" alt="NA18498.png">
-<img src="figure/power.org/mean-zero/NA18499.png" alt="NA18499.png">
-<img src="figure/power.org/mean-zero/NA18501.png" alt="NA18501.png">
-<img src="figure/power.org/mean-zero/NA18502.png" alt="NA18502.png">
-<img src="figure/power.org/mean-zero/NA18505.png" alt="NA18505.png">
-<img src="figure/power.org/mean-zero/NA18507.png" alt="NA18507.png">
-<img src="figure/power.org/mean-zero/NA18508.png" alt="NA18508.png">
-<img src="figure/power.org/mean-zero/NA18520.png" alt="NA18520.png">
-<img src="figure/power.org/mean-zero/NA18852.png" alt="NA18852.png">
-<img src="figure/power.org/mean-zero/NA18853.png" alt="NA18853.png">
-<img src="figure/power.org/mean-zero/NA18856.png" alt="NA18856.png">
-<img src="figure/power.org/mean-zero/NA18862.png" alt="NA18862.png">
-<img src="figure/power.org/mean-zero/NA18870.png" alt="NA18870.png">
-<img src="figure/power.org/mean-zero/NA19092.png" alt="NA19092.png">
-<img src="figure/power.org/mean-zero/NA19098.png" alt="NA19098.png">
-<img src="figure/power.org/mean-zero/NA19119.png" alt="NA19119.png">
-<img src="figure/power.org/mean-zero/NA19128.png" alt="NA19128.png">
-<img src="figure/power.org/mean-zero/NA19159.png" alt="NA19159.png">
-<img src="figure/power.org/mean-zero/NA19190.png" alt="NA19190.png">
-<img src="figure/power.org/mean-zero/NA19203.png" alt="NA19203.png">
-<img src="figure/power.org/mean-zero/NA19210.png" alt="NA19210.png">
-<img src="figure/power.org/mean-zero/NA19257.png" alt="NA19257.png">  
-</p>
-
-<p>
-Unlike Zappia et al., we can investigate the dropout rate as a function of
-bulk RNA-Seq level.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">plot_bulk_mean_zero_by_individual</span>(bulk, umi, annotations, output_dir):
-  <span class="org-variable-name">bulk</span> = tpm(bulk, total_exon_length_kb, log2=<span class="org-constant">True</span>)
-  <span class="org-variable-name">bulk</span>[<span class="org-string">'gene'</span>] = bulk.index
-  <span class="org-variable-name">bulk</span>[<span class="org-string">'mean'</span>] = <span class="org-string">'mean'</span>
-  <span class="org-variable-name">bulk</span> = bulk.set_index([<span class="org-string">'gene'</span>, <span class="org-string">'mean'</span>])
-  plot_mean_zero_by_individual(bulk.transpose(), umi, annotations, output_dir)
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython">plot_bulk_mean_zero_by_individual(
-  bulk,
-  umi,
-  annotations,
-  <span class="org-string">'/home/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/bulk-mean-zero'</span>)
-</pre>
-</div>
-
-<p>
-<img src="figure/power.org/bulk-mean-zero/NA18498.png" alt="NA18498.png">
-<img src="figure/power.org/bulk-mean-zero/NA18499.png" alt="NA18499.png">
-<img src="figure/power.org/bulk-mean-zero/NA18501.png" alt="NA18501.png">
-<img src="figure/power.org/bulk-mean-zero/NA18502.png" alt="NA18502.png">
-<img src="figure/power.org/bulk-mean-zero/NA18505.png" alt="NA18505.png">
-<img src="figure/power.org/bulk-mean-zero/NA18507.png" alt="NA18507.png">
-<img src="figure/power.org/bulk-mean-zero/NA18508.png" alt="NA18508.png">
-<img src="figure/power.org/bulk-mean-zero/NA18520.png" alt="NA18520.png">
-<img src="figure/power.org/bulk-mean-zero/NA18852.png" alt="NA18852.png">
-<img src="figure/power.org/bulk-mean-zero/NA18853.png" alt="NA18853.png">
-<img src="figure/power.org/bulk-mean-zero/NA18856.png" alt="NA18856.png">
-<img src="figure/power.org/bulk-mean-zero/NA18862.png" alt="NA18862.png">
-<img src="figure/power.org/bulk-mean-zero/NA18870.png" alt="NA18870.png">
-<img src="figure/power.org/bulk-mean-zero/NA19092.png" alt="NA19092.png">
-<img src="figure/power.org/bulk-mean-zero/NA19098.png" alt="NA19098.png">
-<img src="figure/power.org/bulk-mean-zero/NA19119.png" alt="NA19119.png">
-<img src="figure/power.org/bulk-mean-zero/NA19128.png" alt="NA19128.png">
-<img src="figure/power.org/bulk-mean-zero/NA19159.png" alt="NA19159.png">
-<img src="figure/power.org/bulk-mean-zero/NA19190.png" alt="NA19190.png">
-<img src="figure/power.org/bulk-mean-zero/NA19210.png" alt="NA19210.png">
-<img src="figure/power.org/bulk-mean-zero/NA19257.png" alt="NA19257.png">  
-</p>
-</div>
-</div>
-
-<div id="outline-container-org9549524" class="outline-2">
-<h2 id="org9549524">Sample from bulk RNA-Seq to generate scRNA-Seq</h2>
-<div class="outline-text-2" id="text-org9549524">
-<p>
-Focus on one individual (NA18507), and generate a new set of single cells by
-drawing counts to match the total UMI counts of the original cells
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">_generate_cells</span>(individual, bulk, umi, annotations):
-  <span class="org-keyword">for</span> cell_count <span class="org-keyword">in</span> umi.loc[:,(annotations[<span class="org-string">'chip_id'</span>] == individual).values].<span class="org-builtin">sum</span>():
-    <span class="org-keyword">yield</span> np.random.binomial(n=bulk[individual], p=cell_count / bulk[individual].<span class="org-builtin">sum</span>())
-
-<span class="org-keyword">def</span> <span class="org-function-name">generate_cells</span>(individual, bulk, umi, annotations):
-  <span class="org-keyword">return</span> (pd.DataFrame(<span class="org-builtin">list</span>(_generate_cells(individual, bulk, umi, annotations)))
-          .transpose()
-          .set_index(bulk.index))
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">generated_umi</span> = generate_cells(<span class="org-string">'NA18507'</span>, bulk, umi, annotations)
-<span class="org-variable-name">generated_moments</span> = (tpm(generated_umi, total_exon_length_kb, log2=<span class="org-constant">True</span>)
-                     .transpose()
-                     .groupby(np.zeros(generated_umi.shape[1]))
-                     .agg([np.mean, np.var]))
-<span class="org-variable-name">generated_moments.index</span> = [<span class="org-string">'syn0'</span>]
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython">plot_moments(
-  generated_moments.iloc[0],
-  <span class="org-string">'Synthetic NA18507'</span>,
-  <span class="org-string">'/home/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/moments/NA18507-generated.png'</span>)
-plot_mean_var(
-  generated_moments.iloc[0],
-  <span class="org-string">'Synthetic NA18507'</span>,
-  <span class="org-string">'/home/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/mean-var/NA18507-generated.png'</span>)
-</pre>
-</div>
-
-<p>
-<img src="figure/power.org/moments/NA18507-generated.png" alt="NA18507-generated.png">
-<img src="figure/power.org/mean-var/NA18507-generated.png" alt="NA18507-generated.png">
-</p>
+<div id="outline-container-org7eb4bf1" class="outline-2">
+<h2 id="org7eb4bf1">Open problems</h2>
+<div class="outline-text-2" id="text-org7eb4bf1">
+<ol class="org-ol">
+<li>If we estimate the effect size distribution from real data, and use the
+estimated effect sizes to perform the power calculation, we need to
+account for winner's curse</li>
+<li>Confounder correction on the UMI counts</li>
+<li>Confounder correction on the genotypes</li>
+</ol>
 </div>
 </div>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2017-11-13 Mon 13:59</p>
+<p class="date">Created: 2017-12-04 Mon 13:23</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
