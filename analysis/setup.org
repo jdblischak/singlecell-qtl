@@ -5,5 +5,5 @@
 #+HTML_HEAD: <link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
 #+HTML_HEAD: <link rel="stylesheet" type="text/css" href="https://www.pirilampo.org/styles/readtheorg/css/htmlize.css"/>
 #+HTML_HEAD: <style type="text/css">body {width: 60em; margin:auto} pre.src {overflow:auto}</style>
-#+PROPERTY: header-args:ipython+ :session kernel-aksarkar.json :results raw drawer :eval never-export :exports both
+#+PROPERTY: header-args:ipython+ :session kernel-scqtl.json :results raw drawer :eval never-export :exports both
 #+PROPERTY: header-args:shell+ :eval never-export
