@@ -56,7 +56,6 @@ dir_fq_combin = dir_external + "fastq-combined/"
 dir_fastqc = dir_external + "fastqc/"
 dir_multiqc = dir_external + "multiqc/"
 dir_genome = dir_external + "genome-ensembl-release-" + str(ensembl_rel) + "/"
-dir_fq_filter = dir_external + "scqtl-fastq-filter/"
 dir_fq_extract = dir_external + "scqtl-fastq-extract/"
 dir_bam = dir_external + "bam/"
 dir_bam_dedup = dir_external + "bam-dedup/"
@@ -253,35 +252,14 @@ rule combine_fastq:
     output: dir_fq_combin + "{chip}/{chip}-{row}{col}.fastq.gz"
     shell: "zcat {input} | gzip -c > {output}"
 
-rule filter_umi:
-    input: dir_fq_combin + "{chip}/{chip}-{row}{col}.fastq.gz"
-    output: temp(dir_fq_filter + "{chip}/{chip}-{row}{col}.fastq.gz")
-    run:
-        from Bio import SeqIO
-        import gzip
-
-        path_in = input[0]
-        path_out = output[0]
-        handle_in = gzip.open(path_in, "rt")
-        handle_out = gzip.open(path_out, "wt")
-
-        fq = SeqIO.parse(handle_in, "fastq")
-        for read in fq:
-            if read.seq[6:9] == "GGG":
-                # Only export reads that have a G in positions 7, 8,
-                # and 9
-                handle_out.write(read.format("fastq"))
-                # Note: I didn't use SeqIO.write here b/c I couldn't
-                # find a way to write directly to a gzipped file.
-                # https://bioinformatics.stackexchange.com/q/892/1302
-
-        handle_in.close()
-        handle_out.close()
-
+# Use a regular expression to extract the first 6 bp as the UMI and then discard
+# 3-4 template-switching G's.
+#
+# https://github.com/CGATOxford/UMI-tools/blob/480794564daa0a9dee0c10a9d72be4e5268aa463/doc/Single_cell_tutorial.md#barcode-extraction-for-indrop
 rule extract_umi:
-    input: dir_fq_filter + "{chip}/{chip}-{row}{col}.fastq.gz"
-    output: temp(dir_fq_extract + "{chip}/{chip}-{row}{col}.fastq.gz")
-    shell: "umi_tools extract --bc-pattern=NNNNNNNNN -I {input} -S {output}"
+    input: dir_fq_combin + "{chip}/{chip}-{row}{col}.fastq.gz"
+    output: dir_fq_extract + "{chip}/{chip}-{row}{col}.fastq.gz"
+    shell: "umi_tools extract --extract-method=regex --bc-pattern='(?P<umi_1>.{{6}})(?P<discard_1>G{{3,4}}).*' -I {input} -S {output}"
 
 rule subjunc:
     input: read = dir_fq_extract + "{chip}/{chip}-{row}{col}.fastq.gz",
