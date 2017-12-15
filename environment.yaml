@@ -17,9 +17,11 @@ dependencies:
 - bioconductor-s4vectors
 - biopython
 - docopt
+- fastqc
 - filechunkio
 - ftputil
 - htslib
+- multiqc
 - pysam
 - pysftp
 - r-bh
@@ -40,7 +42,7 @@ dependencies:
 - samtools
 - snakemake
 - subread
-- umi_tools
+- umi_tools>=0.5.1
 - urllib3
 - verifybamid
 - aioeasywebdav
