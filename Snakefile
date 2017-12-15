@@ -51,24 +51,22 @@ ensembl_genome_hs = config["ensembl_genome_hs"]
 # Paths to data (must end with forward slash)
 dir_data = config["dir_data"]
 dir_external = config["dir_external"]
-dir_scratch = config["dir_scratch"]
 dir_fq = dir_external + "fastq/"
 dir_fq_combin = dir_external + "fastq-combined/"
 dir_fastqc = dir_external + "fastqc/"
 dir_multiqc = dir_external + "multiqc/"
-dir_genome = dir_scratch + "genome-ensembl-release-" + str(ensembl_rel) + "/"
-dir_fq_filter = dir_scratch + "scqtl-fastq-filter/"
-dir_fq_extract = dir_scratch + "scqtl-fastq-extract/"
+dir_genome = dir_external + "genome-ensembl-release-" + str(ensembl_rel) + "/"
+dir_fq_filter = dir_external + "scqtl-fastq-filter/"
+dir_fq_extract = dir_external + "scqtl-fastq-extract/"
 dir_bam = dir_external + "bam/"
 dir_bam_dedup = dir_external + "bam-dedup/"
-dir_bam_dedup_stats = dir_scratch + "scqtl-bam-dedup-stats/"
-dir_bam_verify = dir_scratch + "scqtl-bam-verify/"
-dir_counts = dir_scratch + "scqtl-counts/"
-dir_totals = dir_scratch + "scqtl-totals/"
+dir_bam_dedup_stats = dir_external + "scqtl-bam-dedup-stats/"
+dir_bam_verify = dir_external + "scqtl-bam-verify/"
+dir_counts = dir_external + "scqtl-counts/"
+dir_totals = dir_external + "scqtl-totals/"
 dir_id = dir_external + "id/"
 
 assert os.path.exists(dir_data), "Local data directory exists"
-assert os.path.exists(dir_scratch), "Scratch directory exists"
 assert os.path.exists(dir_external), "External data directory exists"
 
 # Directory to send log files. Needs to be created manually since it
@@ -114,6 +112,12 @@ rule batch3:
     input: expand(dir_data + "eset/{chip}.rds", chip = config["batch3"]),
            expand(dir_multiqc + "{chip}/multiqc_report.html", chip = config["batch3"])
 
+rule intermediate:
+    input: #MultiQC
+           expand(dir_multiqc + "{chip}/multiqc_report.html", chip = chips),
+           # totals
+           expand(dir_data + "totals/{chip}.txt", chip = chips, row = rows, col = cols)
+
 rule chip_03232017:
     input: dir_data + "eset/03232017.rds"
 
@@ -126,7 +130,7 @@ rule chip_04202017:
 # Inspired by this post on the Snakemake Google Group:
 # https://groups.google.com/forum/#!searchin/snakemake/multiple$20input$20files%7Csort:relevance/snakemake/bpTnr7FgDuQ/ybacyom6BQAJ
 def merge_fastq(wc):
-    pattern = dir_fq + "{{pre}}-{chip}-{row}{col}_S{{s}}_L{{lane}}_R1_001.fastq.gz"
+    pattern = dir_fq + "{chip}/{{pre}}-{chip}-{row}{col}_S{{s}}_L{{lane}}_R1_001.fastq.gz"
     unknowns = glob_wildcards(pattern.format(chip = wc.chip, row = wc.row,
                                              col = wc.col))
     files = expand(pattern.format(chip = wc.chip, row = wc.row, col = wc.col),

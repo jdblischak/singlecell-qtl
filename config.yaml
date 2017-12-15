@@ -14,9 +14,6 @@
 # to store the final data files.
 dir_data: data/
 
-# Enter the absolute path to a scratch directory for writing temporary files
-dir_scratch: /scratch/midway2/jdblischak/
-
 # Enter the absolute path to an external directory to store intermediate files.
 # It should also contain a subdirectory fastq/ which contains the raw gzipped
 # FASTQ files.
