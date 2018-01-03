@@ -66,6 +66,7 @@ import getpass
 import hashlib
 import os
 import pysftp
+import re
 import sys
 
 def main(md5file, remotedir, outdir = ".", hostname = "fgfftp.uchicago.edu",
@@ -86,8 +87,19 @@ def main(md5file, remotedir, outdir = ".", hostname = "fgfftp.uchicago.edu",
         if "Undetermined" in fname or fname[-8:] != "fastq.gz":
             continue
         sys.stdout.write("Downloading %s\n"%(fname))
-        # Organize the FASTQ files into subdirectories based on the C1 chip
-        chip = fname.split("-")[4]
+        # Organize the FASTQ files into subdirectories based on the C1 chip. Use
+        # a regular expression to extract the C1 chip because the filename
+        # structure differs across flow cells. The regex matches the pattern
+        # -MMDD20YY-. Files that do not have a valid C1 chip will be discarded
+        # (sometimes samples from other studies are sequenced on the same flow
+        # cell).
+        regex = re.compile("-\d{4}20\d{2}-")
+        result = regex.findall(fname)
+        if len(result) == 1:
+            chip = result[0].strip("-")
+        else:
+            sys.stderr.write("Skipping:\t%s\n"%(fname))
+            continue
         outdir_chip = outdir + "/" + chip
         os.makedirs(outdir_chip, exist_ok = True)
         localpath = outdir_chip + "/" + fname
