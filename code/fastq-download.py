@@ -79,6 +79,15 @@ def main(md5file, remotedir, outdir = ".", hostname = "fgfftp.uchicago.edu",
     # Import md5 checksums computed by core
     md5_core = open(md5file, "r")
 
+    # Bookkeeping
+    not_on_remote = []
+    already_local = []
+    skipped = []
+    fail_complete = []
+    fail_partial = []
+    total = []
+    success = []
+
     # Download each file individually and verify the md5 checksum
     for line in md5_core:
         cols = line.strip().split()
@@ -87,6 +96,7 @@ def main(md5file, remotedir, outdir = ".", hostname = "fgfftp.uchicago.edu",
         if "Undetermined" in fname or fname[-8:] != "fastq.gz":
             continue
         sys.stdout.write("Downloading %s\n"%(fname))
+        total.append(fname)
         # Organize the FASTQ files into subdirectories based on the C1 chip. Use
         # a regular expression to extract the C1 chip because the filename
         # structure differs across flow cells. The regex matches the pattern
@@ -99,30 +109,59 @@ def main(md5file, remotedir, outdir = ".", hostname = "fgfftp.uchicago.edu",
             chip = result[0].strip("-")
         else:
             sys.stderr.write("Skipping:\t%s\n"%(fname))
+            skipped.append(fname)
             continue
         outdir_chip = outdir + "/" + chip
         os.makedirs(outdir_chip, exist_ok = True)
         localpath = outdir_chip + "/" + fname
         remotepath = remotedir + "/" + fname
         #import ipdb; ipdb.set_trace()
+
+        # Download only if remote file exists and local file does not
         if not sftp.exists(remotepath):
             sys.stderr.write("Does not exist on remote server:\t%s\n"%(remotepath))
+            not_on_remote.append(remotepath)
             continue
         elif os.path.exists(localpath):
             sys.stderr.write("Already exists:\t%s\n"%(remotepath))
+            already_local.append(remotepath)
         else:
             sftp.get(remotepath, localpath)
+
+        # Determine if download failed completely (i.e. no file at all) or the
+        # download was incomplete (i.e. mismatched md5 checksum).
         if not os.path.exists(localpath):
             sys.stderr.write("Download failed:\t%s\n"%(remotepath))
+            fail_complete.append(remotepath)
             continue
         with open(localpath, "rb") as fq:
             md5_local = hashlib.md5(fq.read()).hexdigest()
             if md5_local != md5:
                 sys.stderr.write("Download incomplete:\t%s\n"%(remotepath))
                 os.remove(localpath)
+                fail_partial.append(remotepath)
+            else:
+                success.append(remotepath)
 
     md5_core.close()
     sftp.close()
+
+    # Display bookkeeping results
+    sys.stderr.write("A total of %d FASTQ files were considered:\n"%(len(total)))
+    sys.stderr.write("  - %d succeeded\n"%(len(success)))
+    sys.stderr.write("    - %d were already local\n"%(len(already_local)))
+    n_fails = len(total) - len(success)
+    if (n_fails > 0):
+        sys.stderr.write("  - %d failed\n"%(n_fails))
+        sys.stderr.write("    - %d were not available on the remote server\n"%(len(not_on_remote)))
+        sys.stderr.write("    - %d were not part of this study\n"%(len(skipped)))
+        sys.stderr.write("    - %d were already local\n"%(len(already_local)))
+        sys.stderr.write("    - %d failed to download completely\n"%(len(fail_complete)))
+        sys.stderr.write("    - %d failed to download partially\n"%(len(fail_partial)))
+    if (len(fail_complete) + len(fail_partial) > 0):
+        sys.stderr.write("\n\nThe following files need to be re-downloaded:\n\n")
+        sys.stderr.write("\n".join(fail_complete + fail_partial))
+        sys.stderr.write("\n")
 
 if __name__ == '__main__':
     args = docopt.docopt(__doc__)
