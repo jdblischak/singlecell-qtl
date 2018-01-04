@@ -87,6 +87,8 @@ def main(md5file, remotedir, outdir = ".", hostname = "fgfftp.uchicago.edu",
     fail_partial = []
     total = []
     success = []
+    chips = []
+    lanes = []
 
     # Download each file individually and verify the md5 checksum
     for line in md5_core:
@@ -95,6 +97,8 @@ def main(md5file, remotedir, outdir = ".", hostname = "fgfftp.uchicago.edu",
         fname = os.path.basename(cols[1])
         if "Undetermined" in fname or fname[-8:] != "fastq.gz":
             continue
+        if len(total) % 96 == 0 and len(total) != 0:
+            sys.stderr.write("\n\n%d FASTQ files have been processed.\n\n"%(len(total)))
         sys.stdout.write("Downloading %s\n"%(fname))
         total.append(fname)
         # Organize the FASTQ files into subdirectories based on the C1 chip. Use
@@ -111,6 +115,13 @@ def main(md5file, remotedir, outdir = ".", hostname = "fgfftp.uchicago.edu",
             sys.stderr.write("Skipping:\t%s\n"%(fname))
             skipped.append(fname)
             continue
+
+        # Record chip and the lane it was on
+        if len(chips) == 0 or chip != chips[-1]:
+            chips.append(chip)
+            lane = re.compile("L00[1-8]").findall(fname)[0]
+            lanes.append(lane)
+
         outdir_chip = outdir + "/" + chip
         os.makedirs(outdir_chip, exist_ok = True)
         localpath = outdir_chip + "/" + fname
@@ -147,6 +158,10 @@ def main(md5file, remotedir, outdir = ".", hostname = "fgfftp.uchicago.edu",
     sftp.close()
 
     # Display bookkeeping results
+    sys.stderr.write("\n\n")
+    for i in range(len(chips)):
+        sys.stderr.write("%s:\t%s\n"%(lanes[i], chips[i]))
+    sys.stderr.write("\n\n")
     sys.stderr.write("A total of %d FASTQ files were considered:\n"%(len(total)))
     sys.stderr.write("  - %d succeeded\n"%(len(success)))
     sys.stderr.write("    - %d were already local\n"%(len(already_local)))
@@ -155,7 +170,6 @@ def main(md5file, remotedir, outdir = ".", hostname = "fgfftp.uchicago.edu",
         sys.stderr.write("  - %d failed\n"%(n_fails))
         sys.stderr.write("    - %d were not available on the remote server\n"%(len(not_on_remote)))
         sys.stderr.write("    - %d were not part of this study\n"%(len(skipped)))
-        sys.stderr.write("    - %d were already local\n"%(len(already_local)))
         sys.stderr.write("    - %d failed to download completely\n"%(len(fail_complete)))
         sys.stderr.write("    - %d failed to download partially\n"%(len(fail_partial)))
     if (len(fail_complete) + len(fail_partial) > 0):
