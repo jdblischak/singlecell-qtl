@@ -72,7 +72,8 @@ for (i in 1:nrow(df_e)) {
   n2 <- sum(anno$chip_id[anno$experiment == e] == df_e$i2[i])
   n3 <- sum(anno$chip_id[anno$experiment == e] == df_e$i3[i])
   n4 <- sum(anno$chip_id[anno$experiment == e] == df_e$i4[i])
-  n_other <- 96 - n1 - n2 -n3 - n4
+  n_other <- 96 - sum(anno$chip_id[anno$experiment == e] %in%
+                      as.character(df_e[i, ]))
   barplot(c(n1, n2, n3, n4, n_other), main = sprintf("C1 chip %s", e),
           names.arg = c(df_e$i1[i], df_e$i2[i], df_e$i3[i],df_e$i4[i], "Other"),
           ylab = "Number of single cells")
@@ -80,9 +81,7 @@ for (i in 1:nrow(df_e)) {
 par(op)
 ```
 
-Colored by individual. The most worrisome are the last three C1 chips (04132017,
-04142017, 04202017), which all have high numbers of assignments coming from one
-or more individuals that were not on that chip.
+Colored by individual.
 
 ```{r ind-per-chip-color, fig.height=ceiling(length(fname) / 8) * 4}
 anno$valid_id_display <- factor(anno$valid_id, levels = c(TRUE, FALSE),
