@@ -1,8 +1,11 @@
 library("dplyr")
 x <- read.delim("../data/batch3_qc.txt", stringsAsFactors = FALSE)
 
+batch <- "b3"
+
 out <- x %>%
   mutate(experiment = sprintf("%08d", experiment),
+         batch = batch,
          sample = paste(experiment, well, sep = "-"),
          tra1.60 = as.logical(tra1.60),
          fly = 0,
@@ -11,8 +14,15 @@ out <- x %>%
          ERCC = factor(ERCC, levels = c("Not added", "1:100000", "1:50000"),
                              labels = c("Not added", "100x dilution", "50x dilution")),
          ERCC = as.character(ERCC)) %>%
-  select(sample, experiment:individual.4, fly, worm, ERCC, index) %>%
+  select(sample, experiment, well, batch, cell_number:individual.4, fly, worm,
+         ERCC, index) %>%
   arrange(sample)
+
+
+# For experiment 10172017, change individual to NA18522 (currently listed as
+# either NA18552 or NA18852)
+out <- out %>% mutate(individual.1 = ifelse(experiment == "10172017", "NA18522",
+                                            individual.1))
 
 # Confirm the leading zero was added properly now that we have dates from Oct
 stopifnot(out$experiment %>% sort %>% unique %>% nchar == 8)

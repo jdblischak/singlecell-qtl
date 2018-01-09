@@ -61,6 +61,7 @@ metadata <- data.frame(labelDescription = c(
   # Lab information
   "ID of C1 chip (i.e. processing date in MMDDYYYY)",
   "Well of C1 chip (96 total, rows A-H, cols 1-12)",
+  "Batch the C1 chip was processed in (b1, b2, ...)",
   "The number of cells observed in the well via microscopy",
   "The cDNA concentration of the well prior to library prep",
   "Did the cell stain positive for TRA-1-60? (test of pluripotency)",
@@ -104,8 +105,8 @@ metadata <- data.frame(labelDescription = c(
 ))
 rownames(metadata) <- c(colnames(pheno))
 pheno_anno <- new("AnnotatedDataFrame", data = pheno, varMetadata = metadata)
-# Add back leading zero for experiment ID
-pheno_anno$experiment <- paste0("0", pheno_anno$experiment)
+# Add back leading zero for experiment ID to get MMDDYYYY
+pheno_anno$experiment <- sprintf("%08d", pheno_anno$experiment)
 # concentration column must be numeric, even if all NA, so that it can be
 # combined with other ExpressionSet objects
 pheno_anno$concentration <- as.numeric(pheno_anno$concentration)
