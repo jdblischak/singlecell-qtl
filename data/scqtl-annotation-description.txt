@@ -1,6 +1,7 @@
 variable	description
 experiment	ID of C1 chip (i.e. processing date in MMDDYYYY)
 well	Well of C1 chip (96 total, rows A-H, cols 1-12)
+batch	Batch the C1 chip was processed in (b1, b2, ...)
 cell_number	The number of cells observed in the well via microscopy
 concentration	The cDNA concentration of the well prior to library prep
 tra1.60	Did the cell stain positive for TRA-1-60? (test of pluripotency)
