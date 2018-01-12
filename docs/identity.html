@@ -316,10 +316,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2018-01-09</p>
+<p><strong>Last updated:</strong> 2018-01-12</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> 92622e3</p>
+<p><strong>Code version:</strong> 56e43f2</p>
 <p><a href="https://catalog.coriell.org/0/Sections/Collections/NHGRI/1000IndSamples.aspx?PgId=665&amp;did=MGENOME27">Link to Yoruba samples on Coriell</a></p>
 <section id="setup" class="level2">
 <h2>Setup</h2>
@@ -356,9 +356,9 @@ Annotation:  </code></pre>
 <pre class="r"><code>table(eset$valid_id)</code></pre>
 <pre><code>
 FALSE  TRUE 
-  298  3350 </code></pre>
+   97  3551 </code></pre>
 <pre class="r"><code>mean(eset$valid_id)</code></pre>
-<pre><code>[1] 0.9183114</code></pre>
+<pre><code>[1] 0.9734101</code></pre>
 </section>
 <section id="plot-per-c1-chip" class="level2">
 <h2>Plot per C1 chip</h2>
@@ -413,7 +413,7 @@ df_obs</code></pre>
 <pre><code>       ind count.exp count.obs
 1  NA18489       120       111
 2  NA18498        72        20
-3  NA18499       120       169
+3  NA18499       216       169
 4  NA18501        96       107
 5  NA18502       144       228
 6  NA18505        96        64
@@ -421,30 +421,28 @@ df_obs</code></pre>
 8  NA18508       144       206
 9  NA18519        96        82
 10 NA18520       168       164
-11 NA18522        24        78
-12 NA18852       216       106
+11 NA18522        96        78
+12 NA18852       144       106
 13 NA18853        96        90
 14 NA18856        72        93
-15 NA18858        96       199
-16 NA18861        96         0
-17 NA18862        96       135
-18 NA18870        96        82
-19 NA19092        48        54
-20 NA19093       120       126
-21 NA19098        96        75
-22 NA19101        96       117
-23 NA19114       120       104
-24 NA19116       120       146
-25 NA19128        96       142
-26 NA19153        96       120
-27 NA19159        48        41
-28 NA19190       120       118
-29 NA19193        96        71
-30 NA19203        48        27
-31 NA19207        96       110
-32 NA19210        96        73
-33 NA19238        96         0
-34 NA19257       168       101</code></pre>
+15 NA18858       192       199
+16 NA18862        96       135
+17 NA18870        96        82
+18 NA19092        48        54
+19 NA19093       120       126
+20 NA19098        96        75
+21 NA19101        96       117
+22 NA19114       120       104
+23 NA19116       120       146
+24 NA19128        96       142
+25 NA19153        96       120
+26 NA19159        48        41
+27 NA19190       120       118
+28 NA19193        96        71
+29 NA19203        48        27
+30 NA19207        96       110
+31 NA19210        96        73
+32 NA19257       168       101</code></pre>
 <pre class="r"><code># The max observed number of cells for any indvidual
 max_cells &lt;- max(df_obs$count.exp, df_obs$count.obs)
 ggplot(df_obs, aes(x = count.exp, y = count.obs)) +
@@ -684,14 +682,14 @@ knitr::kable(top, col.names = c(&quot;C1 chip&quot;, &quot;Expected 1&quot;, &qu
 <tr class="odd">
 <td style="text-align: left;">09252017</td>
 <td style="text-align: left;">NA18858</td>
-<td style="text-align: left;">NA18861</td>
+<td style="text-align: left;">NA18858</td>
 <td style="text-align: left;">NA19114</td>
-<td style="text-align: left;">NA19238</td>
+<td style="text-align: left;">NA18499</td>
 <td style="text-align: left;">NA18858 - 52; NA18499 - 25; NA19114 - 19</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">09262017</td>
-<td style="text-align: left;">NA18852</td>
+<td style="text-align: left;">NA18522</td>
 <td style="text-align: left;">NA19114</td>
 <td style="text-align: left;">NA19153</td>
 <td style="text-align: left;">NA19207</td>
@@ -707,8 +705,8 @@ knitr::kable(top, col.names = c(&quot;C1 chip&quot;, &quot;Expected 1&quot;, &qu
 </tr>
 <tr class="even">
 <td style="text-align: left;">10022017</td>
-<td style="text-align: left;">NA18852</td>
-<td style="text-align: left;">NA18861</td>
+<td style="text-align: left;">NA18522</td>
+<td style="text-align: left;">NA18858</td>
 <td style="text-align: left;">NA19116</td>
 <td style="text-align: left;">NA19193</td>
 <td style="text-align: left;">NA19116 - 32; NA18522 - 23; NA18858 - 21; NA19193 - 20</td>
@@ -726,7 +724,7 @@ knitr::kable(top, col.names = c(&quot;C1 chip&quot;, &quot;Expected 1&quot;, &qu
 <td style="text-align: left;">NA19093</td>
 <td style="text-align: left;">NA19207</td>
 <td style="text-align: left;">NA19193</td>
-<td style="text-align: left;">NA19238</td>
+<td style="text-align: left;">NA18499</td>
 <td style="text-align: left;">NA19093 - 41; NA19207 - 25; NA19193 - 21; NA18499 - 9</td>
 </tr>
 <tr class="odd">
@@ -750,7 +748,7 @@ knitr::kable(top, col.names = c(&quot;C1 chip&quot;, &quot;Expected 1&quot;, &qu
 <td style="text-align: left;">NA19101</td>
 <td style="text-align: left;">NA19116</td>
 <td style="text-align: left;">NA19153</td>
-<td style="text-align: left;">NA19238</td>
+<td style="text-align: left;">NA18499</td>
 <td style="text-align: left;">NA19153 - 30; NA19116 - 27; NA19101 - 26; NA18499 - 13</td>
 </tr>
 <tr class="even">
@@ -765,14 +763,14 @@ knitr::kable(top, col.names = c(&quot;C1 chip&quot;, &quot;Expected 1&quot;, &qu
 <td style="text-align: left;">10122017</td>
 <td style="text-align: left;">NA18489</td>
 <td style="text-align: left;">NA18519</td>
-<td style="text-align: left;">NA18852</td>
-<td style="text-align: left;">NA19238</td>
+<td style="text-align: left;">NA18522</td>
+<td style="text-align: left;">NA18499</td>
 <td style="text-align: left;">NA18499 - 30; NA18519 - 29; NA18489 - 19; NA18522 - 18</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">10132017</td>
 <td style="text-align: left;">NA18489</td>
-<td style="text-align: left;">NA18861</td>
+<td style="text-align: left;">NA18858</td>
 <td style="text-align: left;">NA19101</td>
 <td style="text-align: left;">NA19207</td>
 <td style="text-align: left;">NA18489 - 30; NA19207 - 26; NA19101 - 21; NA18858 - 19</td>
@@ -780,7 +778,7 @@ knitr::kable(top, col.names = c(&quot;C1 chip&quot;, &quot;Expected 1&quot;, &qu
 <tr class="odd">
 <td style="text-align: left;">10162017</td>
 <td style="text-align: left;">NA18519</td>
-<td style="text-align: left;">NA18861</td>
+<td style="text-align: left;">NA18858</td>
 <td style="text-align: left;">NA19093</td>
 <td style="text-align: left;">NA19153</td>
 <td style="text-align: left;">NA19153 - 44; NA18858 - 20; NA19093 - 18; NA18519 - 14</td>
@@ -872,8 +870,8 @@ Platform: x86_64-pc-linux-gnu (64-bit)
 Running under: Scientific Linux 7.2 (Nitrogen)
 
 Matrix products: default
-BLAS: /home/jdblischak/software/miniconda3/envs/scqtl/lib/R/lib/libRblas.so
-LAPACK: /home/jdblischak/software/miniconda3/envs/scqtl/lib/R/lib/libRlapack.so
+BLAS: /project2/gilad/jdblischak/miniconda3/envs/scqtl/lib/R/lib/libRblas.so
+LAPACK: /project2/gilad/jdblischak/miniconda3/envs/scqtl/lib/R/lib/libRlapack.so
 
 locale:
  [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
@@ -889,7 +887,7 @@ attached base packages:
 
 other attached packages:
 [1] bindrcpp_0.2        Biobase_2.38.0      BiocGenerics_0.24.0
-[4] tidyr_0.6.1         stringr_1.2.0       dplyr_0.7.4        
+[4] tidyr_0.7.1         stringr_1.2.0       dplyr_0.7.4        
 [7] cowplot_0.9.1       ggplot2_2.2.1      
 
 loaded via a namespace (and not attached):
@@ -898,9 +896,9 @@ loaded via a namespace (and not attached):
  [9] highr_0.6        plyr_1.8.4       tools_3.4.1      grid_3.4.1      
 [13] gtable_0.2.0     git2r_0.19.0     htmltools_0.3.6  assertthat_0.1  
 [17] yaml_2.1.14      lazyeval_0.2.0   rprojroot_1.2    digest_0.6.12   
-[21] tibble_1.3.3     glue_1.1.1       evaluate_0.10.1  rmarkdown_1.6   
-[25] labeling_0.3     stringi_1.1.2    compiler_3.4.1   scales_0.4.1    
-[29] backports_1.0.5  pkgconfig_2.0.1 </code></pre>
+[21] tibble_1.3.3     purrr_0.2.2      glue_1.1.1       evaluate_0.10.1 
+[25] rmarkdown_1.6    labeling_0.3     stringi_1.1.2    compiler_3.4.1  
+[29] scales_0.5.0     backports_1.0.5  pkgconfig_2.0.1 </code></pre>
 </section>
 
 <hr>
