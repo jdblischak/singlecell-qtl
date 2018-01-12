@@ -129,7 +129,7 @@ dependencies:
 - qt
 - r-assertthat
 - r-backports
-- r-base
+- r-base==3.4.1
 - r-base64enc
 - r-bitops
 - r-blob
