@@ -18,12 +18,6 @@ out <- x %>%
          ERCC, index) %>%
   arrange(sample)
 
-
-# For experiment 10172017, change individual to NA18522 (currently listed as
-# either NA18552 or NA18852)
-out <- out %>% mutate(individual.1 = ifelse(experiment == "10172017", "NA18522",
-                                            individual.1))
-
 # Confirm the leading zero was added properly now that we have dates from Oct
 stopifnot(out$experiment %>% sort %>% unique %>% nchar == 8)
 
