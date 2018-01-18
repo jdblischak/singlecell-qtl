@@ -143,7 +143,7 @@ Note: Using the percentage of all the kinds of spike-in as the cutoff. Instead o
 
 ```{r spike-percentage}
 ## calculate worm and fly reads percentage
-anno$spike_percentage <- apply(anno[,18:20],1,sum) / anno$mapped
+anno$spike_percentage <- apply(anno[,19:21],1,sum) / anno$mapped
 
 ## cut off 
 cut_off_spike <- quantile(anno[anno$cell_number == 0,"spike_percentage"], 0.10)
@@ -171,7 +171,7 @@ plot_spike
 ## Number of genes detected 
 ```{r gene-number}
 ## cut off 
-cut_off_genes <- quantile(anno[anno$cell_number == 0,"detect_hs"], 0.95)
+cut_off_genes <- quantile(anno[anno$cell_number == 0,"detect_hs"], 0.90)
 
 cut_off_genes
 
@@ -304,7 +304,7 @@ plot_grid(plot_ercc_before,
 ## all filter
 anno$filter_all <- anno$cell_number == 1 &
                    anno$valid_id &
-                   anno$cut_off_reads &
+                ##   anno$cut_off_reads &
                 ##   anno$cut_off_unmapped &
                 ##   anno$cut_off_ercc &
                    anno$cut_off_spike &
@@ -407,7 +407,7 @@ Using the genes with reasonable expression levels to perform PCA
 ## pca of genes with reasonable expression levels
 pca_hs <- run_pca(mol_hs_cpm)
 plot_pca(pca_hs$PCs, pcx = 1, pcy = 2, explained = pca_hs$explained,
-         metadata = pData(eset_hs_clean), color = "experiment")
+         metadata = pData(eset_hs_clean), color = "batch")
 
 ## combine to investigate the effect
 pca_anno <- cbind(anno, pca_hs$PCs)
@@ -447,6 +447,7 @@ plot_grid(pc1_reads + theme(legend.position=c(.7,.5)),
           labels = LETTERS[1:4])
 ```
 
+
 ### After filter
 ```{r pca-after}
 ## filter bad cells
@@ -464,9 +465,10 @@ mol_hs_cpm_filter <- mol_hs_cpm_filter[mol_hs_cpm_filter_means > median(mol_hs_c
 dim(mol_hs_cpm_filter)
 
 ## pca of genes with reasonable expression levels
-pca_hs_filter <- run_pca(mol_hs_cpm_filter) 
+pca_hs_filter <- run_pca(mol_hs_cpm_filter)
+
 plot_pca(pca_hs_filter$PCs, pcx = 1, pcy = 2, explained = pca_hs_filter$explained,
-         metadata = pData(eset_hs_clean_filter), color = "experiment")
+         metadata = pData(eset_hs_clean_filter), color = "batch")
 
 ## combine to investigate the effect
 anno_filter <- anno[anno$filter_all,]
