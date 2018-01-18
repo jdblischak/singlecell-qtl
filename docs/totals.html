@@ -316,12 +316,12 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2017-10-31</p>
+<p><strong>Last updated:</strong> 2018-01-17</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> 31aceec</p>
+<p><strong>Code version:</strong> 04754a6</p>
 <p>This analysis explores the total counts of reads and molecules mapped to each source (human, fly, worm, and ERCC).</p>
-<div id="setup" class="section level2">
+<section id="setup" class="level2">
 <h2>Setup</h2>
 <pre class="r"><code>library(&quot;cowplot&quot;)
 library(&quot;dplyr&quot;)
@@ -339,8 +339,8 @@ anno &lt;- pData(eset)</code></pre>
 anno_qc &lt;- pData(eset_qc)</code></pre>
 <p>Extract the columns relevant for this analysis.</p>
 <pre class="r"><code>totals &lt;- anno_qc %&gt;% select(experiment:well, raw:mol_hs)</code></pre>
-</div>
-<div id="what-percentage-of-reads-are-mapped-to-the-genome" class="section level2">
+</section>
+<section id="what-percentage-of-reads-are-mapped-to-the-genome" class="level2">
 <h2>What percentage of reads are mapped to the genome?</h2>
 <pre class="r"><code>totals_long &lt;- totals %&gt;%
   gather(key = &quot;type&quot;, value = &quot;count&quot;, raw:mol_hs) %&gt;%
@@ -374,32 +374,32 @@ head(totals_long)</code></pre>
 <tbody>
 <tr class="odd">
 <td>Raw reads</td>
-<td>2.936804910^{6}</td>
-<td>2.181722210^{6}</td>
+<td>3.913461410^{6}</td>
+<td>2.317362910^{6}</td>
 <td>1.00</td>
 </tr>
 <tr class="even">
 <td>Reads with UMI</td>
-<td>1.876238310^{6}</td>
-<td>1.390258210^{6}</td>
-<td>0.64</td>
+<td>2.570869310^{6}</td>
+<td>1.556682610^{6}</td>
+<td>0.65</td>
 </tr>
 <tr class="odd">
 <td>Reads mapped to genome</td>
-<td>1.322475410^{6}</td>
-<td>1.008351710^{6}</td>
-<td>0.44</td>
+<td>1.822311410^{6}</td>
+<td>1.128526410^{6}</td>
+<td>0.46</td>
 </tr>
 <tr class="even">
 <td>Molecules mapped to genome</td>
-<td>7.608126810^{4}</td>
-<td>3.905347710^{4}</td>
+<td>1.014895510^{5}</td>
+<td>5.046088110^{4}</td>
 <td>0.03</td>
 </tr>
 </tbody>
 </table>
-</div>
-<div id="how-does-the-number-of-mapped-reads-vary-by-c1-chip" class="section level2">
+</section>
+<section id="how-does-the-number-of-mapped-reads-vary-by-c1-chip" class="level2">
 <h2>How does the number of mapped reads vary by C1 chip?</h2>
 <pre class="r"><code>mapped &lt;- totals_long %&gt;%
   filter(type == &quot;Reads mapped\nto genome&quot;)
@@ -426,111 +426,167 @@ ggplot(mapped_sum, aes(x = experiment, y = total)) +
 <table>
 <thead>
 <tr class="header">
-<th align="left">experiment</th>
-<th align="right">total</th>
+<th style="text-align: left;">experiment</th>
+<th style="text-align: right;">total</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td align="left">08292017</td>
-<td align="right">51.13804</td>
+<td style="text-align: left;">10112017</td>
+<td style="text-align: right;">52.49668</td>
 </tr>
 <tr class="even">
-<td align="left">08282017</td>
-<td align="right">51.78616</td>
+<td style="text-align: left;">10162017</td>
+<td style="text-align: right;">60.20125</td>
 </tr>
 <tr class="odd">
-<td align="left">08302017</td>
-<td align="right">53.26984</td>
+<td style="text-align: left;">10122017</td>
+<td style="text-align: right;">68.47301</td>
 </tr>
 <tr class="even">
-<td align="left">08242017</td>
-<td align="right">54.52270</td>
+<td style="text-align: left;">10132017</td>
+<td style="text-align: right;">69.27321</td>
 </tr>
 <tr class="odd">
-<td align="left">08312017</td>
-<td align="right">54.81444</td>
+<td style="text-align: left;">09272017</td>
+<td style="text-align: right;">72.52393</td>
 </tr>
 <tr class="even">
-<td align="left">08212017</td>
-<td align="right">56.39745</td>
+<td style="text-align: left;">10172017</td>
+<td style="text-align: right;">75.43075</td>
 </tr>
 <tr class="odd">
-<td align="left">08112017</td>
-<td align="right">56.45161</td>
+<td style="text-align: left;">10102017</td>
+<td style="text-align: right;">79.47005</td>
 </tr>
 <tr class="even">
-<td align="left">08232017</td>
-<td align="right">58.47733</td>
+<td style="text-align: left;">10022017</td>
+<td style="text-align: right;">90.45141</td>
 </tr>
 <tr class="odd">
-<td align="left">08182017</td>
-<td align="right">59.73698</td>
+<td style="text-align: left;">10042017</td>
+<td style="text-align: right;">99.05395</td>
 </tr>
 <tr class="even">
-<td align="left">08152017</td>
-<td align="right">62.02262</td>
+<td style="text-align: left;">10052017</td>
+<td style="text-align: right;">99.42214</td>
 </tr>
 <tr class="odd">
-<td align="left">08222017</td>
-<td align="right">67.29810</td>
+<td style="text-align: left;">10062017</td>
+<td style="text-align: right;">100.50802</td>
 </tr>
 <tr class="even">
-<td align="left">08142017</td>
-<td align="right">70.10057</td>
+<td style="text-align: left;">10092017</td>
+<td style="text-align: right;">106.40234</td>
 </tr>
 <tr class="odd">
-<td align="left">08102017</td>
-<td align="right">74.86912</td>
+<td style="text-align: left;">09262017</td>
+<td style="text-align: right;">147.33158</td>
 </tr>
 <tr class="even">
-<td align="left">08162017</td>
-<td align="right">152.17424</td>
+<td style="text-align: left;">08162017</td>
+<td style="text-align: right;">150.86872</td>
 </tr>
 <tr class="odd">
-<td align="left">04132017</td>
-<td align="right">156.97627</td>
+<td style="text-align: left;">08102017</td>
+<td style="text-align: right;">151.02021</td>
 </tr>
 <tr class="even">
-<td align="left">04142017</td>
-<td align="right">157.35120</td>
+<td style="text-align: left;">04132017</td>
+<td style="text-align: right;">156.97627</td>
 </tr>
 <tr class="odd">
-<td align="left">04072017</td>
-<td align="right">159.80946</td>
+<td style="text-align: left;">04142017</td>
+<td style="text-align: right;">157.35120</td>
 </tr>
 <tr class="even">
-<td align="left">03312017</td>
-<td align="right">159.88979</td>
+<td style="text-align: left;">04072017</td>
+<td style="text-align: right;">159.80946</td>
 </tr>
 <tr class="odd">
-<td align="left">04052017</td>
-<td align="right">173.99471</td>
+<td style="text-align: left;">03312017</td>
+<td style="text-align: right;">159.88979</td>
 </tr>
 <tr class="even">
-<td align="left">03172017</td>
-<td align="right">186.36864</td>
+<td style="text-align: left;">08142017</td>
+<td style="text-align: right;">164.23577</td>
 </tr>
 <tr class="odd">
-<td align="left">03162017</td>
-<td align="right">186.48628</td>
+<td style="text-align: left;">08152017</td>
+<td style="text-align: right;">164.44799</td>
 </tr>
 <tr class="even">
-<td align="left">04202017</td>
-<td align="right">196.00356</td>
+<td style="text-align: left;">04052017</td>
+<td style="text-align: right;">173.99471</td>
 </tr>
 <tr class="odd">
-<td align="left">03302017</td>
-<td align="right">222.02280</td>
+<td style="text-align: left;">03172017</td>
+<td style="text-align: right;">186.36864</td>
 </tr>
 <tr class="even">
-<td align="left">03232017</td>
-<td align="right">248.62403</td>
+<td style="text-align: left;">03162017</td>
+<td style="text-align: right;">186.48628</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">08222017</td>
+<td style="text-align: right;">192.28710</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">09252017</td>
+<td style="text-align: right;">195.98869</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">04202017</td>
+<td style="text-align: right;">196.00356</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">08112017</td>
+<td style="text-align: right;">197.41407</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">08182017</td>
+<td style="text-align: right;">204.45323</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">08282017</td>
+<td style="text-align: right;">210.10865</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">08212017</td>
+<td style="text-align: right;">217.35114</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">08302017</td>
+<td style="text-align: right;">219.94928</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">03302017</td>
+<td style="text-align: right;">222.02280</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">08242017</td>
+<td style="text-align: right;">239.15060</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">08312017</td>
+<td style="text-align: right;">241.82901</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">03232017</td>
+<td style="text-align: right;">248.62403</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">08232017</td>
+<td style="text-align: right;">258.91525</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">08292017</td>
+<td style="text-align: right;">260.73275</td>
 </tr>
 </tbody>
 </table>
-</div>
-<div id="what-is-the-conversion-of-reads-to-molecules" class="section level2">
+</section>
+<section id="what-is-the-conversion-of-reads-to-molecules" class="level2">
 <h2>What is the conversion of reads to molecules?</h2>
 <pre class="r"><code>convert_all &lt;- ggplot(totals, aes(x = mapped, y = molecules)) +
   geom_point() +
@@ -556,8 +612,8 @@ convert_ce &lt;- ggplot(totals, aes(x = reads_ce, y = mol_ce)) +
 plot_grid(convert_all, convert_hs, convert_dm, convert_ce,
           labels = letters[1:4])</code></pre>
 <p><img src="figure/totals.Rmd/reads-to-molecules-1.png" width="960" style="display: block; margin: auto;" /></p>
-</div>
-<div id="drosophila-spike-in" class="section level2">
+</section>
+<section id="drosophila-spike-in" class="level2">
 <h2>Drosophila spike-in</h2>
 <pre class="r"><code>p_reads_dm &lt;- ggplot(anno_qc, aes(x = as.factor(fly), y = reads_dm / mapped * 100)) +
   geom_boxplot() +
@@ -605,8 +661,8 @@ ggplot(totals_percent, aes(x = sample, y = percent, fill = type)) +
   labs(x = &quot;Sample&quot;, y = &quot;Percent&quot;, title = &quot;Read classification per sample&quot;) +
   theme(legend.title = element_blank())</code></pre>
 <p><img src="figure/totals.Rmd/read-classification-per-sample-1.png" width="768" style="display: block; margin: auto;" /></p>
-</div>
-<div id="c.-elegans-spike-in" class="section level2">
+</section>
+<section id="c.-elegans-spike-in" class="level2">
 <h2>C. elegans spike-in</h2>
 <pre class="r"><code>p_reads_ce &lt;- ggplot(anno_qc, aes(x = as.factor(worm), y = reads_ce / mapped * 100)) +
   geom_boxplot() +
@@ -628,8 +684,8 @@ p_mol_ce_counts &lt;- ggplot(anno_qc, aes(x = as.factor(worm), y = mol_ce)) +
        y = &quot;Number of mapped molecules that mapped to worm genome&quot;)
 plot_grid(p_reads_ce_counts, p_mol_ce_counts, labels = letters[1:2])</code></pre>
 <p><img src="figure/totals.Rmd/totals-worm-counts-1.png" width="768" style="display: block; margin: auto;" /></p>
-</div>
-<div id="ercc-spike-in" class="section level2">
+</section>
+<section id="ercc-spike-in" class="level2">
 <h2>ERCC spike-in</h2>
 <pre class="r"><code>p_reads_ercc &lt;- ggplot(anno_qc, aes(x = as.factor(ERCC), y = reads_ercc / mapped * 100)) +
   geom_boxplot() +
@@ -651,14 +707,18 @@ p_mol_ercc_counts &lt;- ggplot(anno_qc, aes(x = as.factor(ERCC), y = mol_ercc)) 
        y = &quot;Number of molecules that mapped to ERCCs&quot;)
 plot_grid(p_reads_ercc_counts, p_mol_ercc_counts, labels = letters[1:2])</code></pre>
 <p><img src="figure/totals.Rmd/totals-ercc-counts-1.png" width="768" style="display: block; margin: auto;" /></p>
-</div>
-<div id="session-information" class="section level2">
+</section>
+<section id="session-information" class="level2">
 <h2>Session information</h2>
 <!-- Insert the session information into the document -->
 <pre class="r"><code>sessionInfo()</code></pre>
-<pre><code>R version 3.3.2 (2016-10-31)
+<pre><code>R version 3.4.1 (2017-06-30)
 Platform: x86_64-pc-linux-gnu (64-bit)
 Running under: Scientific Linux 7.2 (Nitrogen)
+
+Matrix products: default
+BLAS: /project2/gilad/jdblischak/miniconda3/envs/scqtl/lib/R/lib/libRblas.so
+LAPACK: /project2/gilad/jdblischak/miniconda3/envs/scqtl/lib/R/lib/libRlapack.so
 
 locale:
  [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
@@ -673,18 +733,21 @@ attached base packages:
 [8] base     
 
 other attached packages:
-[1] Biobase_2.34.0      BiocGenerics_0.20.0 tidyr_0.6.1        
-[4] dplyr_0.5.0         cowplot_0.7.0       ggplot2_2.2.1      
+[1] bindrcpp_0.2        Biobase_2.38.0      BiocGenerics_0.24.0
+[4] tidyr_0.7.1         dplyr_0.7.4         cowplot_0.9.1      
+[7] ggplot2_2.2.1      
 
 loaded via a namespace (and not attached):
- [1] Rcpp_0.12.10     knitr_1.16       magrittr_1.5     munsell_0.4.3   
- [5] colorspace_1.3-2 R6_2.2.0         highr_0.6        stringr_1.2.0   
- [9] plyr_1.8.4       tools_3.3.2      grid_3.3.2       gtable_0.2.0    
-[13] DBI_0.6-1        git2r_0.19.0     htmltools_0.3.6  yaml_2.1.13     
-[17] lazyeval_0.2.0   rprojroot_1.2    digest_0.6.12    assertthat_0.1  
-[21] tibble_1.2       evaluate_0.10    rmarkdown_1.6    labeling_0.3    
-[25] stringi_1.1.2    scales_0.4.1     backports_1.0.5 </code></pre>
-</div>
+ [1] Rcpp_0.12.13     compiler_3.4.1   git2r_0.19.0     plyr_1.8.4      
+ [5] highr_0.6        bindr_0.1        tools_3.4.1      digest_0.6.12   
+ [9] evaluate_0.10.1  tibble_1.3.3     gtable_0.2.0     pkgconfig_2.0.1 
+[13] rlang_0.1.2      yaml_2.1.14      stringr_1.2.0    knitr_1.16      
+[17] rprojroot_1.2    grid_3.4.1       tidyselect_0.2.3 glue_1.1.1      
+[21] R6_2.2.0         rmarkdown_1.6    purrr_0.2.2      magrittr_1.5    
+[25] backports_1.0.5  scales_0.5.0     htmltools_0.3.6  assertthat_0.1  
+[29] colorspace_1.3-2 labeling_0.3     stringi_1.1.2    lazyeval_0.2.0  
+[33] munsell_0.4.3   </code></pre>
+</section>
 
 <hr>
 <p>
