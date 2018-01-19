@@ -81,7 +81,7 @@ chr_hs = config["chr_hs"]
 
 # Input samples ----------------------------------------------------------------
 
-chips = config["batch1"] + config["batch2"] + config["batch3"]
+chips = config["batch1"] + config["batch2"] + config["batch3"] + config["batch5"]
 rows = config["rows"]
 cols = config["cols"]
 
@@ -110,6 +110,10 @@ rule batch2:
 rule batch3:
     input: expand(dir_data + "eset/{chip}.rds", chip = config["batch3"]),
            expand(dir_multiqc + "{chip}/multiqc_report.html", chip = config["batch3"])
+
+rule batch5:
+    input: expand(dir_data + "eset/{chip}.rds", chip = config["batch5"]),
+           expand(dir_multiqc + "{chip}/multiqc_report.html", chip = config["batch5"])
 
 rule intermediate:
     input: #MultiQC
