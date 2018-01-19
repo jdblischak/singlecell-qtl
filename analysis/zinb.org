@@ -24,23 +24,40 @@
   #+CALL: ipython3(memory="16G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 42220231
+  : Submitted batch job 42406554
 
   #+NAME: zinb-imports
-  #+BEGIN_SRC ipython :tangle zinb.py
+  #+BEGIN_SRC ipython :tangle tensorflow-nb.py
     import functools
-    import matplotlib.pyplot as plt
     import numpy as np
-    import os
     import pandas as pd
+    import scipy.stats as st
   #+END_SRC
+
+  #+RESULTS: zinb-imports
+  :RESULTS:
+  # Out[1]:
+  :END:
 
   #+RESULTS:
   :RESULTS:
   # Out[1]:
   :END:
 
-  #+BEGIN_SRC ipython :tangle zinb.py
+  #+NAME: plt-imports
+  #+BEGIN_SRC ipython
+    %matplotlib inline
+    import colorcet
+    import matplotlib.pyplot as plt
+  #+END_SRC
+
+  #+RESULTS: plt-imports
+  :RESULTS:
+  # Out[2]:
+  :END:
+
+  #+NAME: tf-imports
+  #+BEGIN_SRC ipython :tangle tensorflow-nb.py
     import tensorflow as tf
   #+END_SRC
 
@@ -68,6 +85,42 @@
      physical_device_desc: "device: 0, name: Tesla K80, pci bus id: 0000:08:00.0"]
   #+END_EXAMPLE
   :END:
+
+* Model specification
+
+  Let \(r_{ijk}\) denote the number of molecules for individual \(i\), cell
+  \(j\), gene \(k\). Let \(R_{ij}\) denote a size factor for each cell. As a
+  first pass, define \(R_{ij} = \sum_k r_{ijk}\).
+
+  Following Hilbe 2012, we derive the negative binomial as a Poisson-Gamma
+  mixture:
+
+  \[ r_{ijk} \sim \text{Pois}(R_{ij} \mu_{ik} u_{ijk}) \]
+
+  \[ u_{ijk} \sim \text{Gamma}(\phi_{ik}^{-1}, \phi_{ik}^{-1}) \]
+
+  Here, \(\mu_{ik}u_{ijk}\) denotes relative expression
+  ([[https://arxiv.org/abs/1104.3889][Pachter 2011]]). Marginalizing out \(u\)
+  yields the negative binomial distribution, with log likelihood:
+
+  \[ \ln p(r_{ijk} \mid R_{ij}, \mu_{ik}, \phi_{ik}) = r_{ijk} \ln\left(\frac{R_{ij}\mu_{ik}\phi_{ik}}{1 + R_{ij}\mu_{ik}\phi_{ik}}\right) - \phi_{ik}^{-1} \ln(1 + R_{ij}\mu_{ik}\phi_{ik}) + \ln \Gamma(r_{ijk} + \phi_{ik}^{-1}) - \ln \Gamma(r_{ijk} + 1) - \ln \Gamma(\phi^{-1}) \]
+
+  We have multiple data points (30-200 cells) per mean/dispersion parameter, so
+  simply minimizing the negative log likelihood should give reasonable
+  estimates.
+
+  We can additionally account for zero-inflation, by letting \(\pi_{ijk}\)
+  denote the probability of a "technical zero" (i.e., not arising from the
+  negative-binomial). Following prior work, we introduce a dropout parameter
+  for each cell (indexed by \(i\) and \(j\)) and each gene ([[https://arxiv.org/abs/1709.02082][Lopez et al 2017]],
+  [[https://www.nature.com/articles/s41467-017-02554-5][Risso et al 2017]]).
+
+  Then, the log-likelihood of the data is:
+
+  \[ \ln p(r_{ijk} \mid r_{ijk} = 0, \cdot) = -\ln(\pi_{ijk} + (1 - \pi_{ijk})
+  \exp(\ln p(r_{ijk} \mid R_{ij}, \mu_{ik}, \phi_{ik}))) \]
+
+  \[ \ln p(r_{ijk} \mid r_{ijk} > 0, \cdot) = \ln(1 - \pi_{ijk}) + \ln p(r_{ijk} \mid R_{ij}, \mu_{ik}, \phi_{ik})) \]
 
 * Quality control
 
@@ -175,69 +228,16 @@
 * Read the data
 
   #+NAME: read-data
-  #+BEGIN_SRC ipython :tangle zinb.py :noweb yes
+  #+BEGIN_SRC ipython :tangle tensorflow-nb.py :noweb yes
     umi = pd.read_table('/scratch/midway2/aksarkar/singlecell/umi-qc.txt.gz', sep=' ', index_col=0)
     onehot = pd.read_table('/scratch/midway2/aksarkar/singlecell/onehot-qc.txt.gz', sep=' ', index_col=0)
     annotations = pd.read_table('/scratch/midway2/aksarkar/singlecell/annotations-qc.txt.gz', sep=' ', index_col=0)
   #+END_SRC
 
-  #+RESULTS:
+  #+RESULTS: read-data
   :RESULTS:
-  # Out[6]:
+  # Out[4]:
   :END:
-
-* Model specification
-
-  Let \(r_{ijk}\) denote the number of molecules for individual \(i\), cell
-  \(j\), gene \(k\). Let \(R_{ij}\) denote a size factor for each cell. As a
-  first pass, define \(R_{ij} = \sum_k r_{ijk}\).
-
-  Following Hilbe 2012, we derive the negative binomial as a Poisson-Gamma
-  mixture:
-
-  \[ r_{ijk} \sim \text{Pois}(R_{ij} \mu_{ik} u_{ijk}) \]
-
-  \[ u_{ijk} \sim \text{Gamma}(\phi_{ik}^{-1}, \phi_{ik}^{-1}) \]
-
-  *Open question: does the size factor have to enter the QTL model also?*
-
-  Marginalizing out \(u\) yields the negative binomial distribution, with log
-  likelihood:
-
-  \[ \ln p(r_{ijk} \mid R_{ij}, \mu_{ik}, \phi_{ik}) = r_{ijk} \ln\left(\frac{R_{ij}\mu_{ik}\phi_{ik}}{1 + R_{ij}\mu_{ik}\phi_{ik}}\right) - \phi_{ik}^{-1} \ln(1 + R_{ij}\mu_{ik}\phi_{ik}) + \ln \Gamma(r_{ijk} + \phi_{ik}^{-1}) - \ln \Gamma(r_{ijk} + 1) - \ln \Gamma(\phi^{-1}) \]
-
-  This distribution has the following properties:
-
-  \[ E[r_{ijk} \mid \cdot] = R_{ij} \mu_{ik} \]
-
-  \[ V_j[r_{ijk} \mid \cdot] = R_{ij} \mu_{ik} + (R_{ij} \mu_{ik})^2 \phi_{ik}
-  \]
-
-  The latter follows from the law of total variance. Dropping subscripts for
-  convenience:
-
-  \[ V[r] = E[V[r \mid u]] + V[E[r \mid u]] \]
-  \[ V[r] = E[R \mu u] + V[R \mu u] \]
-  \[ V[r] = R \mu + (R \mu)^2 V[u] \]
-  \[ V[r] = R \mu + (R \mu)^2 \phi \]
-
-  We have multiple data points (30-200 cells) per mean/dispersion parameter, so
-  simply minimizing the negative log likelihood should give reasonable
-  estimates.
-
-  We can additionally account for zero-inflation, by letting \(\pi_{ij}\)
-  denote the probability of a "technical zero" (i.e., not arising from the
-  negative-binomial).
-
-  Then, the log-likelihood of the data is:
-
-  \[ \ln p(r_{ijk} \mid r_{ijk} = 0, \cdot) = -\ln(\pi_{ij} + (1 - \pi_{ij})
-  \exp(\ln p(r_{ijk} \mid R_{ij}, \mu_{ik}, \phi_{ik}))) \]
-
-  \[ \ln p(r_{ijk} \mid r_{ijk} > 0, \cdot) = \ln(1 - \pi_{ij}) + \ln p(r_{ijk} \mid R_{ij}, \mu_{ik}, \phi_{ik})) \]
-
-  *Open question: how many dropout parameters need to be introduced, and are
-  they shared between cells/genes?*
 
 * Serial algorithm
 
@@ -253,6 +253,11 @@
 
     <<read-data>>
   #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[102]:
+  :END:
 
   Optimize the negative log-likelihood using BFGS.
 
@@ -286,7 +291,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[89]:
+  # Out[103]:
   :END:
 
   Output record-like data for each parameter to make reassembling the result
@@ -336,16 +341,16 @@
     log_disp.to_csv('/scratch/midway2/aksarkar/singlecell/disp.txt.gz', sep=' ', compression='gzip')
   #+END_SRC
 
-  Tangle the code from this file and submit requesting multiple cores.
+  # Tangle the code from this file and submit requesting multiple cores.
 
-  #+BEGIN_SRC emacs-lisp
+  #+BEGIN_SRC emacs-lisp :exports none
     (org-babel-tangle)
   #+END_SRC
 
   #+RESULTS:
-  | nb.py | zinb.py |
+  | nb.py | tensorflow-nb.py |
 
-  #+BEGIN_SRC sh
+  #+BEGIN_SRC sh :exports none
     sbatch --partition="broadwl" -N1 -c16 --out=nb.out
     #!/bin/bash
     source activate scqtl
@@ -355,18 +360,19 @@
   #+RESULTS:
   : Submitted batch job 42221597
 
-* Parallel algorithm                                               :noexport:
+* Parallel algorithm
 
-  We should be able to jointly optimize all of the parameters together, using
-  one-hot encoding to map parameters to data points. This will speed up
-  inference by making it more amenable to running on the GPU.
+  We optimize all of the parameters together, using one-hot encoding to map
+  parameters to data points. This makes inference more amenable to running on
+  the GPU. Although this is slower for the NB estimation problem, it will be
+  faster for the ZINB estimation problem when parameters are shared between
+  genes and we need to operate on the entire count matrix.
 
   Use tensorflow to automatically differentiate the negative log likelihood and
   perform gradient descent.
 
-  *Open problem: this doesn't give the same answer as the serial algorithm*
-
-  #+BEGIN_SRC ipython :tangle zinb.py
+  #+NAME: zinb-impl
+  #+BEGIN_SRC ipython :tangle tensorflow-nb.py
     def sigmoid(x):
       """Numerically safe sigmoid"""
       return tf.clip_by_value(tf.sigmoid(x), -13, 13)
@@ -418,7 +424,7 @@
 
       log_mean - log mean parameter (m x p)
       log_disp - log dispersion parameter (m x p)
-      dropout - if zero_inflation, dropout log odds (n x 1)
+      dropout - if zero_inflation, dropout log odds (n x p)
 
       """
       n, p = umi.shape
@@ -434,7 +440,7 @@
         inv_disp = tf.exp(tf.Variable(tf.zeros([m, p])))
 
         if zero_inflation:
-          dropout = tf.Variable(tf.zeros([n, 1]))
+          dropout = tf.Variable(tf.zeros([n, p]))
           llik = tf.reduce_mean(
             zinb_llik(umi, size_factor * tf.matmul(onehot, mean),
                       tf.matmul(onehot, inv_disp), dropout))
@@ -447,7 +453,7 @@
           check_op = tf.assert_non_positive(llik)
 
         with tf.control_dependencies([check_op]):
-          train = tf.train.RMSPropOptimizer(learning_rate=learning_rate).minimize(-llik)
+          train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(-llik)
 
         opt = [tf.log(mean), -tf.log(inv_disp)]
         if zero_inflation:
@@ -468,9 +474,9 @@
   :RESULTS:
   :END:
 
-  #+BEGIN_SRC ipython :tangle zinb.py
+  #+BEGIN_SRC ipython :tangle tensorflow-nb.py
     mean, dispersion = fit(
-      umi=umi.iloc[:5].values.T.astype(np.float32),
+      umi=umi.values.T.astype(np.float32),
       onehot=onehot.values.astype(np.float32),
       size_factor=umi.agg(np.sum).astype(np.float32).values.reshape(-1, 1),
       learning_rate=1e-2,
@@ -481,23 +487,350 @@
   :RESULTS:
   :END:
 
-  #+BEGIN_SRC ipython :tangle zinb.py
-    pd.DataFrame(mean.T, index=umi.index, columns=onehot.columns).to_csv('/scratch/midway2/aksarkar/singlecell/mean.txt.gz', sep=' ', compression='gzip')
-    pd.DataFrame(dispersion.T, index=umi.index, columns=onehot.columns).to_csv('/scratch/midway2/aksarkar/singlecell/dispersion.txt.gz', sep=' ', compression='gzip')
+  #+BEGIN_SRC ipython :tangle tensorflow-nb.py
+    pd.DataFrame(mean.T, index=umi.index, columns=onehot.columns).to_csv('/scratch/midway2/aksarkar/singlecell/mean2.txt.gz', sep=' ', compression='gzip')
+    pd.DataFrame(dispersion.T, index=umi.index, columns=onehot.columns).to_csv('/scratch/midway2/aksarkar/singlecell/dispersion2.txt.gz', sep=' ', compression='gzip')
   #+END_SRC
 
-  For convenience [[https://orgmode.org/manual/Extracting-source-code.html][tangle]] the code from this file and run it through
-  ~sbatch~. (This makes it easier to keep a long running kernel for the
-  followup analysis, while running the hard estimation problem on a GPU node.)
+  # [[Https://orgmode.org/manual/Extracting-source-code.html][Tangle]] the code from this file and run it through ~sbatch~. (This makes it
+  # easier to keep a long running kernel for the followup analysis, while
+  # running the hard estimation problem on a GPU node.)
 
-  #+BEGIN_SRC emacs-lisp
+  #+BEGIN_SRC emacs-lisp :exports none
     (org-babel-tangle)
   #+END_SRC
 
   #+RESULTS:
-  | zinb.py |
+  | nb.py | tensorflow-nb.py |
 
-  #+BEGIN_SRC sh :eval never-export
+  #+BEGIN_SRC sh :eval never-export :exports none
+    sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --time=30 --job-name=zinb --output=zinb.out --error=zinb.err
+    #!/bin/bash
+    source activate scqtl
+    python tensorflow-nb.py
+  #+END_SRC
+
+  #+RESULTS:
+  : Submitted batch job 42273595
+
+  #+BEGIN_SRC ipython
+    mean = pd.read_table('/scratch/midway2/aksarkar/singlecell/mean.txt.gz', sep=' ', index_col=0)
+    mean2 = pd.read_table('/scratch/midway2/aksarkar/singlecell/mean2.txt.gz', sep=' ', index_col=0)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[2]:
+  :END:
+
+  Check how close the estimated parameters are.
+
+  #+BEGIN_SRC ipython
+    (np.isclose(mean.values, mean2.values)).all()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[8]:
+  : False
+  :END:
+
+  #+BEGIN_SRC ipython
+    mask = np.where(np.logical_and(np.isfinite(mean.values), ~np.isclose(mean.values, mean2.values)))
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[23]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    pd.Series(abs(mean.values[mask] - mean2.values[mask])).describe()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[25]:
+  #+BEGIN_EXAMPLE
+    count    5685.000000
+    mean        0.000546
+    std         0.000889
+    min         0.000054
+    25%         0.000165
+    50%         0.000302
+    75%         0.000623
+    max         0.030600
+    dtype: float64
+  #+END_EXAMPLE
+  :END:
+
+* Visualize the fitted models
+
+  The challenge in visualizing the fitted distributions is that the
+  observations \(r_{ijk}\) are not drawn iid. from a distribution
+  \(g_{ik}(\cdot)\). 
+
+  Instead, we have \(r_{ijk} \sim g_{ijk}(\cdot)\), and we have used maximum
+  likelihood to estimate distributions \(\hat{g}_{ijk}\).
+
+  We can use an idea from ~ashr~: Let \(\hat{G}_{ijk}\) denote the CDF of
+  \(\hat{g}_{ijk}\). Then, the distribution of values
+  \(\hat{G}_{ijk}(r_{ijk})\) should be uniform.
+
+  #+BEGIN_SRC ipython
+    def estimated_cdf(x, mean, disp, size, onehot):
+      n = onehot.dot(np.exp(-disp.values.T) + 1e-8)
+      p = 1 / (1 + size.to_frame().values * onehot.dot(np.exp(mean.values + disp.values).T))
+      assert (n.values > 0).all()
+      assert (p.values >= 0).all()
+      assert (p.values <= 1).all()
+      return st.nbinom(n=n, p=p).cdf(x)
+
+    def diagnostic(umi, mean, disp, size, onehot):
+      q = estimated_cdf(umi.values.T, mean, disp, size, onehot)
+      plt.clf()
+      plt.scatter(x=np.linspace(0, 1, q.shape[0]),
+                  y=sorted(q.ravel()),
+                  s=0.5)
+      plt.plot([[0, 0], [1, 1]], c='black')
+      plt.title(umi.index[0])
+      plt.xlabel('Expected quantile')
+      plt.ylabel('Estimated quantile')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[7]:
+  :END:
+
+  Look at a particular gene:
+
+  #+BEGIN_SRC ipython
+    mean = pd.read_table('/scratch/midway2/aksarkar/singlecell/mean2.txt.gz', sep=' ', index_col=0)
+    disp = pd.read_table('/scratch/midway2/aksarkar/singlecell/dispersion2.txt.gz', sep=' ', index_col=0)
+    size = umi.agg(np.sum)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[44]:
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/nb-quantiles.png
+    diagnostic(umi.iloc[:1], mean.iloc[:1], disp.iloc[:1], size, onehot)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[8]:
+  [[file:figure/zinb.org/nb-quantiles.png]]
+  :END:
+
+  The estimated quantiles are higher than the expected quantiles, suggesting
+  that the estimated distributions have too much density at lower values. One
+  explanation is that even for this stringent subset of genes, means are biased
+  downwards and dispersions are biased upwards due to zero-inflation. If this
+  were the case, then we should expect to find some genes which depart even
+  more from uniform quantiles.
+
+  Look at the quantiles of the QQ plots over all genes:
+
+  #+BEGIN_SRC ipython
+    def diagnostic_quantiles(umi, mean, disp, size, onehot, quantiles=None):
+      if quantiles is None:
+        quantiles = np.array([.1, .25, .5, .75, .99])
+      else:
+        quantiles = np.array(quantiles)
+        assert (0 <= quantiles <= 1).all()
+      cdf = np.sort(estimated_cdf(umi.values.T, mean, disp, size, onehot).T)
+      cdf_quantiles = np.percentile(cdf, 100 * quantiles, interpolation='higher', axis=0)
+
+      plt.clf()
+      for q, row in zip(quantiles, cdf_quantiles):
+        plt.scatter(x=np.linspace(0, 1, row.shape[0]), y=row, c=colorcet.cm['kbc'](q), s=.5, label=q)
+      plt.legend()
+      plt.xlabel('Expected quantile')
+      plt.ylabel('Estimated quantile')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[83]:
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/nb-quantiles-dist.png
+    diagnostic_quantiles(umi, mean, disp, size, onehot)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[84]:
+  [[file:figure/zinb.org/nb-quantiles-dist.png]]
+  :END:
+
+  We can also compare the histogram of the observed data to the average density
+  \(\bar{g}\):
+
+  \[ \bar{g}(x) = \frac{1}{N} \sum_{i,j,k} \hat{g}_{ijk}(x) \]
+
+  Following ~locfdr~, we plot the expected number of draws from \(\bar{g}\),
+  assuming the number of draws in the interval \([a, b]\) is
+  \(\mathrm{Bin}(N, \bar{G}(b) - \bar{G}(a))\), where \(N\) is the total number
+  of observations and \(\bar{G}\) is the average CDF:
+
+  \[ \bar{G}(x) = \frac{1}{N} \sum_{i,j,k} \hat{G}_{ijk}(x) \]
+
+  The data distribution has an extremely long tail, so truncate it to make the
+  majority of the fit easier to see:
+
+  #+BEGIN_SRC ipython
+    query = (pd.Series([50, 75, 90, 95, 99])
+             .apply(lambda x: np.percentile(umi.values.ravel(), x))
+             .to_frame()
+             .rename_axis('Percentile', axis='index'))
+    query.columns = ['UMI']
+    query
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[128]:
+  #+BEGIN_EXAMPLE
+    UMI
+    Percentile
+    50           4.0
+    75           9.0
+    90          19.0
+    95          32.0
+    99          98.0
+  #+END_EXAMPLE
+  :END:
+
+  #+BEGIN_SRC ipython
+    def expected_counts(umi, mean, disp, size, onehot, grid):
+      data = umi.values.ravel()
+      average_cdf = [np.mean(estimated_cdf(g, mean, disp, size, onehot)) for g in grid]
+      return data.shape[0] * np.diff(average_cdf)
+
+    def plot_fit(umi, expected_counts, grid):
+      data = umi.values.ravel()
+      plt.clf()
+      plt.hist(data[data <= grid.max()], bins=grid, color='k')
+      plt.plot(grid[1:] - 0.5, expected_counts, c='r')
+      plt.xticks(grid)
+      plt.xlabel('UMI count')
+      plt.ylabel('Frequency')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[46]:
+  :END:
+
+  The model appears to be zero-biased as expected:
+
+  #+BEGIN_SRC ipython
+    grid = np.arange(20)
+    exp_counts = expected_counts(umi, mean, disp, size, onehot, grid)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[185]:
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/nb-hist.png
+    plot_fit(umi, exp_counts, grid)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[187]:
+  [[file:figure/zinb.org/nb-hist.png]]
+  :END:
+
+  We can also visualize the quantiles of \(\bar{g}\):
+
+  #+BEGIN_SRC ipython
+    def predicted_counts(umi, mean, disp, size, onehot, grid, quantiles=None):
+      if quantiles is None:
+        quantiles = [.1, .25, .5, .75, .99]
+      else:
+        quantiles = np.atleast_1d(np.array(quantiles))
+        assert (0 <= quantiles).all()
+        assert (quantiles <= 1).all()
+      data = umi.values.ravel()
+      cdf = np.array([np.percentile(estimated_cdf(g, mean, disp, size, onehot), 100 * quantiles) for g in grid]).T
+      return data.shape[0] * np.diff(cdf)
+
+    def plot_fit_quantiles(umi, predicted_counts, quantiles, grid):
+      data = umi.values.ravel()
+      plt.clf()
+      plt.hist(data[data <= grid.max()], bins=grid, color='k')
+      for q, row in zip(quantiles, predicted_counts):
+        plt.plot(grid[1:] - 0.5, row, c=colorcet.cm['linear_kry_5_95_c72'](q), label=q)
+      plt.legend()
+      plt.xticks(grid)
+      plt.xlabel('UMI count')
+      plt.ylabel('Frequency')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[41]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    grid = np.arange(20)
+    quantiles = [.1, .25, .5, .75, .99]
+    pred_counts = predicted_counts(umi, mean, disp, size, onehot, grid, quantiles)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[49]:
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/nb-hist-quantiles.png
+    plot_fit_quantiles(umi, pred_counts, quantiles, grid)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[50]:
+  [[file:figure/zinb.org/nb-hist-quantiles.png]]
+  :END:
+
+* Compare NB to ZINB
+
+  Restrict to the genes which are detected in >70% of samples and estimate the
+  parameters of the zero-inflated model.
+
+  #+BEGIN_SRC ipython :tangle zinb.py :noweb tangle
+    <<zinb-imports>>
+    <<tf-imports>>
+    <<read-data>>
+    <<zinb-impl>>
+    mean, dispersion, dropout = fit(
+      umi=umi.values.T.astype(np.float32),
+      onehot=onehot.values.astype(np.float32),
+      size_factor=umi.agg(np.sum).astype(np.float32).values.reshape(-1, 1),
+      zero_inflation=True,
+      learning_rate=1e-2,
+      max_epochs=8000)
+    pd.DataFrame(mean.T, index=umi.index, columns=onehot.columns).to_csv('/scratch/midway2/aksarkar/singlecell/zi-mean.txt.gz', sep=' ', compression='gzip')
+    pd.DataFrame(dispersion.T, index=umi.index, columns=onehot.columns).to_csv('/scratch/midway2/aksarkar/singlecell/zi-dispersion.txt.gz', sep=' ', compression='gzip')
+    pd.DataFrame(dropout.T, index=umi.index, columns=umi.columns).to_csv('/scratch/midway2/aksarkar/singlecell/zi-dropout.txt.gz', sep=' ', compression='gzip')
+  #+END_SRC
+
+  #+BEGIN_SRC emacs-lisp :exports none
+    (org-babel-tangle)
+  #+END_SRC
+
+  #+RESULTS:
+  | zinb.py | nb.py | tensorflow-nb.py |
+
+  #+BEGIN_SRC sh :eval never-export :exports none
     sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --time=30 --job-name=zinb --output=zinb.out --error=zinb.err
     #!/bin/bash
     source activate scqtl
@@ -505,57 +838,58 @@
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 42221193
+  : Submitted batch job 42307687
+
+  Plot the data and fitted distribution for the zero-inflated model.
 
   #+BEGIN_SRC ipython
-    log_mean = pd.read_table('mean.txt.gz', sep=' ', index_col=0)
+    zi_mean = pd.read_table('/scratch/midway2/aksarkar/singlecell/zi-mean.txt.gz', sep=' ', index_col=0)
+    zi_disp = pd.read_table('/scratch/midway2/aksarkar/singlecell/zi-dispersion.txt.gz', sep=' ', index_col=0)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[57]:
+  # Out[35]:
   :END:
 
   #+BEGIN_SRC ipython
-    log_mean.iloc[0]
+    grid = np.arange(20)
+    exp_counts = expected_counts(umi, zi_mean, zi_disp, size, onehot, grid)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[58]:
-  #+BEGIN_EXAMPLE
-    NA18489   -4.398294
-    NA18498   -0.912375
-    NA18499   -8.331842
-    NA18501   -4.439660
-    NA18502   -8.615689
-    NA18505   -2.217484
-    NA18507   -8.427283
-    NA18508   -8.501702
-    NA18519   -2.994574
-    NA18520   -8.178504
-    NA18522   -2.792260
-    NA18852   -3.843915
-    NA18853   -3.828545
-    NA18856   -3.346244
-    NA18858   -8.192317
-    NA18862   -6.147875
-    NA18870   -3.389510
-    NA19093   -5.520665
-    NA19098   -2.783728
-    NA19101   -4.907929
-    NA19114   -4.064628
-    NA19116   -6.399668
-    NA19119   -0.846079
-    NA19128   -5.853783
-    NA19153   -4.680749
-    NA19159   -1.396034
-    NA19190   -4.761320
-    NA19193   -2.739177
-    NA19203   -1.009947
-    NA19207   -4.496280
-    NA19210   -3.107379
-    NA19257   -4.354552
-    Name: ENSG00000000003, dtype: float64
-  #+END_EXAMPLE
+  # Out[191]:
   :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/zinb-hist.png
+    plot_fit(umi, exp_counts, grid)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[192]:
+  [[file:figure/zinb.org/zinb-hist.png]]
+  :END:
+
+  #+BEGIN_SRC ipython
+    grid = np.arange(20)
+    quantiles = [.1, .25, .5, .75, .99]
+    pred_counts = predicted_counts(umi, zi_mean, zi_disp, size, onehot, grid, quantiles)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[36]:
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/zinb-hist-quantiles.png
+    plot_fit_quantiles(umi, pred_counts, quantiles, grid)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[42]:
+  [[file:figure/zinb.org/zinb-hist-quantiles.png]]
+  :END:
+

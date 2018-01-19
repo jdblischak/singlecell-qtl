@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-01-17 Wed 16:41 -->
+<!-- 2018-01-22 Mon 11:04 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>QTL mapping pipeline</title>
@@ -227,6 +227,28 @@ for the JavaScript code in this tag.
  }
 /*]]>*///-->
 </script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+        displayAlign: "center",
+        displayIndent: "0em",
+
+        "HTML-CSS": { scale: 100,
+                        linebreaks: { automatic: "false" },
+                        webFont: "TeX"
+                       },
+        SVG: {scale: 100,
+              linebreaks: { automatic: "false" },
+              font: "TeX"},
+        NativeMML: {scale: 100},
+        TeX: { equationNumbers: {autoNumber: "AMS"},
+               MultLineWidth: "85%",
+               TagSide: "right",
+               TagIndent: ".8em"
+             }
+});
+</script>
+<script type="text/javascript"
+        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS_HTML"></script>
 </head>
 <body>
 <div id="content">
@@ -247,9 +269,26 @@ for the JavaScript code in this tag.
 <h2 id="org5ed2a04">Introduction</h2>
 <div class="outline-text-2" id="text-org5ed2a04">
 <p>
-Here, we set up the infrastructure to call mean and variance QTLs, assuming
-that we have <a href="zinb.html">previously estimated means and variances per individual, per
-gene.</a>
+Here, we set up the infrastructure to call mean and variance QTLs.
+</p>
+
+<p>
+We previously <a href="zinb.html">estimated means and dispersions per individual, per gene</a>. We
+now fit log linear models for each:
+</p>
+
+<p>
+\[ \ln \mu_{ik} = X \beta_\mu + \epsilon_\mu \]
+</p>
+
+<p>
+\[ \ln \phi_{ik} = X \beta_\phi + \epsilon_\phi \]
+</p>
+
+<p>
+where \(\mu_{ik}, \phi_{ik}\) are the mean and dispersion for individual
+\(i\), gene \(k\), \(X\) is the genotype matrix (\(n \times 1)\), and
+\(\beta_\mu, \beta_\phi\) are the effect sizes (scalar).
 </p>
 </div>
 </div>
@@ -277,6 +316,16 @@ tabix genotypes.vcf.gz
 <div id="outline-container-org051ecfa" class="outline-2">
 <h2 id="org051ecfa">Mean-QTL calling</h2>
 <div class="outline-text-2" id="text-org051ecfa">
+<p>
+Read the estimated parameters (phenotypes) then center them.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">mean</span> = (pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/mean2.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
+        .transform(<span class="org-keyword">lambda</span> x: x - x.mean(), axis=1))
+</pre>
+</div>
+
 <p>
 Write out the <a href="https://qtltools.github.io/qtltools/pages/input_files.html">phenotype file</a> for <code>qtltools</code>.
 </p>
@@ -320,20 +369,6 @@ ENSG00000000971   hs1  196621008  196716634       CFH      +  H. sapiens
            index=<span class="org-constant">False</span>,
            index_label=<span class="org-constant">False</span>)
   )
-</pre>
-</div>
-
-<p>
-Read the estimated parameters. These might be missing due to failure to
-converge in the inference algorithm. As a first pass, mean-impute them by
-centering the data (ignoring missing values), and then filling in missing
-values with 0.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">mean</span> = (pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/mean.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
-        .transform(<span class="org-keyword">lambda</span> x: x - x.mean(), axis=1)
-        .fillna(0))
 </pre>
 </div>
 
@@ -411,55 +446,52 @@ keep_mean_qtls.<span class="org-builtin">sum</span>()
 </div>
 
 <pre class="example">
-38
+35
 
 </pre>
 
 <div class="org-src-container">
-<pre class="src src-ipython">mean_qtls[keep_mean_qtls].merge(gene_info, left_on=<span class="org-string">'gene'</span>, right_index=<span class="org-constant">True</span>)[[<span class="org-string">'gene'</span>, <span class="org-string">'name'</span>, <span class="org-string">'id'</span>, <span class="org-string">'beta'</span>]]
+<pre class="src src-ipython">mean_qtls[keep_mean_qtls].merge(gene_info, left_on=<span class="org-string">'gene'</span>, right_index=<span class="org-constant">True</span>)[[<span class="org-string">'gene'</span>, <span class="org-string">'name'</span>, <span class="org-string">'id'</span>, <span class="org-string">'beta'</span>, <span class="org-string">'p_beta'</span>]]
 </pre>
 </div>
 
 <pre class="example">
-gene      name           id      beta
-25  ENSG00000136261      BZW2  rs140111609  0.227449
-43  ENSG00000117450     PRDX1   rs11804735 -0.126839
-12  ENSG00000145425     RPS3A  rs190232629 -0.221464
-31  ENSG00000101003     GINS1  rs117553461 -0.140865
-60  ENSG00000133884      DPF2  rs116180923 -0.900257
-23  ENSG00000145604      SKP2   rs10063618 -0.659058
-32  ENSG00000163002     NUP35   rs13413923 -0.274542
-3   ENSG00000132507     EIF5A   rs28636077 -0.347542
-0   ENSG00000188157      AGRN     rs874516  0.168831
-2   ENSG00000165323      FAT3   rs11019873  0.255744
-54  ENSG00000149636      DSN1   rs75741568 -1.150730
-12  ENSG00000138160     KIF11  rs111760303 -0.418371
-3   ENSG00000166002     SMCO4     rs540043  0.384011
-36  ENSG00000116791      CRYZ   rs10874274 -0.165072
-17  ENSG00000084207     GSTP1   rs12417429 -0.273355
-31  ENSG00000167196    FBXO22   rs58829645 -0.456229
-17  ENSG00000067704     IARS2  rs115202936 -0.367875
-34  ENSG00000066777   ARFGEF1  rs145007895 -0.161004
-15  ENSG00000168291      PDHB  rs111481898 -0.196634
-45  ENSG00000153006  SREK1IP1    rs3756739 -0.214313
-25  ENSG00000144021     CIAO1    rs7574488  0.150849
-33  ENSG00000133112      TPT1   rs11617385 -0.173633
-53  ENSG00000073921    PICALM   rs17212187  0.165206
-33  ENSG00000151725     CENPU     rs873687  0.208376
-27  ENSG00000125450     NUP85    rs7216538 -0.181640
-33  ENSG00000148840     PPRC1  rs148910219  0.321625
-24  ENSG00000114030     KPNA1  rs147664334 -0.174767
-48  ENSG00000173660     UQCRH    rs2218190  0.178463
-3   ENSG00000258289    CHURC1       rs8943 -0.140380
-32  ENSG00000135624      CCT7  rs116556222 -0.241669
-4   ENSG00000106853     PTGR1    rs7028222 -0.292905
-14  ENSG00000109919     MTCH2  rs115350026 -0.202665
-20  ENSG00000214941    ZSWIM7   rs61374610  0.360604
-14  ENSG00000131469     RPL27     rs691997 -0.174106
-18  ENSG00000083642     PDS5B    rs1327981 -0.103286
-4   ENSG00000064419     TNPO3   rs61391940 -0.390882
-27  ENSG00000131116    ZNF428  rs114451375 -0.623583
-13  ENSG00000178057   NDUFAF3   rs75311503 -0.241160
+gene      name           id      beta        p_beta
+6   ENSG00000163719    MTMR14    rs1438641 -0.178056  1.113220e-85
+37  ENSG00000162623      TYW3   rs28602706 -0.469924  3.853500e-64
+2   ENSG00000165323      FAT3   rs11019873  0.304741  5.130510e-28
+19  ENSG00000013375      PGM3   rs76411140 -0.413721  1.935500e-26
+25  ENSG00000136261      BZW2  rs140111609  0.229461  2.138450e-22
+60  ENSG00000133884      DPF2  rs116180923 -0.892610  1.357080e-12
+31  ENSG00000101003     GINS1  rs117553461 -0.155267  1.357910e-11
+23  ENSG00000145604      SKP2   rs10063618 -0.663646  1.424240e-10
+7   ENSG00000166557     TMED3   rs10519274 -0.257261  9.518380e-10
+3   ENSG00000258289    CHURC1       rs8943 -0.184327  1.353480e-09
+12  ENSG00000113558      SKP1    rs2110585 -0.254785  1.218800e-08
+3   ENSG00000132507     EIF5A   rs28636077 -0.347747  1.630960e-08
+24  ENSG00000197345    MRPL21    rs2444765 -0.306477  3.740190e-08
+27  ENSG00000125450     NUP85    rs7216538 -0.196893  5.696300e-08
+19  ENSG00000114098     ARMC8  rs137911898 -0.387751  1.566310e-07
+54  ENSG00000149636      DSN1   rs75741568 -1.160820  5.967950e-07
+14  ENSG00000131469     RPL27     rs691997 -0.256838  6.878420e-07
+19  ENSG00000188846     RPL14    rs2276868 -0.294612  6.934550e-07
+45  ENSG00000153006  SREK1IP1    rs3756739 -0.228774  7.929660e-07
+23  ENSG00000163743     RCHY1   rs77289963 -0.149948  8.327720e-07
+31  ENSG00000167196    FBXO22   rs58829645 -0.455050  2.465320e-06
+20  ENSG00000214941    ZSWIM7   rs61374610  0.405601  3.606540e-06
+22  ENSG00000008324    SS18L2    rs3774396  0.130177  3.976200e-06
+12  ENSG00000138160     KIF11  rs111760303 -0.414358  5.566760e-06
+51  ENSG00000171202  TMEM126A   rs78417512  0.214181  7.301260e-06
+1   ENSG00000170291      ELP5    rs2654190 -0.281837  2.730180e-05
+7   ENSG00000183648    NDUFB1    rs7151027 -0.133751  3.359160e-05
+33  ENSG00000151725     CENPU     rs873687  0.214583  3.977640e-05
+22  ENSG00000008988     RPS20   rs16920295 -0.155873  4.080270e-05
+28  ENSG00000136908      DPM2    rs3780666 -0.112947  7.454780e-05
+4   ENSG00000106853     PTGR1    rs7030900 -0.350006  1.564970e-04
+24  ENSG00000138757     G3BP2    rs6830063 -0.160755  2.030550e-04
+21  ENSG00000171311    EXOSC1  rs150672414 -0.137090  2.531660e-04
+20  ENSG00000073712    FERMT2   rs79469134  0.150080  3.481460e-04
+33  ENSG00000145725   PPIP5K2      rs32840  0.168351  4.349820e-04
 </pre>
 </div>
 </div>
@@ -468,13 +500,12 @@ gene      name           id      beta
 <h2 id="org018b84e">Dispersion-QTL calling</h2>
 <div class="outline-text-2" id="text-org018b84e">
 <p>
-Read the estimated parameters and mean-impute missing values.
+Read the estimated parameters and center them.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">disp</span> = (pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/dispersion.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
-        .transform(<span class="org-keyword">lambda</span> x: x - x.mean(), axis=1)
-        .fillna(0))
+<pre class="src src-ipython"><span class="org-variable-name">disp</span> = (pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/dispersion2.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
+        .transform(<span class="org-keyword">lambda</span> x: x - x.mean(), axis=1))
 </pre>
 </div>
 
@@ -488,7 +519,7 @@ Index the phenotype file.
 </p>
 
 <pre class="example">
-Submitted batch job 42224399
+Submitted batch job 42306096
 
 </pre>
 
@@ -497,7 +528,7 @@ Run <code>qtltools</code>.
 </p>
 
 <pre class="example">
-Submitted batch job 42224403
+Submitted batch job 42306172
 
 </pre>
 
@@ -513,87 +544,87 @@ keep_disp_qtls.<span class="org-builtin">sum</span>()
 </div>
 
 <pre class="example">
-272
+71
 
 </pre>
 
 <div class="org-src-container">
-<pre class="src src-ipython">disp_qtls[keep_disp_qtls].merge(gene_info, left_on=<span class="org-string">'gene'</span>, right_index=<span class="org-constant">True</span>)[[<span class="org-string">'gene'</span>, <span class="org-string">'name'</span>, <span class="org-string">'id'</span>, <span class="org-string">'beta'</span>]]
+<pre class="src src-ipython">disp_qtls[keep_disp_qtls].merge(gene_info, left_on=<span class="org-string">'gene'</span>, right_index=<span class="org-constant">True</span>)[[<span class="org-string">'gene'</span>, <span class="org-string">'name'</span>, <span class="org-string">'id'</span>, <span class="org-string">'beta'</span>, <span class="org-string">'p_beta'</span>]]
 </pre>
 </div>
 
 <pre class="example">
-gene     name           id      beta
-25  ENSG00000144021    CIAO1    rs6576968 -2.179330
-8   ENSG00000135452  TSPAN31   rs77404502 -1.932670
-29  ENSG00000164091    WDR82  rs187262136 -2.598320
-6   ENSG00000141424  SLC39A6   rs73946540 -2.261380
-51  ENSG00000171222   SCAND1    rs1016119 -1.687190
-37  ENSG00000138376    BARD1   rs73987780 -1.617330
-51  ENSG00000004059     ARF5   rs17151764 -2.129170
-53  ENSG00000118707    TGIF2    rs1016119 -1.712900
-15  ENSG00000164609     SLU7   rs10043577 -1.096140
-33  ENSG00000066557   LRRC40   rs74088042 -2.334990
-54  ENSG00000185480   PARPBP   rs58068508 -2.780630
-15  ENSG00000109920    FNBP4   rs59387718 -2.648590
-33  ENSG00000138772    ANXA3   rs75375424 -1.059610
-26  ENSG00000184635    ZNF93   rs28716621 -2.259500
-13  ENSG00000175482    POLD4   rs56024650 -2.117870
-13  ENSG00000170340   B3GNT2   rs56323905 -1.277470
-40  ENSG00000146007    ZMAT2   rs10054866 -1.993640
-32  ENSG00000166170     BAG5   rs12434482 -2.275930
-4   ENSG00000186522   SEPT10  rs144296225 -1.748870
-0   ENSG00000101363   MANBAL    rs1016118 -0.985626
-30  ENSG00000103978  TMEM87A   rs78904754 -2.319650
-6   ENSG00000066427    ATXN3    rs1242106 -2.221900
-27  ENSG00000198937  CCDC167   rs73730514 -2.193340
-21  ENSG00000148110   HIATL1    rs4744369  2.125840
-27  ENSG00000136877     FPGS   rs73597648 -2.087080
-25  ENSG00000160746    ANO10    rs4683341 -1.837390
-19  ENSG00000183765    CHEK2   rs73884718 -2.924060
-30  ENSG00000067715     SYT1   rs73348571 -2.192070
-12  ENSG00000173120    KDM2A   rs56024650 -2.002090
-6   ENSG00000141101     NOB1   rs78351259 -2.816820
-..              ...      ...          ...       ...
-5   ENSG00000142453    CARM1  rs138669253 -2.210060
-11  ENSG00000198589     LRBA    rs4634199 -2.421930
-9   ENSG00000163110   PDLIM5   rs58160026 -2.712250
-3   ENSG00000151914      DST   rs73465854 -2.833670
-23  ENSG00000002549     LAP3   rs16897012 -2.385300
-6   ENSG00000166986     MARS    rs7314055  1.810380
-22  ENSG00000084072     PPIE   rs74068312 -3.203480
-11  ENSG00000160563    MED27   rs73656076 -1.097330
-23  ENSG00000196712      NF1   rs56007276 -1.638780
-3   ENSG00000166002    SMCO4   rs78158365 -1.388070
-21  ENSG00000136718     IMP4  rs191999716 -2.829290
-17  ENSG00000170776   AKAP13   rs74026965 -2.922720
-0   ENSG00000106344    RBM28   rs17151764 -2.801920
-28  ENSG00000164649   CDCA7L   rs10228440 -3.184560
-15  ENSG00000137074     APTX   rs60613686 -1.166230
-39  ENSG00000164056    SPRY1   rs73844902 -2.014020
-31  ENSG00000083635   NUFIP1   rs56990928 -2.885260
-32  ENSG00000072210  ALDH3A2  rs182761344 -3.035750
-41  ENSG00000121481     RNF2  rs150422536 -1.930980
-25  ENSG00000175455   CCDC14   rs73856609 -3.025660
-11  ENSG00000105583  WDR83OS   rs10424512 -3.486530
-16  ENSG00000082212      ME2   rs73957415 -2.878130
-49  ENSG00000101191    DIDO1   rs73329169 -2.135160
-31  ENSG00000108641     B9D1  rs115486569 -0.827363
-18  ENSG00000075239    ACAT1    rs3218693 -1.929570
-38  ENSG00000125977   EIF2S2    rs6059360 -2.027010
-15  ENSG00000099977      DDT   rs34068078 -2.732090
-17  ENSG00000167258    CDK12   rs60082381 -1.743680
-4   ENSG00000204977   TRIM13     rs516065  2.497280
-41  ENSG00000036549     ZZZ3   rs74093219 -1.577240
+gene     name           id      beta        p_beta
+3   ENSG00000172500     FIBP    rs2904964  3.269360  5.982850e-59
+30  ENSG00000173812     EIF1  rs141050869  2.236620  4.159740e-36
+30  ENSG00000170558     CDH2   rs61062435 -3.124730  5.966380e-21
+19  ENSG00000136603     SKIL    rs9818860 -3.706300  1.497410e-20
+14  ENSG00000109919    MTCH2  rs112598354 -3.852610  8.516750e-20
+11  ENSG00000138385      SSB   rs74671773 -1.864580  7.731550e-16
+9   ENSG00000174721   FGFBP3  rs187269100 -3.340610  1.541350e-14
+4   ENSG00000184640    SEPT9  rs191371465 -1.613220  5.537410e-13
+6   ENSG00000005955   GGNBP2  rs115379718 -1.710560  6.033150e-13
+17  ENSG00000163430    FSTL1  rs116138205 -3.701820  6.574070e-13
+47  ENSG00000159596   TMEM69   rs80159866 -2.123730  1.515510e-10
+3   ENSG00000077782    FGFR1  rs114441110 -2.509560  4.331400e-10
+28  ENSG00000145592    RPL37  rs187287478 -1.854770  5.122680e-10
+6   ENSG00000122483   CCDC18  rs114147805 -3.600390  5.673670e-09
+35  ENSG00000164111    ANXA5  rs115667801 -1.147140  1.413170e-08
+38  ENSG00000125977   EIF2S2   rs11696530 -0.964617  1.653160e-08
+20  ENSG00000113658    SMAD5   rs76508606 -3.901540  3.115330e-08
+29  ENSG00000115947     ORC4  rs149751455 -3.032940  5.041500e-08
+49  ENSG00000205302     SNX2  rs148079226 -2.528050  1.294880e-07
+16  ENSG00000155099  TMEM55A  rs143924177 -2.212820  1.463260e-07
+24  ENSG00000099995    SF3A1  rs183441901 -2.124210  1.815250e-07
+20  ENSG00000138778    CENPE  rs115865776 -2.262560  4.304580e-07
+14  ENSG00000163535    SGOL2  rs186627329 -0.768620  4.388750e-07
+30  ENSG00000166794     PPIB  rs138296314 -2.078340  5.791490e-07
+19  ENSG00000104765   BNIP3L   rs17055905 -1.117420  6.768970e-07
+10  ENSG00000181192   DHTKD1  rs186223298 -1.268940  1.822810e-06
+23  ENSG00000049449     RCN1   rs61891674 -3.869610  2.008800e-06
+0   ENSG00000110955    ATP5B   rs11172053 -4.315500  2.393400e-06
+25  ENSG00000166483     WEE1  rs141629226 -3.647780  2.537660e-06
+27  ENSG00000076003     MCM6   rs77680868 -2.576420  8.176020e-06
+..              ...      ...          ...       ...           ...
+24  ENSG00000167088   SNRPD1     rs599489 -3.443700  3.313140e-05
+40  ENSG00000132676     DAP3  rs113643555 -3.610080  3.764670e-05
+48  ENSG00000171858    RPS21  rs113006457 -1.777300  3.930040e-05
+21  ENSG00000188994   ZNF292  rs190797589 -2.552210  4.493770e-05
+38  ENSG00000118363    SPCS2  rs111846212 -2.637530  5.210370e-05
+14  ENSG00000104738     MCM4   rs67441342  1.010130  6.201410e-05
+4   ENSG00000166012    TAF1D  rs114156459 -2.464560  6.227290e-05
+20  ENSG00000111300    NAA25  rs183463906 -1.903450  7.658170e-05
+13  ENSG00000162694    EXTL2  rs114515441 -2.430710  8.293420e-05
+22  ENSG00000143543      JTB  rs145970450 -2.513580  8.404170e-05
+36  ENSG00000123737   EXOSC9   rs72684801 -4.150150  8.928880e-05
+24  ENSG00000160049     DFFA  rs191456265 -1.834670  9.046540e-05
+21  ENSG00000103353    UBFD1  rs187686990 -3.084110  1.050590e-04
+26  ENSG00000069849   ATP1B3  rs181098445 -2.219060  1.351460e-04
+9   ENSG00000112305    SMAP1    rs3805977 -1.484410  1.355490e-04
+26  ENSG00000133027     PEMT  rs149534292 -3.130120  1.362530e-04
+25  ENSG00000172586   CHCHD1  rs150231882 -1.491500  1.570080e-04
+41  ENSG00000152904    GGPS1   rs77412086 -3.326680  1.738940e-04
+11  ENSG00000112695   COX7A2  rs116524695 -1.969520  2.009070e-04
+28  ENSG00000143575     HAX1  rs191047822 -3.161070  2.198430e-04
+28  ENSG00000116489   CAPZA1  rs112268692 -1.440870  2.665790e-04
+13  ENSG00000137807    KIF23  rs146358835 -3.455250  2.677390e-04
+17  ENSG00000113328    CCNG1   rs61114041 -1.741340  3.823830e-04
+30  ENSG00000148773    MKI67  rs114309437 -1.111450  4.412160e-04
+23  ENSG00000184076   UQCR10  rs140062784 -2.846960  4.843060e-04
+38  ENSG00000112335     SNX3  rs146420004 -2.824480  5.119260e-04
+5   ENSG00000145907    G3BP1   rs78692171 -0.997360  6.671770e-04
+22  ENSG00000162923    WDR26   rs56887412 -1.836620  7.486450e-04
+47  ENSG00000065361    ERBB3   rs12314191 -1.623870  7.577620e-04
+14  ENSG00000173145    NOC3L   rs74151073 -2.267200  8.821250e-04
 
-[272 rows x 4 columns]
+[71 rows x 5 columns]
 </pre>
 </div>
 </div>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-01-17 Wed 16:41</p>
+<p class="date">Created: 2018-01-22 Mon 11:04</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
