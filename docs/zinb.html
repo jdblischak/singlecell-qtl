@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- 2018-01-18 Thu 10:54 -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mean/dispersion estimation</title>
+<meta name="generator" content="Org mode">
+<meta name="author" content="Abhishek Sarkar">
+<style type="text/css">
+ <!--/*--><![CDATA[/*><!--*/
+  .title  { text-align: center;
+             margin-bottom: .2em; }
+  .subtitle { text-align: center;
+              font-size: medium;
+              font-weight: bold;
+              margin-top:0; }
+  .todo   { font-family: monospace; color: red; }
+  .done   { font-family: monospace; color: green; }
+  .priority { font-family: monospace; color: orange; }
+  .tag    { background-color: #eee; font-family: monospace;
+            padding: 2px; font-size: 80%; font-weight: normal; }
+  .timestamp { color: #bebebe; }
+  .timestamp-kwd { color: #5f9ea0; }
+  .org-right  { margin-left: auto; margin-right: 0px;  text-align: right; }
+  .org-left   { margin-left: 0px;  margin-right: auto; text-align: left; }
+  .org-center { margin-left: auto; margin-right: auto; text-align: center; }
+  .underline { text-decoration: underline; }
+  #postamble p, #preamble p { font-size: 90%; margin: .2em; }
+  p.verse { margin-left: 3%; }
+  pre {
+    border: 1px solid #ccc;
+    box-shadow: 3px 3px 3px #eee;
+    padding: 8pt;
+    font-family: monospace;
+    overflow: auto;
+    margin: 1.2em;
+  }
+  pre.src {
+    position: relative;
+    overflow: visible;
+    padding-top: 1.2em;
+  }
+  pre.src:before {
+    display: none;
+    position: absolute;
+    background-color: white;
+    top: -10px;
+    right: 10px;
+    padding: 3px;
+    border: 1px solid black;
+  }
+  pre.src:hover:before { display: inline;}
+  /* Languages per Org manual */
+  pre.src-asymptote:before { content: 'Asymptote'; }
+  pre.src-awk:before { content: 'Awk'; }
+  pre.src-C:before { content: 'C'; }
+  /* pre.src-C++ doesn't work in CSS */
+  pre.src-clojure:before { content: 'Clojure'; }
+  pre.src-css:before { content: 'CSS'; }
+  pre.src-D:before { content: 'D'; }
+  pre.src-ditaa:before { content: 'ditaa'; }
+  pre.src-dot:before { content: 'Graphviz'; }
+  pre.src-calc:before { content: 'Emacs Calc'; }
+  pre.src-emacs-lisp:before { content: 'Emacs Lisp'; }
+  pre.src-fortran:before { content: 'Fortran'; }
+  pre.src-gnuplot:before { content: 'gnuplot'; }
+  pre.src-haskell:before { content: 'Haskell'; }
+  pre.src-hledger:before { content: 'hledger'; }
+  pre.src-java:before { content: 'Java'; }
+  pre.src-js:before { content: 'Javascript'; }
+  pre.src-latex:before { content: 'LaTeX'; }
+  pre.src-ledger:before { content: 'Ledger'; }
+  pre.src-lisp:before { content: 'Lisp'; }
+  pre.src-lilypond:before { content: 'Lilypond'; }
+  pre.src-lua:before { content: 'Lua'; }
+  pre.src-matlab:before { content: 'MATLAB'; }
+  pre.src-mscgen:before { content: 'Mscgen'; }
+  pre.src-ocaml:before { content: 'Objective Caml'; }
+  pre.src-octave:before { content: 'Octave'; }
+  pre.src-org:before { content: 'Org mode'; }
+  pre.src-oz:before { content: 'OZ'; }
+  pre.src-plantuml:before { content: 'Plantuml'; }
+  pre.src-processing:before { content: 'Processing.js'; }
+  pre.src-python:before { content: 'Python'; }
+  pre.src-R:before { content: 'R'; }
+  pre.src-ruby:before { content: 'Ruby'; }
+  pre.src-sass:before { content: 'Sass'; }
+  pre.src-scheme:before { content: 'Scheme'; }
+  pre.src-screen:before { content: 'Gnu Screen'; }
+  pre.src-sed:before { content: 'Sed'; }
+  pre.src-sh:before { content: 'shell'; }
+  pre.src-sql:before { content: 'SQL'; }
+  pre.src-sqlite:before { content: 'SQLite'; }
+  /* additional languages in org.el's org-babel-load-languages alist */
+  pre.src-forth:before { content: 'Forth'; }
+  pre.src-io:before { content: 'IO'; }
+  pre.src-J:before { content: 'J'; }
+  pre.src-makefile:before { content: 'Makefile'; }
+  pre.src-maxima:before { content: 'Maxima'; }
+  pre.src-perl:before { content: 'Perl'; }
+  pre.src-picolisp:before { content: 'Pico Lisp'; }
+  pre.src-scala:before { content: 'Scala'; }
+  pre.src-shell:before { content: 'Shell Script'; }
+  pre.src-ebnf2ps:before { content: 'ebfn2ps'; }
+  /* additional language identifiers per "defun org-babel-execute"
+       in ob-*.el */
+  pre.src-cpp:before  { content: 'C++'; }
+  pre.src-abc:before  { content: 'ABC'; }
+  pre.src-coq:before  { content: 'Coq'; }
+  pre.src-groovy:before  { content: 'Groovy'; }
+  /* additional language identifiers from org-babel-shell-names in
+     ob-shell.el: ob-shell is the only babel language using a lambda to put
+     the execution function name together. */
+  pre.src-bash:before  { content: 'bash'; }
+  pre.src-csh:before  { content: 'csh'; }
+  pre.src-ash:before  { content: 'ash'; }
+  pre.src-dash:before  { content: 'dash'; }
+  pre.src-ksh:before  { content: 'ksh'; }
+  pre.src-mksh:before  { content: 'mksh'; }
+  pre.src-posh:before  { content: 'posh'; }
+  /* Additional Emacs modes also supported by the LaTeX listings package */
+  pre.src-ada:before { content: 'Ada'; }
+  pre.src-asm:before { content: 'Assembler'; }
+  pre.src-caml:before { content: 'Caml'; }
+  pre.src-delphi:before { content: 'Delphi'; }
+  pre.src-html:before { content: 'HTML'; }
+  pre.src-idl:before { content: 'IDL'; }
+  pre.src-mercury:before { content: 'Mercury'; }
+  pre.src-metapost:before { content: 'MetaPost'; }
+  pre.src-modula-2:before { content: 'Modula-2'; }
+  pre.src-pascal:before { content: 'Pascal'; }
+  pre.src-ps:before { content: 'PostScript'; }
+  pre.src-prolog:before { content: 'Prolog'; }
+  pre.src-simula:before { content: 'Simula'; }
+  pre.src-tcl:before { content: 'tcl'; }
+  pre.src-tex:before { content: 'TeX'; }
+  pre.src-plain-tex:before { content: 'Plain TeX'; }
+  pre.src-verilog:before { content: 'Verilog'; }
+  pre.src-vhdl:before { content: 'VHDL'; }
+  pre.src-xml:before { content: 'XML'; }
+  pre.src-nxml:before { content: 'XML'; }
+  /* add a generic configuration mode; LaTeX export needs an additional
+     (add-to-list 'org-latex-listings-langs '(conf " ")) in .emacs */
+  pre.src-conf:before { content: 'Configuration File'; }
+
+  table { border-collapse:collapse; }
+  caption.t-above { caption-side: top; }
+  caption.t-bottom { caption-side: bottom; }
+  td, th { vertical-align:top;  }
+  th.org-right  { text-align: center;  }
+  th.org-left   { text-align: center;   }
+  th.org-center { text-align: center; }
+  td.org-right  { text-align: right;  }
+  td.org-left   { text-align: left;   }
+  td.org-center { text-align: center; }
+  dt { font-weight: bold; }
+  .footpara { display: inline; }
+  .footdef  { margin-bottom: 1em; }
+  .figure { padding: 1em; }
+  .figure p { text-align: center; }
+  .inlinetask {
+    padding: 10px;
+    border: 2px solid gray;
+    margin: 10px;
+    background: #ffffcc;
+  }
+  #org-div-home-and-up
+   { text-align: right; font-size: 70%; white-space: nowrap; }
+  textarea { overflow-x: auto; }
+  .linenr { font-size: smaller }
+  .code-highlighted { background-color: #ffff00; }
+  .org-info-js_info-navigation { border-style: none; }
+  #org-info-js_console-label
+    { font-size: 10px; font-weight: bold; white-space: nowrap; }
+  .org-info-js_search-highlight
+    { background-color: #ffff00; color: #000000; font-weight: bold; }
+  .org-svg { width: 90%; }
+  /*]]>*/-->
+</style>
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<link rel="stylesheet" type="text/css" href="https://www.pirilampo.org/styles/readtheorg/css/htmlize.css"/>
+<style type="text/css">body {width: 60em; margin:auto} pre.src {overflow:auto}</style>
+<script type="text/javascript">
+/*
+@licstart  The following is the entire license notice for the
+JavaScript code in this tag.
+
+Copyright (C) 2012-2017 Free Software Foundation, Inc.
+
+The JavaScript code in this tag is free software: you can
+redistribute it and/or modify it under the terms of the GNU
+General Public License (GNU GPL) as published by the Free Software
+Foundation, either version 3 of the License, or (at your option)
+any later version.  The code is distributed WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU GPL for more details.
+
+As additional permission under GNU GPL version 3 section 7, you
+may distribute non-source (e.g., minimized or compacted) forms of
+that code without the copy of the GNU GPL normally required by
+section 4, provided you include this license notice and a URL
+through which recipients can access the Corresponding Source.
+
+
+@licend  The above is the entire license notice
+for the JavaScript code in this tag.
+*/
+<!--/*--><![CDATA[/*><!--*/
+ function CodeHighlightOn(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(null != target) {
+     elem.cacheClassElem = elem.className;
+     elem.cacheClassTarget = target.className;
+     target.className = "code-highlighted";
+     elem.className   = "code-highlighted";
+   }
+ }
+ function CodeHighlightOff(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(elem.cacheClassElem)
+     elem.className = elem.cacheClassElem;
+   if(elem.cacheClassTarget)
+     target.className = elem.cacheClassTarget;
+ }
+/*]]>*///-->
+</script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+        displayAlign: "center",
+        displayIndent: "0em",
+
+        "HTML-CSS": { scale: 100,
+                        linebreaks: { automatic: "false" },
+                        webFont: "TeX"
+                       },
+        SVG: {scale: 100,
+              linebreaks: { automatic: "false" },
+              font: "TeX"},
+        NativeMML: {scale: 100},
+        TeX: { equationNumbers: {autoNumber: "AMS"},
+               MultLineWidth: "85%",
+               TagSide: "right",
+               TagIndent: ".8em"
+             }
+});
+</script>
+<script type="text/javascript"
+        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS_HTML"></script>
+</head>
+<body>
+<div id="content">
+<h1 class="title">Mean/dispersion estimation</h1>
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#org470ab93">Introduction</a></li>
+<li><a href="#org2ac4bff">Quality control</a></li>
+<li><a href="#org8fd5c16">Read the data</a></li>
+<li><a href="#org8aa5dec">Model specification</a></li>
+<li><a href="#org43c9fea">Serial algorithm</a></li>
+</ul>
+</div>
+</div>
+
+<div id="outline-container-org470ab93" class="outline-2">
+<h2 id="org470ab93">Introduction</h2>
+<div class="outline-text-2" id="text-org470ab93">
+<p>
+The simplest approach to call mean/variance QTLs is to estimate a mean and a
+dispersion for each individual, treat them as continuous phenotypes, and plug
+into standard QTL mapping software.
+</p>
+
+<p>
+As a first pass, perform stringent QC to avoid the sparsest genes and simply
+find maximum likelihood estimates of a negative binomial model for the mean,
+and dispersion per individual per gene.
+</p>
+</div>
+</div>
+
+<div id="outline-container-org2ac4bff" class="outline-2">
+<h2 id="org2ac4bff">Quality control</h2>
+<div class="outline-text-2" id="text-org2ac4bff">
+<p>
+Filter out cells on percent spike-in and gene detection rate, and filter out
+genes on individual detection rate. For now, use conservative filters:
+</p>
+
+<ul class="org-ul">
+<li>keep cells with % spike-in &lt; 50%</li>
+<li>keep cells with detected genes &gt; 4000</li>
+<li>keep genes detected in &gt;70% of cells</li>
+</ul>
+
+<div class="org-src-container">
+<pre class="src src-ipython" id="org30ae098"><span class="org-variable-name">keep_cells</span> = functools.<span class="org-builtin">reduce</span>(
+  np.logical_and,
+  [
+    annotations[<span class="org-string">'reads_ercc'</span>] / annotations.<span class="org-builtin">filter</span>(like=<span class="org-string">'reads_'</span>, axis=1).agg(np.<span class="org-builtin">sum</span>, axis=1) &lt; 0.5,
+    annotations[<span class="org-string">'detect_hs'</span>] &gt; 4000,
+    annotations[<span class="org-string">'chip_id'</span>] != <span class="org-string">'NA19092'</span>,
+  ]).values
+<span class="org-variable-name">keep_genes</span> = functools.<span class="org-builtin">reduce</span>(
+  np.logical_and,
+  [
+    umi.<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: x &gt; 0).agg(np.mean, axis=1).<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: x &gt; .7),
+  ]).values
+<span class="org-variable-name">umi_qc</span> = umi.loc[keep_genes, keep_cells]
+<span class="org-variable-name">annotations_qc</span> = annotations.loc[keep_cells]
+umi_qc.shape
+</pre>
+</div>
+
+<pre class="example">
+(4148, 3100)
+
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-ipython" id="org157d389"><span class="org-variable-name">individuals</span> = <span class="org-builtin">sorted</span>(annotations_qc[<span class="org-string">'chip_id'</span>].unique())
+<span class="org-variable-name">onehot</span> = np.zeros((umi_qc.shape[1], <span class="org-builtin">len</span>(individuals)), dtype=np.float32)
+onehot[np.arange(onehot.shape[0]),annotations_qc[<span class="org-string">'chip_id'</span>].<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: individuals.index(x))] = 1
+<span class="org-variable-name">onehot</span> = pd.DataFrame(onehot, columns=individuals, index=umi_qc.columns)
+onehot.shape
+</pre>
+</div>
+
+<pre class="example">
+(3100, 32)
+
+</pre>
+
+<p>
+Check that one-hot encoding is OK:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">(umi_qc.loc[<span class="org-string">'ENSG00000000003'</span>, (annotations_qc[<span class="org-string">'chip_id'</span>] == <span class="org-string">'NA18489'</span>).values] == 
+ umi_qc.loc[<span class="org-string">'ENSG00000000003'</span>, onehot.dot(np.eye(onehot.shape[1])[0]).astype(<span class="org-builtin">bool</span>)]).<span class="org-builtin">all</span>()
+</pre>
+</div>
+
+<pre class="example">
+True
+
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-ipython">umi_qc.to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/umi-qc.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">onehot.to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/onehot-qc.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">annotations_qc.to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/annotations-qc.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
+</pre>
+</div>
+</div>
+</div>
+
+<div id="outline-container-org8fd5c16" class="outline-2">
+<h2 id="org8fd5c16">Read the data</h2>
+<div class="outline-text-2" id="text-org8fd5c16">
+<div class="org-src-container">
+<pre class="src src-ipython" id="org2ae7f13"><span class="org-variable-name">umi</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/umi-qc.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
+<span class="org-variable-name">onehot</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/onehot-qc.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
+<span class="org-variable-name">annotations</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/annotations-qc.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
+</pre>
+</div>
+</div>
+</div>
+
+<div id="outline-container-org8aa5dec" class="outline-2">
+<h2 id="org8aa5dec">Model specification</h2>
+<div class="outline-text-2" id="text-org8aa5dec">
+<p>
+Let \(r_{ijk}\) denote the number of molecules for individual \(i\), cell
+\(j\), gene \(k\). Let \(R_{ij}\) denote a size factor for each cell. As a
+first pass, define \(R_{ij} = \sum_k r_{ijk}\).
+</p>
+
+<p>
+Following Hilbe 2012, we derive the negative binomial as a Poisson-Gamma
+mixture:
+</p>
+
+<p>
+\[ r_{ijk} \sim \text{Pois}(R_{ij} \mu_{ik} u_{ijk}) \]
+</p>
+
+<p>
+\[ u_{ijk} \sim \text{Gamma}(\phi_{ik}^{-1}, \phi_{ik}^{-1}) \]
+</p>
+
+<p>
+<b>Open question: does the size factor have to enter the QTL model also?</b>
+</p>
+
+<p>
+Marginalizing out \(u\) yields the negative binomial distribution, with log
+likelihood:
+</p>
+
+<p>
+\[ \ln p(r_{ijk} \mid R_{ij}, \mu_{ik}, \phi_{ik}) = r_{ijk} \ln\left(\frac{R_{ij}\mu_{ik}\phi_{ik}}{1 + R_{ij}\mu_{ik}\phi_{ik}}\right) - \phi_{ik}^{-1} \ln(1 + R_{ij}\mu_{ik}\phi_{ik}) + \ln \Gamma(r_{ijk} + \phi_{ik}^{-1}) - \ln \Gamma(r_{ijk} + 1) - \ln \Gamma(\phi^{-1}) \]
+</p>
+
+<p>
+This distribution has the following properties:
+</p>
+
+<p>
+\[ E[r_{ijk} \mid \cdot] = R_{ij} \mu_{ik} \]
+</p>
+
+<p>
+\[ V_j[r_{ijk} \mid \cdot] = R_{ij} \mu_{ik} + (R_{ij} \mu_{ik})^2 \phi_{ik}
+  \]
+</p>
+
+<p>
+The latter follows from the law of total variance. Dropping subscripts for
+convenience:
+</p>
+
+<p>
+\[ V[r] = E[V[r \mid u]] + V[E[r \mid u]] \]
+\[ V[r] = E[R \mu u] + V[R \mu u] \]
+\[ V[r] = R \mu + (R \mu)^2 V[u] \]
+\[ V[r] = R \mu + (R \mu)^2 \phi \]
+</p>
+
+<p>
+We have multiple data points (30-200 cells) per mean/dispersion parameter, so
+simply minimizing the negative log likelihood should give reasonable
+estimates.
+</p>
+
+<p>
+We can additionally account for zero-inflation, by letting \(\pi_{ij}\)
+denote the probability of a "technical zero" (i.e., not arising from the
+negative-binomial).
+</p>
+
+<p>
+Then, the log-likelihood of the data is:
+</p>
+
+<p>
+\[ \ln p(r_{ijk} \mid r_{ijk} = 0, \cdot) = -\ln(\pi_{ij} + (1 - \pi_{ij})
+  \exp(\ln p(r_{ijk} \mid R_{ij}, \mu_{ik}, \phi_{ik}))) \]
+</p>
+
+<p>
+\[ \ln p(r_{ijk} \mid r_{ijk} > 0, \cdot) = \ln(1 - \pi_{ij}) + \ln p(r_{ijk} \mid R_{ij}, \mu_{ik}, \phi_{ik})) \]
+</p>
+
+<p>
+<b>Open question: how many dropout parameters need to be introduced, and are
+they shared between cells/genes?</b>
+</p>
+</div>
+</div>
+
+<div id="outline-container-org43c9fea" class="outline-2">
+<h2 id="org43c9fea">Serial algorithm</h2>
+<div class="outline-text-2" id="text-org43c9fea">
+<p>
+Optimize each pair of mean/dispersion parameters by sequentially considering
+each subset of the data (set of cells per gene per individual). Use
+<code>multiprocessing</code> to parallelize this over chunks of genes.
+</p>
+
+<p>
+Optimize the negative log-likelihood using BFGS.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">nll</span>(theta, x, size):
+  <span class="org-variable-name">mean</span>, <span class="org-variable-name">inv_disp</span> = np.exp(theta)
+  <span class="org-variable-name">mean</span> *= size
+  <span class="org-keyword">assert</span> mean.shape == x.shape
+  <span class="org-keyword">return</span> -(x * np.log(mean / inv_disp + 1e-8) -
+           x * np.log(1 + mean / inv_disp + 1e-8) -
+           inv_disp * np.log(1 + mean / inv_disp + 1e-8) +
+           scipy.special.gammaln(x + inv_disp) -
+           scipy.special.gammaln(inv_disp) -
+           scipy.special.gammaln(x + 1)).<span class="org-builtin">sum</span>()
+
+<span class="org-keyword">def</span> <span class="org-function-name">fit_scipy</span>(x, size):
+  <span class="org-variable-name">res</span> = scipy.optimize.minimize(fun=nll, x0=[0, 0], args=(x, size), tol=1e-4)
+  <span class="org-keyword">if</span> res.success:
+    <span class="org-keyword">return</span> <span class="org-builtin">tuple</span>(res.x)
+  <span class="org-keyword">else</span>:
+    <span class="org-keyword">return</span> (<span class="org-builtin">float</span>(<span class="org-string">'nan'</span>), <span class="org-builtin">float</span>(<span class="org-string">'nan'</span>))
+
+<span class="org-keyword">def</span> <span class="org-function-name">process_chunk</span>(x, size):
+  <span class="org-variable-name">res</span> = pd.DataFrame([(gene, k) + fit_scipy(row.loc[g].values, size.loc[g].values)
+                       <span class="org-keyword">for</span> gene, row <span class="org-keyword">in</span> x.iterrows()
+                       <span class="org-keyword">for</span> k, g <span class="org-keyword">in</span> row.groupby(annotations[<span class="org-string">'chip_id'</span>].values).groups.items()])
+  <span class="org-variable-name">res.columns</span> = [<span class="org-string">'gene'</span>, <span class="org-string">'individual'</span>, <span class="org-string">'mean'</span>, <span class="org-string">'dispersion'</span>]
+  res.set_index(<span class="org-string">'gene'</span>, inplace=<span class="org-constant">True</span>)
+  <span class="org-keyword">return</span> res
+</pre>
+</div>
+
+<p>
+Output record-like data for each parameter to make reassembling the result
+easier.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">process_chunk(umi.iloc[:5], size).head()
+</pre>
+</div>
+
+<pre class="example">
+individual      mean  dispersion
+gene
+ENSG00000000003    NA18519 -8.223728    2.564775
+ENSG00000000003    NA18862 -8.406216    2.263670
+ENSG00000000003    NA19093 -8.339645    2.393590
+ENSG00000000003    NA19128 -8.479335    2.293822
+ENSG00000000003    NA18852 -8.609513    2.454818
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-ipython">Out[90].pivot(columns=<span class="org-string">'individual'</span>, values=<span class="org-string">'mean'</span>) 
+</pre>
+</div>
+
+<pre class="example">
+individual        NA18519   NA18852   NA18862   NA19093   NA19128
+gene
+ENSG00000000003 -8.223728 -8.609513 -8.406216 -8.339645 -8.479335
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">f</span> = functools.partial(process_chunk, size=umi.agg(np.<span class="org-builtin">sum</span>))
+<span class="org-keyword">with</span> mp.Pool() <span class="org-keyword">as</span> pool:
+  <span class="org-variable-name">result</span> = pd.concat(pool.<span class="org-builtin">map</span>(f, np.array_split(umi, 100)))
+
+<span class="org-variable-name">log_mean</span> = result.pivot(columns=<span class="org-string">'individual'</span>, values=<span class="org-string">'mean'</span>)
+<span class="org-variable-name">log_disp</span> = result.pivot(columns=<span class="org-string">'individual'</span>, values=<span class="org-string">'dispersion'</span>) 
+
+log_mean.to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/mean.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
+log_disp.to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/disp.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
+</pre>
+</div>
+
+<p>
+Tangle the code from this file and submit requesting multiple cores.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(org-babel-tangle)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-sh">sbatch --partition=<span class="org-string">"broadwl"</span> -N1 -c16 --out=nb.out
+<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
+<span class="org-builtin">source</span> activate scqtl
+python nb.py
+</pre>
+</div>
+</div>
+</div>
+</div>
+<div id="postamble" class="status">
+<p class="author">Author: Abhishek Sarkar</p>
+<p class="date">Created: 2018-01-18 Thu 10:54</p>
+<p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
+</div>
+</body>
+</html>

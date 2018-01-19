@@ -1,0 +1,386 @@
+#+TITLE: QTL mapping pipeline
+#+SETUPFILE: setup.org
+
+* Introduction
+
+  Here, we set up the infrastructure to call mean and variance QTLs, assuming
+  that we have [[file:zinb.org][previously estimated means and variances per individual, per
+  gene.]]
+
+* Setup                                                            :noexport:
+
+  #+BEGIN_SRC emacs-lisp
+    (org-babel-lob-ingest "/home/aksarkar/.emacs.d/org-templates/library.org")
+  #+END_SRC
+
+  #+RESULTS:
+  : 1
+
+  #+CALL: ipython3(memory="4G", venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
+
+  #+RESULTS:
+  : Submitted batch job 42222683
+
+  #+BEGIN_SRC ipython
+    import functools
+    import os.path
+    import numpy as np
+    import pandas as pd
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[102]:
+  :END:
+
+* Genotype processing
+  
+  ~QTLtools~ reported 0 variants in cis for an unexpected number of genes when
+  using the provided genotype file, so reprocess the genotypes to fix it.
+
+  #+BEGIN_SRC sh :dir /project2/gilad/singlecell-qtl/bulk
+    sbatch --partition=broadwl --job-name process-geno
+    #!/bin/bash
+    set -e
+    source activate scqtl
+    zcat /project/compbio/jointLCLs/genotype/hg19/YRI/vcf/chr{?,??}.hg19.vcf.gz | awk 'BEGIN {print "##fileformat=VCFv4.1"} NR == 1 || ! /CHROM/ {print}' | bgzip >genotypes.vcf.gz
+    tabix genotypes.vcf.gz
+  #+END_SRC
+
+  #+RESULTS:
+  : Submitted batch job 42223832
+
+* Mean-QTL calling
+
+  Write out the [[https://qtltools.github.io/qtltools/pages/input_files.html][phenotype file]] for ~qtltools~.
+
+  #+NAME: get-gene-info
+  #+BEGIN_SRC ipython
+    gene_info = (pd.read_table('/home/aksarkar/projects/singlecell-qtl/data/scqtl-genes.txt.gz')
+                 .set_index('gene')
+                 .query('source == "H. sapiens"')
+                 .query('chr != "hsX"')
+                 .query('chr != "hsY"')
+                 .query('chr != "hsMT"'))
+    gene_info.head()
+  #+END_SRC
+
+  #+RESULTS: get-gene-info
+  :RESULTS:
+  # Out[103]:
+  #+BEGIN_EXAMPLE
+    chr      start        end      name strand      source
+    gene
+    ENSG00000000419  hs20   49551404   49575092      DPM1      -  H. sapiens
+    ENSG00000000457   hs1  169818772  169863408     SCYL3      -  H. sapiens
+    ENSG00000000460   hs1  169631245  169823221  C1orf112      +  H. sapiens
+    ENSG00000000938   hs1   27938575   27961788       FGR      -  H. sapiens
+    ENSG00000000971   hs1  196621008  196716634       CFH      +  H. sapiens
+  #+END_EXAMPLE
+  :END:
+
+  #+NAME: write-pheno-def
+  #+BEGIN_SRC ipython
+    def qtltools_format(row):
+      row['#Chr'] = 'chr{}'.format(row['chr'][2:])
+      row['gid'] = row.name
+      row['pid'] = row.name
+      return row
+
+    def write_pheno_file(pheno, gene_info, output_file):
+      (gene_info
+       .apply(qtltools_format, axis=1)
+       .merge(pheno, left_index=True, right_index=True)
+       .to_csv(output_file,
+               sep='\t',
+               columns=['#Chr', 'start', 'end', 'pid', 'gid', 'strand'] + list(pheno.columns),
+               header=True,
+               index=False,
+               index_label=False)
+      )
+  #+END_SRC
+
+  #+RESULTS: write-pheno-def
+  :RESULTS:
+  # Out[104]:
+  :END:
+
+  Read the estimated parameters. These might be missing due to failure to
+  converge in the inference algorithm. As a first pass, mean-impute them by
+  centering the data (ignoring missing values), and then filling in missing
+  values with 0.
+
+  #+BEGIN_SRC ipython
+    mean = (pd.read_table('/scratch/midway2/aksarkar/singlecell/mean.txt.gz', sep=' ', index_col=0)
+            .transform(lambda x: x - x.mean(), axis=1)
+            .fillna(0))
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[135]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    write_pheno_file(mean, gene_info, '/scratch/midway2/aksarkar/singlecell/mean.bed')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[136]:
+  :END:
+
+  Index the phenotype file.
+
+  #+NAME: tabix
+  #+BEGIN_SRC sh :var input="mean.bed" :var partition="broadwl" :dir /scratch/midway2/aksarkar/singlecell :eval never-export
+    export input=$input
+    sbatch --partition=$partition --wait
+    #!/bin/bash
+    sort -k1,1 -k2,2n -k3,3n $input | bgzip >$input.gz
+    tabix -p bed $input.gz
+  #+END_SRC
+
+  #+RESULTS: tabix
+  : Submitted batch job 42224049
+
+  Run the QTL mapping, using the approximate permutation test implemented in
+  ~QTLtools~.
+
+  #+NAME: qtltools
+  #+BEGIN_SRC sh :var pheno="mean" :var partition="broadwl" :dir /scratch/midway2/aksarkar/singlecell :eval never-export 
+    export pheno=$pheno
+    sbatch --partition=$partition -N1 -c16 -J $pheno-qtl -o $pheno-qtl.log
+    #!/bin/bash
+    source activate scqtl
+    module load parallel
+    parallel -j16 qtltools cis --vcf /project2/gilad/singlecell-qtl/bulk/genotypes.vcf.gz --bed $pheno.bed.gz --permute=100 --chunk {#} 100 --out $pheno-qtl.{#}.txt ::: $(seq 1 100)
+  #+END_SRC
+
+  #+RESULTS: qtltools
+  : Submitted batch job 42224324
+
+  Read the results.
+
+  #+BEGIN_SRC ipython
+    def read_qtltools_output(pheno):
+      file_names = ['{}-qtl.{}.txt'.format(pheno, i) for i in range(1, 101)]
+      return (pd.concat([pd.read_table(f, header=None, sep=' ')
+                         for f in file_names if os.path.exists(f) and
+                         os.path.getsize(f) > 0])
+              .rename(columns={i: x for i, x in enumerate(
+                ['gene', 'chr', 'start', 'end', 'strand', 'num_vars',
+                 'distance', 'id', 'var_chr', 'var_start', 'var_end', 'df',
+                 'dummy', 'a', 'b', 'p_nominal', 'beta', 'p_empirical', 'p_beta']
+              )})
+              .sort_values('p_beta'))
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[163]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    mean_qtls = read_qtltools_output('mean')
+  #+END_SRC
+
+  Apply the Benjamini-Hochberg procedure:
+
+  #+BEGIN_SRC ipython
+    def bh(df):
+      return df['p_beta'] < .05 * np.arange(1, df.shape[0] + 1) / df.shape[0]
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[165]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    keep_mean_qtls = bh(mean_qtls)
+    keep_mean_qtls.sum()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[156]:
+  : 38
+  :END:
+
+  #+BEGIN_SRC ipython
+    mean_qtls[keep_mean_qtls].merge(gene_info, left_on='gene', right_index=True)[['gene', 'name', 'id', 'beta']]
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[160]:
+  #+BEGIN_EXAMPLE
+    gene      name           id      beta
+    25  ENSG00000136261      BZW2  rs140111609  0.227449
+    43  ENSG00000117450     PRDX1   rs11804735 -0.126839
+    12  ENSG00000145425     RPS3A  rs190232629 -0.221464
+    31  ENSG00000101003     GINS1  rs117553461 -0.140865
+    60  ENSG00000133884      DPF2  rs116180923 -0.900257
+    23  ENSG00000145604      SKP2   rs10063618 -0.659058
+    32  ENSG00000163002     NUP35   rs13413923 -0.274542
+    3   ENSG00000132507     EIF5A   rs28636077 -0.347542
+    0   ENSG00000188157      AGRN     rs874516  0.168831
+    2   ENSG00000165323      FAT3   rs11019873  0.255744
+    54  ENSG00000149636      DSN1   rs75741568 -1.150730
+    12  ENSG00000138160     KIF11  rs111760303 -0.418371
+    3   ENSG00000166002     SMCO4     rs540043  0.384011
+    36  ENSG00000116791      CRYZ   rs10874274 -0.165072
+    17  ENSG00000084207     GSTP1   rs12417429 -0.273355
+    31  ENSG00000167196    FBXO22   rs58829645 -0.456229
+    17  ENSG00000067704     IARS2  rs115202936 -0.367875
+    34  ENSG00000066777   ARFGEF1  rs145007895 -0.161004
+    15  ENSG00000168291      PDHB  rs111481898 -0.196634
+    45  ENSG00000153006  SREK1IP1    rs3756739 -0.214313
+    25  ENSG00000144021     CIAO1    rs7574488  0.150849
+    33  ENSG00000133112      TPT1   rs11617385 -0.173633
+    53  ENSG00000073921    PICALM   rs17212187  0.165206
+    33  ENSG00000151725     CENPU     rs873687  0.208376
+    27  ENSG00000125450     NUP85    rs7216538 -0.181640
+    33  ENSG00000148840     PPRC1  rs148910219  0.321625
+    24  ENSG00000114030     KPNA1  rs147664334 -0.174767
+    48  ENSG00000173660     UQCRH    rs2218190  0.178463
+    3   ENSG00000258289    CHURC1       rs8943 -0.140380
+    32  ENSG00000135624      CCT7  rs116556222 -0.241669
+    4   ENSG00000106853     PTGR1    rs7028222 -0.292905
+    14  ENSG00000109919     MTCH2  rs115350026 -0.202665
+    20  ENSG00000214941    ZSWIM7   rs61374610  0.360604
+    14  ENSG00000131469     RPL27     rs691997 -0.174106
+    18  ENSG00000083642     PDS5B    rs1327981 -0.103286
+    4   ENSG00000064419     TNPO3   rs61391940 -0.390882
+    27  ENSG00000131116    ZNF428  rs114451375 -0.623583
+    13  ENSG00000178057   NDUFAF3   rs75311503 -0.241160
+  #+END_EXAMPLE
+  :END:
+
+* Dispersion-QTL calling
+
+  Read the estimated parameters and mean-impute missing values.
+
+  #+BEGIN_SRC ipython
+    disp = (pd.read_table('/scratch/midway2/aksarkar/singlecell/dispersion.txt.gz', sep=' ', index_col=0)
+            .transform(lambda x: x - x.mean(), axis=1)
+            .fillna(0))
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[161]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    write_pheno_file(disp, gene_info, '/scratch/midway2/aksarkar/singlecell/disp.bed')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[162]:
+  :END:
+
+  Index the phenotype file.
+
+  #+CALL: tabix(input="disp.bed")
+
+  #+RESULTS:
+  : Submitted batch job 42224399
+
+  Run ~qtltools~.
+
+  #+CALL: qtltools(pheno="disp")
+
+  #+RESULTS:
+  : Submitted batch job 42224403
+
+  Read the output.
+
+  #+BEGIN_SRC ipython
+    disp_qtls = read_qtltools_output('disp')
+    keep_disp_qtls = bh(disp_qtls)
+    keep_disp_qtls.sum()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[166]:
+  : 272
+  :END:
+
+  #+BEGIN_SRC ipython
+    disp_qtls[keep_disp_qtls].merge(gene_info, left_on='gene', right_index=True)[['gene', 'name', 'id', 'beta']]
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[167]:
+  #+BEGIN_EXAMPLE
+    gene     name           id      beta
+    25  ENSG00000144021    CIAO1    rs6576968 -2.179330
+    8   ENSG00000135452  TSPAN31   rs77404502 -1.932670
+    29  ENSG00000164091    WDR82  rs187262136 -2.598320
+    6   ENSG00000141424  SLC39A6   rs73946540 -2.261380
+    51  ENSG00000171222   SCAND1    rs1016119 -1.687190
+    37  ENSG00000138376    BARD1   rs73987780 -1.617330
+    51  ENSG00000004059     ARF5   rs17151764 -2.129170
+    53  ENSG00000118707    TGIF2    rs1016119 -1.712900
+    15  ENSG00000164609     SLU7   rs10043577 -1.096140
+    33  ENSG00000066557   LRRC40   rs74088042 -2.334990
+    54  ENSG00000185480   PARPBP   rs58068508 -2.780630
+    15  ENSG00000109920    FNBP4   rs59387718 -2.648590
+    33  ENSG00000138772    ANXA3   rs75375424 -1.059610
+    26  ENSG00000184635    ZNF93   rs28716621 -2.259500
+    13  ENSG00000175482    POLD4   rs56024650 -2.117870
+    13  ENSG00000170340   B3GNT2   rs56323905 -1.277470
+    40  ENSG00000146007    ZMAT2   rs10054866 -1.993640
+    32  ENSG00000166170     BAG5   rs12434482 -2.275930
+    4   ENSG00000186522   SEPT10  rs144296225 -1.748870
+    0   ENSG00000101363   MANBAL    rs1016118 -0.985626
+    30  ENSG00000103978  TMEM87A   rs78904754 -2.319650
+    6   ENSG00000066427    ATXN3    rs1242106 -2.221900
+    27  ENSG00000198937  CCDC167   rs73730514 -2.193340
+    21  ENSG00000148110   HIATL1    rs4744369  2.125840
+    27  ENSG00000136877     FPGS   rs73597648 -2.087080
+    25  ENSG00000160746    ANO10    rs4683341 -1.837390
+    19  ENSG00000183765    CHEK2   rs73884718 -2.924060
+    30  ENSG00000067715     SYT1   rs73348571 -2.192070
+    12  ENSG00000173120    KDM2A   rs56024650 -2.002090
+    6   ENSG00000141101     NOB1   rs78351259 -2.816820
+    ..              ...      ...          ...       ...
+    5   ENSG00000142453    CARM1  rs138669253 -2.210060
+    11  ENSG00000198589     LRBA    rs4634199 -2.421930
+    9   ENSG00000163110   PDLIM5   rs58160026 -2.712250
+    3   ENSG00000151914      DST   rs73465854 -2.833670
+    23  ENSG00000002549     LAP3   rs16897012 -2.385300
+    6   ENSG00000166986     MARS    rs7314055  1.810380
+    22  ENSG00000084072     PPIE   rs74068312 -3.203480
+    11  ENSG00000160563    MED27   rs73656076 -1.097330
+    23  ENSG00000196712      NF1   rs56007276 -1.638780
+    3   ENSG00000166002    SMCO4   rs78158365 -1.388070
+    21  ENSG00000136718     IMP4  rs191999716 -2.829290
+    17  ENSG00000170776   AKAP13   rs74026965 -2.922720
+    0   ENSG00000106344    RBM28   rs17151764 -2.801920
+    28  ENSG00000164649   CDCA7L   rs10228440 -3.184560
+    15  ENSG00000137074     APTX   rs60613686 -1.166230
+    39  ENSG00000164056    SPRY1   rs73844902 -2.014020
+    31  ENSG00000083635   NUFIP1   rs56990928 -2.885260
+    32  ENSG00000072210  ALDH3A2  rs182761344 -3.035750
+    41  ENSG00000121481     RNF2  rs150422536 -1.930980
+    25  ENSG00000175455   CCDC14   rs73856609 -3.025660
+    11  ENSG00000105583  WDR83OS   rs10424512 -3.486530
+    16  ENSG00000082212      ME2   rs73957415 -2.878130
+    49  ENSG00000101191    DIDO1   rs73329169 -2.135160
+    31  ENSG00000108641     B9D1  rs115486569 -0.827363
+    18  ENSG00000075239    ACAT1    rs3218693 -1.929570
+    38  ENSG00000125977   EIF2S2    rs6059360 -2.027010
+    15  ENSG00000099977      DDT   rs34068078 -2.732090
+    17  ENSG00000167258    CDK12   rs60082381 -1.743680
+    4   ENSG00000204977   TRIM13     rs516065  2.497280
+    41  ENSG00000036549     ZZZ3   rs74093219 -1.577240
+
+    [272 rows x 4 columns]
+  #+END_EXAMPLE
+  :END:

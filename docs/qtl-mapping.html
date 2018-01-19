@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- 2018-01-17 Wed 16:41 -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QTL mapping pipeline</title>
+<meta name="generator" content="Org mode">
+<meta name="author" content="Abhishek Sarkar">
+<style type="text/css">
+ <!--/*--><![CDATA[/*><!--*/
+  .title  { text-align: center;
+             margin-bottom: .2em; }
+  .subtitle { text-align: center;
+              font-size: medium;
+              font-weight: bold;
+              margin-top:0; }
+  .todo   { font-family: monospace; color: red; }
+  .done   { font-family: monospace; color: green; }
+  .priority { font-family: monospace; color: orange; }
+  .tag    { background-color: #eee; font-family: monospace;
+            padding: 2px; font-size: 80%; font-weight: normal; }
+  .timestamp { color: #bebebe; }
+  .timestamp-kwd { color: #5f9ea0; }
+  .org-right  { margin-left: auto; margin-right: 0px;  text-align: right; }
+  .org-left   { margin-left: 0px;  margin-right: auto; text-align: left; }
+  .org-center { margin-left: auto; margin-right: auto; text-align: center; }
+  .underline { text-decoration: underline; }
+  #postamble p, #preamble p { font-size: 90%; margin: .2em; }
+  p.verse { margin-left: 3%; }
+  pre {
+    border: 1px solid #ccc;
+    box-shadow: 3px 3px 3px #eee;
+    padding: 8pt;
+    font-family: monospace;
+    overflow: auto;
+    margin: 1.2em;
+  }
+  pre.src {
+    position: relative;
+    overflow: visible;
+    padding-top: 1.2em;
+  }
+  pre.src:before {
+    display: none;
+    position: absolute;
+    background-color: white;
+    top: -10px;
+    right: 10px;
+    padding: 3px;
+    border: 1px solid black;
+  }
+  pre.src:hover:before { display: inline;}
+  /* Languages per Org manual */
+  pre.src-asymptote:before { content: 'Asymptote'; }
+  pre.src-awk:before { content: 'Awk'; }
+  pre.src-C:before { content: 'C'; }
+  /* pre.src-C++ doesn't work in CSS */
+  pre.src-clojure:before { content: 'Clojure'; }
+  pre.src-css:before { content: 'CSS'; }
+  pre.src-D:before { content: 'D'; }
+  pre.src-ditaa:before { content: 'ditaa'; }
+  pre.src-dot:before { content: 'Graphviz'; }
+  pre.src-calc:before { content: 'Emacs Calc'; }
+  pre.src-emacs-lisp:before { content: 'Emacs Lisp'; }
+  pre.src-fortran:before { content: 'Fortran'; }
+  pre.src-gnuplot:before { content: 'gnuplot'; }
+  pre.src-haskell:before { content: 'Haskell'; }
+  pre.src-hledger:before { content: 'hledger'; }
+  pre.src-java:before { content: 'Java'; }
+  pre.src-js:before { content: 'Javascript'; }
+  pre.src-latex:before { content: 'LaTeX'; }
+  pre.src-ledger:before { content: 'Ledger'; }
+  pre.src-lisp:before { content: 'Lisp'; }
+  pre.src-lilypond:before { content: 'Lilypond'; }
+  pre.src-lua:before { content: 'Lua'; }
+  pre.src-matlab:before { content: 'MATLAB'; }
+  pre.src-mscgen:before { content: 'Mscgen'; }
+  pre.src-ocaml:before { content: 'Objective Caml'; }
+  pre.src-octave:before { content: 'Octave'; }
+  pre.src-org:before { content: 'Org mode'; }
+  pre.src-oz:before { content: 'OZ'; }
+  pre.src-plantuml:before { content: 'Plantuml'; }
+  pre.src-processing:before { content: 'Processing.js'; }
+  pre.src-python:before { content: 'Python'; }
+  pre.src-R:before { content: 'R'; }
+  pre.src-ruby:before { content: 'Ruby'; }
+  pre.src-sass:before { content: 'Sass'; }
+  pre.src-scheme:before { content: 'Scheme'; }
+  pre.src-screen:before { content: 'Gnu Screen'; }
+  pre.src-sed:before { content: 'Sed'; }
+  pre.src-sh:before { content: 'shell'; }
+  pre.src-sql:before { content: 'SQL'; }
+  pre.src-sqlite:before { content: 'SQLite'; }
+  /* additional languages in org.el's org-babel-load-languages alist */
+  pre.src-forth:before { content: 'Forth'; }
+  pre.src-io:before { content: 'IO'; }
+  pre.src-J:before { content: 'J'; }
+  pre.src-makefile:before { content: 'Makefile'; }
+  pre.src-maxima:before { content: 'Maxima'; }
+  pre.src-perl:before { content: 'Perl'; }
+  pre.src-picolisp:before { content: 'Pico Lisp'; }
+  pre.src-scala:before { content: 'Scala'; }
+  pre.src-shell:before { content: 'Shell Script'; }
+  pre.src-ebnf2ps:before { content: 'ebfn2ps'; }
+  /* additional language identifiers per "defun org-babel-execute"
+       in ob-*.el */
+  pre.src-cpp:before  { content: 'C++'; }
+  pre.src-abc:before  { content: 'ABC'; }
+  pre.src-coq:before  { content: 'Coq'; }
+  pre.src-groovy:before  { content: 'Groovy'; }
+  /* additional language identifiers from org-babel-shell-names in
+     ob-shell.el: ob-shell is the only babel language using a lambda to put
+     the execution function name together. */
+  pre.src-bash:before  { content: 'bash'; }
+  pre.src-csh:before  { content: 'csh'; }
+  pre.src-ash:before  { content: 'ash'; }
+  pre.src-dash:before  { content: 'dash'; }
+  pre.src-ksh:before  { content: 'ksh'; }
+  pre.src-mksh:before  { content: 'mksh'; }
+  pre.src-posh:before  { content: 'posh'; }
+  /* Additional Emacs modes also supported by the LaTeX listings package */
+  pre.src-ada:before { content: 'Ada'; }
+  pre.src-asm:before { content: 'Assembler'; }
+  pre.src-caml:before { content: 'Caml'; }
+  pre.src-delphi:before { content: 'Delphi'; }
+  pre.src-html:before { content: 'HTML'; }
+  pre.src-idl:before { content: 'IDL'; }
+  pre.src-mercury:before { content: 'Mercury'; }
+  pre.src-metapost:before { content: 'MetaPost'; }
+  pre.src-modula-2:before { content: 'Modula-2'; }
+  pre.src-pascal:before { content: 'Pascal'; }
+  pre.src-ps:before { content: 'PostScript'; }
+  pre.src-prolog:before { content: 'Prolog'; }
+  pre.src-simula:before { content: 'Simula'; }
+  pre.src-tcl:before { content: 'tcl'; }
+  pre.src-tex:before { content: 'TeX'; }
+  pre.src-plain-tex:before { content: 'Plain TeX'; }
+  pre.src-verilog:before { content: 'Verilog'; }
+  pre.src-vhdl:before { content: 'VHDL'; }
+  pre.src-xml:before { content: 'XML'; }
+  pre.src-nxml:before { content: 'XML'; }
+  /* add a generic configuration mode; LaTeX export needs an additional
+     (add-to-list 'org-latex-listings-langs '(conf " ")) in .emacs */
+  pre.src-conf:before { content: 'Configuration File'; }
+
+  table { border-collapse:collapse; }
+  caption.t-above { caption-side: top; }
+  caption.t-bottom { caption-side: bottom; }
+  td, th { vertical-align:top;  }
+  th.org-right  { text-align: center;  }
+  th.org-left   { text-align: center;   }
+  th.org-center { text-align: center; }
+  td.org-right  { text-align: right;  }
+  td.org-left   { text-align: left;   }
+  td.org-center { text-align: center; }
+  dt { font-weight: bold; }
+  .footpara { display: inline; }
+  .footdef  { margin-bottom: 1em; }
+  .figure { padding: 1em; }
+  .figure p { text-align: center; }
+  .inlinetask {
+    padding: 10px;
+    border: 2px solid gray;
+    margin: 10px;
+    background: #ffffcc;
+  }
+  #org-div-home-and-up
+   { text-align: right; font-size: 70%; white-space: nowrap; }
+  textarea { overflow-x: auto; }
+  .linenr { font-size: smaller }
+  .code-highlighted { background-color: #ffff00; }
+  .org-info-js_info-navigation { border-style: none; }
+  #org-info-js_console-label
+    { font-size: 10px; font-weight: bold; white-space: nowrap; }
+  .org-info-js_search-highlight
+    { background-color: #ffff00; color: #000000; font-weight: bold; }
+  .org-svg { width: 90%; }
+  /*]]>*/-->
+</style>
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<link rel="stylesheet" type="text/css" href="https://www.pirilampo.org/styles/readtheorg/css/htmlize.css"/>
+<style type="text/css">body {width: 60em; margin:auto} pre.src {overflow:auto}</style>
+<script type="text/javascript">
+/*
+@licstart  The following is the entire license notice for the
+JavaScript code in this tag.
+
+Copyright (C) 2012-2017 Free Software Foundation, Inc.
+
+The JavaScript code in this tag is free software: you can
+redistribute it and/or modify it under the terms of the GNU
+General Public License (GNU GPL) as published by the Free Software
+Foundation, either version 3 of the License, or (at your option)
+any later version.  The code is distributed WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU GPL for more details.
+
+As additional permission under GNU GPL version 3 section 7, you
+may distribute non-source (e.g., minimized or compacted) forms of
+that code without the copy of the GNU GPL normally required by
+section 4, provided you include this license notice and a URL
+through which recipients can access the Corresponding Source.
+
+
+@licend  The above is the entire license notice
+for the JavaScript code in this tag.
+*/
+<!--/*--><![CDATA[/*><!--*/
+ function CodeHighlightOn(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(null != target) {
+     elem.cacheClassElem = elem.className;
+     elem.cacheClassTarget = target.className;
+     target.className = "code-highlighted";
+     elem.className   = "code-highlighted";
+   }
+ }
+ function CodeHighlightOff(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(elem.cacheClassElem)
+     elem.className = elem.cacheClassElem;
+   if(elem.cacheClassTarget)
+     target.className = elem.cacheClassTarget;
+ }
+/*]]>*///-->
+</script>
+</head>
+<body>
+<div id="content">
+<h1 class="title">QTL mapping pipeline</h1>
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#org5ed2a04">Introduction</a></li>
+<li><a href="#org94b2817">Genotype processing</a></li>
+<li><a href="#org051ecfa">Mean-QTL calling</a></li>
+<li><a href="#org018b84e">Dispersion-QTL calling</a></li>
+</ul>
+</div>
+</div>
+
+<div id="outline-container-org5ed2a04" class="outline-2">
+<h2 id="org5ed2a04">Introduction</h2>
+<div class="outline-text-2" id="text-org5ed2a04">
+<p>
+Here, we set up the infrastructure to call mean and variance QTLs, assuming
+that we have <a href="zinb.html">previously estimated means and variances per individual, per
+gene.</a>
+</p>
+</div>
+</div>
+
+<div id="outline-container-org94b2817" class="outline-2">
+<h2 id="org94b2817">Genotype processing</h2>
+<div class="outline-text-2" id="text-org94b2817">
+<p>
+<code>QTLtools</code> reported 0 variants in cis for an unexpected number of genes when
+using the provided genotype file, so reprocess the genotypes to fix it.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">sbatch --partition=broadwl --job-name process-geno
+<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
+<span class="org-builtin">set</span> -e
+<span class="org-builtin">source</span> activate scqtl
+zcat /project/compbio/jointLCLs/genotype/hg19/YRI/vcf/chr{?,??}.hg19.vcf.gz | awk <span class="org-string">'BEGIN {print "##fileformat=VCFv4.1"} NR == 1 || ! /CHROM/ {print}'</span> | bgzip &gt;genotypes.vcf.gz
+tabix genotypes.vcf.gz
+</pre>
+</div>
+</div>
+</div>
+
+<div id="outline-container-org051ecfa" class="outline-2">
+<h2 id="org051ecfa">Mean-QTL calling</h2>
+<div class="outline-text-2" id="text-org051ecfa">
+<p>
+Write out the <a href="https://qtltools.github.io/qtltools/pages/input_files.html">phenotype file</a> for <code>qtltools</code>.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython" id="org6264062"><span class="org-variable-name">gene_info</span> = (pd.read_table(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/scqtl-genes.txt.gz'</span>)
+             .set_index(<span class="org-string">'gene'</span>)
+             .query(<span class="org-string">'source == "H. sapiens"'</span>)
+             .query(<span class="org-string">'chr != "hsX"'</span>)
+             .query(<span class="org-string">'chr != "hsY"'</span>)
+             .query(<span class="org-string">'chr != "hsMT"'</span>))
+gene_info.head()
+</pre>
+</div>
+
+<pre class="example">
+chr      start        end      name strand      source
+gene
+ENSG00000000419  hs20   49551404   49575092      DPM1      -  H. sapiens
+ENSG00000000457   hs1  169818772  169863408     SCYL3      -  H. sapiens
+ENSG00000000460   hs1  169631245  169823221  C1orf112      +  H. sapiens
+ENSG00000000938   hs1   27938575   27961788       FGR      -  H. sapiens
+ENSG00000000971   hs1  196621008  196716634       CFH      +  H. sapiens
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-ipython" id="org042c79c"><span class="org-keyword">def</span> <span class="org-function-name">qtltools_format</span>(row):
+  <span class="org-variable-name">row</span>[<span class="org-string">'#Chr'</span>] = <span class="org-string">'chr{}'</span>.<span class="org-builtin">format</span>(row[<span class="org-string">'chr'</span>][2:])
+  <span class="org-variable-name">row</span>[<span class="org-string">'gid'</span>] = row.name
+  <span class="org-variable-name">row</span>[<span class="org-string">'pid'</span>] = row.name
+  <span class="org-keyword">return</span> row
+
+<span class="org-keyword">def</span> <span class="org-function-name">write_pheno_file</span>(pheno, gene_info, output_file):
+  (gene_info
+   .<span class="org-builtin">apply</span>(qtltools_format, axis=1)
+   .merge(pheno, left_index=<span class="org-constant">True</span>, right_index=<span class="org-constant">True</span>)
+   .to_csv(output_file,
+           sep=<span class="org-string">'\t'</span>,
+           columns=[<span class="org-string">'#Chr'</span>, <span class="org-string">'start'</span>, <span class="org-string">'end'</span>, <span class="org-string">'pid'</span>, <span class="org-string">'gid'</span>, <span class="org-string">'strand'</span>] + <span class="org-builtin">list</span>(pheno.columns),
+           header=<span class="org-constant">True</span>,
+           index=<span class="org-constant">False</span>,
+           index_label=<span class="org-constant">False</span>)
+  )
+</pre>
+</div>
+
+<p>
+Read the estimated parameters. These might be missing due to failure to
+converge in the inference algorithm. As a first pass, mean-impute them by
+centering the data (ignoring missing values), and then filling in missing
+values with 0.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">mean</span> = (pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/mean.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
+        .transform(<span class="org-keyword">lambda</span> x: x - x.mean(), axis=1)
+        .fillna(0))
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">write_pheno_file(mean, gene_info, <span class="org-string">'/scratch/midway2/aksarkar/singlecell/mean.bed'</span>)
+</pre>
+</div>
+
+<p>
+Index the phenotype file.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh" id="orge80d324"><span class="org-builtin">export</span> <span class="org-variable-name">input</span>=$<span class="org-variable-name">input</span>
+sbatch --partition=$<span class="org-variable-name">partition</span> --wait
+<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
+sort -k1,1 -k2,2n -k3,3n $<span class="org-variable-name">input</span> | bgzip &gt;$<span class="org-variable-name">input</span>.gz
+tabix -p bed $<span class="org-variable-name">input</span>.gz
+</pre>
+</div>
+
+<p>
+Run the QTL mapping, using the approximate permutation test implemented in
+<code>QTLtools</code>.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh" id="org5a3e21d"><span class="org-builtin">export</span> <span class="org-variable-name">pheno</span>=$<span class="org-variable-name">pheno</span>
+sbatch --partition=$<span class="org-variable-name">partition</span> -N1 -c16 -J $<span class="org-variable-name">pheno</span>-qtl -o $<span class="org-variable-name">pheno</span>-qtl.log
+<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
+<span class="org-builtin">source</span> activate scqtl
+module load parallel
+parallel -j16 qtltools cis --vcf /project2/gilad/singlecell-qtl/bulk/genotypes.vcf.gz --bed $<span class="org-variable-name">pheno</span>.bed.gz --permute=100 --chunk {#} 100 --out $<span class="org-variable-name">pheno</span>-qtl.{#}.txt ::: $(<span class="org-sh-quoted-exec">seq</span> 1 100)
+</pre>
+</div>
+
+<p>
+Read the results.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">read_qtltools_output</span>(pheno):
+  <span class="org-variable-name">file_names</span> = [<span class="org-string">'{}-qtl.{}.txt'</span>.<span class="org-builtin">format</span>(pheno, i) <span class="org-keyword">for</span> i <span class="org-keyword">in</span> <span class="org-builtin">range</span>(1, 101)]
+  <span class="org-keyword">return</span> (pd.concat([pd.read_table(f, header=<span class="org-constant">None</span>, sep=<span class="org-string">' '</span>)
+                     <span class="org-keyword">for</span> f <span class="org-keyword">in</span> file_names <span class="org-keyword">if</span> os.path.exists(f) <span class="org-keyword">and</span>
+                     os.path.getsize(f) &gt; 0])
+          .rename(columns={i: x <span class="org-keyword">for</span> i, x <span class="org-keyword">in</span> <span class="org-builtin">enumerate</span>(
+            [<span class="org-string">'gene'</span>, <span class="org-string">'chr'</span>, <span class="org-string">'start'</span>, <span class="org-string">'end'</span>, <span class="org-string">'strand'</span>, <span class="org-string">'num_vars'</span>,
+             <span class="org-string">'distance'</span>, <span class="org-string">'id'</span>, <span class="org-string">'var_chr'</span>, <span class="org-string">'var_start'</span>, <span class="org-string">'var_end'</span>, <span class="org-string">'df'</span>,
+             <span class="org-string">'dummy'</span>, <span class="org-string">'a'</span>, <span class="org-string">'b'</span>, <span class="org-string">'p_nominal'</span>, <span class="org-string">'beta'</span>, <span class="org-string">'p_empirical'</span>, <span class="org-string">'p_beta'</span>]
+          )})
+          .sort_values(<span class="org-string">'p_beta'</span>))
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">mean_qtls</span> = read_qtltools_output(<span class="org-string">'mean'</span>)
+</pre>
+</div>
+
+<p>
+Apply the Benjamini-Hochberg procedure:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">bh</span>(df):
+  <span class="org-keyword">return</span> df[<span class="org-string">'p_beta'</span>] &lt; .05 * np.arange(1, df.shape[0] + 1) / df.shape[0]
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">keep_mean_qtls</span> = bh(mean_qtls)
+keep_mean_qtls.<span class="org-builtin">sum</span>()
+</pre>
+</div>
+
+<pre class="example">
+38
+
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-ipython">mean_qtls[keep_mean_qtls].merge(gene_info, left_on=<span class="org-string">'gene'</span>, right_index=<span class="org-constant">True</span>)[[<span class="org-string">'gene'</span>, <span class="org-string">'name'</span>, <span class="org-string">'id'</span>, <span class="org-string">'beta'</span>]]
+</pre>
+</div>
+
+<pre class="example">
+gene      name           id      beta
+25  ENSG00000136261      BZW2  rs140111609  0.227449
+43  ENSG00000117450     PRDX1   rs11804735 -0.126839
+12  ENSG00000145425     RPS3A  rs190232629 -0.221464
+31  ENSG00000101003     GINS1  rs117553461 -0.140865
+60  ENSG00000133884      DPF2  rs116180923 -0.900257
+23  ENSG00000145604      SKP2   rs10063618 -0.659058
+32  ENSG00000163002     NUP35   rs13413923 -0.274542
+3   ENSG00000132507     EIF5A   rs28636077 -0.347542
+0   ENSG00000188157      AGRN     rs874516  0.168831
+2   ENSG00000165323      FAT3   rs11019873  0.255744
+54  ENSG00000149636      DSN1   rs75741568 -1.150730
+12  ENSG00000138160     KIF11  rs111760303 -0.418371
+3   ENSG00000166002     SMCO4     rs540043  0.384011
+36  ENSG00000116791      CRYZ   rs10874274 -0.165072
+17  ENSG00000084207     GSTP1   rs12417429 -0.273355
+31  ENSG00000167196    FBXO22   rs58829645 -0.456229
+17  ENSG00000067704     IARS2  rs115202936 -0.367875
+34  ENSG00000066777   ARFGEF1  rs145007895 -0.161004
+15  ENSG00000168291      PDHB  rs111481898 -0.196634
+45  ENSG00000153006  SREK1IP1    rs3756739 -0.214313
+25  ENSG00000144021     CIAO1    rs7574488  0.150849
+33  ENSG00000133112      TPT1   rs11617385 -0.173633
+53  ENSG00000073921    PICALM   rs17212187  0.165206
+33  ENSG00000151725     CENPU     rs873687  0.208376
+27  ENSG00000125450     NUP85    rs7216538 -0.181640
+33  ENSG00000148840     PPRC1  rs148910219  0.321625
+24  ENSG00000114030     KPNA1  rs147664334 -0.174767
+48  ENSG00000173660     UQCRH    rs2218190  0.178463
+3   ENSG00000258289    CHURC1       rs8943 -0.140380
+32  ENSG00000135624      CCT7  rs116556222 -0.241669
+4   ENSG00000106853     PTGR1    rs7028222 -0.292905
+14  ENSG00000109919     MTCH2  rs115350026 -0.202665
+20  ENSG00000214941    ZSWIM7   rs61374610  0.360604
+14  ENSG00000131469     RPL27     rs691997 -0.174106
+18  ENSG00000083642     PDS5B    rs1327981 -0.103286
+4   ENSG00000064419     TNPO3   rs61391940 -0.390882
+27  ENSG00000131116    ZNF428  rs114451375 -0.623583
+13  ENSG00000178057   NDUFAF3   rs75311503 -0.241160
+</pre>
+</div>
+</div>
+
+<div id="outline-container-org018b84e" class="outline-2">
+<h2 id="org018b84e">Dispersion-QTL calling</h2>
+<div class="outline-text-2" id="text-org018b84e">
+<p>
+Read the estimated parameters and mean-impute missing values.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">disp</span> = (pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/dispersion.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
+        .transform(<span class="org-keyword">lambda</span> x: x - x.mean(), axis=1)
+        .fillna(0))
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">write_pheno_file(disp, gene_info, <span class="org-string">'/scratch/midway2/aksarkar/singlecell/disp.bed'</span>)
+</pre>
+</div>
+
+<p>
+Index the phenotype file.
+</p>
+
+<pre class="example">
+Submitted batch job 42224399
+
+</pre>
+
+<p>
+Run <code>qtltools</code>.
+</p>
+
+<pre class="example">
+Submitted batch job 42224403
+
+</pre>
+
+<p>
+Read the output.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">disp_qtls</span> = read_qtltools_output(<span class="org-string">'disp'</span>)
+<span class="org-variable-name">keep_disp_qtls</span> = bh(disp_qtls)
+keep_disp_qtls.<span class="org-builtin">sum</span>()
+</pre>
+</div>
+
+<pre class="example">
+272
+
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-ipython">disp_qtls[keep_disp_qtls].merge(gene_info, left_on=<span class="org-string">'gene'</span>, right_index=<span class="org-constant">True</span>)[[<span class="org-string">'gene'</span>, <span class="org-string">'name'</span>, <span class="org-string">'id'</span>, <span class="org-string">'beta'</span>]]
+</pre>
+</div>
+
+<pre class="example">
+gene     name           id      beta
+25  ENSG00000144021    CIAO1    rs6576968 -2.179330
+8   ENSG00000135452  TSPAN31   rs77404502 -1.932670
+29  ENSG00000164091    WDR82  rs187262136 -2.598320
+6   ENSG00000141424  SLC39A6   rs73946540 -2.261380
+51  ENSG00000171222   SCAND1    rs1016119 -1.687190
+37  ENSG00000138376    BARD1   rs73987780 -1.617330
+51  ENSG00000004059     ARF5   rs17151764 -2.129170
+53  ENSG00000118707    TGIF2    rs1016119 -1.712900
+15  ENSG00000164609     SLU7   rs10043577 -1.096140
+33  ENSG00000066557   LRRC40   rs74088042 -2.334990
+54  ENSG00000185480   PARPBP   rs58068508 -2.780630
+15  ENSG00000109920    FNBP4   rs59387718 -2.648590
+33  ENSG00000138772    ANXA3   rs75375424 -1.059610
+26  ENSG00000184635    ZNF93   rs28716621 -2.259500
+13  ENSG00000175482    POLD4   rs56024650 -2.117870
+13  ENSG00000170340   B3GNT2   rs56323905 -1.277470
+40  ENSG00000146007    ZMAT2   rs10054866 -1.993640
+32  ENSG00000166170     BAG5   rs12434482 -2.275930
+4   ENSG00000186522   SEPT10  rs144296225 -1.748870
+0   ENSG00000101363   MANBAL    rs1016118 -0.985626
+30  ENSG00000103978  TMEM87A   rs78904754 -2.319650
+6   ENSG00000066427    ATXN3    rs1242106 -2.221900
+27  ENSG00000198937  CCDC167   rs73730514 -2.193340
+21  ENSG00000148110   HIATL1    rs4744369  2.125840
+27  ENSG00000136877     FPGS   rs73597648 -2.087080
+25  ENSG00000160746    ANO10    rs4683341 -1.837390
+19  ENSG00000183765    CHEK2   rs73884718 -2.924060
+30  ENSG00000067715     SYT1   rs73348571 -2.192070
+12  ENSG00000173120    KDM2A   rs56024650 -2.002090
+6   ENSG00000141101     NOB1   rs78351259 -2.816820
+..              ...      ...          ...       ...
+5   ENSG00000142453    CARM1  rs138669253 -2.210060
+11  ENSG00000198589     LRBA    rs4634199 -2.421930
+9   ENSG00000163110   PDLIM5   rs58160026 -2.712250
+3   ENSG00000151914      DST   rs73465854 -2.833670
+23  ENSG00000002549     LAP3   rs16897012 -2.385300
+6   ENSG00000166986     MARS    rs7314055  1.810380
+22  ENSG00000084072     PPIE   rs74068312 -3.203480
+11  ENSG00000160563    MED27   rs73656076 -1.097330
+23  ENSG00000196712      NF1   rs56007276 -1.638780
+3   ENSG00000166002    SMCO4   rs78158365 -1.388070
+21  ENSG00000136718     IMP4  rs191999716 -2.829290
+17  ENSG00000170776   AKAP13   rs74026965 -2.922720
+0   ENSG00000106344    RBM28   rs17151764 -2.801920
+28  ENSG00000164649   CDCA7L   rs10228440 -3.184560
+15  ENSG00000137074     APTX   rs60613686 -1.166230
+39  ENSG00000164056    SPRY1   rs73844902 -2.014020
+31  ENSG00000083635   NUFIP1   rs56990928 -2.885260
+32  ENSG00000072210  ALDH3A2  rs182761344 -3.035750
+41  ENSG00000121481     RNF2  rs150422536 -1.930980
+25  ENSG00000175455   CCDC14   rs73856609 -3.025660
+11  ENSG00000105583  WDR83OS   rs10424512 -3.486530
+16  ENSG00000082212      ME2   rs73957415 -2.878130
+49  ENSG00000101191    DIDO1   rs73329169 -2.135160
+31  ENSG00000108641     B9D1  rs115486569 -0.827363
+18  ENSG00000075239    ACAT1    rs3218693 -1.929570
+38  ENSG00000125977   EIF2S2    rs6059360 -2.027010
+15  ENSG00000099977      DDT   rs34068078 -2.732090
+17  ENSG00000167258    CDK12   rs60082381 -1.743680
+4   ENSG00000204977   TRIM13     rs516065  2.497280
+41  ENSG00000036549     ZZZ3   rs74093219 -1.577240
+
+[272 rows x 4 columns]
+</pre>
+</div>
+</div>
+</div>
+<div id="postamble" class="status">
+<p class="author">Author: Abhishek Sarkar</p>
+<p class="date">Created: 2018-01-17 Wed 16:41</p>
+<p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
+</div>
+</body>
+</html>

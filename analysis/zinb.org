@@ -1,0 +1,561 @@
+#+TITLE: Mean/dispersion estimation
+#+SETUPFILE: setup.org
+
+* Introduction
+
+  The simplest approach to call mean/variance QTLs is to estimate a mean and a
+  dispersion for each individual, treat them as continuous phenotypes, and plug
+  into standard QTL mapping software.
+
+  As a first pass, perform stringent QC to avoid the sparsest genes and simply
+  find maximum likelihood estimates of a negative binomial model for the mean,
+  and dispersion per individual per gene.
+
+* Setup                                                            :noexport:
+
+  #+BEGIN_SRC emacs-lisp
+    (org-babel-lob-ingest "/home/aksarkar/projects/singlecell-qtl/analysis/sc-vs-bulk.org")
+    (org-babel-lob-ingest "/home/aksarkar/.emacs.d/org-templates/library.org")
+  #+END_SRC
+
+  #+RESULTS:
+  : 1
+
+  #+CALL: ipython3(memory="16G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
+
+  #+RESULTS:
+  : Submitted batch job 42220231
+
+  #+NAME: zinb-imports
+  #+BEGIN_SRC ipython :tangle zinb.py
+    import functools
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import os
+    import pandas as pd
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[1]:
+  :END:
+
+  #+BEGIN_SRC ipython :tangle zinb.py
+    import tensorflow as tf
+  #+END_SRC
+
+  #+NAME: list-local-devices
+  #+BEGIN_SRC ipython
+    from tensorflow.python.client import device_lib as dl
+    dl.list_local_devices()
+  #+END_SRC
+
+  #+RESULTS: list-local-devices
+  :RESULTS:
+  #+BEGIN_EXAMPLE
+  [name: "/cpu:0"
+     device_type: "CPU"
+     memory_limit: 268435456
+     locality {
+     }
+     incarnation: 3101117888233869158, name: "/gpu:0"
+     device_type: "GPU"
+     memory_limit: 11324823962
+     locality {
+       bus_id: 1
+     }
+     incarnation: 4298943332142850272
+     physical_device_desc: "device: 0, name: Tesla K80, pci bus id: 0000:08:00.0"]
+  #+END_EXAMPLE
+  :END:
+
+* Quality control
+
+  Filter out cells on percent spike-in and gene detection rate, and filter out
+  genes on individual detection rate. For now, use conservative filters:
+
+  - keep cells with % spike-in < 50%
+  - keep cells with detected genes > 4000
+  - keep genes detected in >70% of cells
+
+  #+CALL: load-data-defs()
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[2]:
+  :END:
+
+  #+CALL: load-data() :exports none
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[3]:
+  : ((20327, 3628), (34608, 15))
+  :END:
+
+  #+NAME: umi-qc
+  #+BEGIN_SRC ipython
+    keep_cells = functools.reduce(
+      np.logical_and,
+      [
+        annotations['reads_ercc'] / annotations.filter(like='reads_', axis=1).agg(np.sum, axis=1) < 0.5,
+        annotations['detect_hs'] > 4000,
+        annotations['chip_id'] != 'NA19092',
+      ]).values
+    keep_genes = functools.reduce(
+      np.logical_and,
+      [
+        umi.apply(lambda x: x > 0).agg(np.mean, axis=1).apply(lambda x: x > .7),
+      ]).values
+    umi_qc = umi.loc[keep_genes, keep_cells]
+    annotations_qc = annotations.loc[keep_cells]
+    umi_qc.shape
+  #+END_SRC
+
+  #+RESULTS: umi-qc
+  :RESULTS:
+  # Out[5]:
+  : (4148, 3100)
+  :END:
+
+  #+NAME: onehot-qc
+  #+BEGIN_SRC ipython
+    individuals = sorted(annotations_qc['chip_id'].unique())
+    onehot = np.zeros((umi_qc.shape[1], len(individuals)), dtype=np.float32)
+    onehot[np.arange(onehot.shape[0]),annotations_qc['chip_id'].apply(lambda x: individuals.index(x))] = 1
+    onehot = pd.DataFrame(onehot, columns=individuals, index=umi_qc.columns)
+    onehot.shape
+  #+END_SRC
+
+  #+RESULTS: onehot-qc
+  :RESULTS:
+  # Out[26]:
+  : (3100, 32)
+  :END:
+
+  Check that one-hot encoding is OK:
+
+  #+BEGIN_SRC ipython
+    (umi_qc.loc['ENSG00000000003', (annotations_qc['chip_id'] == 'NA18489').values] == 
+     umi_qc.loc['ENSG00000000003', onehot.dot(np.eye(onehot.shape[1])[0]).astype(bool)]).all()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[56]:
+  : True
+  :END:
+
+  #+BEGIN_SRC ipython :async t
+    umi_qc.to_csv('/scratch/midway2/aksarkar/singlecell/umi-qc.txt.gz', sep=' ', compression='gzip')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  :END:
+
+  #+BEGIN_SRC ipython
+    onehot.to_csv('/scratch/midway2/aksarkar/singlecell/onehot-qc.txt.gz', sep=' ', compression='gzip')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[27]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    annotations_qc.to_csv('/scratch/midway2/aksarkar/singlecell/annotations-qc.txt.gz', sep=' ', compression='gzip')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[45]:
+  :END:
+
+* Read the data
+
+  #+NAME: read-data
+  #+BEGIN_SRC ipython :tangle zinb.py :noweb yes
+    umi = pd.read_table('/scratch/midway2/aksarkar/singlecell/umi-qc.txt.gz', sep=' ', index_col=0)
+    onehot = pd.read_table('/scratch/midway2/aksarkar/singlecell/onehot-qc.txt.gz', sep=' ', index_col=0)
+    annotations = pd.read_table('/scratch/midway2/aksarkar/singlecell/annotations-qc.txt.gz', sep=' ', index_col=0)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[6]:
+  :END:
+
+* Model specification
+
+  Let \(r_{ijk}\) denote the number of molecules for individual \(i\), cell
+  \(j\), gene \(k\). Let \(R_{ij}\) denote a size factor for each cell. As a
+  first pass, define \(R_{ij} = \sum_k r_{ijk}\).
+
+  Following Hilbe 2012, we derive the negative binomial as a Poisson-Gamma
+  mixture:
+
+  \[ r_{ijk} \sim \text{Pois}(R_{ij} \mu_{ik} u_{ijk}) \]
+
+  \[ u_{ijk} \sim \text{Gamma}(\phi_{ik}^{-1}, \phi_{ik}^{-1}) \]
+
+  *Open question: does the size factor have to enter the QTL model also?*
+
+  Marginalizing out \(u\) yields the negative binomial distribution, with log
+  likelihood:
+
+  \[ \ln p(r_{ijk} \mid R_{ij}, \mu_{ik}, \phi_{ik}) = r_{ijk} \ln\left(\frac{R_{ij}\mu_{ik}\phi_{ik}}{1 + R_{ij}\mu_{ik}\phi_{ik}}\right) - \phi_{ik}^{-1} \ln(1 + R_{ij}\mu_{ik}\phi_{ik}) + \ln \Gamma(r_{ijk} + \phi_{ik}^{-1}) - \ln \Gamma(r_{ijk} + 1) - \ln \Gamma(\phi^{-1}) \]
+
+  This distribution has the following properties:
+
+  \[ E[r_{ijk} \mid \cdot] = R_{ij} \mu_{ik} \]
+
+  \[ V_j[r_{ijk} \mid \cdot] = R_{ij} \mu_{ik} + (R_{ij} \mu_{ik})^2 \phi_{ik}
+  \]
+
+  The latter follows from the law of total variance. Dropping subscripts for
+  convenience:
+
+  \[ V[r] = E[V[r \mid u]] + V[E[r \mid u]] \]
+  \[ V[r] = E[R \mu u] + V[R \mu u] \]
+  \[ V[r] = R \mu + (R \mu)^2 V[u] \]
+  \[ V[r] = R \mu + (R \mu)^2 \phi \]
+
+  We have multiple data points (30-200 cells) per mean/dispersion parameter, so
+  simply minimizing the negative log likelihood should give reasonable
+  estimates.
+
+  We can additionally account for zero-inflation, by letting \(\pi_{ij}\)
+  denote the probability of a "technical zero" (i.e., not arising from the
+  negative-binomial).
+
+  Then, the log-likelihood of the data is:
+
+  \[ \ln p(r_{ijk} \mid r_{ijk} = 0, \cdot) = -\ln(\pi_{ij} + (1 - \pi_{ij})
+  \exp(\ln p(r_{ijk} \mid R_{ij}, \mu_{ik}, \phi_{ik}))) \]
+
+  \[ \ln p(r_{ijk} \mid r_{ijk} > 0, \cdot) = \ln(1 - \pi_{ij}) + \ln p(r_{ijk} \mid R_{ij}, \mu_{ik}, \phi_{ik})) \]
+
+  *Open question: how many dropout parameters need to be introduced, and are
+  they shared between cells/genes?*
+
+* Serial algorithm
+
+  Optimize each pair of mean/dispersion parameters by sequentially considering
+  each subset of the data (set of cells per gene per individual). Use
+  ~multiprocessing~ to parallelize this over chunks of genes.
+
+  #+BEGIN_SRC ipython :tangle nb.py :noweb yes :exports none
+    <<zinb-imports>>
+    import multiprocessing as mp
+    import scipy.optimize
+    import scipy.special
+
+    <<read-data>>
+  #+END_SRC
+
+  Optimize the negative log-likelihood using BFGS.
+
+  #+BEGIN_SRC ipython :tangle nb.py
+    def nll(theta, x, size):
+      mean, inv_disp = np.exp(theta)
+      mean *= size
+      assert mean.shape == x.shape
+      return -(x * np.log(mean / inv_disp + 1e-8) -
+               x * np.log(1 + mean / inv_disp + 1e-8) -
+               inv_disp * np.log(1 + mean / inv_disp + 1e-8) +
+               scipy.special.gammaln(x + inv_disp) -
+               scipy.special.gammaln(inv_disp) -
+               scipy.special.gammaln(x + 1)).sum()
+
+    def fit_scipy(x, size):
+      res = scipy.optimize.minimize(fun=nll, x0=[0, 0], args=(x, size), tol=1e-4)
+      if res.success:
+        return tuple(res.x)
+      else:
+        return (float('nan'), float('nan'))
+
+    def process_chunk(x, size):
+      res = pd.DataFrame([(gene, k) + fit_scipy(row.loc[g].values, size.loc[g].values)
+                           for gene, row in x.iterrows()
+                           for k, g in row.groupby(annotations['chip_id'].values).groups.items()])
+      res.columns = ['gene', 'individual', 'mean', 'dispersion']
+      res.set_index('gene', inplace=True)
+      return res
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[89]:
+  :END:
+
+  Output record-like data for each parameter to make reassembling the result
+  easier.
+
+  #+BEGIN_SRC ipython
+    process_chunk(umi.iloc[:5], size).head()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[90]:
+  #+BEGIN_EXAMPLE
+    individual      mean  dispersion
+    gene
+    ENSG00000000003    NA18519 -8.223728    2.564775
+    ENSG00000000003    NA18862 -8.406216    2.263670
+    ENSG00000000003    NA19093 -8.339645    2.393590
+    ENSG00000000003    NA19128 -8.479335    2.293822
+    ENSG00000000003    NA18852 -8.609513    2.454818
+  #+END_EXAMPLE
+  :END:
+
+  #+BEGIN_SRC ipython
+    Out[90].pivot(columns='individual', values='mean') 
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[99]:
+  #+BEGIN_EXAMPLE
+    individual        NA18519   NA18852   NA18862   NA19093   NA19128
+    gene
+    ENSG00000000003 -8.223728 -8.609513 -8.406216 -8.339645 -8.479335
+  #+END_EXAMPLE
+  :END:
+
+  #+BEGIN_SRC ipython :tangle nb.py
+    f = functools.partial(process_chunk, size=umi.agg(np.sum))
+    with mp.Pool() as pool:
+      result = pd.concat(pool.map(f, np.array_split(umi, 100)))
+
+    log_mean = result.pivot(columns='individual', values='mean')
+    log_disp = result.pivot(columns='individual', values='dispersion') 
+
+    log_mean.to_csv('/scratch/midway2/aksarkar/singlecell/mean.txt.gz', sep=' ', compression='gzip')
+    log_disp.to_csv('/scratch/midway2/aksarkar/singlecell/disp.txt.gz', sep=' ', compression='gzip')
+  #+END_SRC
+
+  Tangle the code from this file and submit requesting multiple cores.
+
+  #+BEGIN_SRC emacs-lisp
+    (org-babel-tangle)
+  #+END_SRC
+
+  #+RESULTS:
+  | nb.py | zinb.py |
+
+  #+BEGIN_SRC sh
+    sbatch --partition="broadwl" -N1 -c16 --out=nb.out
+    #!/bin/bash
+    source activate scqtl
+    python nb.py
+  #+END_SRC
+
+  #+RESULTS:
+  : Submitted batch job 42221597
+
+* Parallel algorithm                                               :noexport:
+
+  We should be able to jointly optimize all of the parameters together, using
+  one-hot encoding to map parameters to data points. This will speed up
+  inference by making it more amenable to running on the GPU.
+
+  Use tensorflow to automatically differentiate the negative log likelihood and
+  perform gradient descent.
+
+  *Open problem: this doesn't give the same answer as the serial algorithm*
+
+  #+BEGIN_SRC ipython :tangle zinb.py
+    def sigmoid(x):
+      """Numerically safe sigmoid"""
+      return tf.clip_by_value(tf.sigmoid(x), -13, 13)
+
+    def log(x):
+      """Numerically safe log"""
+      return tf.log(x + 1e-8)
+
+    def nb_llik(x, mean, inv_disp):
+      """Log likelihood of x distributed as NB
+
+      See Hilbe 2012, eq. 8.10
+
+      mean - mean (> 0)
+      inv_disp - inverse dispersion (> 0)
+
+      """
+      return (x * log(mean / inv_disp) -
+              x * log(1 + mean / inv_disp) -
+              inv_disp * log(1 + mean / inv_disp) +
+              tf.lgamma(x + inv_disp) -
+              tf.lgamma(inv_disp) -
+              tf.lgamma(x + 1))
+
+    def zinb_llik(x, mean, inv_disp, logodds, eps=1e-8):
+      """Log likelihood of x distributed as ZINB
+
+      See Hilbe 2012, eq. 11.12, 11.13
+
+      mean - mean (> 0)
+      inv_disp - inverse dispersion (> 0)
+      logodds - dropout log odds
+
+      """
+      case_zero = -log(sigmoid(-logodds) + sigmoid(logodds) * tf.exp(nb_llik(x, mean, inv_disp)))
+      case_non_zero = -tf.nn.softplus(logodds) + nb_llik(x, mean, inv_disp)
+      return tf.where(tf.less(x, 1e-8), case_zero, case_non_zero)
+
+    def fit(umi, onehot, size_factor, zero_inflation=False, learning_rate=1e-2, max_epochs=1000):
+      """Return estimated log mean and log dispersion. 
+
+      If fitting a zero-inflated model, additionally return dropout log odds.
+
+      umi - count matrix (n x p; float32)
+      onehot - mapping of individuals to cells (m x n; float32)
+      size_factor - size factor vector (n x 1; float32)
+
+      Returns:
+
+      log_mean - log mean parameter (m x p)
+      log_disp - log dispersion parameter (m x p)
+      dropout - if zero_inflation, dropout log odds (n x 1)
+
+      """
+      n, p = umi.shape
+      _, m = onehot.shape
+
+      graph = tf.Graph()
+      with graph.as_default(), graph.device('/gpu:*'):
+        size_factor = tf.Variable(size_factor, trainable=False)
+        umi = tf.Variable(umi, trainable=False)
+        onehot = tf.Variable(onehot, trainable=False)
+
+        mean = tf.exp(tf.Variable(tf.zeros([m, p])))
+        inv_disp = tf.exp(tf.Variable(tf.zeros([m, p])))
+
+        if zero_inflation:
+          dropout = tf.Variable(tf.zeros([n, 1]))
+          llik = tf.reduce_mean(
+            zinb_llik(umi, size_factor * tf.matmul(onehot, mean),
+                      tf.matmul(onehot, inv_disp), dropout))
+        else:
+          llik = tf.reduce_sum(
+            nb_llik(umi, size_factor * tf.matmul(onehot, mean),
+                    tf.matmul(onehot, inv_disp)))
+
+        with graph.device('/cpu:0'):
+          check_op = tf.assert_non_positive(llik)
+
+        with tf.control_dependencies([check_op]):
+          train = tf.train.RMSPropOptimizer(learning_rate=learning_rate).minimize(-llik)
+
+        opt = [tf.log(mean), -tf.log(inv_disp)]
+        if zero_inflation:
+          opt.append(dropout)
+        curr = float('-inf')
+        with tf.Session() as sess:
+          sess.run(tf.global_variables_initializer())
+          for i in range(max_epochs):
+            _, update = sess.run([train, llik])
+            if not np.isfinite(update):
+              raise tf.train.NanLossDuringTrainingError
+            if not i % 100:
+              print(i, update)
+          return sess.run(opt)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  :END:
+
+  #+BEGIN_SRC ipython :tangle zinb.py
+    mean, dispersion = fit(
+      umi=umi.iloc[:5].values.T.astype(np.float32),
+      onehot=onehot.values.astype(np.float32),
+      size_factor=umi.agg(np.sum).astype(np.float32).values.reshape(-1, 1),
+      learning_rate=1e-2,
+      max_epochs=8000)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  :END:
+
+  #+BEGIN_SRC ipython :tangle zinb.py
+    pd.DataFrame(mean.T, index=umi.index, columns=onehot.columns).to_csv('/scratch/midway2/aksarkar/singlecell/mean.txt.gz', sep=' ', compression='gzip')
+    pd.DataFrame(dispersion.T, index=umi.index, columns=onehot.columns).to_csv('/scratch/midway2/aksarkar/singlecell/dispersion.txt.gz', sep=' ', compression='gzip')
+  #+END_SRC
+
+  For convenience [[https://orgmode.org/manual/Extracting-source-code.html][tangle]] the code from this file and run it through
+  ~sbatch~. (This makes it easier to keep a long running kernel for the
+  followup analysis, while running the hard estimation problem on a GPU node.)
+
+  #+BEGIN_SRC emacs-lisp
+    (org-babel-tangle)
+  #+END_SRC
+
+  #+RESULTS:
+  | zinb.py |
+
+  #+BEGIN_SRC sh :eval never-export
+    sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --time=30 --job-name=zinb --output=zinb.out --error=zinb.err
+    #!/bin/bash
+    source activate scqtl
+    python zinb.py
+  #+END_SRC
+
+  #+RESULTS:
+  : Submitted batch job 42221193
+
+  #+BEGIN_SRC ipython
+    log_mean = pd.read_table('mean.txt.gz', sep=' ', index_col=0)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[57]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    log_mean.iloc[0]
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[58]:
+  #+BEGIN_EXAMPLE
+    NA18489   -4.398294
+    NA18498   -0.912375
+    NA18499   -8.331842
+    NA18501   -4.439660
+    NA18502   -8.615689
+    NA18505   -2.217484
+    NA18507   -8.427283
+    NA18508   -8.501702
+    NA18519   -2.994574
+    NA18520   -8.178504
+    NA18522   -2.792260
+    NA18852   -3.843915
+    NA18853   -3.828545
+    NA18856   -3.346244
+    NA18858   -8.192317
+    NA18862   -6.147875
+    NA18870   -3.389510
+    NA19093   -5.520665
+    NA19098   -2.783728
+    NA19101   -4.907929
+    NA19114   -4.064628
+    NA19116   -6.399668
+    NA19119   -0.846079
+    NA19128   -5.853783
+    NA19153   -4.680749
+    NA19159   -1.396034
+    NA19190   -4.761320
+    NA19193   -2.739177
+    NA19203   -1.009947
+    NA19207   -4.496280
+    NA19210   -3.107379
+    NA19257   -4.354552
+    Name: ENSG00000000003, dtype: float64
+  #+END_EXAMPLE
+  :END:
