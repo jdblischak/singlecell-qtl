@@ -510,14 +510,18 @@ rule count_totals:
         dedup.close()
 
         # Consistency checks
+        assert mapped > 0, \
+            "More than zero reads"
+        assert mol > 0, \
+            "More than zero molecules"
         assert umi <= raw, \
             "Reads with a UMI less than or equal to raw reads"
         assert mapped + unmapped == umi, \
             "Mapped and unmapped reads sum to reads with a UMI"
         assert ce + dm + hs + ercc == mapped, \
             "Reads mapped to specific genomes sum to mapped reads"
-        assert mol < mapped, \
-            "Molecules less than reads."
+        assert mol <= mapped, \
+            "Molecules less than (or equal to) reads"
         assert mol_ce + mol_dm + mol_ercc + mol_hs == mol, \
             "Molecules mapped to specific genomes sum to molecules"
 
