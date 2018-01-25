@@ -1,0 +1,167 @@
+---
+title: "PCA of highly variable genes"
+author: "John Blischak"
+date: 2018-01-25
+output: html_document
+---
+
+<!-- The file analysis/chunks.R contains chunks that define default settings
+shared across the workflowr files. -->
+```{r read-chunk, include=FALSE, cache=FALSE}
+knitr::read_chunk("chunks.R")
+```
+
+<!-- Update knitr chunk options -->
+```{r knitr-opts-chunk, include=FALSE}
+```
+
+<!-- Insert the date the file was last updated -->
+```{r last-updated, echo=FALSE, results='asis'}
+```
+
+<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
+ package git2r is installed -->
+```{r code-version, echo=FALSE, results='asis'}
+```
+
+## Setup
+
+```{r packages, message=FALSE}
+library("cowplot")
+library("dplyr")
+library("DT")
+library("edgeR")
+library("ggplot2")
+library("knitr")
+theme_set(theme_cowplot())
+source("../code/functions.R")
+library("Biobase") # has to be loaded last to use `combine`
+```
+
+Import data.
+
+```{r import}
+eset <- readRDS("../data/eset.rds")
+dim(eset)
+```
+
+## Filter
+
+Only keep high-quality single cells.
+
+```{r quality}
+quality <- read.table("../data/quality-single-cells.txt", stringsAsFactors = FALSE)
+colnames(quality) <- c("sample", "quality")
+eset <- eset[, quality$quality]
+dim(eset)
+```
+
+Isolate the human genes.
+
+```{r human-genes}
+eset <- eset[fData(eset)$source == "H. sapiens", ]
+dim(eset)
+```
+
+Remove zeros.
+
+```{r remove-zeros}
+eset <- eset[rowSums(exprs(eset)) != 0, ]
+dim(eset)
+```
+
+Only keep genes which are observed in at least 50% of the samples.
+
+```{r present}
+# Function `present` is defined in ../code/functions.R
+eset <- eset[apply(exprs(eset), 1, present), ]
+dim(eset)
+```
+
+## Select most variable genes
+
+Convert to log2 counts per million.
+
+```{r hist}
+log2cpm <- cpm(exprs(eset), log = TRUE)
+dim(log2cpm)
+```
+
+Calculate coefficient of variation.
+
+```{r cv}
+compute_cv <- function(x) sd(x) / mean(x)
+cv <- apply(log2cpm, 1, compute_cv)
+summary(cv)
+```
+
+Select 25% of genes with highest CV.
+
+```{r highly-variable}
+cutoff <- 0.25
+summary(cv[rank(cv) / length(cv) > 1 - cutoff])
+variable <- log2cpm[rank(cv) / length(cv) > 1 - cutoff, ]
+dim(variable)
+```
+
+## PCA
+
+```{r pca}
+pca <- run_pca(variable)
+head(pca$explained * 100)
+plot_pca(pca$PCs, pcx = 1, pcy = 2, explained = pca$explained,
+         metadata = pData(eset), color = "batch")
+```
+
+## PCA versus covariates
+
+Calculate the adjusted R-squared for various covariates and the first 6
+principal components.
+
+```{r r2}
+get_r2 <- function(x, y) {
+  stopifnot(length(x) == length(y))
+  model <- lm(y ~ x)
+  stats <- summary(model)
+  return(stats$adj.r.squared)
+}
+covariates <- pData(eset) %>% select(experiment, batch, concentration, tra1.60,
+                                     index, raw:unmapped, starts_with("detect"),
+                                     chipmix, freemix)
+pcs <- pca$PCs[, 1:6]
+r2 <- matrix(NA, nrow = ncol(covariates), ncol = ncol(pcs),
+             dimnames = list(colnames(covariates), colnames(pcs)))
+for (cov in colnames(covariates)) {
+  for (pc in colnames(pcs)) {
+    r2[cov, pc] <- get_r2(covariates[, cov], pcs[, pc])
+  }
+}
+```
+
+PC1 is most highly correlated with the percentage of detected genes and other
+metrics of sequencing depth, which is consistent with the observations of [Hicks
+et al., 2017][hicks2017]. PCs 2-6 most highly correlate with variation across C1
+chips.
+
+[hicks2017]: https://www.ncbi.nlm.nih.gov/pubmed/29121214
+
+```{r heatmap}
+heatmap(r2)
+```
+
+```{r dt}
+datatable(r2)
+```
+
+Here is the description of all the experimental variables that were correlated
+with the PCs.
+
+```{r description}
+kable(varMetadata(eset)[colnames(covariates), , drop = FALSE])
+```
+
+## Session information
+
+<!-- Insert the session information into the document -->
+```{r session-info}
+```
