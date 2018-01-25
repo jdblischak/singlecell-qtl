@@ -5,7 +5,7 @@
 #
 # Usage:
 #
-#   Rscript output-annotation.R <directory with ExpressionSet rds files>
+#   Rscript output-annotation.R <ExpressionSet rds file>
 #                               <output annotation file>
 #                               <output description file>
 #
@@ -13,14 +13,15 @@ suppressPackageStartupMessages(library("Biobase"))
 
 args <- commandArgs(trailingOnly = TRUE)
 stopifnot(length(args) == 3)
-dir_eset <- args[1]
+fname_eset <- args[1]
+stopifnot(file.exists(fname_eset))
 fname_anno <- args[2]
 fname_description <- args[3]
 
-fname <- Sys.glob(file.path(dir_eset, "*.rds"))
-eset <- Reduce(combine, Map(readRDS, fname))
+eset <- readRDS(fname_eset)
 
 # Annotation
+
 anno <- pData(eset)
 write.table(anno, file = fname_anno,
             quote = FALSE, sep = "\t", row.names = FALSE)

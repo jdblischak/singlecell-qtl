@@ -4,7 +4,7 @@
 #
 # Usage:
 #
-#   Rscript output-exp-mat.R <directory with ExpressionSet rds files>
+#   Rscript output-exp-mat.R <ExpressionSet rds file>
 #                            <output gzipped tab-delimited file>
 #
 
@@ -12,11 +12,11 @@ suppressPackageStartupMessages(library("Biobase"))
 
 args <- commandArgs(trailingOnly = TRUE)
 stopifnot(length(args) == 2)
-dir_eset <- args[1]
+fname_eset <- args[1]
+stopifnot(file.exists(fname_eset))
 outfile <- args[2]
 
-fname <- Sys.glob(file.path(dir_eset, "*.rds"))
-eset <- Reduce(combine, Map(readRDS, fname))
+eset <- readRDS(fname_eset)
 
 # Only keep human genes
 eset_hs <- eset[fData(eset)$source == "H. sapiens", ]

@@ -196,6 +196,14 @@ batch1 <- Reduce(combine, Map(readRDS, fname))
 dim(batch1)
 ```
 
+To read in the entire data set, use the combined ExpressionSet object (it's much
+faster to load just one serialized data file).
+
+```{r eset-total}
+eset_total <- readRDS("../data/eset.rds")
+dim(eset_total)
+```
+
 To learn more about the data that can be stored in an ExpressionSet object and 
 methods to access the data, please see the help pages for ExpressionSet and its
 parent class eSet.

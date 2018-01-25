@@ -97,7 +97,7 @@ rule all:
            description = dir_data + "scqtl-annotation-description.txt"
 
 rule rds:
-    input: expand(dir_data + "eset/{chip}.rds", chip = chips)
+    input: dir_data + "eset.rds"
 
 rule batch1:
     input: expand(dir_data + "eset/{chip}.rds", chip = config["batch1"]),
@@ -393,18 +393,22 @@ rule expressionset:
                                                 {input.saf} \
                                                 {output}"
 
-rule counts_combined:
+rule expressionset_combined:
     input: expand(dir_data + "eset/{chip}.rds", chip = chips)
-    output: dir_data + "scqtl-counts.txt.gz"
+    output: dir_data + "eset.rds"
     params: dir_eset = dir_data + "eset/"
-    shell: "Rscript code/output-exp-mat.R {params.dir_eset} {output}"
+    shell: "Rscript code/output-combined-eset.R {params.dir_eset} {output}"
+
+rule counts_combined:
+    input: dir_data + "eset.rds"
+    output: dir_data + "scqtl-counts.txt.gz"
+    shell: "Rscript code/output-exp-mat.R {input} {output}"
 
 rule annotation_combined:
-    input: expand(dir_data + "eset/{chip}.rds", chip = chips)
+    input: dir_data + "eset.rds"
     output: anno = dir_data + "scqtl-annotation.txt",
             description = dir_data + "scqtl-annotation-description.txt"
-    params: dir_eset = dir_data + "eset/"
-    shell: "Rscript code/output-annotation.R {params.dir_eset} \
+    shell: "Rscript code/output-annotation.R {input} \
                                              {output.anno} \
                                              {output.description}"
 
