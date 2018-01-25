@@ -312,6 +312,12 @@ anno$filter_all <- anno$cell_number == 1 &
 sort(table(anno[anno$filter_all, "chip_id"]))
 ```
 
+```{r output}
+write.table(data.frame(row.names(anno), anno[,"filter_all"]),
+            file = "../data/quality-single-cells.txt", quote = FALSE,
+            sep = "\t", row.names = FALSE, col.names = FALSE)
+```
+
 ### Plots
 ```{r plots, fig.width=12, fig.heigh=12, dpi=300}
 
@@ -406,8 +412,14 @@ Using the genes with reasonable expression levels to perform PCA
 ```{r pca-before}
 ## pca of genes with reasonable expression levels
 pca_hs <- run_pca(mol_hs_cpm)
+
+## plot 
 plot_pca(pca_hs$PCs, pcx = 1, pcy = 2, explained = pca_hs$explained,
          metadata = pData(eset_hs_clean), color = "batch")
+plot_pca(pca_hs$PCs, pcx = 1, pcy = 2, explained = pca_hs$explained,
+         metadata = pData(eset_hs_clean), color = "cell_number")
+plot_pca(pca_hs$PCs, pcx = 1, pcy = 2, explained = pca_hs$explained,
+         metadata = pData(eset_hs_clean), color = "chip_id")
 
 ## combine to investigate the effect
 pca_anno <- cbind(anno, pca_hs$PCs)
