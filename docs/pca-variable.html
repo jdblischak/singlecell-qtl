@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+
+
+<meta name="author" content="John Blischak" />
+
+<meta name="date" content="2018-01-25" />
+
+<title>PCA of highly variable genes</title>
+
+<script src="site_libs/jquery-1.12.4/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<script src="site_libs/jqueryui-1.11.4/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-1.1/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-1.1/highlight.js"></script>
+<script src="site_libs/htmlwidgets-0.9/htmlwidgets.js"></script>
+<script src="site_libs/datatables-binding-0.2/datatables.js"></script>
+<link href="site_libs/dt-core-1.10.12/css/jquery.dataTables.min.css" rel="stylesheet" />
+<link href="site_libs/dt-core-1.10.12/css/jquery.dataTables.extra.css" rel="stylesheet" />
+<script src="site_libs/dt-core-1.10.12/js/jquery.dataTables.min.js"></script>
+<link href="site_libs/font-awesome-4.5.0/css/font-awesome.min.css" rel="stylesheet" />
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+  pre:not([class]) {
+    background-color: white;
+  }
+</style>
+<script type="text/javascript">
+if (window.hljs && document.readyState && document.readyState === "complete") {
+   window.setTimeout(function() {
+      hljs.initHighlighting();
+   }, 0);
+}
+</script>
+
+
+
+<style type="text/css">
+h1 {
+  font-size: 34px;
+}
+h1.title {
+  font-size: 38px;
+}
+h2 {
+  font-size: 30px;
+}
+h3 {
+  font-size: 24px;
+}
+h4 {
+  font-size: 18px;
+}
+h5 {
+  font-size: 16px;
+}
+h6 {
+  font-size: 12px;
+}
+.table th:not([align]) {
+  text-align: left;
+}
+</style>
+
+
+</head>
+
+<body>
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+code {
+  color: inherit;
+  background-color: rgba(0, 0, 0, 0.04);
+}
+img {
+  max-width:100%;
+  height: auto;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+</style>
+
+
+<style type="text/css">
+/* padding for bootstrap navbar */
+body {
+  padding-top: 51px;
+  padding-bottom: 40px;
+}
+/* offset scroll position for anchor links (for fixed navbar)  */
+.section h1 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+
+.section h2 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h3 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h4 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h5 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h6 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+</style>
+
+<script>
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark it active
+  menuAnchor.parent().addClass('active');
+
+  // if it's got a parent navbar menu mark it active as well
+  menuAnchor.closest('li.dropdown').addClass('active');
+});
+</script>
+
+
+<div class="container-fluid main-container">
+
+<!-- tabsets -->
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+</script>
+
+<!-- code folding -->
+
+
+
+
+<script>
+$(document).ready(function ()  {
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_').toLowerCase();
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+  padding-left: 25px;
+  text-indent: 0;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row-fluid">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">singlecell-qtl</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li>
+  <a href="about.html">About</a>
+</li>
+<li>
+  <a href="contributing.html">Contributing</a>
+</li>
+<li>
+  <a href="license.html">License</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/jdblischak/singlecell-qtl">
+    <span class="fa fa-github"></span>
+     
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div class="fluid-row" id="header">
+
+
+
+<h1 class="title toc-ignore">PCA of highly variable genes</h1>
+<h4 class="author"><em>John Blischak</em></h4>
+<h4 class="date"><em>2018-01-25</em></h4>
+
+</div>
+
+
+<!-- The file analysis/chunks.R contains chunks that define default settings
+shared across the workflowr files. -->
+<!-- Update knitr chunk options -->
+<!-- Insert the date the file was last updated -->
+<p><strong>Last updated:</strong> 2018-01-25</p>
+<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
+ package git2r is installed -->
+<p><strong>Code version:</strong> 424b585</p>
+<section id="setup" class="level2">
+<h2>Setup</h2>
+<pre class="r"><code>library(&quot;cowplot&quot;)
+library(&quot;dplyr&quot;)
+library(&quot;DT&quot;)
+library(&quot;edgeR&quot;)
+library(&quot;ggplot2&quot;)
+library(&quot;knitr&quot;)
+theme_set(theme_cowplot())
+source(&quot;../code/functions.R&quot;)
+library(&quot;Biobase&quot;) # has to be loaded last to use `combine`</code></pre>
+<p>Import data.</p>
+<pre class="r"><code>eset &lt;- readRDS(&quot;../data/eset.rds&quot;)
+dim(eset)</code></pre>
+<pre><code>Features  Samples 
+   54792     4992 </code></pre>
+</section>
+<section id="filter" class="level2">
+<h2>Filter</h2>
+<p>Only keep high-quality single cells.</p>
+<pre class="r"><code>quality &lt;- read.table(&quot;../data/quality-single-cells.txt&quot;, stringsAsFactors = FALSE)
+colnames(quality) &lt;- c(&quot;sample&quot;, &quot;quality&quot;)
+eset &lt;- eset[, quality$quality]
+dim(eset)</code></pre>
+<pre><code>Features  Samples 
+   54792     3910 </code></pre>
+<p>Isolate the human genes.</p>
+<pre class="r"><code>eset &lt;- eset[fData(eset)$source == &quot;H. sapiens&quot;, ]
+dim(eset)</code></pre>
+<pre><code>Features  Samples 
+   20327     3910 </code></pre>
+<p>Remove zeros.</p>
+<pre class="r"><code>eset &lt;- eset[rowSums(exprs(eset)) != 0, ]
+dim(eset)</code></pre>
+<pre><code>Features  Samples 
+   19656     3910 </code></pre>
+<p>Only keep genes which are observed in at least 50% of the samples.</p>
+<pre class="r"><code># Function `present` is defined in ../code/functions.R
+eset &lt;- eset[apply(exprs(eset), 1, present), ]
+dim(eset)</code></pre>
+<pre><code>Features  Samples 
+    6979     3910 </code></pre>
+</section>
+<section id="select-most-variable-genes" class="level2">
+<h2>Select most variable genes</h2>
+<p>Convert to log2 counts per million.</p>
+<pre class="r"><code>log2cpm &lt;- cpm(exprs(eset), log = TRUE)
+dim(log2cpm)</code></pre>
+<pre><code>[1] 6979 3910</code></pre>
+<p>Calculate coefficient of variation.</p>
+<pre class="r"><code>compute_cv &lt;- function(x) sd(x) / mean(x)
+cv &lt;- apply(log2cpm, 1, compute_cv)
+summary(cv)</code></pre>
+<pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+0.02658 0.19235 0.28446 0.25889 0.33827 0.42273 </code></pre>
+<p>Select 25% of genes with highest CV.</p>
+<pre class="r"><code>cutoff &lt;- 0.25
+summary(cv[rank(cv) / length(cv) &gt; 1 - cutoff])</code></pre>
+<pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+ 0.3383  0.3483  0.3560  0.3558  0.3628  0.4227 </code></pre>
+<pre class="r"><code>variable &lt;- log2cpm[rank(cv) / length(cv) &gt; 1 - cutoff, ]
+dim(variable)</code></pre>
+<pre><code>[1] 1745 3910</code></pre>
+</section>
+<section id="pca" class="level2">
+<h2>PCA</h2>
+<pre class="r"><code>pca &lt;- run_pca(variable)
+head(pca$explained * 100)</code></pre>
+<pre><code>[1] 3.0263690 0.9880011 0.6295410 0.4630944 0.3477797 0.3030006</code></pre>
+<pre class="r"><code>plot_pca(pca$PCs, pcx = 1, pcy = 2, explained = pca$explained,
+         metadata = pData(eset), color = &quot;batch&quot;)</code></pre>
+<p><img src="figure/pca-variable.Rmd/pca-1.png" width="768" style="display: block; margin: auto;" /></p>
+</section>
+<section id="pca-versus-covariates" class="level2">
+<h2>PCA versus covariates</h2>
+<p>Calculate the adjusted R-squared for various covariates and the first 6 principal components.</p>
+<pre class="r"><code>get_r2 &lt;- function(x, y) {
+  stopifnot(length(x) == length(y))
+  model &lt;- lm(y ~ x)
+  stats &lt;- summary(model)
+  return(stats$adj.r.squared)
+}
+covariates &lt;- pData(eset) %&gt;% select(experiment, batch, concentration, tra1.60,
+                                     index, raw:unmapped, starts_with(&quot;detect&quot;),
+                                     chipmix, freemix)
+pcs &lt;- pca$PCs[, 1:6]
+r2 &lt;- matrix(NA, nrow = ncol(covariates), ncol = ncol(pcs),
+             dimnames = list(colnames(covariates), colnames(pcs)))
+for (cov in colnames(covariates)) {
+  for (pc in colnames(pcs)) {
+    r2[cov, pc] &lt;- get_r2(covariates[, cov], pcs[, pc])
+  }
+}</code></pre>
+<p>PC1 is most highly correlated with the percentage of detected genes and other metrics of sequencing depth, which is consistent with the observations of <a href="https://www.ncbi.nlm.nih.gov/pubmed/29121214">Hicks et al., 2017</a>. PCs 2-6 most highly correlate with variation across C1 chips.</p>
+<pre class="r"><code>heatmap(r2)</code></pre>
+<p><img src="figure/pca-variable.Rmd/heatmap-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>datatable(r2)</code></pre>
+<div id="htmlwidget-b8e0c2e2742a5382bafd" style="width:100%;height:auto;" class="datatables html-widget"></div>
+<script type="application/json" data-for="htmlwidget-b8e0c2e2742a5382bafd">{"x":{"filter":"none","data":[["experiment","batch","concentration","tra1.60","index","raw","umi","mapped","unmapped","detect_ce","detect_dm","detect_ercc","detect_hs","chipmix","freemix"],[0.194284852364707,0.0596919205820098,0.171746362073556,0.00581133389626465,0.0157796678919405,0.398661434033045,0.423018063784535,0.454570354917398,0.306258182035432,0.116006267693539,0.00533356209178171,0.00493733190715095,0.947281723687784,0.0845575760408923,0.0585258126124446],[0.420989108543387,0.0985795409862253,0.0438945645848712,0.00146032286209175,0.0017131633041173,0.0249993298022416,0.0224286502053934,0.0168560213441368,0.0365690755435697,0.0565350762348091,0.0473855588916896,0.0535502063446081,0.00343667820888571,0.204657745118,0.0474073068255765],[0.411235238008003,0.148107664919635,0.0126445887446626,0.00148852880113204,0.0139551703824563,0.00938779029258086,0.00513675454690954,0.00685000580175643,0.00150072452480365,0.062329076769818,0.0795167055257997,0.122629558879847,1.27255293769224e-05,-0.000191709912705562,0.00673303151402294],[0.606089957182141,0.262423664525656,-0.000174304226967292,-0.000197204723001221,0.101842055197614,0.0264486223277032,0.022199158113002,0.0212852182204207,0.0219700145030172,0.0430135604644133,0.00157674374994188,0.000158540713548705,-7.56444900720243e-05,0.0535255820924684,0.0395366431741223],[0.557265786835946,0.300199860422361,0.0189711992632112,-1.20103349623424e-05,0.00853241118020709,0.057603363500676,0.0414561666590867,0.0355990122016995,0.0526823955829631,0.0309718234991981,0.215377038417305,0.18639166427166,8.10671360399473e-05,0.0131824770469123,0.0256424304734852],[0.546964921732731,0.312502187533049,0.000102073115711532,-6.55647628986511e-05,0.11475129564359,0.00374494787157065,0.00183403451659914,0.00364989873613297,-0.000255130793757719,0.0247376394714611,0.16098892877567,0.119222841109606,0.00556009891845222,0.000553137263287984,0.00795098624326895]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th> <\/th>\n      <th>PC1<\/th>\n      <th>PC2<\/th>\n      <th>PC3<\/th>\n      <th>PC4<\/th>\n      <th>PC5<\/th>\n      <th>PC6<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"columnDefs":[{"className":"dt-right","targets":[1,2,3,4,5,6]},{"orderable":false,"targets":0}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
+<p>Here is the description of all the experimental variables that were correlated with the PCs.</p>
+<pre class="r"><code>kable(varMetadata(eset)[colnames(covariates), , drop = FALSE])</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th></th>
+<th style="text-align: left;">labelDescription</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>experiment</td>
+<td style="text-align: left;">ID of C1 chip (i.e. processing date in MMDDYYYY)</td>
+</tr>
+<tr class="even">
+<td>batch</td>
+<td style="text-align: left;">Batch the C1 chip was processed in (b1, b2, …)</td>
+</tr>
+<tr class="odd">
+<td>concentration</td>
+<td style="text-align: left;">The cDNA concentration of the well prior to library prep</td>
+</tr>
+<tr class="even">
+<td>tra1.60</td>
+<td style="text-align: left;">Did the cell stain positive for TRA-1-60? (test of pluripotency)</td>
+</tr>
+<tr class="odd">
+<td>index</td>
+<td style="text-align: left;">The set of indexes used for library prep (of the 3 sets of 96)</td>
+</tr>
+<tr class="even">
+<td>raw</td>
+<td style="text-align: left;">The number of raw reads</td>
+</tr>
+<tr class="odd">
+<td>umi</td>
+<td style="text-align: left;">The number of reads with a valid UMI</td>
+</tr>
+<tr class="even">
+<td>mapped</td>
+<td style="text-align: left;">The number of reads with a valid UMI that mapped to a genome</td>
+</tr>
+<tr class="odd">
+<td>unmapped</td>
+<td style="text-align: left;">The number of reads with a valid UMI that did <em>not</em> map to a genome</td>
+</tr>
+<tr class="even">
+<td>detect_ce</td>
+<td style="text-align: left;">The number of C. elegans genes with at least one molecule</td>
+</tr>
+<tr class="odd">
+<td>detect_dm</td>
+<td style="text-align: left;">The number of D. melanogaster genes with at least one molecule</td>
+</tr>
+<tr class="even">
+<td>detect_ercc</td>
+<td style="text-align: left;">The number of ERCC genes with at least one molecule</td>
+</tr>
+<tr class="odd">
+<td>detect_hs</td>
+<td style="text-align: left;">The number of H. sapiens genes with at least one molecule</td>
+</tr>
+<tr class="even">
+<td>chipmix</td>
+<td style="text-align: left;">verifyBamID: chipmix is a metric for detecting sample swaps</td>
+</tr>
+<tr class="odd">
+<td>freemix</td>
+<td style="text-align: left;">verifyBamID: freemix is a measure of contamination. 0 == good &amp; 0.5 == bad</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="session-information" class="level2">
+<h2>Session information</h2>
+<!-- Insert the session information into the document -->
+<pre class="r"><code>sessionInfo()</code></pre>
+<pre><code>R version 3.4.1 (2017-06-30)
+Platform: x86_64-pc-linux-gnu (64-bit)
+Running under: Scientific Linux 7.2 (Nitrogen)
+
+Matrix products: default
+BLAS: /project2/gilad/jdblischak/miniconda3/envs/scqtl/lib/R/lib/libRblas.so
+LAPACK: /project2/gilad/jdblischak/miniconda3/envs/scqtl/lib/R/lib/libRlapack.so
+
+locale:
+ [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
+ [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
+ [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
+ [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
+ [9] LC_ADDRESS=C               LC_TELEPHONE=C            
+[11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+
+attached base packages:
+[1] parallel  stats     graphics  grDevices utils     datasets  methods  
+[8] base     
+
+other attached packages:
+ [1] testit_0.6          Biobase_2.38.0      BiocGenerics_0.24.0
+ [4] knitr_1.16          edgeR_3.20.1        limma_3.34.1       
+ [7] DT_0.2              dplyr_0.7.4         cowplot_0.9.1      
+[10] ggplot2_2.2.1      
+
+loaded via a namespace (and not attached):
+ [1] Rcpp_0.12.13     highr_0.6        compiler_3.4.1   git2r_0.19.0    
+ [5] plyr_1.8.4       bindr_0.1        tools_3.4.1      digest_0.6.12   
+ [9] jsonlite_1.4     evaluate_0.10.1  tibble_1.3.3     gtable_0.2.0    
+[13] lattice_0.20-34  pkgconfig_2.0.1  rlang_0.1.2      yaml_2.1.14     
+[17] bindrcpp_0.2     stringr_1.2.0    htmlwidgets_0.9  locfit_1.5-9.1  
+[21] rprojroot_1.2    grid_3.4.1       glue_1.1.1       R6_2.2.0        
+[25] rmarkdown_1.6    magrittr_1.5     backports_1.0.5  scales_0.5.0    
+[29] htmltools_0.3.6  assertthat_0.1   colorspace_1.3-2 labeling_0.3    
+[33] stringi_1.1.2    lazyeval_0.2.0   munsell_0.4.3   </code></pre>
+</section>
+
+<hr>
+<p>
+    This <a href="http://rmarkdown.rstudio.com">R Markdown</a> site was created with <a href="https://github.com/jdblischak/workflowr">workflowr</a>
+</p>
+<hr>
+
+<!-- To enable disqus, uncomment the section below and provide your disqus_shortname -->
+
+<!-- disqus
+  <div id="disqus_thread"></div>
+    <script type="text/javascript">
+        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+        var disqus_shortname = 'rmarkdown'; // required: replace example with your forum shortname
+
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+    <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+    <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+-->
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.header').parent('thead').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
