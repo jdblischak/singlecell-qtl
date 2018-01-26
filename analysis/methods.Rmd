@@ -1,0 +1,50 @@
+---
+title: "Methods"
+author: "PoYuan Tung"
+date: 2018-01-25
+output: html_document
+---
+
+<!-- The file analysis/chunks.R contains chunks that define default settings
+shared across the workflowr files. -->
+```{r read-chunk, include=FALSE, cache=FALSE}
+knitr::read_chunk("chunks.R")
+```
+
+<!-- Update knitr chunk options -->
+```{r knitr-opts-chunk, include=FALSE}
+```
+
+<!-- Insert the date the file was last updated -->
+```{r last-updated, echo=FALSE, results='asis'}
+```
+
+<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
+ package git2r is installed -->
+```{r code-version, echo=FALSE, results='asis'}
+```
+
+## Sample collection
+The YRI iPSCs were cultured in feeder-free conditions for at least ten passages in E8 medium (Life Technologies)[@Chen2011] before being colleted using the C1 Single-Cell Auto Prep IFC microfluidic chip (Fluidigm).
+Single cell capture and library preparation were performed the same as described before [@Tung2017], except that 6-bp random sequence UMIs were included instead of 5-bp. The 96 single cell samples of each C1 chip were pooled and sequenced on an Illumina HiSeq 2500 instrument using the TruSeq SBS Kit v3-HS (FC-401-3002). 
+
+We collected total X,XXX cells from total XX [invididuals](data-collection.html).
+We obtained an average of XX million [sequencing reads](totals.html) per sample.
+Using the UMI information, we obtained an median of XX molecules per sample.
+We performed [PCA](pca-variable.html) on a subset of most variable genes and found that PC1 is most highly correlated with the percentage of detected genes and other metrics of sequencing depth, which is consistent with the observations of Hicks et al., 2017 [@Hicks2017]. 
+
+
+## Sample quality control
+Single cell [sample identification](identity.html) were determined by examining the SNPs present in their RNA sequencing reads using the method verifyBamID as described [@Tung2017].
+We obtained a 97.6 % valid identification from XX individuals.
+
+Using the identification of each single cell sample, we performed [pairwise correlations](correlations.html) between the samples and found that the effect of individual is stronger than the effect of C1 chip.
+We also analyzed per-gene expression profiles and computed [variance component](partition.html) estimates for the effects of individual and C1 batch.
+
+Next, we performed [quality control](qc-filter-ipsc.html) to identify low quality single cells.
+We kept from high quality single cell samples which passed the following criteria:
+*  Only one cell observed per well
+*  Valid identification
+*  Less than XX % unmapped reads
+*  Less than X.X % ERCC reads
+*  More than X,XXX genes with at least one read
