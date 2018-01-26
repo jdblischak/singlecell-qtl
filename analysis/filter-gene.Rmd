@@ -1,0 +1,112 @@
+---
+title: "Filter genes"
+author: "Po-Yuan Tung"
+date: 2017-01-26
+output: html_document
+---
+
+<!-- The file analysis/chunks.R contains chunks that define default settings
+shared across the workflowr files. -->
+```{r read-chunk, include=FALSE, cache=FALSE}
+knitr::read_chunk("chunks.R")
+```
+
+<!-- Update knitr chunk options -->
+```{r knitr-opts-chunk, include=FALSE}
+```
+
+<!-- Insert the date the file was last updated -->
+```{r last-updated, echo=FALSE, results='asis'}
+```
+
+<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
+ package git2r is installed -->
+```{r code-version, echo=FALSE, results='asis'}
+```
+
+## Setup
+
+```{r packages, message=FALSE}
+library("cowplot")
+library("dplyr")
+library("edgeR")
+library("ggplot2")
+library("knitr")
+theme_set(theme_cowplot())
+source("../code/functions.R")
+library("Biobase") # has to be loaded last to use `combine`
+```
+
+Import data.
+
+```{r import}
+eset <- readRDS("../data/eset.rds")
+dim(eset)
+```
+
+## Filter
+
+### Low QC sample
+
+We performed [quality control](sampleqc.html) to identify low quality single cells. Only keep high-quality single cells.
+
+```{r quality}
+quality <- read.table("../data/quality-single-cells.txt", stringsAsFactors = FALSE)
+colnames(quality) <- c("sample", "quality")
+eset <- eset[, quality$quality]
+dim(eset)
+```
+
+### Over-expressed gene
+
+We would like to remove genes which have greater than 4096 (4*4*4*4*4*4) molecules in any given single cell. These are above our theoretical maximum number of 6-bp UMIs (it can happen when a highly expressed gene as multiple start sites). We did not find any genes with molecules greater than 4096. We found r length(overexpressed_genes_1024) mitochondrial genes which have molecules larger than 1024
+
+```{r human-genes}
+## look at human genes
+eset_hs <- eset[fData(eset)$source == "H. sapiens", ]
+head(featureNames(eset_hs))
+
+## identify gene with molecule > 4096
+overexpressed_rows <- apply(exprs(eset_hs), 1, function(x) any(x >= 4096))
+overexpressed_genes <- rownames(exprs(eset_hs))[overexpressed_rows]
+overexpressed_genes
+
+## identify gene with molecule > 1024
+overexpressed_rows_1024 <- apply(exprs(eset_hs), 1, function(x) any(x >= 1024))
+overexpressed_genes_1024 <- rownames(exprs(eset_hs))[overexpressed_rows]
+overexpressed_genes_1024
+```
+
+### Lowly expressed 
+
+We identify the lower cutoff using the mean log2 molecule counts per million (cpm) in the high quality single cells. r length(genes_pass_filter) genes have a mean log2 molecule cpm greater than r lower_exp_cutoff
+
+```{r cpm}
+## convert to log2 cpm
+mol_hs_cpm <- cpm(exprs(eset_hs), log = TRUE)
+mol_hs_cpm_means <- rowMeans(mol_hs_cpm)
+summary(mol_hs_cpm_means)
+hist(mol_hs_cpm_means, xlab = "Mean log2 molecule cpm in single cell samples",
+     ylab = "Number of genes", main = "Identifying expression cutoff")
+
+## set a cutoff
+lower_exp_cutoff <- 3
+abline(v = lower_exp_cutoff, col = "red")
+genes_pass_filter <- rownames(mol_hs_cpm)[mol_hs_cpm_means > lower_exp_cutoff]
+```
+
+```{r output}
+mol_hs_cpm <- data.frame(mol_hs_cpm)
+mol_hs_cpm$mean <- apply(mol_hs_cpm, 1, mean)
+mol_hs_cpm$filter <- mol_hs_cpm$mean > lower_exp_cutoff
+write.table(data.frame(row.names(mol_hs_cpm), mol_hs_cpm[,"filter"]),
+            file = "../data/genes_pass_filter.txt", quote = FALSE,
+            sep = "\t", row.names = FALSE, col.names = FALSE)
+```
+
+
+## Session information
+
+<!-- Insert the session information into the document -->
+```{r session-info}
+```
