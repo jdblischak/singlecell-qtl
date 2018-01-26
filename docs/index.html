@@ -20,8 +20,8 @@
 <script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
 <script src="site_libs/navigation-1.1/tabsets.js"></script>
-<link href="site_libs/highlightjs-1.1/textmate.css" rel="stylesheet" />
-<script src="site_libs/highlightjs-1.1/highlight.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
 <link href="site_libs/font-awesome-4.5.0/css/font-awesome.min.css" rel="stylesheet" />
 
 <style type="text/css">code{white-space: pre;}</style>
@@ -31,10 +31,12 @@
   }
 </style>
 <script type="text/javascript">
-if (window.hljs && document.readyState && document.readyState === "complete") {
-   window.setTimeout(function() {
-      hljs.initHighlighting();
-   }, 0);
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
 }
 </script>
 
@@ -212,6 +214,28 @@ $(document).ready(function () {
 
 <p>Website to share results of singlecell-qtl project.</p>
 <p>Click <a href="data-collection.html">here</a> for current status of data collection.</p>
+<section id="data-collection-and-qc" class="level2">
+<h2>Data collection and QC</h2>
+<p>Summary description of this section is in <a href="methods.html">methods</a></p>
+<ul>
+<li><a href="totals.html">Analysis of total counts from processing pipeline</a></li>
+<li><a href="pca.html">Exploratory analysis with PCA</a></li>
+<li><a href="pca-variable.html">Correlation of covariates with PCs of highly variable genes</a></li>
+<li><a href="identity.html">Identifying single cells</a></li>
+<li><a href="correlations.html">Pairwise correlations</a></li>
+<li><a href="partition.html">Paritioning variance across different factors</a></li>
+<li><a href="sampleqc.html">Sample quality control</a></li>
+</ul>
+</section>
+<section id="qtl-mapping" class="level2">
+<h2>QTL mapping</h2>
+<ul>
+<li><a href="sc-stratified-geno.html">UMI count distribution stratified by genotype</a></li>
+<li><a href="sc-vs-bulk.html">Single cell/bulk RNA-Seq concordance</a></li>
+<li><a href="power.html">Power to detect QTLs in single cell data</a></li>
+<li><a href="zinb.html">Mean/dispersion estimation</a></li>
+<li><a href="qtl-mapping.html">QTL mapping pipeline</a></li>
+</ul>
 <p>Current analyses:</p>
 <ul>
 <li><a href="totals.html">Analysis of total counts from processing pipeline</a></li>
@@ -227,6 +251,7 @@ $(document).ready(function () {
 <li><a href="zinb.html">Mean/dispersion estimation</a></li>
 <li><a href="qtl-mapping.html">QTL mapping pipeline</a></li>
 </ul>
+</section>
 
 <hr>
 <p>
