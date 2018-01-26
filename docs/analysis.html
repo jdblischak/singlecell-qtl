@@ -9,26 +9,22 @@
 <meta name="generator" content="pandoc" />
 
 
-<meta name="author" content="John Blischak" />
 
-<meta name="date" content="2017-10-25" />
 
-<title>Data collection overview</title>
+<title>Analysis</title>
 
-<script src="site_libs/jquery-1.12.4/jquery.min.js"></script>
+<script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
 <script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<script src="site_libs/jqueryui-1.11.4/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
 <script src="site_libs/navigation-1.1/tabsets.js"></script>
 <link href="site_libs/highlightjs-1.1/textmate.css" rel="stylesheet" />
 <script src="site_libs/highlightjs-1.1/highlight.js"></script>
-<script src="site_libs/htmlwidgets-0.9/htmlwidgets.js"></script>
-<script src="site_libs/datatables-binding-0.2/datatables.js"></script>
-<link href="site_libs/dt-core-1.10.12/css/jquery.dataTables.min.css" rel="stylesheet" />
-<link href="site_libs/dt-core-1.10.12/css/jquery.dataTables.extra.css" rel="stylesheet" />
-<script src="site_libs/dt-core-1.10.12/js/jquery.dataTables.min.js"></script>
 <link href="site_libs/font-awesome-4.5.0/css/font-awesome.min.css" rel="stylesheet" />
 
 <style type="text/css">code{white-space: pre;}</style>
@@ -169,6 +165,101 @@ $(document).ready(function () {
 
 
 
+<script>
+$(document).ready(function ()  {
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_').toLowerCase();
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+  padding-left: 25px;
+  text-indent: 0;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row-fluid">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
 
 
 <div class="navbar navbar-default  navbar-fixed-top" role="navigation">
@@ -215,31 +306,35 @@ $(document).ready(function () {
 
 
 
-<h1 class="title toc-ignore">Data collection overview</h1>
-<h4 class="author"><em>John Blischak</em></h4>
-<h4 class="date"><em>2017-10-25</em></h4>
+<h1 class="title toc-ignore">Analysis</h1>
 
 </div>
 
 
-<!-- The file analysis/chunks.R contains chunks that define default settings
-shared across the workflowr files. -->
-<!-- Update knitr chunk options -->
-<!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2018-01-26</p>
-<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
- package git2r is installed -->
-<p><strong>Code version:</strong> 793644a</p>
-<p>We have collected a total of 4532 cells from a total of 44 individuals.</p>
-<p>Column descriptions:</p>
+<section id="data-collection-and-qc" class="level2">
+<h2>Data collection and QC</h2>
+<p>Summary description of this section is in <a href="methods.html">methods</a></p>
 <ul>
-<li><p><strong>Individual</strong> - This includes any individual that had more than 5 cells on at least 1 C1 chip.</p></li>
-<li><p><strong>Number of cells</strong> - Total number of cells for that individual. This is a high estimate because only a few QC filters were used. The number will decrease when more stringent QC filters are applied.</p></li>
-<li><p><strong>Median number of genes detected</strong> - This only includes human genes which were observed in at least 50% of the cells across the entire experiment.</p></li>
-<li><p><strong>Median number of molecules</strong> - This only includes the molecules that map to human genes which were observed in at least 50% of the cells across the entire experiment.</p></li>
+<li><a href="totals.html">Analysis of total counts from processing pipeline</a></li>
+<li><a href="pca.html">Exploratory analysis with PCA</a></li>
+<li><a href="pca-variable.html">Correlation of covariates with PCs of highly variable genes</a></li>
+<li><a href="identity.html">Identifying single cells</a></li>
+<li><a href="correlations.html">Pairwise correlations</a></li>
+<li><a href="partition.html">Paritioning variance across different factors</a></li>
+<li><a href="sampleqc.html">Sample quality control</a></li>
+<li><a href="filter-gene.html">Filter genes</a></li>
 </ul>
-<div id="htmlwidget-b8e0c2e2742a5382bafd" style="width:100%;height:auto;" class="datatables html-widget"></div>
-<script type="application/json" data-for="htmlwidget-b8e0c2e2742a5382bafd">{"x":{"filter":"none","data":[["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29","30","31","32","33","34","35","36","37","38","39","40","41","42","43","44"],["NA18501","NA18507","NA18502","NA18508","NA18858","NA18499","NA18520","NA18511","NA19116","NA19128","NA18862","NA19093","NA19101","NA19108","NA19190","NA19153","NA19225","NA18912","NA19140","NA18489","NA19207","NA18852","NA19102","NA19257","NA19114","NA18856","NA19127","NA18517","NA18853","NA18870","NA18519","NA19143","NA18522","NA19130","NA18859","NA19210","NA19098","NA18505","NA19193","NA19204","NA19092","NA19159","NA19203","NA18498"],[240,229,201,182,180,160,151,141,127,125,124,116,113,109,109,108,105,103,101,100,97,95,93,93,91,84,83,81,81,78,77,77,76,76,71,71,68,61,61,59,51,38,27,19],[6836,7587,7558,6816.5,7378.5,7268.5,7425,5728,6543,7978,7585,7276,6899,6199,7279,7200.5,6753,6473,6747,6654,7265,7340,6585,7709,8077,6543,6669,6229,8186,8616.5,6747,6432,6427.5,6211,6936,8312,7073.5,7214,7288,6310,7063,6465.5,6509,7048],[30209.5,41379,42946,27949,38994.5,36082,38702,20521,27712,45937,41943.5,34386,33540,26403,37912,38177.5,30937,27282,30242,28892.5,40095,36447,29584,42234,47795,32345,31260,25444,50270,57715,32724,27718,25907,25793.5,34938,51921,35388,36293,38745,26494,41537,25290,26113,31881]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th> <\/th>\n      <th>Individual<\/th>\n      <th>Number of cells<\/th>\n      <th>Median number of genes detected<\/th>\n      <th>Median number of molecules<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"pageLength":44,"columnDefs":[{"className":"dt-right","targets":[2,3,4]},{"orderable":false,"targets":0}],"order":[],"autoWidth":false,"orderClasses":false,"lengthMenu":[10,25,44,50,100]}},"evals":[],"jsHooks":[]}</script>
+</section>
+<section id="qtl-mapping" class="level2">
+<h2>QTL mapping</h2>
+<ul>
+<li><a href="sc-stratified-geno.html">UMI count distribution stratified by genotype</a></li>
+<li><a href="sc-vs-bulk.html">Single cell/bulk RNA-Seq concordance</a></li>
+<li><a href="power.html">Power to detect QTLs in single cell data</a></li>
+<li><a href="zinb.html">Mean/dispersion estimation</a></li>
+<li><a href="qtl-mapping.html">QTL mapping pipeline</a></li>
+</ul>
+</section>
 
 <hr>
 <p>
@@ -267,6 +362,8 @@ shared across the workflowr files. -->
 -->
 
 
+</div>
+</div>
 
 </div>
 
