@@ -5,10 +5,12 @@ exclude: ["include", "*org"]
 navbar:
   title: singlecell-qtl
   left:
-    - text: "Home"
+    - text: "Overview"
       href: index.html
-    - text: "About"
-      href: about.html
+    - text: "Data"
+      href: data-collection.html
+    - text: "Analysis"
+      href: analysis.html
     - text: "Contributing"
       href: contributing.html
     - text: "License"

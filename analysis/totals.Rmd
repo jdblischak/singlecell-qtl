@@ -42,8 +42,7 @@ library("Biobase")
 Import data.
 
 ```{r import}
-fname <- Sys.glob("../data/eset/*.rds")
-eset <- Reduce(combine, Map(readRDS, fname))
+eset <- readRDS("../data/eset.rds")
 anno <- pData(eset)
 ```
 

@@ -47,8 +47,7 @@ cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2",
 Import data.
 
 ```{r import}
-fname <- Sys.glob("../data/eset/*.rds")
-eset <- Reduce(combine, Map(readRDS, fname))
+eset <- readRDS("../data/eset.rds")
 anno <- pData(eset)
 ```
 

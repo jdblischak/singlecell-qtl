@@ -38,8 +38,7 @@ library("Biobase") # has to be loaded last to use `combine`
 Import data.
 
 ```{r import}
-fname <- Sys.glob("../data/eset/*.rds")
-eset <- Reduce(combine, Map(readRDS, fname))
+eset <- readRDS("../data/eset.rds")
 eset
 ```
 

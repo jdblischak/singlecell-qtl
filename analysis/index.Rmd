@@ -1,45 +1,36 @@
 ---
-title: "Home"
-output:
-  html_document:
-    toc: false
+title: "Overview"
+output: html_document
 ---
 
-Website to share results of singlecell-qtl project.
+## Introduction
 
-Click [here](data-collection.html) for current status of data collection.
+We are investigating how human genetic variation impacts cell-to-cell variation
+in gene expression levels...
 
-## Data collection and QC
-Summary description of this section is in [methods](methods.html)
+## Methods
 
-* [Analysis of total counts from processing pipeline](totals.html)
-* [Exploratory analysis with PCA](pca.html)
-* [Correlation of covariates with PCs of highly variable genes](pca-variable.html)
-* [Identifying single cells](identity.html)
-* [Pairwise correlations](correlations.html)
-* [Paritioning variance across different factors](partition.html)
-* [Sample quality control](sampleqc.html)
+### Sample collection
+The YRI iPSCs were cultured in feeder-free conditions for at least ten passages in E8 medium (Life Technologies)[@Chen2011] before being colleted using the C1 Single-Cell Auto Prep IFC microfluidic chip (Fluidigm).
+Single cell capture and library preparation were performed the same as described before [@Tung2017], except that 6-bp random sequence UMIs were included instead of 5-bp. The 96 single cell samples of each C1 chip were pooled and sequenced on an Illumina HiSeq 2500 instrument using the TruSeq SBS Kit v3-HS (FC-401-3002).
 
-## QTL mapping
-
-* [UMI count distribution stratified by genotype](sc-stratified-geno.html)
-* [Single cell/bulk RNA-Seq concordance](sc-vs-bulk.html)
-* [Power to detect QTLs in single cell data](power.html)
-* [Mean/dispersion estimation](zinb.html)
-* [QTL mapping pipeline](qtl-mapping.html)
+We collected total X,XXX cells from total XX [invididuals](data-collection.html).
+We obtained an average of XX million [sequencing reads](totals.html) per sample.
+Using the UMI information, we obtained an median of XX molecules per sample.
+We performed [PCA](pca-variable.html) on a subset of most variable genes and found that PC1 is most highly correlated with the percentage of detected genes and other metrics of sequencing depth, which is consistent with the observations of Hicks et al., 2017 [@Hicks2017].
 
 
-Current analyses:
+### Sample quality control
+Single cell [sample identification](identity.html) were determined by examining the SNPs present in their RNA sequencing reads using the method verifyBamID as described [@Tung2017].
+We obtained a 97.6 % valid identification from XX individuals.
 
-* [Analysis of total counts from processing pipeline](totals.html)
-* [Exploratory analysis with PCA](pca.html)
-* [Correlation of covariates with PCs of highly variable genes](pca-variable.html)
-* [Pairwise correlations](correlations.html)
-* [Identifying single cells](identity.html)
-* [Sample quality control](sampleqc.html)
-* [Paritioning variance across different factors](partition.html)
-* [UMI count distribution stratified by genotype](sc-stratified-geno.html)
-* [Single cell/bulk RNA-Seq concordance](sc-vs-bulk.html)
-* [Power to detect QTLs in single cell data](power.html)
-* [Mean/dispersion estimation](zinb.html)
-* [QTL mapping pipeline](qtl-mapping.html)
+Using the identification of each single cell sample, we performed [pairwise correlations](correlations.html) between the samples and found that the effect of individual is stronger than the effect of C1 chip.
+We also analyzed per-gene expression profiles and computed [variance component](partition.html) estimates for the effects of individual and C1 batch.
+
+Next, we performed [quality control](qc-filter-ipsc.html) to identify low quality single cells.
+We kept from high quality single cell samples which passed the following criteria:
+*  Only one cell observed per well
+*  Valid identification
+*  Less than XX % unmapped reads
+*  Less than X.X % ERCC reads
+*  More than X,XXX genes with at least one read

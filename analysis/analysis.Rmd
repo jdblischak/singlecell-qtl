@@ -1,0 +1,24 @@
+---
+title: "Analysis"
+output: html_document
+---
+
+## Data collection and QC
+Summary description of this section is in [methods](methods.html)
+
+* [Analysis of total counts from processing pipeline](totals.html)
+* [Exploratory analysis with PCA](pca.html)
+* [Correlation of covariates with PCs of highly variable genes](pca-variable.html)
+* [Identifying single cells](identity.html)
+* [Pairwise correlations](correlations.html)
+* [Paritioning variance across different factors](partition.html)
+* [Sample quality control](sampleqc.html)
+* [Filter genes](filter-gene.html)
+
+## QTL mapping
+
+* [UMI count distribution stratified by genotype](sc-stratified-geno.html)
+* [Single cell/bulk RNA-Seq concordance](sc-vs-bulk.html)
+* [Power to detect QTLs in single cell data](power.html)
+* [Mean/dispersion estimation](zinb.html)
+* [QTL mapping pipeline](qtl-mapping.html)
