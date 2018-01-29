@@ -1,8 +1,9 @@
 ---
 title: "Analysis"
-output: html_document
+output:
+  html_document:
+    toc: false
 ---
-
 
 * [Analysis of total counts from processing pipeline](totals.html)
 * [Exploratory analysis with PCA](pca.html)

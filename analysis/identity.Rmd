@@ -44,6 +44,7 @@ Import data.
 
 ```{r import}
 eset <- readRDS("../data/eset.rds")
+(chips <- unique(eset$experiment))
 eset
 ```
 
@@ -56,7 +57,7 @@ mean(eset$valid_id)
 
 ## Plot per C1 chip
 
-```{r ind-per-chip, fig.height=ceiling(length(fname) / 5) * 4}
+```{r ind-per-chip, fig.height=ceiling(length(chips) / 5) * 4}
 anno <- pData(eset)
 df_e <- anno %>%
   group_by(experiment) %>%
@@ -64,7 +65,7 @@ df_e <- anno %>%
             i2 = unique(individual.2),
             i3 = unique(individual.3),
             i4 = unique(individual.4))
-op <- par(cex = 2, las = 2, mfrow = c(ceiling(length(fname) / 5), 5))
+op <- par(cex = 2, las = 2, mfrow = c(ceiling(length(chips) / 5), 5))
 for (i in 1:nrow(df_e)) {
   e <- df_e$experiment[i]
   n1 <- sum(anno$chip_id[anno$experiment == e] == df_e$i1[i])
@@ -82,7 +83,7 @@ par(op)
 
 Colored by individual.
 
-```{r ind-per-chip-color, fig.height=ceiling(length(fname) / 8) * 4}
+```{r ind-per-chip-color, fig.height=ceiling(length(chips) / 8) * 4}
 anno$valid_id_display <- factor(anno$valid_id, levels = c(TRUE, FALSE),
                                 labels = c("Valid", "Invalid"))
 ggplot(anno, aes(x = valid_id_display, fill = chip_id)) +
