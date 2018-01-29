@@ -13,7 +13,7 @@
 
 <meta name="date" content="2017-09-18" />
 
-<title>Partioning the variance across factors</title>
+<title>Partitioning the variance across factors</title>
 
 <script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -277,10 +277,13 @@ div.tocify {
     <div id="navbar" class="navbar-collapse collapse">
       <ul class="nav navbar-nav">
         <li>
-  <a href="index.html">Home</a>
+  <a href="index.html">Overview</a>
 </li>
 <li>
-  <a href="about.html">About</a>
+  <a href="data-collection.html">Data</a>
+</li>
+<li>
+  <a href="analysis.html">Analysis</a>
 </li>
 <li>
   <a href="contributing.html">Contributing</a>
@@ -305,7 +308,7 @@ div.tocify {
 
 
 
-<h1 class="title toc-ignore">Partioning the variance across factors</h1>
+<h1 class="title toc-ignore">Partitioning the variance across factors</h1>
 <h4 class="author"><em>John Blischak</em></h4>
 <h4 class="date"><em>2017-09-18</em></h4>
 
@@ -316,30 +319,31 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2017-10-26</p>
+<p><strong>Last updated:</strong> 2018-01-29</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> a8f4104</p>
-<div id="setup" class="section level2">
+<p><strong>Code version:</strong> f6b7f76</p>
+<p><strong>Batch 1 only</strong></p>
+<section id="setup" class="level2">
 <h2>Setup</h2>
 <pre class="r"><code>library(&quot;cowplot&quot;)
 library(&quot;edgeR&quot;)
 library(&quot;ggplot2&quot;)
 library(&quot;variancePartition&quot;)
 theme_set(theme_cowplot())
+source(&quot;../code/functions.R&quot;)
 library(&quot;Biobase&quot;) # has to be loaded last to use `combine`</code></pre>
 <p>Import data.</p>
-<pre class="r"><code>fname &lt;- Sys.glob(&quot;../data/eset/*.rds&quot;)
-eset &lt;- Reduce(combine, Map(readRDS, fname))
+<pre class="r"><code>eset &lt;- readRDS(&quot;../data/eset.rds&quot;)
 eset</code></pre>
 <pre><code>ExpressionSet (storageMode: lockedEnvironment)
-assayData: 54792 features, 960 samples 
+assayData: 54792 features, 4992 samples 
   element names: exprs 
 protocolData: none
 phenoData
-  sampleNames: 03162017-A01 03162017-A02 ... 04202017-H12 (960
+  sampleNames: 03162017-A01 03162017-A02 ... 12142017-H12 (4992
     total)
-  varLabels: experiment well ... valid_id (39 total)
+  varLabels: experiment well ... valid_id (40 total)
   varMetadata: labelDescription
 featureData
   featureNames: ENSG00000000003 ENSG00000000005 ... WBGene00235374
@@ -348,11 +352,16 @@ featureData
   fvarMetadata: labelDescription
 experimentData: use &#39;experimentData(object)&#39;
 Annotation:  </code></pre>
+<p>Limit this analysis to batch 1 since it deals with the spike-ins.</p>
+<pre class="r"><code>eset &lt;- eset[, eset$batch == &quot;b1&quot;]
+dim(eset)</code></pre>
+<pre><code>Features  Samples 
+   54792      960 </code></pre>
 <p>Remove samples with bad cell number, lack of TRA-1-60 signal, or an invalid individual assignment.</p>
 <pre class="r"><code>eset_quality &lt;- eset[, eset$cell_number == 1 &amp; eset$tra1.60 &amp; eset$valid_id]
 dim(eset_quality)</code></pre>
 <pre><code>Features  Samples 
-   54792      795 </code></pre>
+   54792      814 </code></pre>
 <p>Separate by source.</p>
 <pre class="r"><code>eset_ce &lt;- eset_quality[fData(eset_quality)$source == &quot;C. elegans&quot;, ]
 head(featureNames(eset_ce))</code></pre>
@@ -371,105 +380,90 @@ head(featureNames(eset_ercc))</code></pre>
 head(featureNames(eset_hs))</code></pre>
 <pre><code>[1] &quot;ENSG00000000003&quot; &quot;ENSG00000000005&quot; &quot;ENSG00000000419&quot; &quot;ENSG00000000457&quot;
 [5] &quot;ENSG00000000460&quot; &quot;ENSG00000000938&quot;</code></pre>
-<p>Define a function for filtering by percentage of cells in which a gene is detected.</p>
-<pre class="r"><code>present &lt;- function(x, percent = 0.50) mean(x &gt; 0) &gt;= percent</code></pre>
 <p>Define a function for partitioning the variance.</p>
 <pre class="r"><code># https://bioconductor.org/packages/3.4/bioc/vignettes/variancePartition/inst/doc/variancePartition.R
-calc_partition &lt;- function(x, info, cores = 8) {
+calc_partition &lt;- function(x, info, cores = 1) {
   stopifnot(c(&quot;experiment&quot;, &quot;chip_id&quot;) %in% colnames(info))
   library(&quot;doParallel&quot;)
   cl &lt;- makeCluster(cores)
   registerDoParallel(cl)
-  form &lt;- ~ (1|experiment) + (1|chip_id) 
+  form &lt;- ~ (1|experiment) + (1|chip_id)
   varPart &lt;- fitExtractVarPartModel(x, form, info)
   vp &lt;- sortCols(varPart)
   return(vp)
 }</code></pre>
-</div>
-<div id="ercc" class="section level2">
+</section>
+<section id="ercc" class="level2">
 <h2>ERCC</h2>
 <p>Remove zeros.</p>
 <pre class="r"><code>eset_ercc_clean &lt;- eset_ercc[rowSums(exprs(eset_ercc)) != 0, ]
 dim(eset_ercc_clean)</code></pre>
 <pre><code>Features  Samples 
-      86      275 </code></pre>
+      87      294 </code></pre>
 <p>Only keep genes which are observed in at least 50% of the samples.</p>
 <pre class="r"><code>eset_ercc_clean &lt;- eset_ercc_clean[apply(exprs(eset_ercc_clean), 1, present), ]
 dim(eset_ercc_clean)</code></pre>
 <pre><code>Features  Samples 
-      31      275 </code></pre>
+      31      294 </code></pre>
 <pre class="r"><code>mol_ercc_cpm &lt;- cpm(exprs(eset_ercc_clean), log = TRUE)</code></pre>
 <pre class="r"><code>part_ercc &lt;- calc_partition(mol_ercc_cpm, pData(eset_ercc_clean))</code></pre>
 <pre><code>Loading required package: iterators</code></pre>
+<pre><code>Projected run time: ~ 0.6 min </code></pre>
 <pre class="r"><code>plotPercentBars(part_ercc)</code></pre>
 <p><img src="figure/partition.Rmd/partition-ercc-1.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>plotVarPart(part_ercc, main = sprintf(&quot;ERCC (n = %d)&quot;, nrow(part_ercc)))</code></pre>
 <p><img src="figure/partition.Rmd/partition-ercc-2.png" width="768" style="display: block; margin: auto;" /></p>
-</div>
-<div id="drosophila" class="section level2">
+</section>
+<section id="drosophila" class="level2">
 <h2>Drosophila</h2>
 <p>Remove zeros.</p>
 <pre class="r"><code>eset_dm_clean &lt;- eset_dm[rowSums(exprs(eset_dm)) != 0, ]
 dim(eset_dm_clean)</code></pre>
 <pre><code>Features  Samples 
-   11490      795 </code></pre>
+   11509      814 </code></pre>
 <p>Only keep genes which are observed in at least 50% of the samples.</p>
 <pre class="r"><code>eset_dm_clean &lt;- eset_dm_clean[apply(exprs(eset_dm_clean), 1, present), ]
 dim(eset_dm_clean)</code></pre>
 <pre><code>Features  Samples 
-     337      795 </code></pre>
+     328      814 </code></pre>
 <p>Convert to log2 counts per million.</p>
 <pre class="r"><code>mol_dm_cpm &lt;- cpm(exprs(eset_dm_clean), log = TRUE)</code></pre>
 <pre class="r"><code>part_dm &lt;- calc_partition(mol_dm_cpm, pData(eset_dm_clean))</code></pre>
-<pre><code>Projected run time: ~ 0.1 min </code></pre>
+<pre><code>Projected run time: ~ 0.7 min </code></pre>
 <pre class="r"><code>plotPercentBars(part_dm)</code></pre>
 <p><img src="figure/partition.Rmd/partition-dm-1.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>plotVarPart(part_dm, main = sprintf(&quot;Fly (n = %d)&quot;, nrow(part_dm)))</code></pre>
 <p><img src="figure/partition.Rmd/partition-dm-2.png" width="768" style="display: block; margin: auto;" /></p>
-</div>
-<div id="drosophila---5-pg" class="section level2">
+</section>
+<section id="drosophila---5-pg" class="level2">
 <h2>Drosophila - 5 pg</h2>
 <p>Select only samples that received 5 pg.</p>
 <pre class="r"><code>eset_dm_5pg &lt;- eset_dm[, eset_dm$fly == 5000]
 dim(eset_dm_5pg)</code></pre>
 <pre><code>Features  Samples 
-   13832      306 </code></pre>
+   13832      325 </code></pre>
 <p>Remove zeros.</p>
 <pre class="r"><code>eset_dm_5pg_clean &lt;- eset_dm_5pg[rowSums(exprs(eset_dm_5pg)) != 0, ]
 dim(eset_dm_5pg_clean)</code></pre>
 <pre><code>Features  Samples 
-    9728      306 </code></pre>
+    9786      325 </code></pre>
 <p>Only keep genes which are observed in at least 50% of the samples.</p>
 <pre class="r"><code>eset_dm_5pg_clean &lt;- eset_dm_5pg_clean[apply(exprs(eset_dm_5pg_clean), 1, present), ]
 dim(eset_dm_5pg_clean)</code></pre>
 <pre><code>Features  Samples 
-     165      306 </code></pre>
+     157      325 </code></pre>
 <p>Convert to log2 counts per million.</p>
 <pre class="r"><code>mol_dm_5pg_cpm &lt;- cpm(exprs(eset_dm_5pg_clean), log = TRUE)</code></pre>
 <pre class="r"><code>part_dm_5pg &lt;- calc_partition(mol_dm_5pg_cpm, pData(eset_dm_5pg_clean))</code></pre>
-<pre><code>Warning: closing unused connection 21 (&lt;-localhost:11614)</code></pre>
-<pre><code>Warning: closing unused connection 20 (&lt;-localhost:11614)</code></pre>
-<pre><code>Warning: closing unused connection 19 (&lt;-localhost:11614)</code></pre>
-<pre><code>Warning: closing unused connection 18 (&lt;-localhost:11614)</code></pre>
-<pre><code>Warning: closing unused connection 17 (&lt;-localhost:11614)</code></pre>
-<pre><code>Warning: closing unused connection 16 (&lt;-localhost:11614)</code></pre>
-<pre><code>Warning: closing unused connection 15 (&lt;-localhost:11614)</code></pre>
-<pre><code>Warning: closing unused connection 14 (&lt;-localhost:11614)</code></pre>
-<pre><code>Warning: closing unused connection 13 (&lt;-localhost:11614)</code></pre>
-<pre><code>Warning: closing unused connection 12 (&lt;-localhost:11614)</code></pre>
-<pre><code>Warning: closing unused connection 11 (&lt;-localhost:11614)</code></pre>
-<pre><code>Warning: closing unused connection 10 (&lt;-localhost:11614)</code></pre>
-<pre><code>Warning: closing unused connection 9 (&lt;-localhost:11614)</code></pre>
-<pre><code>Warning: closing unused connection 8 (&lt;-localhost:11614)</code></pre>
-<pre><code>Warning: closing unused connection 7 (&lt;-localhost:11614)</code></pre>
-<pre><code>Warning: closing unused connection 6 (&lt;-localhost:11614)</code></pre>
-<pre><code>Projected run time: ~ 0.03 min </code></pre>
+<pre><code>Projected run time: ~ 0.2 min </code></pre>
 <pre class="r"><code>plotPercentBars(part_dm_5pg)</code></pre>
+<pre><code>Warning: closing unused connection 7 (&lt;-localhost:11466)</code></pre>
+<pre><code>Warning: closing unused connection 6 (&lt;-localhost:11466)</code></pre>
 <p><img src="figure/partition.Rmd/partition-dm_5pg-1.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>plotVarPart(part_dm_5pg, main = sprintf(&quot;Fly (5 pg; n = %d)&quot;, nrow(part_dm_5pg)))</code></pre>
 <p><img src="figure/partition.Rmd/partition-dm_5pg-2.png" width="768" style="display: block; margin: auto;" /></p>
-</div>
-<div id="drosophila---50-pg" class="section level2">
+</section>
+<section id="drosophila---50-pg" class="level2">
 <h2>Drosophila - 50 pg</h2>
 <p>Select only samples that received 50 pg.</p>
 <pre class="r"><code>eset_dm_50pg &lt;- eset_dm[, eset_dm$fly == 50000]
@@ -489,50 +483,40 @@ dim(eset_dm_50pg_clean)</code></pre>
 <p>Convert to log2 counts per million.</p>
 <pre class="r"><code>mol_dm_50pg_cpm &lt;- cpm(exprs(eset_dm_50pg_clean), log = TRUE)</code></pre>
 <pre class="r"><code>part_dm_50pg &lt;- calc_partition(mol_dm_50pg_cpm, pData(eset_dm_50pg_clean))</code></pre>
-<pre><code>Projected run time: ~ 0.1 min </code></pre>
+<pre><code>Projected run time: ~ 0.7 min </code></pre>
 <pre class="r"><code>plotPercentBars(part_dm_50pg)</code></pre>
 <p><img src="figure/partition.Rmd/partition-dm_50pg-1.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>plotVarPart(part_dm_50pg, main = sprintf(&quot;Fly (50 pg; n = %d)&quot;, nrow(part_dm_50pg)))</code></pre>
 <p><img src="figure/partition.Rmd/partition-dm_50pg-2.png" width="768" style="display: block; margin: auto;" /></p>
-</div>
-<div id="human" class="section level2">
+</section>
+<section id="human" class="level2">
 <h2>Human</h2>
 <p>Remove zeros.</p>
 <pre class="r"><code>eset_hs_clean &lt;- eset_hs[rowSums(exprs(eset_hs)) != 0, ]
 dim(eset_hs_clean)</code></pre>
 <pre><code>Features  Samples 
-   18842      795 </code></pre>
+   18868      814 </code></pre>
 <p>Only keep genes which are observed in at least 50% of the samples.</p>
 <pre class="r"><code>eset_hs_clean &lt;- eset_hs_clean[apply(exprs(eset_hs_clean), 1, present), ]
 dim(eset_hs_clean)</code></pre>
 <pre><code>Features  Samples 
-    6677      795 </code></pre>
+    6681      814 </code></pre>
+<p>This takes too long on the full data set. Subsample the genes to get the idea.</p>
+<pre class="r"><code>n_genes &lt;- nrow(eset_hs_clean)
+eset_hs_clean_sub &lt;- eset_hs_clean[sample(1:n_genes, size = floor(n_genes * 0.05)), ]
+dim(eset_hs_clean_sub)</code></pre>
+<pre><code>Features  Samples 
+     334      814 </code></pre>
 <p>Convert to log2 counts per million.</p>
-<pre class="r"><code>mol_hs_cpm &lt;- cpm(exprs(eset_hs_clean), log = TRUE)</code></pre>
-<pre class="r"><code>part_hs &lt;- calc_partition(mol_hs_cpm, pData(eset_hs_clean))</code></pre>
-<pre><code>Projected run time: ~ 2 min </code></pre>
-<pre><code>Warning: closing unused connection 13 (&lt;-localhost:11614)</code></pre>
-<pre><code>Warning: closing unused connection 12 (&lt;-localhost:11614)</code></pre>
-<pre><code>Warning: closing unused connection 11 (&lt;-localhost:11614)</code></pre>
-<pre><code>Warning: closing unused connection 10 (&lt;-localhost:11614)</code></pre>
-<pre><code>Warning: closing unused connection 9 (&lt;-localhost:11614)</code></pre>
-<pre><code>Warning: closing unused connection 8 (&lt;-localhost:11614)</code></pre>
-<pre><code>Warning: closing unused connection 7 (&lt;-localhost:11614)</code></pre>
-<pre><code>Warning: closing unused connection 6 (&lt;-localhost:11614)</code></pre>
-<pre><code>Warning: closing unused connection 29 (&lt;-localhost:11614)</code></pre>
-<pre><code>Warning: closing unused connection 28 (&lt;-localhost:11614)</code></pre>
-<pre><code>Warning: closing unused connection 27 (&lt;-localhost:11614)</code></pre>
-<pre><code>Warning: closing unused connection 26 (&lt;-localhost:11614)</code></pre>
-<pre><code>Warning: closing unused connection 25 (&lt;-localhost:11614)</code></pre>
-<pre><code>Warning: closing unused connection 24 (&lt;-localhost:11614)</code></pre>
-<pre><code>Warning: closing unused connection 23 (&lt;-localhost:11614)</code></pre>
-<pre><code>Warning: closing unused connection 22 (&lt;-localhost:11614)</code></pre>
+<pre class="r"><code>mol_hs_cpm &lt;- cpm(exprs(eset_hs_clean_sub), log = TRUE)</code></pre>
+<pre class="r"><code>part_hs &lt;- calc_partition(mol_hs_cpm, pData(eset_hs_clean_sub))</code></pre>
+<pre><code>Projected run time: ~ 0.6 min </code></pre>
 <pre class="r"><code>plotPercentBars(part_hs)</code></pre>
 <p><img src="figure/partition.Rmd/partition-hs-1.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>plotVarPart(part_hs, main = sprintf(&quot;Human (n = %d)&quot;, nrow(part_hs)))</code></pre>
 <p><img src="figure/partition.Rmd/partition-hs-2.png" width="768" style="display: block; margin: auto;" /></p>
-</div>
-<div id="final-plot" class="section level2">
+</section>
+<section id="final-plot" class="level2">
 <h2>Final plot</h2>
 <pre class="r"><code>x_labels &lt;- scale_x_discrete(labels = c(&quot;C1 chip&quot;, &quot;Individual&quot;, &quot;Residuals&quot;))
 x_title &lt;- labs(x = &quot;Model coefficient&quot;)
@@ -541,15 +525,21 @@ plot_grid(plotVarPart(part_ercc, main = sprintf(&quot;ERCC (n = %d)&quot;, nrow(
           plotVarPart(part_hs, main = sprintf(&quot;Human (n = %d)&quot;, nrow(part_hs))) +
             x_labels + x_title,
           labels = LETTERS[1:2])</code></pre>
+<pre><code>Warning in &quot;factor&quot; %in% attrib[[&quot;class&quot;, exact = TRUE]]: closing unused
+connection 6 (&lt;-localhost:11466)</code></pre>
 <p><img src="figure/partition.Rmd/variance-partition-1.png" width="768" style="display: block; margin: auto;" /></p>
-</div>
-<div id="session-information" class="section level2">
+</section>
+<section id="session-information" class="level2">
 <h2>Session information</h2>
 <!-- Insert the session information into the document -->
 <pre class="r"><code>sessionInfo()</code></pre>
-<pre><code>R version 3.3.2 (2016-10-31)
+<pre><code>R version 3.4.1 (2017-06-30)
 Platform: x86_64-pc-linux-gnu (64-bit)
 Running under: Scientific Linux 7.2 (Nitrogen)
+
+Matrix products: default
+BLAS: /project2/gilad/jdblischak/miniconda3/envs/scqtl/lib/R/lib/libRblas.so
+LAPACK: /project2/gilad/jdblischak/miniconda3/envs/scqtl/lib/R/lib/libRlapack.so
 
 locale:
  [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
@@ -565,28 +555,28 @@ attached base packages:
 
 other attached packages:
  [1] doParallel_1.0.10       iterators_1.0.8        
- [3] variancePartition_1.4.2 Biobase_2.34.0         
- [5] BiocGenerics_0.20.0     foreach_1.4.3          
- [7] edgeR_3.16.5            limma_3.30.13          
- [9] cowplot_0.7.0           ggplot2_2.2.1          
+ [3] variancePartition_1.4.2 Biobase_2.38.0         
+ [5] BiocGenerics_0.24.0     foreach_1.4.3          
+ [7] edgeR_3.20.1            limma_3.34.1           
+ [9] cowplot_0.9.1           ggplot2_2.2.1          
 
 loaded via a namespace (and not attached):
- [1] Rcpp_0.12.10       compiler_3.3.2     nloptr_1.0.4      
+ [1] Rcpp_0.12.13       nloptr_1.0.4       compiler_3.4.1    
  [4] git2r_0.19.0       plyr_1.8.4         bitops_1.0-6      
- [7] tools_3.3.2        lme4_1.1-13        digest_0.6.12     
-[10] nlme_3.1-131       evaluate_0.10      tibble_1.2        
-[13] gtable_0.2.0       lattice_0.20-34    Matrix_1.2-7.1    
-[16] yaml_2.1.13        stringr_1.2.0      knitr_1.16        
-[19] gtools_3.5.0       caTools_1.17.1     locfit_1.5-9.1    
-[22] rprojroot_1.2      grid_3.3.2         rmarkdown_1.6     
-[25] minqa_1.2.4        gdata_2.17.0       reshape2_1.4.2    
-[28] magrittr_1.5       MASS_7.3-45        splines_3.3.2     
-[31] backports_1.0.5    scales_0.4.1       colorRamps_2.3    
-[34] gplots_2.17.0      codetools_0.2-15   htmltools_0.3.6   
-[37] pbkrtest_0.4-7     assertthat_0.1     colorspace_1.3-2  
+ [7] tools_3.4.1        lme4_1.1-13        digest_0.6.12     
+[10] nlme_3.1-131       evaluate_0.10.1    tibble_1.3.3      
+[13] gtable_0.2.0       lattice_0.20-34    rlang_0.1.2       
+[16] Matrix_1.2-7.1     yaml_2.1.14        stringr_1.2.0     
+[19] knitr_1.16         caTools_1.17.1     gtools_3.5.0      
+[22] locfit_1.5-9.1     rprojroot_1.2      grid_3.4.1        
+[25] rmarkdown_1.6      minqa_1.2.4        gdata_2.17.0      
+[28] reshape2_1.4.2     magrittr_1.5       MASS_7.3-45       
+[31] splines_3.4.1      backports_1.0.5    scales_0.5.0      
+[34] colorRamps_2.3     gplots_3.0.1       codetools_0.2-15  
+[37] htmltools_0.3.6    pbkrtest_0.4-7     colorspace_1.3-2  
 [40] labeling_0.3       KernSmooth_2.23-15 stringi_1.1.2     
 [43] lazyeval_0.2.0     munsell_0.4.3     </code></pre>
-</div>
+</section>
 
 <hr>
 <p>

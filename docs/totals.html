@@ -277,10 +277,13 @@ div.tocify {
     <div id="navbar" class="navbar-collapse collapse">
       <ul class="nav navbar-nav">
         <li>
-  <a href="index.html">Home</a>
+  <a href="index.html">Overview</a>
 </li>
 <li>
-  <a href="about.html">About</a>
+  <a href="data-collection.html">Data</a>
+</li>
+<li>
+  <a href="analysis.html">Analysis</a>
 </li>
 <li>
   <a href="contributing.html">Contributing</a>
@@ -316,10 +319,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2018-01-19</p>
+<p><strong>Last updated:</strong> 2018-01-29</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> 716e5d8</p>
+<p><strong>Code version:</strong> f6b7f76</p>
 <p>This analysis explores the total counts of reads and molecules mapped to each source (human, fly, worm, and ERCC).</p>
 <section id="setup" class="level2">
 <h2>Setup</h2>
@@ -331,8 +334,7 @@ theme_set(theme_cowplot())
 source(&quot;../code/functions.R&quot;)
 library(&quot;Biobase&quot;)</code></pre>
 <p>Import data.</p>
-<pre class="r"><code>fname &lt;- Sys.glob(&quot;../data/eset/*.rds&quot;)
-eset &lt;- Reduce(combine, Map(readRDS, fname))
+<pre class="r"><code>eset &lt;- readRDS(&quot;../data/eset.rds&quot;)
 anno &lt;- pData(eset)</code></pre>
 <p>Remove samples with bad cell number or TRA-1-60.</p>
 <pre class="r"><code>eset_qc &lt;- eset[, anno$cell_number == 1 &amp; anno$tra1.60]

@@ -313,21 +313,17 @@ div.tocify {
 
 <section id="introduction" class="level2">
 <h2>Introduction</h2>
-<p>We are investigating how human genetic variation impacts cell-to-cell variation in gene expression levels…</p>
+<p>Phenotypic heterogeneity in cell populations has been shown to play critical roles in determining biologically and clinically significant phenotypes. The goal of this project is to identify loci in the human genomes that are associated with inter-individual variability in regulatory noise (robustness/variance QTLs), as measured by cell-to-cell variability in gene expression levels.</p>
 </section>
-<section id="methods" class="level2">
-<h2>Methods</h2>
-<section id="sample-collection" class="level3">
-<h3>Sample collection</h3>
-<p>The YRI iPSCs were cultured in feeder-free conditions for at least ten passages in E8 medium (Life Technologies)<span class="citation" data-cites="Chen2011">[@Chen2011]</span> before being colleted using the C1 Single-Cell Auto Prep IFC microfluidic chip (Fluidigm). Single cell capture and library preparation were performed the same as described before <span class="citation" data-cites="Tung2017">[@Tung2017]</span>, except that 6-bp random sequence UMIs were included instead of 5-bp. The 96 single cell samples of each C1 chip were pooled and sequenced on an Illumina HiSeq 2500 instrument using the TruSeq SBS Kit v3-HS (FC-401-3002).</p>
-<p>We collected total X,XXX cells from total XX <a href="data-collection.html">invididuals</a>. We obtained an average of XX million <a href="totals.html">sequencing reads</a> per sample. Using the UMI information, we obtained an median of XX molecules per sample. We performed <a href="pca-variable.html">PCA</a> on a subset of most variable genes and found that PC1 is most highly correlated with the percentage of detected genes and other metrics of sequencing depth, which is consistent with the observations of Hicks et al., 2017 <span class="citation" data-cites="Hicks2017">[@Hicks2017]</span>.</p>
+<section id="data-collection" class="level2">
+<h2>Data collection</h2>
+<p>We collected single cell RNA-seq data from <a href="data-collection.html">YRI invididuals</a> using the C1 platform. The 96 single cell samples of each C1 chip were pooled and <a href="totals.html">sequenced</a> on an Illumina HiSeq 2500.</p>
+<p>Single cell <a href="identity.html">sample identification</a> were determined by examining the SNPs present in their RNA sequencing reads using the method verifyBamID. Using the identification of each single cell sample, we performed <a href="correlations.html">pairwise correlations</a> between the samples and found that the effect of individual is stronger than the effect of C1 chip. We performed <a href="pca-variable.html">PCA</a> on a subset of most variable genes and found that PC1 is most highly correlated with the percentage of detected genes and other metrics of sequencing depth. We also analyzed per-gene expression profiles and computed <a href="partition.html">variance component</a> estimates for the effects of individual and C1 batch.</p>
+<p>Next, we performed <a href="qc-filter-ipsc.html">quality control</a> to identify low quality single cells. We <a href="filter-gene.html">filtered</a> both over-expressed genes and lowly-expressed genes for downstream analysis.</p>
 </section>
-<section id="sample-quality-control" class="level3">
-<h3>Sample quality control</h3>
-<p>Single cell <a href="identity.html">sample identification</a> were determined by examining the SNPs present in their RNA sequencing reads using the method verifyBamID as described <span class="citation" data-cites="Tung2017">[@Tung2017]</span>. We obtained a 97.6 % valid identification from XX individuals.</p>
-<p>Using the identification of each single cell sample, we performed <a href="correlations.html">pairwise correlations</a> between the samples and found that the effect of individual is stronger than the effect of C1 chip. We also analyzed per-gene expression profiles and computed <a href="partition.html">variance component</a> estimates for the effects of individual and C1 batch.</p>
-<p>Next, we performed <a href="qc-filter-ipsc.html">quality control</a> to identify low quality single cells. We kept from high quality single cell samples which passed the following criteria: * Only one cell observed per well * Valid identification * Less than XX % unmapped reads * Less than X.X % ERCC reads * More than X,XXX genes with at least one read</p>
-</section>
+<section id="qtl-mapping" class="level2">
+<h2>QTL mapping</h2>
+<p>We looked at <a href="sc-stratified-geno.html">UMI count distribution stratified by genotype</a> of the top 5 mean QTLs in YRI iPSCs. We investigated <a href="sc-vs-bulk.html">the concordance between single cell and bulk RNA-seq data</a> and found that 50 cells are sufficient. With the attempt to <a href="power.html">estimate the power</a> to detect mean and variance QTL, we took the strategy of resample scRNA-seq. We <a href="zinb.html">estimated means and dispersions</a> per individual per gene and set up the infrastructure to <a href="qtl-mapping.html">call mean and variance QTLs</a>.</p>
 </section>
 
 <hr>

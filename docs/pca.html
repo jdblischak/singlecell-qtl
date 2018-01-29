@@ -277,10 +277,13 @@ div.tocify {
     <div id="navbar" class="navbar-collapse collapse">
       <ul class="nav navbar-nav">
         <li>
-  <a href="index.html">Home</a>
+  <a href="index.html">Overview</a>
 </li>
 <li>
-  <a href="about.html">About</a>
+  <a href="data-collection.html">Data</a>
+</li>
+<li>
+  <a href="analysis.html">Analysis</a>
 </li>
 <li>
   <a href="contributing.html">Contributing</a>
@@ -316,11 +319,12 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2017-10-26</p>
+<p><strong>Last updated:</strong> 2018-01-29</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> a8f4104</p>
-<div id="setup" class="section level2">
+<p><strong>Code version:</strong> f6b7f76</p>
+<p><strong>Batch 1 only</strong></p>
+<section id="setup" class="level2">
 <h2>Setup</h2>
 <pre class="r"><code>library(&quot;cowplot&quot;)
 library(&quot;dplyr&quot;)
@@ -332,17 +336,16 @@ theme_set(theme_cowplot())
 source(&quot;../code/functions.R&quot;)
 library(&quot;Biobase&quot;) # has to be loaded last to use `combine`</code></pre>
 <p>Import data.</p>
-<pre class="r"><code>fname &lt;- Sys.glob(&quot;../data/eset/*.rds&quot;)
-eset &lt;- Reduce(combine, Map(readRDS, fname))
+<pre class="r"><code>eset &lt;- readRDS(&quot;../data/eset.rds&quot;)
 eset</code></pre>
 <pre><code>ExpressionSet (storageMode: lockedEnvironment)
-assayData: 54792 features, 960 samples 
+assayData: 54792 features, 4992 samples 
   element names: exprs 
 protocolData: none
 phenoData
-  sampleNames: 03162017-A01 03162017-A02 ... 04202017-H12 (960
+  sampleNames: 03162017-A01 03162017-A02 ... 12142017-H12 (4992
     total)
-  varLabels: experiment well ... valid_id (39 total)
+  varLabels: experiment well ... valid_id (40 total)
   varMetadata: labelDescription
 featureData
   featureNames: ENSG00000000003 ENSG00000000005 ... WBGene00235374
@@ -351,6 +354,11 @@ featureData
   fvarMetadata: labelDescription
 experimentData: use &#39;experimentData(object)&#39;
 Annotation:  </code></pre>
+<p>Limit this analysis to batch 1 since it deals with the spike-ins.</p>
+<pre class="r"><code>eset &lt;- eset[, eset$batch == &quot;b1&quot;]
+dim(eset)</code></pre>
+<pre><code>Features  Samples 
+   54792      960 </code></pre>
 <p>Remove samples with bad cell number or TRA-1-60.</p>
 <pre class="r"><code>eset_quality &lt;- eset[, eset$cell_number == 1 &amp; eset$tra1.60]
 dim(eset_quality)</code></pre>
@@ -376,8 +384,8 @@ head(featureNames(eset_hs))</code></pre>
 [5] &quot;ENSG00000000460&quot; &quot;ENSG00000000938&quot;</code></pre>
 <p>Define a function for filtering by percentage of cells in which a gene is detected.</p>
 <pre class="r"><code>present &lt;- function(x, percent = 0.50) mean(x &gt; 0) &gt;= percent</code></pre>
-</div>
-<div id="ercc" class="section level2">
+</section>
+<section id="ercc" class="level2">
 <h2>ERCC</h2>
 <p>Remove zeros.</p>
 <pre class="r"><code>eset_ercc_clean &lt;- eset_ercc[rowSums(exprs(eset_ercc)) != 0, ]
@@ -409,8 +417,8 @@ plot_pca(pca_ercc$PCs, pcx = 1, pcy = 2, explained = pca_ercc$explained,
          metadata = pData(eset_ercc_clean),
          color = &quot;ERCC&quot;)</code></pre>
 <p><img src="figure/pca.Rmd/pca-ercc-4.png" width="768" style="display: block; margin: auto;" /></p>
-</div>
-<div id="drosophila" class="section level2">
+</section>
+<section id="drosophila" class="level2">
 <h2>Drosophila</h2>
 <p>Remove zeros.</p>
 <pre class="r"><code>eset_dm_clean &lt;- eset_dm[rowSums(exprs(eset_dm)) != 0, ]
@@ -435,8 +443,8 @@ plot_pca(pca_dm$PCs, pcx = 1, pcy = 2, explained = pca_dm$explained,
          metadata = pData(eset_dm_clean),
          color = &quot;fly&quot;, factors = &quot;fly&quot;)</code></pre>
 <p><img src="figure/pca.Rmd/pca-dm-2.png" width="768" style="display: block; margin: auto;" /></p>
-</div>
-<div id="drosophila---5-pg" class="section level2">
+</section>
+<section id="drosophila---5-pg" class="level2">
 <h2>Drosophila - 5 pg</h2>
 <p>Select only samples that received 5 pg.</p>
 <pre class="r"><code>eset_dm_5pg &lt;- eset_dm[, eset_dm$fly == 5000]
@@ -466,8 +474,8 @@ plot_pca(pca_dm_5pg$PCs, pcx = 1, pcy = 2, explained = pca_dm_5pg$explained,
          metadata = pData(eset_dm_5pg_clean),
          color = &quot;experiment&quot;)</code></pre>
 <p><img src="figure/pca.Rmd/pca-dm-5pg-2.png" width="768" style="display: block; margin: auto;" /></p>
-</div>
-<div id="drosophila---50-pg" class="section level2">
+</section>
+<section id="drosophila---50-pg" class="level2">
 <h2>Drosophila - 50 pg</h2>
 <p>Select only samples that received 50 pg.</p>
 <pre class="r"><code>eset_dm_50pg &lt;- eset_dm[, eset_dm$fly == 50000]
@@ -501,8 +509,8 @@ plot_pca(pca_dm_50pg$PCs, pcx = 1, pcy = 2, explained = pca_dm_50pg$explained,
          metadata = pData(eset_dm_50pg_clean),
          color = &quot;experiment&quot;)</code></pre>
 <p><img src="figure/pca.Rmd/pca-dm-50pg-3.png" width="768" style="display: block; margin: auto;" /></p>
-</div>
-<div id="c.-elegans" class="section level2">
+</section>
+<section id="c.-elegans" class="level2">
 <h2>C. elegans</h2>
 <p>Remove zeros.</p>
 <pre class="r"><code>eset_ce_clean &lt;- eset_ce[rowSums(exprs(eset_ce)) != 0, ]
@@ -531,8 +539,8 @@ plot_pca(pca_ce$PCs, pcx = 1, pcy = 2, explained = pca_ce$explained,
          metadata = pData(eset_ce_clean),
          color = &quot;worm&quot;, factors = &quot;worm&quot;)</code></pre>
 <p><img src="figure/pca.Rmd/pca-ce-2.png" width="768" style="display: block; margin: auto;" /></p>
-</div>
-<div id="human" class="section level2">
+</section>
+<section id="human" class="level2">
 <h2>Human</h2>
 <p>Remove zeros.</p>
 <pre class="r"><code>eset_hs_clean &lt;- eset_hs[rowSums(exprs(eset_hs)) != 0, ]
@@ -579,14 +587,18 @@ hs_pc3v4</code></pre>
 pca_cross_chip_3v4 &lt;- pca_cross_chip_1v2 %+% aes(x = PC3, y = PC4)
 plot_grid(pca_cross_chip_1v2, pca_cross_chip_3v4, labels = LETTERS[1:2])</code></pre>
 <p><img src="figure/pca.Rmd/pca-cross-chip-1.png" width="768" style="display: block; margin: auto;" /></p>
-</div>
-<div id="session-information" class="section level2">
+</section>
+<section id="session-information" class="level2">
 <h2>Session information</h2>
 <!-- Insert the session information into the document -->
 <pre class="r"><code>sessionInfo()</code></pre>
-<pre><code>R version 3.3.2 (2016-10-31)
+<pre><code>R version 3.4.1 (2017-06-30)
 Platform: x86_64-pc-linux-gnu (64-bit)
 Running under: Scientific Linux 7.2 (Nitrogen)
+
+Matrix products: default
+BLAS: /project2/gilad/jdblischak/miniconda3/envs/scqtl/lib/R/lib/libRblas.so
+LAPACK: /project2/gilad/jdblischak/miniconda3/envs/scqtl/lib/R/lib/libRlapack.so
 
 locale:
  [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
@@ -601,20 +613,21 @@ attached base packages:
 [8] base     
 
 other attached packages:
- [1] testit_0.6          Biobase_2.34.0      BiocGenerics_0.20.0
- [4] tidyr_0.6.1         stringr_1.2.0       edgeR_3.16.5       
- [7] limma_3.30.13       dplyr_0.5.0         cowplot_0.7.0      
-[10] ggplot2_2.2.1      
+ [1] bindrcpp_0.2        testit_0.6          Biobase_2.38.0     
+ [4] BiocGenerics_0.24.0 tidyr_0.7.1         stringr_1.2.0      
+ [7] edgeR_3.20.1        limma_3.34.1        dplyr_0.7.4        
+[10] cowplot_0.9.1       ggplot2_2.2.1      
 
 loaded via a namespace (and not attached):
- [1] Rcpp_0.12.10     knitr_1.16       magrittr_1.5     munsell_0.4.3   
- [5] lattice_0.20-34  colorspace_1.3-2 R6_2.2.0         plyr_1.8.4      
- [9] tools_3.3.2      grid_3.3.2       gtable_0.2.0     DBI_0.6-1       
-[13] git2r_0.19.0     htmltools_0.3.6  yaml_2.1.13      lazyeval_0.2.0  
-[17] rprojroot_1.2    digest_0.6.12    assertthat_0.1   tibble_1.2      
-[21] evaluate_0.10    rmarkdown_1.6    labeling_0.3     stringi_1.1.2   
-[25] scales_0.4.1     backports_1.0.5  locfit_1.5-9.1  </code></pre>
-</div>
+ [1] Rcpp_0.12.13     compiler_3.4.1   git2r_0.19.0     plyr_1.8.4      
+ [5] bindr_0.1        tools_3.4.1      digest_0.6.12    evaluate_0.10.1 
+ [9] tibble_1.3.3     gtable_0.2.0     lattice_0.20-34  pkgconfig_2.0.1 
+[13] rlang_0.1.2      yaml_2.1.14      knitr_1.16       locfit_1.5-9.1  
+[17] rprojroot_1.2    grid_3.4.1       glue_1.1.1       R6_2.2.0        
+[21] rmarkdown_1.6    purrr_0.2.2      magrittr_1.5     backports_1.0.5 
+[25] scales_0.5.0     htmltools_0.3.6  assertthat_0.1   colorspace_1.3-2
+[29] labeling_0.3     stringi_1.1.2    lazyeval_0.2.0   munsell_0.4.3   </code></pre>
+</section>
 
 <hr>
 <p>

@@ -277,10 +277,13 @@ div.tocify {
     <div id="navbar" class="navbar-collapse collapse">
       <ul class="nav navbar-nav">
         <li>
-  <a href="index.html">Home</a>
+  <a href="index.html">Overview</a>
 </li>
 <li>
-  <a href="about.html">About</a>
+  <a href="data-collection.html">Data</a>
+</li>
+<li>
+  <a href="analysis.html">Analysis</a>
 </li>
 <li>
   <a href="contributing.html">Contributing</a>
@@ -316,10 +319,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2018-01-19</p>
+<p><strong>Last updated:</strong> 2018-01-29</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> 716e5d8</p>
+<p><strong>Code version:</strong> f6b7f76</p>
 <p><a href="https://catalog.coriell.org/0/Sections/Collections/NHGRI/1000IndSamples.aspx?PgId=665&amp;did=MGENOME27">Link to Yoruba samples on Coriell</a></p>
 <section id="setup" class="level2">
 <h2>Setup</h2>
@@ -331,9 +334,18 @@ library(&quot;tidyr&quot;)
 theme_set(theme_cowplot())
 library(&quot;Biobase&quot;)</code></pre>
 <p>Import data.</p>
-<pre class="r"><code>fname &lt;- Sys.glob(&quot;../data/eset/*.rds&quot;)
-eset &lt;- Reduce(combine, Map(readRDS, fname))
-eset</code></pre>
+<pre class="r"><code>eset &lt;- readRDS(&quot;../data/eset.rds&quot;)
+(chips &lt;- unique(eset$experiment))</code></pre>
+<pre><code> [1] &quot;03162017&quot; &quot;03172017&quot; &quot;03232017&quot; &quot;03302017&quot; &quot;03312017&quot; &quot;04052017&quot;
+ [7] &quot;04072017&quot; &quot;04132017&quot; &quot;04142017&quot; &quot;04202017&quot; &quot;08102017&quot; &quot;08112017&quot;
+[13] &quot;08142017&quot; &quot;08152017&quot; &quot;08162017&quot; &quot;08182017&quot; &quot;08212017&quot; &quot;08222017&quot;
+[19] &quot;08232017&quot; &quot;08242017&quot; &quot;08282017&quot; &quot;08292017&quot; &quot;08302017&quot; &quot;08312017&quot;
+[25] &quot;09252017&quot; &quot;09262017&quot; &quot;09272017&quot; &quot;10022017&quot; &quot;10042017&quot; &quot;10052017&quot;
+[31] &quot;10062017&quot; &quot;10092017&quot; &quot;10102017&quot; &quot;10112017&quot; &quot;10122017&quot; &quot;10132017&quot;
+[37] &quot;10162017&quot; &quot;10172017&quot; &quot;11272017&quot; &quot;11282017&quot; &quot;11292017&quot; &quot;11302017&quot;
+[43] &quot;12012017&quot; &quot;12042017&quot; &quot;12052017&quot; &quot;12062017&quot; &quot;12072017&quot; &quot;12082017&quot;
+[49] &quot;12112017&quot; &quot;12122017&quot; &quot;12132017&quot; &quot;12142017&quot;</code></pre>
+<pre class="r"><code>eset</code></pre>
 <pre><code>ExpressionSet (storageMode: lockedEnvironment)
 assayData: 54792 features, 4992 samples 
   element names: exprs 
@@ -369,7 +381,7 @@ df_e &lt;- anno %&gt;%
             i2 = unique(individual.2),
             i3 = unique(individual.3),
             i4 = unique(individual.4))
-op &lt;- par(cex = 2, las = 2, mfrow = c(ceiling(length(fname) / 5), 5))
+op &lt;- par(cex = 2, las = 2, mfrow = c(ceiling(length(chips) / 5), 5))
 for (i in 1:nrow(df_e)) {
   e &lt;- df_e$experiment[i]
   n1 &lt;- sum(anno$chip_id[anno$experiment == e] == df_e$i1[i])
@@ -944,7 +956,6 @@ reason_raw</code></pre>
 <pre class="r"><code>reason_raw %+% aes(y = concentration) +
   labs(y = &quot;Concentration&quot;,
        title = &quot;Concentration&quot;)</code></pre>
-<pre><code>Warning: Removed 1344 rows containing non-finite values (stat_boxplot).</code></pre>
 <p><img src="figure/identity.Rmd/reason-concentation-1.png" width="768" style="display: block; margin: auto;" /></p>
 <p>TRA-1-60</p>
 <pre class="r"><code>barplot(with(anno, table(valid_id, tra1.60)), beside = TRUE,
