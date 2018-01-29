@@ -26,6 +26,8 @@ knitr::read_chunk("chunks.R")
 
 Calculate pairwise correlations between single cells.
 
+**Batch 1 only**
+
 ## Setup
 
 ```{r packages, message=FALSE}
@@ -44,6 +46,13 @@ Import data.
 ```{r import}
 eset <- readRDS("../data/eset.rds")
 eset
+```
+
+Limit this analysis to batch 1 since it deals with the spike-ins.
+
+```{r}
+eset <- eset[, eset$batch == "b1"]
+dim(eset)
 ```
 
 Remove samples with bad cell number or TRA-1-60.

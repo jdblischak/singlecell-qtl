@@ -1,5 +1,5 @@
 ---
-title: "Partioning the variance across factors"
+title: "Partitioning the variance across factors"
 author: "John Blischak"
 date: 2017-09-18
 output: html_document
@@ -24,6 +24,8 @@ knitr::read_chunk("chunks.R")
 ```{r code-version, echo=FALSE, results='asis'}
 ```
 
+**Batch 1 only**
+
 ## Setup
 
 ```{r packages, message=FALSE}
@@ -32,6 +34,7 @@ library("edgeR")
 library("ggplot2")
 library("variancePartition")
 theme_set(theme_cowplot())
+source("../code/functions.R")
 library("Biobase") # has to be loaded last to use `combine`
 ```
 
@@ -40,6 +43,13 @@ Import data.
 ```{r import}
 eset <- readRDS("../data/eset.rds")
 eset
+```
+
+Limit this analysis to batch 1 since it deals with the spike-ins.
+
+```{r}
+eset <- eset[, eset$batch == "b1"]
+dim(eset)
 ```
 
 Remove samples with bad cell number, lack of TRA-1-60 signal, or an invalid
@@ -64,22 +74,16 @@ eset_hs <- eset_quality[fData(eset_quality)$source == "H. sapiens", ]
 head(featureNames(eset_hs))
 ```
 
-Define a function for filtering by percentage of cells in which a gene is detected.
-
-```{r function-present}
-present <- function(x, percent = 0.50) mean(x > 0) >= percent
-```
-
 Define a function for partitioning the variance.
 
 ```{r}
 # https://bioconductor.org/packages/3.4/bioc/vignettes/variancePartition/inst/doc/variancePartition.R
-calc_partition <- function(x, info, cores = 8) {
+calc_partition <- function(x, info, cores = 1) {
   stopifnot(c("experiment", "chip_id") %in% colnames(info))
   library("doParallel")
   cl <- makeCluster(cores)
   registerDoParallel(cl)
-  form <- ~ (1|experiment) + (1|chip_id) 
+  form <- ~ (1|experiment) + (1|chip_id)
   varPart <- fitExtractVarPartModel(x, form, info)
   vp <- sortCols(varPart)
   return(vp)
@@ -226,14 +230,22 @@ eset_hs_clean <- eset_hs_clean[apply(exprs(eset_hs_clean), 1, present), ]
 dim(eset_hs_clean)
 ```
 
+This takes too long on the full data set. Subsample the genes to get the idea.
+
+```{r subsample-hs}
+n_genes <- nrow(eset_hs_clean)
+eset_hs_clean_sub <- eset_hs_clean[sample(1:n_genes, size = floor(n_genes * 0.05)), ]
+dim(eset_hs_clean_sub)
+```
+
 Convert to log2 counts per million.
 
 ```{r cpm-hs}
-mol_hs_cpm <- cpm(exprs(eset_hs_clean), log = TRUE)
+mol_hs_cpm <- cpm(exprs(eset_hs_clean_sub), log = TRUE)
 ```
 
 ```{r partition-hs}
-part_hs <- calc_partition(mol_hs_cpm, pData(eset_hs_clean))
+part_hs <- calc_partition(mol_hs_cpm, pData(eset_hs_clean_sub))
 plotPercentBars(part_hs)
 plotVarPart(part_hs, main = sprintf("Human (n = %d)", nrow(part_hs)))
 ```
