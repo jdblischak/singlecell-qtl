@@ -25,8 +25,8 @@
 <link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
 <script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
 <script src="site_libs/navigation-1.1/tabsets.js"></script>
-<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
-<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<link href="site_libs/highlightjs-1.1/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-1.1/highlight.js"></script>
 <link href="site_libs/font-awesome-4.5.0/css/font-awesome.min.css" rel="stylesheet" />
 
 <style type="text/css">code{white-space: pre;}</style>
@@ -36,12 +36,10 @@
   }
 </style>
 <script type="text/javascript">
-if (window.hljs) {
-  hljs.configure({languages: []});
-  hljs.initHighlightingOnLoad();
-  if (document.readyState && document.readyState === "complete") {
-    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
-  }
+if (window.hljs && document.readyState && document.readyState === "complete") {
+   window.setTimeout(function() {
+      hljs.initHighlighting();
+   }, 0);
 }
 </script>
 
@@ -279,10 +277,13 @@ div.tocify {
     <div id="navbar" class="navbar-collapse collapse">
       <ul class="nav navbar-nav">
         <li>
-  <a href="index.html">Home</a>
+  <a href="index.html">Overview</a>
 </li>
 <li>
-  <a href="about.html">About</a>
+  <a href="data-collection.html">Data</a>
+</li>
+<li>
+  <a href="analysis.html">Analysis</a>
 </li>
 <li>
   <a href="contributing.html">Contributing</a>
@@ -318,10 +319,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2018-01-26</p>
+<p><strong>Last updated:</strong> 2018-01-29</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> 5ef05b7</p>
+<p><strong>Code version:</strong> 47e6130</p>
 <section id="setup" class="level2">
 <h2>Setup</h2>
 <pre class="r"><code>library(&quot;cowplot&quot;)
@@ -355,7 +356,10 @@ dim(eset)</code></pre>
 <p>We would like to remove genes which have greater than 4096 (4<em>4</em>4<em>4</em>4*4) molecules in any given single cell. These are above our theoretical maximum number of 6-bp UMIs (it can happen when a highly expressed gene as multiple start sites). We did not find any genes with molecules greater than 4096. We found r length(overexpressed_genes_1024) mitochondrial genes which have molecules larger than 1024</p>
 <pre class="r"><code>## look at human genes
 eset_hs &lt;- eset[fData(eset)$source == &quot;H. sapiens&quot;, ]
-head(featureNames(eset_hs))</code></pre>
+dim(eset_hs)</code></pre>
+<pre><code>Features  Samples 
+   20327     3910 </code></pre>
+<pre class="r"><code>head(featureNames(eset_hs))</code></pre>
 <pre><code>[1] &quot;ENSG00000000003&quot; &quot;ENSG00000000005&quot; &quot;ENSG00000000419&quot; &quot;ENSG00000000457&quot;
 [5] &quot;ENSG00000000460&quot; &quot;ENSG00000000938&quot;</code></pre>
 <pre class="r"><code>## identify gene with molecule &gt; 4096
@@ -371,13 +375,13 @@ overexpressed_genes_1024</code></pre>
 </section>
 <section id="lowly-expressed" class="level3">
 <h3>Lowly expressed</h3>
-<p>We identify the lower cutoff using the mean log2 molecule counts per million (cpm) in the high quality single cells. r length(genes_pass_filter) genes have a mean log2 molecule cpm greater than r lower_exp_cutoff</p>
+<p>We identify the lower cutoff using the mean log2 molecule counts per million (cpm) in the high quality single cells.</p>
 <pre class="r"><code>## convert to log2 cpm
 mol_hs_cpm &lt;- cpm(exprs(eset_hs), log = TRUE)
 mol_hs_cpm_means &lt;- rowMeans(mol_hs_cpm)
 summary(mol_hs_cpm_means)</code></pre>
 <pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-  2.587   2.626   3.141   3.873   4.636  12.960 </code></pre>
+  2.587   2.626   3.141   3.873   4.636  12.957 </code></pre>
 <pre class="r"><code>hist(mol_hs_cpm_means, xlab = &quot;Mean log2 molecule cpm in single cell samples&quot;,
      ylab = &quot;Number of genes&quot;, main = &quot;Identifying expression cutoff&quot;)
 
@@ -386,11 +390,12 @@ lower_exp_cutoff &lt;- 3
 abline(v = lower_exp_cutoff, col = &quot;red&quot;)</code></pre>
 <p><img src="figure/filter-gene.Rmd/cpm-1.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>genes_pass_filter &lt;- rownames(mol_hs_cpm)[mol_hs_cpm_means &gt; lower_exp_cutoff]</code></pre>
+<p>10886 genes have a mean log2 molecule cpm greater than 3</p>
 <pre class="r"><code>mol_hs_cpm &lt;- data.frame(mol_hs_cpm)
 mol_hs_cpm$mean &lt;- apply(mol_hs_cpm, 1, mean)
 mol_hs_cpm$filter &lt;- mol_hs_cpm$mean &gt; lower_exp_cutoff
 write.table(data.frame(row.names(mol_hs_cpm), mol_hs_cpm[,&quot;filter&quot;]),
-            file = &quot;../data/genes_pass_filter.txt&quot;, quote = FALSE,
+            file = &quot;../data/genes-pass-filter.txt&quot;, quote = FALSE,
             sep = &quot;\t&quot;, row.names = FALSE, col.names = FALSE)</code></pre>
 </section>
 </section>
@@ -398,30 +403,40 @@ write.table(data.frame(row.names(mol_hs_cpm), mol_hs_cpm[,&quot;filter&quot;]),
 <h2>Session information</h2>
 <!-- Insert the session information into the document -->
 <pre class="r"><code>sessionInfo()</code></pre>
-<pre><code>R version 3.3.2 (2016-10-31)
-Platform: x86_64-apple-darwin14.5.0 (64-bit)
-Running under: macOS Sierra 10.12.6
+<pre><code>R version 3.4.1 (2017-06-30)
+Platform: x86_64-pc-linux-gnu (64-bit)
+Running under: Scientific Linux 7.2 (Nitrogen)
+
+Matrix products: default
+BLAS: /project2/gilad/jdblischak/miniconda3/envs/scqtl/lib/R/lib/libRblas.so
+LAPACK: /project2/gilad/jdblischak/miniconda3/envs/scqtl/lib/R/lib/libRlapack.so
 
 locale:
-[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+ [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
+ [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
+ [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
+ [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
+ [9] LC_ADDRESS=C               LC_TELEPHONE=C            
+[11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
 
 attached base packages:
 [1] parallel  stats     graphics  grDevices utils     datasets  methods  
 [8] base     
 
 other attached packages:
-[1] Biobase_2.34.0      BiocGenerics_0.20.0 knitr_1.17         
-[4] edgeR_3.16.5        limma_3.30.13       dplyr_0.5.0        
-[7] cowplot_0.8.0       ggplot2_2.2.1      
+[1] Biobase_2.38.0      BiocGenerics_0.24.0 knitr_1.16         
+[4] edgeR_3.20.1        limma_3.34.1        dplyr_0.7.4        
+[7] cowplot_0.9.1       ggplot2_2.2.1      
 
 loaded via a namespace (and not attached):
- [1] Rcpp_0.12.10     magrittr_1.5     munsell_0.4.3    lattice_0.20-34 
- [5] colorspace_1.3-2 R6_2.2.2         stringr_1.2.0    plyr_1.8.4      
- [9] tools_3.3.2      grid_3.3.2       gtable_0.2.0     DBI_0.6-1       
-[13] git2r_0.21.0     htmltools_0.3.6  yaml_2.1.16      lazyeval_0.2.1  
-[17] rprojroot_1.3-2  digest_0.6.12    assertthat_0.1   tibble_1.2      
-[21] evaluate_0.10.1  rmarkdown_1.8    stringi_1.1.2    scales_0.4.1    
-[25] backports_1.1.2  locfit_1.5-9.1  </code></pre>
+ [1] Rcpp_0.12.13     bindr_0.1        magrittr_1.5     munsell_0.4.3   
+ [5] lattice_0.20-34  colorspace_1.3-2 R6_2.2.0         rlang_0.1.2     
+ [9] stringr_1.2.0    plyr_1.8.4       tools_3.4.1      grid_3.4.1      
+[13] gtable_0.2.0     git2r_0.19.0     htmltools_0.3.6  assertthat_0.1  
+[17] yaml_2.1.14      lazyeval_0.2.0   rprojroot_1.2    digest_0.6.12   
+[21] tibble_1.3.3     bindrcpp_0.2     glue_1.1.1       evaluate_0.10.1 
+[25] rmarkdown_1.6    stringi_1.1.2    compiler_3.4.1   scales_0.5.0    
+[29] backports_1.0.5  locfit_1.5-9.1   pkgconfig_2.0.1 </code></pre>
 </section>
 
 <hr>
