@@ -64,6 +64,7 @@ We would like to remove genes which have greater than 4096 (4*4*4*4*4*4) molecul
 ```{r human-genes}
 ## look at human genes
 eset_hs <- eset[fData(eset)$source == "H. sapiens", ]
+dim(eset_hs)
 head(featureNames(eset_hs))
 
 ## identify gene with molecule > 4096
@@ -79,7 +80,7 @@ overexpressed_genes_1024
 
 ### Lowly expressed 
 
-We identify the lower cutoff using the mean log2 molecule counts per million (cpm) in the high quality single cells. r length(genes_pass_filter) genes have a mean log2 molecule cpm greater than r lower_exp_cutoff
+We identify the lower cutoff using the mean log2 molecule counts per million (cpm) in the high quality single cells.
 
 ```{r cpm}
 ## convert to log2 cpm
@@ -95,15 +96,16 @@ abline(v = lower_exp_cutoff, col = "red")
 genes_pass_filter <- rownames(mol_hs_cpm)[mol_hs_cpm_means > lower_exp_cutoff]
 ```
 
+`r length(genes_pass_filter)` genes have a mean log2 molecule cpm greater than `r lower_exp_cutoff`
+
 ```{r output}
 mol_hs_cpm <- data.frame(mol_hs_cpm)
 mol_hs_cpm$mean <- apply(mol_hs_cpm, 1, mean)
 mol_hs_cpm$filter <- mol_hs_cpm$mean > lower_exp_cutoff
 write.table(data.frame(row.names(mol_hs_cpm), mol_hs_cpm[,"filter"]),
-            file = "../data/genes_pass_filter.txt", quote = FALSE,
+            file = "../data/genes-pass-filter.txt", quote = FALSE,
             sep = "\t", row.names = FALSE, col.names = FALSE)
 ```
-
 
 ## Session information
 
