@@ -1,0 +1,514 @@
+#+TITLE: Descriptive statistics
+#+SETUPFILE: setup.org
+
+* Setup                                                            :noexport:
+
+  #+BEGIN_SRC emacs-lisp
+    (org-babel-lob-ingest "/home/aksarkar/.emacs.d/org-templates/library.org")
+  #+END_SRC
+
+  #+RESULTS:
+  : 1
+
+  #+CALL: ipython3(memory="16G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
+
+  #+RESULTS:
+  : Submitted batch job 42635448
+
+  #+BEGIN_SRC ipython
+    %matplotlib inline
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[1]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    import colorcet
+    import functools
+    import matplotlib
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import pandas as pd
+    import scipy.stats as st
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[19]:
+  :END:
+
+* Read the data
+
+  #+NAME: read-data
+  #+BEGIN_SRC ipython
+    annotations = pd.read_table('/home/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
+    keep_samples = pd.read_table('/home/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
+  #+END_SRC
+
+  #+RESULTS: read-data
+  :RESULTS:
+  # Out[13]:
+  :END:
+
+  Apply the QC filters.
+
+  #+BEGIN_SRC ipython
+    annotations = annotations[keep_samples.values.ravel()]
+    annotations.shape
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[14]:
+  : (3910, 40)
+  :END:
+
+* Distributions of read counts
+** H. sapiens
+
+  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/reads-by-cell.png
+    plt.clf()
+    plt.gcf().set_size_inches(12, 4)
+    plt.hist(annotations['reads_hs'], bins=100)
+    plt.xlabel('Read count')
+    plt.ylabel('Number of cells')
+    plt.title('Read count by cell')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[20]:
+  : Text(0.5,1,'Read count by cell')
+  [[file:figure/descriptive-stats.org/reads-by-cell.png]]
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/reads-by-cell-batch-hist.png
+    plt.clf()
+    plt.gcf().set_size_inches(12, 4)
+    colors = {k: matplotlib.cm.get_cmap('Set1').colors[i] for i, k in enumerate(set(annotations['batch']))}
+    for batch, g in annotations.groupby('batch'):
+      plt.hist(g['reads_hs'], histtype='step', color=colors[batch], label=batch, bins=50)
+    plt.legend()
+    plt.xlabel('Read count')
+    plt.ylabel('Density')
+    plt.title('Read count by batch')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[21]:
+  : Text(0.5,1,'Read count by batch')
+  [[file:figure/descriptive-stats.org/reads-by-cell-batch-hist.png]]
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/reads-by-cell-batch.png
+    plt.clf()
+    plt.gcf().set_size_inches(12, 4)
+    colors = {k: matplotlib.cm.get_cmap('Set1').colors[i] for i, k in enumerate(set(annotations['batch']))}
+    grid = np.linspace(annotations['reads_hs'].min(), annotations['reads_hs'].max(), 200)
+    for batch, g in annotations.groupby('batch'):
+      density = st.gaussian_kde(g['reads_hs'])
+      plt.plot(grid, density.evaluate(grid), color=colors[batch], label=batch)
+    plt.legend()
+    plt.xlabel('Read count')
+    plt.ylabel('Density')
+    plt.title('Read count by batch')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[22]:
+  : Text(0.5,1,'Read count by batch')
+  [[file:figure/descriptive-stats.org/reads-by-cell-batch.png]]
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/reads-by-ind.png
+    plt.clf()
+    plt.gcf().set_size_inches(12, 4)
+    _ = plt.boxplot(annotations.groupby('chip_id').apply(lambda x: list(x['reads_hs'])),
+                    labels=sorted(set(annotations['chip_id'])))
+    plt.xlabel('Individual')
+    plt.ylabel('Read count')
+    _ = plt.xticks(rotation=90)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[23]:
+  [[file:figure/descriptive-stats.org/reads-by-ind.png]]
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/reads-by-ind-batch.png
+    plt.clf()
+    fig, ax = plt.subplots(len(set(annotations['batch'])), 1)
+    fig.set_size_inches(12, 10)
+    for a, (batch, g) in zip(ax, annotations.groupby('batch')):
+      bp = a.boxplot(g.groupby('chip_id').apply(lambda x: list(x['reads_hs'])),
+                     positions=[sorted(set(annotations['chip_id'])).index(k) for k in sorted(set(g['chip_id']))])
+      a.set_xticks(np.arange(1, len(set(annotations['chip_id']))))
+      a.set_xticklabels([])
+      a.set_ylabel('Batch {} read count'.format(batch))
+    ax[-1].set_xticklabels(sorted(set(annotations['chip_id'])), rotation=90)
+    fig.suptitle('Read count by individual/batch')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[24]:
+  : Text(0.5,0.98,'Read count by individual/batch')
+  [[file:figure/descriptive-stats.org/reads-by-ind-batch.png]]
+  :END:
+
+** ERCC
+
+  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/ercc-reads-by-ind.png
+    plt.clf()
+    fig, ax = plt.subplots(3, 1)
+    fig.set_size_inches(12, 12)
+    for a, (k, g) in zip(ax, annotations.groupby('ERCC')):
+      _ = a.boxplot(g.groupby('chip_id').apply(lambda x: list(x['reads_ercc'])),
+                    positions=[sorted(set(annotations['chip_id'])).index(k) for k in sorted(set(g['chip_id']))])
+      a.set_ylabel('Read count ({})'.format(k))
+      a.set_xticks(np.arange(1, len(set(annotations['chip_id']))))
+      a.set_xticklabels([])
+    ax[-1].set_xticklabels(sorted(set(annotations['chip_id'])), rotation=90)
+    plt.xlabel('Individual')
+    plt.suptitle('ERCC read count by individual')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[25]:
+  : Text(0.5,0.98,'ERCC read count by individual')
+  [[file:figure/descriptive-stats.org/ercc-reads-by-ind.png]]
+  :END:
+** D. melanogaster
+
+  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/dm-reads-by-ind.png
+    plt.clf()
+    fig, ax = plt.subplots(len(set(annotations['fly'])), 1)
+    fig.set_size_inches(12, 8)
+    for a, (k, g) in zip(ax, annotations.groupby('fly')):
+      _ = a.boxplot(g.groupby('chip_id').apply(lambda x: list(x['reads_dm'])),
+                    positions=[sorted(set(annotations['chip_id'])).index(k) for k in sorted(set(g['chip_id']))])
+      a.set_ylabel('Read count ({})'.format(k))
+      a.set_xticks(np.arange(1, len(set(annotations['chip_id']))))
+      a.set_xticklabels([])
+    ax[-1].set_xticklabels(sorted(set(annotations['chip_id'])), rotation=90)
+    plt.xlabel('Individual')
+    plt.suptitle('D. mel. read count by individual')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[26]:
+  : Text(0.5,0.98,'D. mel. read count by individual')
+  [[file:figure/descriptive-stats.org/dm-reads-by-ind.png]]
+  :END:
+
+** C. elegans
+
+  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/ce-reads-by-ind.png
+    plt.clf()
+    fig, ax = plt.subplots(3, 1)
+    fig.set_size_inches(12, 12)
+    for a, (k, g) in zip(ax, annotations.groupby('worm')):
+      _ = a.boxplot(g.groupby('chip_id').apply(lambda x: list(x['reads_ce'])),
+                    positions=[sorted(set(annotations['chip_id'])).index(k) for k in sorted(set(g['chip_id']))])
+      a.set_ylabel('Read count ({})'.format(k))
+      a.set_xticks(np.arange(1, len(set(annotations['chip_id']))))
+      a.set_xticklabels([])
+    ax[-1].set_xticklabels(sorted(set(annotations['chip_id'])), rotation=90)
+    plt.xlabel('Individual')
+    plt.suptitle('C. elegans read count by individual')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[27]:
+  : Text(0.5,0.98,'C. elegans read count by individual')
+  [[file:figure/descriptive-stats.org/ce-reads-by-ind.png]]
+  :END:
+
+* Distributions of molecules
+** H. sapiens
+
+  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/umi-by-cell.png
+    plt.clf()
+    plt.hist(annotations['mol_hs'], bins=100)
+    plt.xlabel('Number of molecules')
+    plt.ylabel('Number of cells')
+    plt.title('Number of molecules by cell')
+    plt.close()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[32]:
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/umi-by-ind.png
+    plt.clf()
+    plt.gcf().set_size_inches(12, 4)
+    _ = plt.boxplot(annotations.groupby('chip_id').apply(lambda x: list(x['mol_hs'])),
+                    labels=sorted(set(annotations['chip_id'])))
+    plt.xlabel('Individual')
+    plt.ylabel('Molecule count')
+    plt.xticks(rotation=90)
+    plt.title('Molecule count by individual')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[33]:
+  : Text(0.5,1,'Molecule count by individual')
+  [[file:figure/descriptive-stats.org/umi-by-ind.png]]
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/umi-by-ind-batch.png
+    plt.clf()
+    fig, ax = plt.subplots(len(set(annotations['batch'])), 1)
+    fig.set_size_inches(12, 10)
+    for a, (batch, g) in zip(ax, annotations.groupby('batch')):
+      bp = a.boxplot(g.groupby('chip_id').apply(lambda x: list(x['mol_hs'])),
+                     positions=[sorted(set(annotations['chip_id'])).index(k) for k in sorted(set(g['chip_id']))])
+      a.set_xticks(np.arange(1, len(set(annotations['chip_id']))))
+      a.set_xticklabels([])
+      a.set_ylabel('Batch {} molecule count'.format(batch))
+    ax[-1].set_xticklabels(sorted(set(annotations['chip_id'])), rotation=90)
+    fig.suptitle('Molecule count by individual')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[34]:
+  : Text(0.5,0.98,'Molecule count by individual')
+  [[file:figure/descriptive-stats.org/umi-by-ind-batch.png]]
+  :END:
+
+** ERCC
+
+  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/ercc-by-ind.png
+    plt.clf()
+    fig, ax = plt.subplots(3, 1)
+    fig.set_size_inches(12, 12)
+    for a, (k, g) in zip(ax, annotations.groupby('ERCC')):
+      _ = a.boxplot(g.groupby('chip_id').apply(lambda x: list(x['mol_ercc'])),
+                    positions=[sorted(set(annotations['chip_id'])).index(k) for k in sorted(set(g['chip_id']))])
+      a.set_ylabel('Molecule count ({})'.format(k))
+      a.set_xticks(np.arange(1, len(set(annotations['chip_id']))))
+      a.set_xticklabels([])
+    ax[-1].set_xticklabels(sorted(set(annotations['chip_id'])), rotation=90)
+    fig.suptitle('Molecule count by individual')
+    plt.xlabel('Individual')
+    plt.suptitle('ERCC molecule count by individual')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[35]:
+  : Text(0.5,0.98,'ERCC molecule count by individual')
+  [[file:figure/descriptive-stats.org/ercc-by-ind.png]]
+  :END:
+
+** D. melanogaster
+
+  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/dm-by-ind.png
+    plt.clf()
+    fig, ax = plt.subplots(len(set(annotations['fly'])), 1)
+    fig.set_size_inches(12, 8)
+    for a, (k, g) in zip(ax, annotations.groupby('fly')):
+      _ = a.boxplot(g.groupby('chip_id').apply(lambda x: list(x['mol_dm'])),
+                    positions=[sorted(set(annotations['chip_id'])).index(k) for k in sorted(set(g['chip_id']))])
+      a.set_ylabel('Molecule count ({})'.format(k))
+      a.set_xticks(np.arange(1, len(set(annotations['chip_id']))))
+      a.set_xticklabels([])
+    ax[-1].set_xticklabels(sorted(set(annotations['chip_id'])), rotation=90)
+    fig.suptitle('Molecule count by individual')
+    plt.xlabel('Individual')
+    plt.suptitle('D. mel. molecule count by individual')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[36]:
+  : Text(0.5,0.98,'D. mel. molecule count by individual')
+  [[file:figure/descriptive-stats.org/dm-by-ind.png]]
+  :END:
+
+** C. elegans
+
+  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/ce-by-ind.png
+    plt.clf()
+    fig, ax = plt.subplots(3, 1)
+    fig.set_size_inches(12, 12)
+    for a, (k, g) in zip(ax, annotations.groupby('worm')):
+      _ = a.boxplot(g.groupby('chip_id').apply(lambda x: list(x['mol_ce'])),
+                    positions=[sorted(set(annotations['chip_id'])).index(k) for k in sorted(set(g['chip_id']))])
+      a.set_ylabel('Molecule count ({})'.format(k))
+      a.set_xticks(np.arange(1, len(set(annotations['chip_id']))))
+      a.set_xticklabels([])
+    ax[-1].set_xticklabels(sorted(set(annotations['chip_id'])), rotation=90)
+    fig.suptitle('Molecule count by individual')
+    plt.xlabel('Individual')
+    plt.suptitle('C. elegans molecule count by individual')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[37]:
+  : Text(0.5,0.98,'C. elegans molecule count by individual')
+  [[file:figure/descriptive-stats.org/ce-by-ind.png]]
+  :END:
+
+* Distributions of cells
+  
+  Our previous results on [[file:sc-vs-bulk.org::*Plot%20pooled%20subsets%20vs.%20pooled%20subsets][concordance between pools of single cells]] suggest
+  that at least 50 cells are needed to consistently estimate mean expression.
+
+  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/cells-by-ind.png
+    plt.clf()
+    plt.gcf().set_size_inches(12, 4)
+    plt.bar(np.arange(len(set(annotations['chip_id']))),
+            annotations.groupby('chip_id')['chip_id'].agg(len))
+    plt.axhline(y=50, c='r')
+    plt.xlabel('Individual')
+    plt.ylabel('Number of cells')
+    plt.title('Number of cells by individual')
+    _ = plt.xticks(np.arange(len(set(annotations['chip_id']))), sorted(set(annotations['chip_id'])), rotation=90)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[38]:
+  [[file:figure/descriptive-stats.org/cells-by-ind.png]]
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/cells-by-ind-batch.png
+    plt.clf()
+    fig, ax = plt.subplots(len(set(annotations['batch'])), 1)
+    fig.set_size_inches(12, 10)
+    for a, (batch, g) in zip(ax, annotations.groupby('batch')):
+      bp = a.bar([sorted(set(annotations['chip_id'])).index(k) for k in sorted(set(g['chip_id']))], 
+                 g.groupby('chip_id').apply(lambda x: len(x)))
+      a.set_xticks(np.arange(1, len(set(annotations['chip_id']))))
+      a.set_xticklabels([])
+      a.set_ylabel('Batch {} cell count'.format(batch))
+    ax[-1].set_xticklabels(sorted(set(annotations['chip_id'])), rotation=90)
+    fig.suptitle('Number of cells by individual')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[39]:
+  : Text(0.5,0.98,'Number of cells by individual')
+  [[file:figure/descriptive-stats.org/cells-by-ind-batch.png]]
+  :END:
+
+* Distribution of SNPs near TSS
+
+  Because we are only sequencing 5' ends to capture the UMI (rather than
+  sequencing over the entire transcript), mapping errors due to polymorphisms
+  could be a serious issue. These errors would lead to allele-specific biases
+  in UMI counts which are technical, not biological, creating false positive
+  QTLs.
+
+  We count how many genes have a SNP within 100 bp of the TSS to get an upper
+  bound on how many genes could be affected by this problem.
+
+  #+BEGIN_SRC ipython
+    gene_info = pd.read_table('/home/aksarkar/projects/singlecell-qtl/data/scqtl-genes.txt.gz', index_col=0)
+    gene_info.head()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[40]:
+  #+BEGIN_EXAMPLE
+    chr      start        end      name strand      source
+    gene
+    ENSG00000000003   hsX   99883667   99894988    TSPAN6      -  H. sapiens
+    ENSG00000000005   hsX   99839799   99854882      TNMD      +  H. sapiens
+    ENSG00000000419  hs20   49551404   49575092      DPM1      -  H. sapiens
+    ENSG00000000457   hs1  169818772  169863408     SCYL3      -  H. sapiens
+    ENSG00000000460   hs1  169631245  169823221  C1orf112      +  H. sapiens
+  #+END_EXAMPLE
+  :END:
+
+  #+BEGIN_SRC ipython
+    def first_n_bp(row, n):
+      if row['strand'] == '+':
+        return 'chr{}'.format(row['chr'][2:]), row['start'], row['start'] + n, row.name
+      else:
+        return 'chr{}'.format(row['chr'][2:]), row['end'] - n, row['end'], row.name
+
+    gene_info[gene_info['source'] == 'H. sapiens'].apply(first_n_bp, n=100, axis=1).apply(pd.Series).to_csv('/scratch/midway2/aksarkar/singlecell/tss-100-bp.bed', sep='\t', header=False, index=False)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[57]:
+  :END:
+
+  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell :eval never-export
+    sbatch --partition=broadwl --mem=16G
+    #!/bin/bash
+    module load bedtools
+    bedtools intersect -b tss-100-bp.bed -a /project2/gilad/singlecell-qtl/bulk/genotypes.vcf.gz -wb | gzip >out.bed.gz
+  #+END_SRC
+
+  #+RESULTS:
+  : Submitted batch job 42496069
+
+  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell :eval never-export :exports both
+    zcat out.bed.gz | awk '{k[$NF] = 1} END {for (i in k) {n += 1} print n}'
+  #+END_SRC
+
+  #+RESULTS:
+  : 8882
+
+  #+BEGIN_SRC ipython
+    tss_hits = pd.read_table('/scratch/midway2/aksarkar/singlecell/out.bed.gz', sep='\t', header=None)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[37]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    def compute_offset(row, gene_info):
+      gene = gene_info.loc[row.name]
+      if gene['strand'] == '+':
+        return row.iloc[1] - row.iloc[130]
+      else:
+        return row.iloc[131] - row.iloc[1]
+
+    # Some genes have multiple SNPs within 100 bp of the TSS, so take the min
+    tss_hits_offset = (tss_hits.set_index(132)
+                       .apply(compute_offset, gene_info=gene_info, axis=1)
+                       .groupby(level=0)
+                       .agg(np.min))
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[46]:
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/snp-tss-offset-hist.png
+    plt.clf()
+    plt.hist(tss_hits_offset.values, bins=100)
+    plt.xlabel('Distance to first SNP downstream from TSS')
+    plt.ylabel('Number of genes')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[49]:
+  : Text(0,0.5,'Number of genes')
+  [[file:figure/descriptive-stats.org/snp-tss-offset-hist.png]]
+  :END:
+

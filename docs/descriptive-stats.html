@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- 2018-01-29 Mon 11:56 -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Descriptive statistics</title>
+<meta name="generator" content="Org mode">
+<meta name="author" content="Abhishek Sarkar">
+<style type="text/css">
+ <!--/*--><![CDATA[/*><!--*/
+  .title  { text-align: center;
+             margin-bottom: .2em; }
+  .subtitle { text-align: center;
+              font-size: medium;
+              font-weight: bold;
+              margin-top:0; }
+  .todo   { font-family: monospace; color: red; }
+  .done   { font-family: monospace; color: green; }
+  .priority { font-family: monospace; color: orange; }
+  .tag    { background-color: #eee; font-family: monospace;
+            padding: 2px; font-size: 80%; font-weight: normal; }
+  .timestamp { color: #bebebe; }
+  .timestamp-kwd { color: #5f9ea0; }
+  .org-right  { margin-left: auto; margin-right: 0px;  text-align: right; }
+  .org-left   { margin-left: 0px;  margin-right: auto; text-align: left; }
+  .org-center { margin-left: auto; margin-right: auto; text-align: center; }
+  .underline { text-decoration: underline; }
+  #postamble p, #preamble p { font-size: 90%; margin: .2em; }
+  p.verse { margin-left: 3%; }
+  pre {
+    border: 1px solid #ccc;
+    box-shadow: 3px 3px 3px #eee;
+    padding: 8pt;
+    font-family: monospace;
+    overflow: auto;
+    margin: 1.2em;
+  }
+  pre.src {
+    position: relative;
+    overflow: visible;
+    padding-top: 1.2em;
+  }
+  pre.src:before {
+    display: none;
+    position: absolute;
+    background-color: white;
+    top: -10px;
+    right: 10px;
+    padding: 3px;
+    border: 1px solid black;
+  }
+  pre.src:hover:before { display: inline;}
+  /* Languages per Org manual */
+  pre.src-asymptote:before { content: 'Asymptote'; }
+  pre.src-awk:before { content: 'Awk'; }
+  pre.src-C:before { content: 'C'; }
+  /* pre.src-C++ doesn't work in CSS */
+  pre.src-clojure:before { content: 'Clojure'; }
+  pre.src-css:before { content: 'CSS'; }
+  pre.src-D:before { content: 'D'; }
+  pre.src-ditaa:before { content: 'ditaa'; }
+  pre.src-dot:before { content: 'Graphviz'; }
+  pre.src-calc:before { content: 'Emacs Calc'; }
+  pre.src-emacs-lisp:before { content: 'Emacs Lisp'; }
+  pre.src-fortran:before { content: 'Fortran'; }
+  pre.src-gnuplot:before { content: 'gnuplot'; }
+  pre.src-haskell:before { content: 'Haskell'; }
+  pre.src-hledger:before { content: 'hledger'; }
+  pre.src-java:before { content: 'Java'; }
+  pre.src-js:before { content: 'Javascript'; }
+  pre.src-latex:before { content: 'LaTeX'; }
+  pre.src-ledger:before { content: 'Ledger'; }
+  pre.src-lisp:before { content: 'Lisp'; }
+  pre.src-lilypond:before { content: 'Lilypond'; }
+  pre.src-lua:before { content: 'Lua'; }
+  pre.src-matlab:before { content: 'MATLAB'; }
+  pre.src-mscgen:before { content: 'Mscgen'; }
+  pre.src-ocaml:before { content: 'Objective Caml'; }
+  pre.src-octave:before { content: 'Octave'; }
+  pre.src-org:before { content: 'Org mode'; }
+  pre.src-oz:before { content: 'OZ'; }
+  pre.src-plantuml:before { content: 'Plantuml'; }
+  pre.src-processing:before { content: 'Processing.js'; }
+  pre.src-python:before { content: 'Python'; }
+  pre.src-R:before { content: 'R'; }
+  pre.src-ruby:before { content: 'Ruby'; }
+  pre.src-sass:before { content: 'Sass'; }
+  pre.src-scheme:before { content: 'Scheme'; }
+  pre.src-screen:before { content: 'Gnu Screen'; }
+  pre.src-sed:before { content: 'Sed'; }
+  pre.src-sh:before { content: 'shell'; }
+  pre.src-sql:before { content: 'SQL'; }
+  pre.src-sqlite:before { content: 'SQLite'; }
+  /* additional languages in org.el's org-babel-load-languages alist */
+  pre.src-forth:before { content: 'Forth'; }
+  pre.src-io:before { content: 'IO'; }
+  pre.src-J:before { content: 'J'; }
+  pre.src-makefile:before { content: 'Makefile'; }
+  pre.src-maxima:before { content: 'Maxima'; }
+  pre.src-perl:before { content: 'Perl'; }
+  pre.src-picolisp:before { content: 'Pico Lisp'; }
+  pre.src-scala:before { content: 'Scala'; }
+  pre.src-shell:before { content: 'Shell Script'; }
+  pre.src-ebnf2ps:before { content: 'ebfn2ps'; }
+  /* additional language identifiers per "defun org-babel-execute"
+       in ob-*.el */
+  pre.src-cpp:before  { content: 'C++'; }
+  pre.src-abc:before  { content: 'ABC'; }
+  pre.src-coq:before  { content: 'Coq'; }
+  pre.src-groovy:before  { content: 'Groovy'; }
+  /* additional language identifiers from org-babel-shell-names in
+     ob-shell.el: ob-shell is the only babel language using a lambda to put
+     the execution function name together. */
+  pre.src-bash:before  { content: 'bash'; }
+  pre.src-csh:before  { content: 'csh'; }
+  pre.src-ash:before  { content: 'ash'; }
+  pre.src-dash:before  { content: 'dash'; }
+  pre.src-ksh:before  { content: 'ksh'; }
+  pre.src-mksh:before  { content: 'mksh'; }
+  pre.src-posh:before  { content: 'posh'; }
+  /* Additional Emacs modes also supported by the LaTeX listings package */
+  pre.src-ada:before { content: 'Ada'; }
+  pre.src-asm:before { content: 'Assembler'; }
+  pre.src-caml:before { content: 'Caml'; }
+  pre.src-delphi:before { content: 'Delphi'; }
+  pre.src-html:before { content: 'HTML'; }
+  pre.src-idl:before { content: 'IDL'; }
+  pre.src-mercury:before { content: 'Mercury'; }
+  pre.src-metapost:before { content: 'MetaPost'; }
+  pre.src-modula-2:before { content: 'Modula-2'; }
+  pre.src-pascal:before { content: 'Pascal'; }
+  pre.src-ps:before { content: 'PostScript'; }
+  pre.src-prolog:before { content: 'Prolog'; }
+  pre.src-simula:before { content: 'Simula'; }
+  pre.src-tcl:before { content: 'tcl'; }
+  pre.src-tex:before { content: 'TeX'; }
+  pre.src-plain-tex:before { content: 'Plain TeX'; }
+  pre.src-verilog:before { content: 'Verilog'; }
+  pre.src-vhdl:before { content: 'VHDL'; }
+  pre.src-xml:before { content: 'XML'; }
+  pre.src-nxml:before { content: 'XML'; }
+  /* add a generic configuration mode; LaTeX export needs an additional
+     (add-to-list 'org-latex-listings-langs '(conf " ")) in .emacs */
+  pre.src-conf:before { content: 'Configuration File'; }
+
+  table { border-collapse:collapse; }
+  caption.t-above { caption-side: top; }
+  caption.t-bottom { caption-side: bottom; }
+  td, th { vertical-align:top;  }
+  th.org-right  { text-align: center;  }
+  th.org-left   { text-align: center;   }
+  th.org-center { text-align: center; }
+  td.org-right  { text-align: right;  }
+  td.org-left   { text-align: left;   }
+  td.org-center { text-align: center; }
+  dt { font-weight: bold; }
+  .footpara { display: inline; }
+  .footdef  { margin-bottom: 1em; }
+  .figure { padding: 1em; }
+  .figure p { text-align: center; }
+  .inlinetask {
+    padding: 10px;
+    border: 2px solid gray;
+    margin: 10px;
+    background: #ffffcc;
+  }
+  #org-div-home-and-up
+   { text-align: right; font-size: 70%; white-space: nowrap; }
+  textarea { overflow-x: auto; }
+  .linenr { font-size: smaller }
+  .code-highlighted { background-color: #ffff00; }
+  .org-info-js_info-navigation { border-style: none; }
+  #org-info-js_console-label
+    { font-size: 10px; font-weight: bold; white-space: nowrap; }
+  .org-info-js_search-highlight
+    { background-color: #ffff00; color: #000000; font-weight: bold; }
+  .org-svg { width: 90%; }
+  /*]]>*/-->
+</style>
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<link rel="stylesheet" type="text/css" href="https://www.pirilampo.org/styles/readtheorg/css/htmlize.css"/>
+<style type="text/css">body {width: 60em; margin:auto} pre.src {overflow:auto}</style>
+<script type="text/javascript">
+/*
+@licstart  The following is the entire license notice for the
+JavaScript code in this tag.
+
+Copyright (C) 2012-2017 Free Software Foundation, Inc.
+
+The JavaScript code in this tag is free software: you can
+redistribute it and/or modify it under the terms of the GNU
+General Public License (GNU GPL) as published by the Free Software
+Foundation, either version 3 of the License, or (at your option)
+any later version.  The code is distributed WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU GPL for more details.
+
+As additional permission under GNU GPL version 3 section 7, you
+may distribute non-source (e.g., minimized or compacted) forms of
+that code without the copy of the GNU GPL normally required by
+section 4, provided you include this license notice and a URL
+through which recipients can access the Corresponding Source.
+
+
+@licend  The above is the entire license notice
+for the JavaScript code in this tag.
+*/
+<!--/*--><![CDATA[/*><!--*/
+ function CodeHighlightOn(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(null != target) {
+     elem.cacheClassElem = elem.className;
+     elem.cacheClassTarget = target.className;
+     target.className = "code-highlighted";
+     elem.className   = "code-highlighted";
+   }
+ }
+ function CodeHighlightOff(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(elem.cacheClassElem)
+     elem.className = elem.cacheClassElem;
+   if(elem.cacheClassTarget)
+     target.className = elem.cacheClassTarget;
+ }
+/*]]>*///-->
+</script>
+</head>
+<body>
+<div id="content">
+<h1 class="title">Descriptive statistics</h1>
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#org198073c">Read the data</a></li>
+<li><a href="#org350f1ed">Distributions of read counts</a>
+<ul>
+<li><a href="#org95a2dd7">H. sapiens</a></li>
+<li><a href="#orgfcdeb82">ERCC</a></li>
+<li><a href="#orgcfa5d8a">D. melanogaster</a></li>
+<li><a href="#org0c65895">C. elegans</a></li>
+</ul>
+</li>
+<li><a href="#org94e78e2">Distributions of molecules</a>
+<ul>
+<li><a href="#org96d11a7">H. sapiens</a></li>
+<li><a href="#orga6f4fa2">ERCC</a></li>
+<li><a href="#org4a8f188">D. melanogaster</a></li>
+<li><a href="#org3e289a2">C. elegans</a></li>
+</ul>
+</li>
+<li><a href="#orga3bd6de">Distributions of cells</a></li>
+<li><a href="#org047a40b">Distribution of SNPs near TSS</a></li>
+</ul>
+</div>
+</div>
+
+<div id="outline-container-org198073c" class="outline-2">
+<h2 id="org198073c">Read the data</h2>
+<div class="outline-text-2" id="text-org198073c">
+<div class="org-src-container">
+<pre class="src src-ipython" id="org169c4c5"><span class="org-variable-name">annotations</span> = pd.read_table(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
+<span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
+</pre>
+</div>
+
+<p>
+Apply the QC filters.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">annotations</span> = annotations[keep_samples.values.ravel()]
+annotations.shape
+</pre>
+</div>
+
+<pre class="example">
+(3910, 40)
+
+</pre>
+</div>
+</div>
+
+<div id="outline-container-org350f1ed" class="outline-2">
+<h2 id="org350f1ed">Distributions of read counts</h2>
+<div class="outline-text-2" id="text-org350f1ed">
+</div>
+<div id="outline-container-org95a2dd7" class="outline-3">
+<h3 id="org95a2dd7">H. sapiens</h3>
+<div class="outline-text-3" id="text-org95a2dd7">
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.gcf().set_size_inches(12, 4)
+plt.hist(annotations[<span class="org-string">'reads_hs'</span>], bins=100)
+plt.xlabel(<span class="org-string">'Read count'</span>)
+plt.ylabel(<span class="org-string">'Number of cells'</span>)
+plt.title(<span class="org-string">'Read count by cell'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0.5,1,'Read count by cell')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/descriptive-stats.org/reads-by-cell.png" alt="reads-by-cell.png">
+</p>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.gcf().set_size_inches(12, 4)
+<span class="org-variable-name">colors</span> = {k: matplotlib.cm.get_cmap(<span class="org-string">'Set1'</span>).colors[i] <span class="org-keyword">for</span> i, k <span class="org-keyword">in</span> <span class="org-builtin">enumerate</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'batch'</span>]))}
+<span class="org-keyword">for</span> batch, g <span class="org-keyword">in</span> annotations.groupby(<span class="org-string">'batch'</span>):
+  plt.hist(g[<span class="org-string">'reads_hs'</span>], histtype=<span class="org-string">'step'</span>, color=colors[batch], label=batch, bins=50)
+plt.legend()
+plt.xlabel(<span class="org-string">'Read count'</span>)
+plt.ylabel(<span class="org-string">'Density'</span>)
+plt.title(<span class="org-string">'Read count by batch'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0.5,1,'Read count by batch')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/descriptive-stats.org/reads-by-cell-batch-hist.png" alt="reads-by-cell-batch-hist.png">
+</p>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.gcf().set_size_inches(12, 4)
+<span class="org-variable-name">colors</span> = {k: matplotlib.cm.get_cmap(<span class="org-string">'Set1'</span>).colors[i] <span class="org-keyword">for</span> i, k <span class="org-keyword">in</span> <span class="org-builtin">enumerate</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'batch'</span>]))}
+<span class="org-variable-name">grid</span> = np.linspace(annotations[<span class="org-string">'reads_hs'</span>].<span class="org-builtin">min</span>(), annotations[<span class="org-string">'reads_hs'</span>].<span class="org-builtin">max</span>(), 200)
+<span class="org-keyword">for</span> batch, g <span class="org-keyword">in</span> annotations.groupby(<span class="org-string">'batch'</span>):
+  <span class="org-variable-name">density</span> = st.gaussian_kde(g[<span class="org-string">'reads_hs'</span>])
+  plt.plot(grid, density.evaluate(grid), color=colors[batch], label=batch)
+plt.legend()
+plt.xlabel(<span class="org-string">'Read count'</span>)
+plt.ylabel(<span class="org-string">'Density'</span>)
+plt.title(<span class="org-string">'Read count by batch'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0.5,1,'Read count by batch')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/descriptive-stats.org/reads-by-cell-batch.png" alt="reads-by-cell-batch.png">
+</p>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.gcf().set_size_inches(12, 4)
+<span class="org-variable-name">_</span> = plt.boxplot(annotations.groupby(<span class="org-string">'chip_id'</span>).<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: <span class="org-builtin">list</span>(x[<span class="org-string">'reads_hs'</span>])),
+                labels=<span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>])))
+plt.xlabel(<span class="org-string">'Individual'</span>)
+plt.ylabel(<span class="org-string">'Read count'</span>)
+<span class="org-variable-name">_</span> = plt.xticks(rotation=90)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/descriptive-stats.org/reads-by-ind.png" alt="reads-by-ind.png">
+</p>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+<span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(<span class="org-builtin">len</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'batch'</span>])), 1)
+fig.set_size_inches(12, 10)
+<span class="org-keyword">for</span> a, (batch, g) <span class="org-keyword">in</span> <span class="org-builtin">zip</span>(ax, annotations.groupby(<span class="org-string">'batch'</span>)):
+  <span class="org-variable-name">bp</span> = a.boxplot(g.groupby(<span class="org-string">'chip_id'</span>).<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: <span class="org-builtin">list</span>(x[<span class="org-string">'reads_hs'</span>])),
+                 positions=[<span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>])).index(k) <span class="org-keyword">for</span> k <span class="org-keyword">in</span> <span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(g[<span class="org-string">'chip_id'</span>]))])
+  a.set_xticks(np.arange(1, <span class="org-builtin">len</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>]))))
+  a.set_xticklabels([])
+  a.set_ylabel(<span class="org-string">'Batch {} read count'</span>.<span class="org-builtin">format</span>(batch))
+ax[-1].set_xticklabels(<span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>])), rotation=90)
+fig.suptitle(<span class="org-string">'Read count by individual/batch'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0.5,0.98,'Read count by individual/batch')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/descriptive-stats.org/reads-by-ind-batch.png" alt="reads-by-ind-batch.png">
+</p>
+</div>
+</div>
+</div>
+
+<div id="outline-container-orgfcdeb82" class="outline-3">
+<h3 id="orgfcdeb82">ERCC</h3>
+<div class="outline-text-3" id="text-orgfcdeb82">
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+<span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(3, 1)
+fig.set_size_inches(12, 12)
+<span class="org-keyword">for</span> a, (k, g) <span class="org-keyword">in</span> <span class="org-builtin">zip</span>(ax, annotations.groupby(<span class="org-string">'ERCC'</span>)):
+  <span class="org-variable-name">_</span> = a.boxplot(g.groupby(<span class="org-string">'chip_id'</span>).<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: <span class="org-builtin">list</span>(x[<span class="org-string">'reads_ercc'</span>])),
+                positions=[<span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>])).index(k) <span class="org-keyword">for</span> k <span class="org-keyword">in</span> <span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(g[<span class="org-string">'chip_id'</span>]))])
+  a.set_ylabel(<span class="org-string">'Read count ({})'</span>.<span class="org-builtin">format</span>(k))
+  a.set_xticks(np.arange(1, <span class="org-builtin">len</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>]))))
+  a.set_xticklabels([])
+ax[-1].set_xticklabels(<span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>])), rotation=90)
+plt.xlabel(<span class="org-string">'Individual'</span>)
+plt.suptitle(<span class="org-string">'ERCC read count by individual'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0.5,0.98,'ERCC read count by individual')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/descriptive-stats.org/ercc-reads-by-ind.png" alt="ercc-reads-by-ind.png">
+</p>
+</div>
+</div>
+</div>
+<div id="outline-container-orgcfa5d8a" class="outline-3">
+<h3 id="orgcfa5d8a">D. melanogaster</h3>
+<div class="outline-text-3" id="text-orgcfa5d8a">
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+<span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(<span class="org-builtin">len</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'fly'</span>])), 1)
+fig.set_size_inches(12, 8)
+<span class="org-keyword">for</span> a, (k, g) <span class="org-keyword">in</span> <span class="org-builtin">zip</span>(ax, annotations.groupby(<span class="org-string">'fly'</span>)):
+  <span class="org-variable-name">_</span> = a.boxplot(g.groupby(<span class="org-string">'chip_id'</span>).<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: <span class="org-builtin">list</span>(x[<span class="org-string">'reads_dm'</span>])),
+                positions=[<span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>])).index(k) <span class="org-keyword">for</span> k <span class="org-keyword">in</span> <span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(g[<span class="org-string">'chip_id'</span>]))])
+  a.set_ylabel(<span class="org-string">'Read count ({})'</span>.<span class="org-builtin">format</span>(k))
+  a.set_xticks(np.arange(1, <span class="org-builtin">len</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>]))))
+  a.set_xticklabels([])
+ax[-1].set_xticklabels(<span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>])), rotation=90)
+plt.xlabel(<span class="org-string">'Individual'</span>)
+plt.suptitle(<span class="org-string">'D. mel. read count by individual'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0.5,0.98,'D. mel. read count by individual')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/descriptive-stats.org/dm-reads-by-ind.png" alt="dm-reads-by-ind.png">
+</p>
+</div>
+</div>
+</div>
+
+<div id="outline-container-org0c65895" class="outline-3">
+<h3 id="org0c65895">C. elegans</h3>
+<div class="outline-text-3" id="text-org0c65895">
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+<span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(3, 1)
+fig.set_size_inches(12, 12)
+<span class="org-keyword">for</span> a, (k, g) <span class="org-keyword">in</span> <span class="org-builtin">zip</span>(ax, annotations.groupby(<span class="org-string">'worm'</span>)):
+  <span class="org-variable-name">_</span> = a.boxplot(g.groupby(<span class="org-string">'chip_id'</span>).<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: <span class="org-builtin">list</span>(x[<span class="org-string">'reads_ce'</span>])),
+                positions=[<span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>])).index(k) <span class="org-keyword">for</span> k <span class="org-keyword">in</span> <span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(g[<span class="org-string">'chip_id'</span>]))])
+  a.set_ylabel(<span class="org-string">'Read count ({})'</span>.<span class="org-builtin">format</span>(k))
+  a.set_xticks(np.arange(1, <span class="org-builtin">len</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>]))))
+  a.set_xticklabels([])
+ax[-1].set_xticklabels(<span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>])), rotation=90)
+plt.xlabel(<span class="org-string">'Individual'</span>)
+plt.suptitle(<span class="org-string">'C. elegans read count by individual'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0.5,0.98,'C. elegans read count by individual')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/descriptive-stats.org/ce-reads-by-ind.png" alt="ce-reads-by-ind.png">
+</p>
+</div>
+</div>
+</div>
+</div>
+
+<div id="outline-container-org94e78e2" class="outline-2">
+<h2 id="org94e78e2">Distributions of molecules</h2>
+<div class="outline-text-2" id="text-org94e78e2">
+</div>
+<div id="outline-container-org96d11a7" class="outline-3">
+<h3 id="org96d11a7">H. sapiens</h3>
+<div class="outline-text-3" id="text-org96d11a7">
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.hist(annotations[<span class="org-string">'mol_hs'</span>], bins=100)
+plt.xlabel(<span class="org-string">'Number of molecules'</span>)
+plt.ylabel(<span class="org-string">'Number of cells'</span>)
+plt.title(<span class="org-string">'Number of molecules by cell'</span>)
+plt.close()
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.gcf().set_size_inches(12, 4)
+<span class="org-variable-name">_</span> = plt.boxplot(annotations.groupby(<span class="org-string">'chip_id'</span>).<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: <span class="org-builtin">list</span>(x[<span class="org-string">'mol_hs'</span>])),
+                labels=<span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>])))
+plt.xlabel(<span class="org-string">'Individual'</span>)
+plt.ylabel(<span class="org-string">'Molecule count'</span>)
+plt.xticks(rotation=90)
+plt.title(<span class="org-string">'Molecule count by individual'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0.5,1,'Molecule count by individual')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/descriptive-stats.org/umi-by-ind.png" alt="umi-by-ind.png">
+</p>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+<span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(<span class="org-builtin">len</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'batch'</span>])), 1)
+fig.set_size_inches(12, 10)
+<span class="org-keyword">for</span> a, (batch, g) <span class="org-keyword">in</span> <span class="org-builtin">zip</span>(ax, annotations.groupby(<span class="org-string">'batch'</span>)):
+  <span class="org-variable-name">bp</span> = a.boxplot(g.groupby(<span class="org-string">'chip_id'</span>).<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: <span class="org-builtin">list</span>(x[<span class="org-string">'mol_hs'</span>])),
+                 positions=[<span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>])).index(k) <span class="org-keyword">for</span> k <span class="org-keyword">in</span> <span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(g[<span class="org-string">'chip_id'</span>]))])
+  a.set_xticks(np.arange(1, <span class="org-builtin">len</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>]))))
+  a.set_xticklabels([])
+  a.set_ylabel(<span class="org-string">'Batch {} molecule count'</span>.<span class="org-builtin">format</span>(batch))
+ax[-1].set_xticklabels(<span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>])), rotation=90)
+fig.suptitle(<span class="org-string">'Molecule count by individual'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0.5,0.98,'Molecule count by individual')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/descriptive-stats.org/umi-by-ind-batch.png" alt="umi-by-ind-batch.png">
+</p>
+</div>
+</div>
+</div>
+
+<div id="outline-container-orga6f4fa2" class="outline-3">
+<h3 id="orga6f4fa2">ERCC</h3>
+<div class="outline-text-3" id="text-orga6f4fa2">
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+<span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(3, 1)
+fig.set_size_inches(12, 12)
+<span class="org-keyword">for</span> a, (k, g) <span class="org-keyword">in</span> <span class="org-builtin">zip</span>(ax, annotations.groupby(<span class="org-string">'ERCC'</span>)):
+  <span class="org-variable-name">_</span> = a.boxplot(g.groupby(<span class="org-string">'chip_id'</span>).<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: <span class="org-builtin">list</span>(x[<span class="org-string">'mol_ercc'</span>])),
+                positions=[<span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>])).index(k) <span class="org-keyword">for</span> k <span class="org-keyword">in</span> <span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(g[<span class="org-string">'chip_id'</span>]))])
+  a.set_ylabel(<span class="org-string">'Molecule count ({})'</span>.<span class="org-builtin">format</span>(k))
+  a.set_xticks(np.arange(1, <span class="org-builtin">len</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>]))))
+  a.set_xticklabels([])
+ax[-1].set_xticklabels(<span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>])), rotation=90)
+fig.suptitle(<span class="org-string">'Molecule count by individual'</span>)
+plt.xlabel(<span class="org-string">'Individual'</span>)
+plt.suptitle(<span class="org-string">'ERCC molecule count by individual'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0.5,0.98,'ERCC molecule count by individual')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/descriptive-stats.org/ercc-by-ind.png" alt="ercc-by-ind.png">
+</p>
+</div>
+</div>
+</div>
+
+<div id="outline-container-org4a8f188" class="outline-3">
+<h3 id="org4a8f188">D. melanogaster</h3>
+<div class="outline-text-3" id="text-org4a8f188">
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+<span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(<span class="org-builtin">len</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'fly'</span>])), 1)
+fig.set_size_inches(12, 8)
+<span class="org-keyword">for</span> a, (k, g) <span class="org-keyword">in</span> <span class="org-builtin">zip</span>(ax, annotations.groupby(<span class="org-string">'fly'</span>)):
+  <span class="org-variable-name">_</span> = a.boxplot(g.groupby(<span class="org-string">'chip_id'</span>).<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: <span class="org-builtin">list</span>(x[<span class="org-string">'mol_dm'</span>])),
+                positions=[<span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>])).index(k) <span class="org-keyword">for</span> k <span class="org-keyword">in</span> <span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(g[<span class="org-string">'chip_id'</span>]))])
+  a.set_ylabel(<span class="org-string">'Molecule count ({})'</span>.<span class="org-builtin">format</span>(k))
+  a.set_xticks(np.arange(1, <span class="org-builtin">len</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>]))))
+  a.set_xticklabels([])
+ax[-1].set_xticklabels(<span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>])), rotation=90)
+fig.suptitle(<span class="org-string">'Molecule count by individual'</span>)
+plt.xlabel(<span class="org-string">'Individual'</span>)
+plt.suptitle(<span class="org-string">'D. mel. molecule count by individual'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0.5,0.98,'D. mel. molecule count by individual')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/descriptive-stats.org/dm-by-ind.png" alt="dm-by-ind.png">
+</p>
+</div>
+</div>
+</div>
+
+<div id="outline-container-org3e289a2" class="outline-3">
+<h3 id="org3e289a2">C. elegans</h3>
+<div class="outline-text-3" id="text-org3e289a2">
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+<span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(3, 1)
+fig.set_size_inches(12, 12)
+<span class="org-keyword">for</span> a, (k, g) <span class="org-keyword">in</span> <span class="org-builtin">zip</span>(ax, annotations.groupby(<span class="org-string">'worm'</span>)):
+  <span class="org-variable-name">_</span> = a.boxplot(g.groupby(<span class="org-string">'chip_id'</span>).<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: <span class="org-builtin">list</span>(x[<span class="org-string">'mol_ce'</span>])),
+                positions=[<span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>])).index(k) <span class="org-keyword">for</span> k <span class="org-keyword">in</span> <span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(g[<span class="org-string">'chip_id'</span>]))])
+  a.set_ylabel(<span class="org-string">'Molecule count ({})'</span>.<span class="org-builtin">format</span>(k))
+  a.set_xticks(np.arange(1, <span class="org-builtin">len</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>]))))
+  a.set_xticklabels([])
+ax[-1].set_xticklabels(<span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>])), rotation=90)
+fig.suptitle(<span class="org-string">'Molecule count by individual'</span>)
+plt.xlabel(<span class="org-string">'Individual'</span>)
+plt.suptitle(<span class="org-string">'C. elegans molecule count by individual'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0.5,0.98,'C. elegans molecule count by individual')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/descriptive-stats.org/ce-by-ind.png" alt="ce-by-ind.png">
+</p>
+</div>
+</div>
+</div>
+</div>
+
+<div id="outline-container-orga3bd6de" class="outline-2">
+<h2 id="orga3bd6de">Distributions of cells</h2>
+<div class="outline-text-2" id="text-orga3bd6de">
+<p>
+Our previous results on <a href="sc-vs-bulk.html#org1ee076a">concordance between pools of single cells</a> suggest
+that at least 50 cells are needed to consistently estimate mean expression.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.gcf().set_size_inches(12, 4)
+plt.bar(np.arange(<span class="org-builtin">len</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>]))),
+        annotations.groupby(<span class="org-string">'chip_id'</span>)[<span class="org-string">'chip_id'</span>].agg(<span class="org-builtin">len</span>))
+plt.axhline(y=50, c=<span class="org-string">'r'</span>)
+plt.xlabel(<span class="org-string">'Individual'</span>)
+plt.ylabel(<span class="org-string">'Number of cells'</span>)
+plt.title(<span class="org-string">'Number of cells by individual'</span>)
+<span class="org-variable-name">_</span> = plt.xticks(np.arange(<span class="org-builtin">len</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>]))), <span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>])), rotation=90)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/descriptive-stats.org/cells-by-ind.png" alt="cells-by-ind.png">
+</p>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+<span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(<span class="org-builtin">len</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'batch'</span>])), 1)
+fig.set_size_inches(12, 10)
+<span class="org-keyword">for</span> a, (batch, g) <span class="org-keyword">in</span> <span class="org-builtin">zip</span>(ax, annotations.groupby(<span class="org-string">'batch'</span>)):
+  <span class="org-variable-name">bp</span> = a.bar([<span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>])).index(k) <span class="org-keyword">for</span> k <span class="org-keyword">in</span> <span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(g[<span class="org-string">'chip_id'</span>]))], 
+             g.groupby(<span class="org-string">'chip_id'</span>).<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: <span class="org-builtin">len</span>(x)))
+  a.set_xticks(np.arange(1, <span class="org-builtin">len</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>]))))
+  a.set_xticklabels([])
+  a.set_ylabel(<span class="org-string">'Batch {} cell count'</span>.<span class="org-builtin">format</span>(batch))
+ax[-1].set_xticklabels(<span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>])), rotation=90)
+fig.suptitle(<span class="org-string">'Number of cells by individual'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0.5,0.98,'Number of cells by individual')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/descriptive-stats.org/cells-by-ind-batch.png" alt="cells-by-ind-batch.png">
+</p>
+</div>
+</div>
+</div>
+
+<div id="outline-container-org047a40b" class="outline-2">
+<h2 id="org047a40b">Distribution of SNPs near TSS</h2>
+<div class="outline-text-2" id="text-org047a40b">
+<p>
+Because we are only sequencing 5' ends to capture the UMI (rather than
+sequencing over the entire transcript), mapping errors due to polymorphisms
+could be a serious issue. These errors would lead to allele-specific biases
+in UMI counts which are technical, not biological, creating false positive
+QTLs.
+</p>
+
+<p>
+We count how many genes have a SNP within 100 bp of the TSS to get an upper
+bound on how many genes could be affected by this problem.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">gene_info</span> = pd.read_table(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/scqtl-genes.txt.gz'</span>, index_col=0)
+gene_info.head()
+</pre>
+</div>
+
+<pre class="example">
+chr      start        end      name strand      source
+gene
+ENSG00000000003   hsX   99883667   99894988    TSPAN6      -  H. sapiens
+ENSG00000000005   hsX   99839799   99854882      TNMD      +  H. sapiens
+ENSG00000000419  hs20   49551404   49575092      DPM1      -  H. sapiens
+ENSG00000000457   hs1  169818772  169863408     SCYL3      -  H. sapiens
+ENSG00000000460   hs1  169631245  169823221  C1orf112      +  H. sapiens
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">first_n_bp</span>(row, n):
+  <span class="org-keyword">if</span> row[<span class="org-string">'strand'</span>] == <span class="org-string">'+'</span>:
+    <span class="org-keyword">return</span> <span class="org-string">'chr{}'</span>.<span class="org-builtin">format</span>(row[<span class="org-string">'chr'</span>][2:]), row[<span class="org-string">'start'</span>], row[<span class="org-string">'start'</span>] + n, row.name
+  <span class="org-keyword">else</span>:
+    <span class="org-keyword">return</span> <span class="org-string">'chr{}'</span>.<span class="org-builtin">format</span>(row[<span class="org-string">'chr'</span>][2:]), row[<span class="org-string">'end'</span>] - n, row[<span class="org-string">'end'</span>], row.name
+
+gene_info[gene_info[<span class="org-string">'source'</span>] == <span class="org-string">'H. sapiens'</span>].<span class="org-builtin">apply</span>(first_n_bp, n=100, axis=1).<span class="org-builtin">apply</span>(pd.Series).to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/tss-100-bp.bed'</span>, sep=<span class="org-string">'\t'</span>, header=<span class="org-constant">False</span>, index=<span class="org-constant">False</span>)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-sh">sbatch --partition=broadwl --mem=16G
+<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
+module load bedtools
+bedtools intersect -b tss-100-bp.bed -a /project2/gilad/singlecell-qtl/bulk/genotypes.vcf.gz -wb | gzip &gt;out.bed.gz
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-sh">zcat out.bed.gz | awk <span class="org-string">'{k[$NF] = 1} END {for (i in k) {n += 1} print n}'</span>
+</pre>
+</div>
+
+<pre class="example">
+8882
+
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">tss_hits</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/out.bed.gz'</span>, sep=<span class="org-string">'\t'</span>, header=<span class="org-constant">None</span>)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">compute_offset</span>(row, gene_info):
+  <span class="org-variable-name">gene</span> = gene_info.loc[row.name]
+  <span class="org-keyword">if</span> gene[<span class="org-string">'strand'</span>] == <span class="org-string">'+'</span>:
+    <span class="org-keyword">return</span> row.iloc[1] - row.iloc[130]
+  <span class="org-keyword">else</span>:
+    <span class="org-keyword">return</span> row.iloc[131] - row.iloc[1]
+
+<span class="org-comment-delimiter"># </span><span class="org-comment">Some genes have multiple SNPs within 100 bp of the TSS, so take the min</span>
+<span class="org-variable-name">tss_hits_offset</span> = (tss_hits.set_index(132)
+                   .<span class="org-builtin">apply</span>(compute_offset, gene_info=gene_info, axis=1)
+                   .groupby(level=0)
+                   .agg(np.<span class="org-builtin">min</span>))
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.hist(tss_hits_offset.values, bins=100)
+plt.xlabel(<span class="org-string">'Distance to first SNP downstream from TSS'</span>)
+plt.ylabel(<span class="org-string">'Number of genes'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0,0.5,'Number of genes')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/descriptive-stats.org/snp-tss-offset-hist.png" alt="snp-tss-offset-hist.png">
+</p>
+</div>
+</div>
+</div>
+</div>
+<div id="postamble" class="status">
+<p class="author">Author: Abhishek Sarkar</p>
+<p class="date">Created: 2018-01-29 Mon 11:56</p>
+<p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
+</div>
+</body>
+</html>
