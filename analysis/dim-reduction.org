@@ -80,7 +80,7 @@
   #+CALL: ipython3(memory="16G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 42644483
+  : Submitted batch job 42818938
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -106,7 +106,7 @@
 
   #+RESULTS: dim-reduction-imports
   :RESULTS:
-  # Out[2]:
+  # Out[1]:
   :END:
 
 * Read the data
@@ -125,7 +125,7 @@
 
   #+RESULTS: read-data-qc
   :RESULTS:
-  # Out[3]:
+  # Out[22]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -135,7 +135,9 @@
   #+RESULTS:
   :RESULTS:
   # Out[4]:
-  : (10886, 3910)
+  : (10978, 4865)
+  :END:
+
   The expected ERCC spike-in molecule counts were previously tabulated for
   1:50\(\times\) dilution.
 
@@ -169,17 +171,26 @@
   Use PPCA ([[http://www.miketipping.com/papers/met-mppca.pdf][Tipping et al 1999]]) to incorporate gene-specific mean
   expression. Use the ~edgeR~ psuedocount.
 
+  #+NAME: normalize
   #+BEGIN_SRC ipython
     libsize = umi.sum(axis=0)
     psuedocount = .5 * libsize / libsize.mean()
     log_cpm = (np.log(umi + psuedocount) - np.log(libsize + 2 * psuedocount) + 6 * np.log(10)) / np.log(2)
+  #+END_SRC
+
+  #+RESULTS: normalize
+  :RESULTS:
+  # Out[23]:
+  :END:
+
+  #+BEGIN_SRC ipython
     ppca = skd.PCA(n_components=10)
     loadings = ppca.fit_transform(log_cpm.values.T)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[59]:
+  # Out[8]:
   :END:
 
   #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/pca.png
@@ -195,7 +206,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[61]:
+  # Out[9]:
   [[file:figure/dim-reduction.org/pca.png]]
   :END:
 
@@ -254,7 +265,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[64]:
+  # Out[37]:
   :END:
 
   Correlating with individual is non-obvious because it is a categorical
@@ -296,7 +307,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[66]:
+  # Out[14]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -321,7 +332,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[116]:
+  # Out[44]:
   :END:
 
   #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/pca-vs-covars.png
@@ -330,7 +341,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[117]:
+  # Out[16]:
   [[file:figure/dim-reduction.org/pca-vs-covars.png]]
   :END:
 
@@ -344,7 +355,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[69]:
+  # Out[17]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -359,7 +370,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[70]:
+  # Out[18]:
   :END:
 
   For genes with high proportion of zero counts, the low-rank approximation is
@@ -374,7 +385,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[110]:
+  # Out[19]:
   [[file:figure/dim-reduction.org/reconstruction-error-max-zero.png]]
   :END:
 
@@ -387,14 +398,14 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[111]:
+  # Out[20]:
   [[file:figure/dim-reduction.org/reconstruction-error-min-zero.png]]
   :END:
 
   This might still be OK, if the reconstructed gene expression values are
   predictive of the original gene expression values.
 
-  #+BEGIN_SRC ipython
+  #+BEGIN_SRC ipython :async t
     pred_score = [sklm.LinearRegression(fit_intercept=True).fit(x.values.reshape(-1, 1), y).score(x.values.reshape(-1, 1), y)
                   for (_, x), (_, y)
                   in zip(log_cpm.iteritems(),
@@ -403,6 +414,7 @@
 
   #+RESULTS:
   :RESULTS:
+  # Out[21]:
   :END:
 
   #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/reconstruction-pred-score.png
@@ -415,7 +427,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[79]:
+  # Out[22]:
   : Text(0.5,1,'Correlation between PCA and original data')
   [[file:figure/dim-reduction.org/reconstruction-pred-score.png]]
   :END:
