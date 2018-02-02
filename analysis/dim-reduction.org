@@ -439,44 +439,99 @@
 
 * Zero-inflated factor analysis
 
-  Fit ZIFA ([[https://dx.doi.org/10.1186/s13059-015-0805-z][Pierson et al 2015]]).
+  If dropout changes the distribution of the non-zero observations, we might
+  hope that fitting a latent variable model which explicitly includes dropout
+  might eliminate that effect. Intuitively, we should downweight the evidence
+  of observed zeroes on the inferred distribution which generated the
+  observations. 
+
+  However, fitting ZIFA ([[https://dx.doi.org/10.1186/s13059-015-0805-z][Pierson et al 2015]]) on the data again recovers a
+  factor which is detection rate.
 
   #+BEGIN_SRC ipython :eval never :tangle zifa.py :noweb tangle
     <<dim-reduction-imports>>
-    <<read-data>>
-    <<log_cpm>>
-    latent, params = zifa.fitModel(Y=log_cpm.values.T, K=10, p0_thresh=.7)
-    np.savetxt('latent.txt.gz', latent)
+    <<read-data-qc>>
+    <<normalize>>
+    latent, params = zifa.fitModel(Y=np.log(umi.values.T + 1), K=10, p0_thresh=.7)
+    np.save('/home/aksarkar/projects/singlecell-qtl/data/zifa-loadings.npy', latent)
   #+END_SRC
 
-  #+BEGIN_SRC sh
-    sbatch --partition=broadwl --time=400 --mem=16G --out=zifa.out --err zifa.err
+  Run on 16 cores to complete in a reasonable amount of time.
+
+  #+BEGIN_SRC sh :eval never-export :exports both
+    sbatch --partition=broadwl --time=400 --mem=32G -c16 --out=zifa.out --err zifa.err
     #!/bin/bash
     source activate scqtl
     python zifa.py
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 42637581
+  : Submitted batch job 42700513
 
-* Variational autoencoder
+  #+ATTR_HTML: :class table
+  #+BEGIN_SRC sh :eval never-export :exports both
+    sacct -j 42700513 -o Elapsed,MaxRSS,MaxVMSize
+  #+END_SRC
 
-  PCA could be sensitive to normalization and zeros, so fit a [[https://github.com/gokceneraslan/countae][deep generative
-  model directly on counts]] instead. This method scales better than fitting ZINB
-  directly via maximum likelihood because the number of parameters doesn't grow
-  with the size of the data.
+  #+RESULTS:
+  |    Elapsed | MaxRSS     | MaxVMSize  |
+  | ---------- | ---------- | ---------- |
+  |   03:15:28 |            |            |
+  |   03:15:28 | 19195312K  | 23219728K  |
 
-  \[ p(x_i \mid z_i) = \mathrm{ZINB}(\pi(z_i), \lambda(z_i), \phi(z_i)) \]
+  #+BEGIN_SRC ipython
+    latent = np.load('/home/aksarkar/projects/singlecell-qtl/data/zifa-loadings.npy')
+  #+END_SRC
 
-  \[ p(z_i) = N(0, I) \]
+  #+RESULTS:
+  :RESULTS:
+  # Out[59]:
+  :END:
 
-  \[ q(z_i \mid x_i) = N(\mu(x), \sigma^2(x)) \]
+  #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/zifa-covars.png
+    corr_zifa = pd.concat(
+      [correlation(pd.DataFrame(latent), cont_covars)] +
+      [categorical_r2(latent, annotations, k) for k in cat_covars])
+    corr_zifa = corr_zifa.pivot(index='covar', columns='pc')
 
-  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell
-    sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --out vae.out
-    #!/bin/bash
-    source activate scqtl
-    autoencoder /home/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz .
+    plt.clf()
+    plt.gcf().set_size_inches(8, 12)
+    im = plt.imshow(corr_zifa.values, cmap=colorcet.cm['fire'], vmin=0, vmax=1, aspect='auto')
+    cb = plt.colorbar(im, orientation='horizontal')
+    cb.set_label('Squared correlation')
+    plt.xlabel('Learned factor')
+    _ = plt.xticks(np.arange(latent.shape[1]), np.arange(1, latent.shape[1] + 1))
+    plt.ylabel('Covariate')
+    _ = plt.yticks(np.arange(corr_zifa.shape[0]), corr_zifa.index)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[58]:
+  [[file:figure/dim-reduction.org/zifa-covars.png]]
+  :END:
+
+  ZIFA does not constrain factors to be orthogonal, so we would not expect it
+  to get the same result as PPCA. However, the latent factor inferred by ZIFA
+  correlated with sequencing depth still is highly correlated with PC1 inferred
+  by PPCA, suggesting that it is not immune to whatever is biasing PPCA.
+
+  #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/pca-vs-zifa-corr.png
+    plt.clf()
+    plt.gcf().set_size_inches(12, 12)
+    im = plt.imshow(np.tril(np.corrcoef(latent.T, loadings.T)), cmap=colorcet.cm['coolwarm'], vmin=-1, vmax=1)
+    cb = plt.colorbar(im)
+    cb.set_label('Correlation')
+    labels = ['{} {}'.format(v, i) for v in ('Factor', 'PC') for i in range(10)]
+    _ = plt.xticks(np.arange(20), labels, rotation=90)
+    _ = plt.yticks(np.arange(20), labels)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[97]:
+  [[file:figure/dim-reduction.org/pca-vs-zifa-corr.png]]
+  :END:
   #+END_SRC
 
   #+RESULTS:
