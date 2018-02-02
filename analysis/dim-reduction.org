@@ -532,8 +532,293 @@
   # Out[97]:
   [[file:figure/dim-reduction.org/pca-vs-zifa-corr.png]]
   :END:
+
+* Effect of normalization on PCA
+
+  Should we expect that the top principal component of log CPM is still
+  sequencing depth?  [[https://dx.doi.org/10.1093/biostatistics/kxx053][Hicks et al 2017]] claim that correlation of the first
+  principal component with detection rate can be explained by two facts:
+
+  1. Centering the values of \(X\) does not center the values of \(\log X\)
+     (and vice versa)
+  2. \(E[\log X]\) depends on the gene detection rate
+
+  To see whether these facts can explain the correlation between PC1 and
+  sequencing metrics we see in our data, we perform the following simulation:
+
+  1. Generate un-normalized relative expression values for two groups of
+     samples, where one group has a true fold change in mean expression
+     \(\beta\):
+
+     \[ a^{(1)}_j \sim \mathrm{LogNormal}(0, 1) \]
+
+     \[ a^{(2)}_0 = \beta a^{(1)}_0 \]
+
+     \[ a^{(2)}_j = a^{(1)}_j,\ j \neq 0 \]
+
+  2. Compute the relative expression for each group \(p^{(k)}_j = a^{(k)}_j /
+     \sum_j a^{(k)}_j\)
+  3. Sample a number of molecules \(R_i\) from the observed distribution of
+     molecules
+  4. Sample molecule counts \(x_{ij} \sim \mathrm{Multinomial}(R_i, p)\)
+  5. Normalize to log CPM using the ~edgeR~ definition
+  6. Fit probabilistic PCA ([[http://www.miketipping.com/papers/met-mppca.pdf][Tipping et al 1999]]) to explicitly account for mean
+     differences in the normalized data:
+
+     \[ p(x_i \mid z_i) \sim N(W z_i + \mu, \sigma^2 I) \]
+
+     \[ p(z_i) \sim N(0, I) \]
+
+     where:
+
+     - \(x_i\) is a \(p \times 1\) observation
+     - \(z_i\) is the associated \(k \times 1\) latent variable, \(k \ll p\)
+     - \(W\) is the \(p \times k\) matrix of loadings
+     - \(\mu\) is the \(p \times 1\) vector of gene-means
+
+  7. Compute the squared correlation of loadings on each PC to \(R\)
+
+  #+BEGIN_SRC ipython
+    class Simulation:
+      def __init__(self, num_genes, fold_change=2, seed=0):
+        np.random.seed(seed)
+        self.num_genes = num_genes
+        rel_expr_1 = np.flip(np.sort(np.random.lognormal(size=self.num_genes)), axis=-1)
+        rel_expr_2 = rel_expr_1.copy()
+        rel_expr_2[0] *= fold_change
+        self.rel_expr = [rel_expr_1, rel_expr_2]
+        for r in self.rel_expr:
+          r /= r.sum()
+
+      def generate_log_cpm(self, num_samples, library_sizes, detection_rates=None):
+        libsize = [np.random.choice(library_sizes, num_samples // 2) for _ in range(2)]
+        if detection_rates is not None:
+          det_rate = [np.random.choice(detection_rates, num_samples)]
+        counts = np.array([np.random.multinomial(n, p) for sizes, p in zip(libsize, self.rel_expr) for n in sizes]).reshape(num_samples, self.num_genes)
+        if detection_rates is not None:
+          mask = np.array([np.random.uniform() < d for d in det_rate for _ in self.rel_expr[0]]).reshape(num_samples, self.num_genes)
+          counts *= mask
+        total_counts = counts.sum(axis=1)
+        psuedocount = .5 * total_counts / total_counts.mean()
+        log_cpm = np.log(counts + psuedocount.reshape(-1, 1)) - np.log(total_counts + 2 * psuedocount).reshape(-1, 1) + 6 * np.log(10)
+        return log_cpm
+
+      def pca_corr(num_components=10, num_trials=10):
+        corr = []
+        for _ in range(num_trials):
+          ppca = skd.PCA(n_components=num_components)
+          loadings = ppca.fit_transform(log_cpm)
+          corr.append([st.pearsonr(x.ravel(), total_counts.ravel())[0] for x in loadings.T])
+        return corr
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 42591767
-* Predict the data using covariates
+  :RESULTS:
+  # Out[124]:
+  :END:
+
+  Look at a draw of the relative expression values:
+
+  #+BEGIN_SRC ipython
+    sim = Simulation(num_genes=1000)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[125]:
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/simulated-rel-expr.png
+    plt.clf()
+    plt.hist(sim.rel_expr[0], density=True, bins=50)
+    plt.xlabel('Relative expression')
+    plt.ylabel('Density')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[105]:
+  : Text(0,0.5,'Density')
+  [[file:figure/dim-reduction.org/simulated-rel-expr.png]]
+  :END:
+
+  Look at a draw of log CPM:
+
+  #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/simulated-log-cpm.png
+    quantiles = np.linspace(0, 1, 9)[:-1]
+    simulated_log_cpm = sim.generate_log_cpm(num_samples=50, library_sizes=annotations['molecules'])
+    simulated_log_cpm = simulated_log_cpm[:,(quantiles * sim.num_genes).astype(int)]
+    jitter = np.random.normal(scale=.01, size=(50, 1)) + quantiles.reshape(1, -1)
+    plt.clf()
+    plt.scatter(jitter.ravel(), simulated_log_cpm.ravel())
+    plt.xlabel('Rank of relative gene expression')
+    plt.ylabel('log CPM')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[139]:
+  : Text(0,0.5,'log CPM')
+  [[file:figure/dim-reduction.org/simulated-log-cpm.png]]
+  :END:
+
+  Although the first principal component has non-zero correlation with library
+  size, our simulation does not produce correlations comparable to the
+  correlation we see in the actual data. This result suggests that explanation
+  (1), not centering the data, does not fully explain the correlation.
+
+  #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/simulated-pca.png :async t
+    corr = simulate_pca_log_cpm(500, 1000, annotations['molecules'], fold_change=2, num_trials=20, seed=1)
+    plt.clf()
+    plt.boxplot(np.square(corr))
+    plt.xlabel('Principal component')
+    plt.ylabel('Squared correlation with library size')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[80]:
+  : Text(0,0.5,'Squared correlation with library size')
+  [[file:figure/dim-reduction.org/simulated-pca.png]]
+  :END:
+
+  In the simulation, the correlation does not appear to depend on the true fold
+  change (i.e., proportion of variance explained by biological factors). This
+  result could be explained if the proportion of variance explained by the true
+  fold change were small compared to the proportion of variance explained by
+  library size.
+
+  #+BEGIN_SRC ipython :async t
+    corr_vs_fold_change = [
+      simulate_pca_log_cpm(500, 1000, annotations['molecules'], fold_change=fold_change, num_components=1, num_trials=20, seed=0)
+      for fold_change in np.linspace(1.1, 2, 10)]
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[128]:
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/simulated-pca-vs-fold-change.png
+    plt.clf()
+    plt.boxplot(np.square(np.array(corr_vs_fold_change).mean(axis=-1)).T, positions=np.arange(10))
+    plt.xticks(np.arange(10), ['{:.3f}'.format(x) for x in np.linspace(1.1, 2, 10)])
+    plt.xlabel('True fold change')
+    plt.ylabel('Squared correlation with PC1')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[129]:
+  : Text(0,0.5,'Squared correlation with PC1')
+  [[file:figure/dim-reduction.org/simulated-pca-vs-fold-change.png]]
+  :END:
+
+  If (not) centering the data does not explain the correlation, does dropout
+  explain the correlation? We simulated dropout after drawing molecule counts
+  \(x_{ij}\) as follows:
+
+  1. Draw gene detection rates \(q_i\) from the observed gene detection rates
+  2. Draw \(h_{ij} \sim Bernoulli(q_i)\) iid.
+  3. Use \(X^* = X \circ H\) as the observed count matrix
+
+  Surprisingly, the correlation with the first PC goes away, likely because
+  this dropout model is not correct.
+
+  #+BEGIN_SRC ipython :async t
+    corr_with_dropout = simulate_pca_log_cpm(500, 10000, annotations['molecules'], detection_rates=annotations['detect_hs'] / 2e4, fold_change=2, num_trials=20, seed=1)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/simulated-pca-vs-dropout.png
+    plt.clf()
+    _ = plt.boxplot(np.square(corr_with_dropout))
+    plt.xlabel('Principal component')
+    plt.ylabel('Squared correlation with library size')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[84]:
+  : Text(0,0.5,'Squared correlation with library size')
+  [[file:figure/dim-reduction.org/simulated-pca-vs-dropout.png]]
+  :END:
+
+  Hicks et al also claim that the entire distribution of non-zero measurements
+  depends on detection rate. They show this by plotting the percentiles of
+  non-zero expressed genes in each cell versus detection rate in that cell.
+
+  #+BEGIN_SRC ipython
+    def plot_quantiles_vs_detection(umi, annotations, quantiles=None, pseudocount=None):
+      if quantiles is None:
+        quantiles = np.linspace(0, 1, 5)
+      else:
+        assert (quantiles >= 0).all()
+        assert (quantiles <= 1).all()
+      vals = np.nanpercentile(np.ma.masked_equal(umi.values, 0).astype(float).filled(np.nan), 100 * quantiles, axis=0, interpolation='higher')
+      if pseudocount is None:
+        # log CPM with per-cell pseudocount
+        total_counts = umi.sum()
+        pseudocount = .5 * total_counts / total_counts.mean()
+        label = 'log CPM'
+        vals = np.log(vals + pseudocount.values.reshape(1, -1)) - np.log(total_counts + 2 * pseudocount).values.reshape(1, -1) + 6 * np.log(10)
+      else:
+        vals = np.log(vals + pseudocount)
+        label = '$\log(\mathrm{UMI} + {:.3g})$'.format(pseudocount)
+
+      plt.clf()
+      for q, v in zip(quantiles, vals):
+        plt.scatter(annotations['detect_hs'] / umi.shape[0], v, c=colorcet.cm['inferno'](q), label='{:.3f}'.format(q))
+      plt.legend(bbox_to_anchor=(1.04, .5), loc='center left')
+      plt.xlabel('Detection rate')
+      plt.ylabel(label)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[55]:
+  :END:
+
+  We recapitulate the main result of Hicks et al in our data.
+
+  #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/umi-quantiles-vs-detection.png
+    plot_quantiles_vs_detection(umi, annotations)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[56]:
+  [[file:figure/dim-reduction.org/umi-quantiles-vs-detection.png]]
+  :END:
+
+  log CPM as defined in ~edgeR~ uses a pseudocount which depends on library
+  size, but the derivation in Hicks et al is for \(\log(X + \epsilon)\) where
+  \(\epsilon\) is constant across cells. 
+
+  Using constant \(\epsilon\) changes the shape of the relationship between
+  quantiles of non-zero expression and detection rate, but does not remove the
+  relationship.
+
+  #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/umi-quantiles-vs-detection-1.png
+    plot_quantiles_vs_detection(umi, annotations, pseudocount=1)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[57]:
+  [[file:figure/dim-reduction.org/umi-quantiles-vs-detection-1.png]]
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/umi-quantiles-vs-detection-1e-3.png
+    plot_quantiles_vs_detection(umi, annotations, pseudocount=1e-3)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[58]:
+  [[file:figure/dim-reduction.org/umi-quantiles-vs-detection-1e-3.png]]
+  :END:
+
