@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-01-29 Mon 19:12 -->
+<!-- 2018-02-02 Fri 14:20 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Dimensionality reduction</title>
@@ -254,9 +254,9 @@ for the JavaScript code in this tag.
 <div id="content">
 <h1 class="title">Dimensionality reduction</h1>
 
-<div id="outline-container-orgd77f498" class="outline-2">
-<h2 id="orgd77f498">Introduction</h2>
-<div class="outline-text-2" id="text-orgd77f498">
+<div id="outline-container-orgda9a993" class="outline-2">
+<h2 id="orgda9a993">Introduction</h2>
+<div class="outline-text-2" id="text-orgda9a993">
 <p>
 The fundamental inference task is to infer \(p(z_i \mid x_i)\), where \(x_i\)
 is the \(p\)-dimensional observation (one sample), \(z_i\) is a
@@ -336,7 +336,10 @@ expression values.
 <p>
 Importantly, these analyses are not directly usable for confounder correction
 for QTL mapping. Instead, we first need to <a href="zinb.html">learn the underlying distributions
-of the data</a> and then perform dimensionality reduction on those parameters.
+of the data</a> and then perform dimensionality reduction on those
+parameters. However, it will be important to consider what data went into
+learning the underlying those distributions, and how to incorporate known and
+inferred confounders into that estimation procedure.
 </p>
 
 <p>
@@ -344,24 +347,27 @@ Here, we perform the following analyses:
 </p>
 
 <ol class="org-ol">
-<li><a href="#orgff849ef">We perform PCA on the post-QC data</a> and show that most variation is
+<li><a href="#orga101642">We perform PCA on the post-QC data</a> and show that most variation is
 still explained by variation in sequencing metrics</li>
-<li><a href="#org266705d">We provide an accelerated implementation of zero-inflated factor analysis</a></li>
-<li><a href="#org9f49d24">We fit a variational autoencoder to the data</a></li>
-<li><a href="#org9923084">We predict mean expression and dropout probability using covariates only</a></li>
+<li><a href="#org9fe08f3">We fit zero-inflated factor analysis</a> and show that after explicitly
+modeling dropout, we still recover a factor correlated with sequencing</li>
+<li><a href="#org1f5a079">We show that normalization alone cannot explain the correlation we see</a>
+between the top PC and sequencing</li>
+<li><a href="#org2ede9b3">We show that adjusting for both sample- and gene-specific means</a> eliminates
+the correlation between the top PC and sequencing</li>
 </ol>
 </div>
 </div>
 
-<div id="outline-container-org8597b6f" class="outline-2">
-<h2 id="org8597b6f">Read the data</h2>
-<div class="outline-text-2" id="text-org8597b6f">
+<div id="outline-container-org1e3be6b" class="outline-2">
+<h2 id="org1e3be6b">Read the data</h2>
+<div class="outline-text-2" id="text-org1e3be6b">
 <p>
 Read the full data matrix and apply the QC filters.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org6b29df0"><span class="org-variable-name">umi</span> = pd.read_table(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>, index_col=0)
+<pre class="src src-ipython" id="org3fdbded"><span class="org-variable-name">umi</span> = pd.read_table(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>, index_col=0)
 <span class="org-variable-name">annotations</span> = pd.read_table(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
 <span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
 <span class="org-variable-name">keep_genes</span> = pd.read_table(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
@@ -376,25 +382,51 @@ Read the full data matrix and apply the QC filters.
 </div>
 
 <pre class="example">
-(10886, 3910)
+(10978, 4865)
 
+</pre>
+
+<p>
+The expected ERCC spike-in molecule counts were previously tabulated for
+1:50\(\times\) dilution.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">ercc_mean_mols_50x</span> = pd.read_table(<span class="org-string">'https://raw.githubusercontent.com/jdblischak/singleCellSeq/master/data/expected-ercc-molecules.txt'</span>)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">efficiency</span>(sample, ercc_mean_mols_50x):
+  <span class="org-variable-name">res</span> = sample[<span class="org-string">'mol_ercc'</span>] / ercc_mean_mols_50x[<span class="org-string">'ercc_molecules_well'</span>].<span class="org-builtin">sum</span>()
+  <span class="org-keyword">if</span> sample[<span class="org-string">'ERCC'</span>] == <span class="org-string">'50x dilution'</span>:
+    <span class="org-keyword">return</span> res
+  <span class="org-keyword">elif</span> sample[<span class="org-string">'ERCC'</span>] == <span class="org-string">'100x dilution'</span>:
+    <span class="org-keyword">return</span> .5 * res
+  <span class="org-keyword">else</span>:
+    <span class="org-keyword">return</span> np.nan
 </pre>
 </div>
 </div>
+</div>
 
-<div id="outline-container-orgff849ef" class="outline-2">
-<h2 id="orgff849ef">Principal components analysis</h2>
-<div class="outline-text-2" id="text-orgff849ef">
+<div id="outline-container-orga101642" class="outline-2">
+<h2 id="orga101642">Principal components analysis</h2>
+<div class="outline-text-2" id="text-orga101642">
 <p>
 Use PPCA (<a href="http://www.miketipping.com/papers/met-mppca.pdf">Tipping et al 1999</a>) to incorporate gene-specific mean
 expression. Use the <code>edgeR</code> psuedocount.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">libsize</span> = umi.<span class="org-builtin">sum</span>(axis=0)
+<pre class="src src-ipython" id="orgf15cf2d"><span class="org-variable-name">libsize</span> = umi.<span class="org-builtin">sum</span>(axis=0)
 <span class="org-variable-name">psuedocount</span> = .5 * libsize / libsize.mean()
 <span class="org-variable-name">log_cpm</span> = (np.log(umi + psuedocount) - np.log(libsize + 2 * psuedocount) + 6 * np.log(10)) / np.log(2)
-<span class="org-variable-name">ppca</span> = skd.PCA(n_components=10)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">ppca</span> = skd.PCA(n_components=10)
 <span class="org-variable-name">loadings</span> = ppca.fit_transform(log_cpm.values.T)
 </pre>
 </div>
@@ -429,11 +461,12 @@ Correlate PCs with known continuous covariates.
     <span class="org-string">'experiment'</span>: 10000 * (annotations[<span class="org-string">'experiment'</span>] % 10000) + annotations[<span class="org-string">'experiment'</span>] // 10000,
     <span class="org-string">'index'</span>: annotations[<span class="org-string">'index'</span>],
     <span class="org-string">'concentration'</span>: annotations[<span class="org-string">'concentration'</span>],
-    <span class="org-string">'reads'</span>: annotations[<span class="org-string">'raw'</span>],
+    <span class="org-string">'reads_with_umi'</span>: annotations[<span class="org-string">'umi'</span>],
     <span class="org-string">'mols'</span>: annotations[<span class="org-string">'molecules'</span>],
-    <span class="org-string">'mapped_prop_hs'</span>: annotations[<span class="org-string">'mapped'</span>] / annotations[<span class="org-string">'raw'</span>],
-    <span class="org-string">'mapped_prop_dm'</span>: annotations[<span class="org-string">'reads_dm'</span>] / annotations[<span class="org-string">'raw'</span>],
-    <span class="org-string">'mapped_prop_ce'</span>: annotations[<span class="org-string">'reads_ce'</span>] / annotations[<span class="org-string">'raw'</span>],
+    <span class="org-string">'efficiency'</span>: efficiency(annotations, ercc_mean_mols_50x=ercc_mean_mols_50x),
+    <span class="org-string">'mapped_prop_hs'</span>: annotations[<span class="org-string">'reads_hs'</span>] / annotations[<span class="org-string">'mapped'</span>],
+    <span class="org-string">'mapped_prop_dm'</span>: annotations[<span class="org-string">'reads_dm'</span>] / annotations[<span class="org-string">'mapped'</span>],
+    <span class="org-string">'mapped_prop_ce'</span>: annotations[<span class="org-string">'reads_ce'</span>] / annotations[<span class="org-string">'mapped'</span>],
     <span class="org-string">'detect_hs'</span>: annotations[<span class="org-string">'detect_hs'</span>],
     <span class="org-string">'chipmix'</span>: annotations[<span class="org-string">'chipmix'</span>],
     <span class="org-string">'freemix'</span>: annotations[<span class="org-string">'freemix'</span>],
@@ -443,6 +476,7 @@ Correlate PCs with known continuous covariates.
 
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-variable-name">cont_covars</span> = annotations.<span class="org-builtin">apply</span>(extract_covars, axis=1)
+<span class="org-variable-name">cat_covars</span> = annotations[[<span class="org-string">'chip_id'</span>, <span class="org-string">'well'</span>]]
 </pre>
 </div>
 
@@ -498,9 +532,7 @@ From the regression fit, we can compute the coefficient of determination
 </div>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">cat_covars</span> = annotations[[<span class="org-string">'chip_id'</span>, <span class="org-string">'well'</span>]]
-
-<span class="org-variable-name">corr</span> = pd.concat(
+<pre class="src src-ipython"><span class="org-variable-name">corr</span> = pd.concat(
   [correlation(pd.DataFrame(loadings), cont_covars)] +
   [categorical_r2(loadings, annotations, k) <span class="org-keyword">for</span> k <span class="org-keyword">in</span> cat_covars])
 <span class="org-variable-name">corr</span> = corr.pivot(index=<span class="org-string">'covar'</span>, columns=<span class="org-string">'pc'</span>)
@@ -637,70 +669,568 @@ captured by PCA or factor analysis.
 </div>
 </div>
 
-<div id="outline-container-org266705d" class="outline-2">
-<h2 id="org266705d">Zero-inflated factor analysis</h2>
-<div class="outline-text-2" id="text-org266705d">
+<div id="outline-container-org9fe08f3" class="outline-2">
+<h2 id="org9fe08f3">Zero-inflated factor analysis</h2>
+<div class="outline-text-2" id="text-org9fe08f3">
 <p>
-Fit ZIFA (<a href="https://dx.doi.org/10.1186/s13059-015-0805-z">Pierson et al 2015</a>).
+If dropout changes the distribution of the non-zero observations, we might
+hope that fitting a latent variable model which explicitly includes dropout
+might eliminate that effect. Intuitively, we should downweight the evidence
+of observed zeroes on the inferred distribution which generated the
+observations. 
+</p>
+
+<p>
+However, fitting ZIFA (<a href="https://dx.doi.org/10.1186/s13059-015-0805-z">Pierson et al 2015</a>) on the data again recovers a
+factor which is detection rate.
 </p>
 
 <div class="org-src-container">
 <pre class="src src-ipython">&lt;&lt;dim-reduction-imports&gt;&gt;
-&lt;&lt;read-data&gt;&gt;
-&lt;&lt;log_cpm&gt;&gt;
-<span class="org-variable-name">latent</span>, <span class="org-variable-name">params</span> = zifa.fitModel(Y=log_cpm.values.T, K=10, p0_thresh=.7)
-np.savetxt(<span class="org-string">'latent.txt.gz'</span>, latent)
+&lt;&lt;read-data-qc&gt;&gt;
+&lt;&lt;normalize&gt;&gt;
+<span class="org-variable-name">latent</span>, <span class="org-variable-name">params</span> = zifa.fitModel(Y=np.log(umi.values.T + 1), K=10, p0_thresh=.7)
+np.save(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/zifa-loadings.npy'</span>, latent)
 </pre>
 </div>
 
+<p>
+Run on 16 cores to complete in a reasonable amount of time.
+</p>
+
 <div class="org-src-container">
-<pre class="src src-sh">sbatch --partition=broadwl --time=400 --mem=16G --out=zifa.out --err zifa.err
+<pre class="src src-sh">sbatch --partition=broadwl --time=400 --mem=32G -c16 --out=zifa.out --err zifa.err
 <span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
 <span class="org-builtin">source</span> activate scqtl
 python zifa.py
 </pre>
 </div>
+
+<pre class="example">
+Submitted batch job 42700513
+
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-sh">sacct -j 42700513 -o Elapsed,MaxRSS,MaxVMSize
+</pre>
 </div>
+
+<table>
+
+
+<colgroup>
+<col  class="org-right">
+
+<col  class="org-left">
+
+<col  class="org-left">
+</colgroup>
+<tbody>
+<tr>
+<td class="org-right">Elapsed</td>
+<td class="org-left">MaxRSS</td>
+<td class="org-left">MaxVMSize</td>
+</tr>
+
+<tr>
+<td class="org-right">----------</td>
+<td class="org-left">----------</td>
+<td class="org-left">----------</td>
+</tr>
+
+<tr>
+<td class="org-right">03:15:28</td>
+<td class="org-left">&#xa0;</td>
+<td class="org-left">&#xa0;</td>
+</tr>
+
+<tr>
+<td class="org-right">03:15:28</td>
+<td class="org-left">19195312K</td>
+<td class="org-left">23219728K</td>
+</tr>
+</tbody>
+</table>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">latent</span> = np.load(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/zifa-loadings.npy'</span>)
+</pre>
 </div>
 
-<div id="outline-container-org9f49d24" class="outline-2">
-<h2 id="org9f49d24">Variational autoencoder</h2>
-<div class="outline-text-2" id="text-org9f49d24">
-<p>
-PCA could be sensitive to normalization and zeros, so fit a <a href="https://github.com/gokceneraslan/countae">deep generative
-model directly on counts</a> instead. This method scales better than fitting ZINB
-directly via maximum likelihood because the number of parameters doesn't grow
-with the size of the data.
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">corr_zifa</span> = pd.concat(
+  [correlation(pd.DataFrame(latent), cont_covars)] +
+  [categorical_r2(latent, annotations, k) <span class="org-keyword">for</span> k <span class="org-keyword">in</span> cat_covars])
+<span class="org-variable-name">corr_zifa</span> = corr_zifa.pivot(index=<span class="org-string">'covar'</span>, columns=<span class="org-string">'pc'</span>)
+
+plt.clf()
+plt.gcf().set_size_inches(8, 12)
+<span class="org-variable-name">im</span> = plt.imshow(corr_zifa.values, cmap=colorcet.cm[<span class="org-string">'fire'</span>], vmin=0, vmax=1, aspect=<span class="org-string">'auto'</span>)
+<span class="org-variable-name">cb</span> = plt.colorbar(im, orientation=<span class="org-string">'horizontal'</span>)
+cb.set_label(<span class="org-string">'Squared correlation'</span>)
+plt.xlabel(<span class="org-string">'Learned factor'</span>)
+<span class="org-variable-name">_</span> = plt.xticks(np.arange(latent.shape[1]), np.arange(1, latent.shape[1] + 1))
+plt.ylabel(<span class="org-string">'Covariate'</span>)
+<span class="org-variable-name">_</span> = plt.yticks(np.arange(corr_zifa.shape[0]), corr_zifa.index)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/dim-reduction.org/zifa-covars.png" alt="zifa-covars.png">
 </p>
+</div>
 
 <p>
-\[ p(x_i \mid z_i) = \mathrm{ZINB}(\pi(z_i), \lambda(z_i), \phi(z_i)) \]
-</p>
-
-<p>
-\[ p(z_i) = N(0, I) \]
-</p>
-
-<p>
-\[ q(z_i \mid x_i) = N(\mu(x), \sigma^2(x)) \]
+ZIFA does not constrain factors to be orthogonal, so we would not expect it
+to get the same result as PPCA. However, the latent factor inferred by ZIFA
+correlated with sequencing depth still is highly correlated with PC1 inferred
+by PPCA, suggesting that it is not immune to whatever is biasing PPCA.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sh">sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --out vae.out
-<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
-<span class="org-builtin">source</span> activate scqtl
-autoencoder /home/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz .
+<pre class="src src-ipython">plt.clf()
+plt.gcf().set_size_inches(12, 12)
+<span class="org-variable-name">im</span> = plt.imshow(np.tril(np.corrcoef(latent.T, loadings.T)), cmap=colorcet.cm[<span class="org-string">'coolwarm'</span>], vmin=-1, vmax=1)
+<span class="org-variable-name">cb</span> = plt.colorbar(im)
+cb.set_label(<span class="org-string">'Correlation'</span>)
+<span class="org-variable-name">labels</span> = [<span class="org-string">'{} {}'</span>.<span class="org-builtin">format</span>(v, i) <span class="org-keyword">for</span> v <span class="org-keyword">in</span> (<span class="org-string">'Factor'</span>, <span class="org-string">'PC'</span>) <span class="org-keyword">for</span> i <span class="org-keyword">in</span> <span class="org-builtin">range</span>(10)]
+<span class="org-variable-name">_</span> = plt.xticks(np.arange(20), labels, rotation=90)
+<span class="org-variable-name">_</span> = plt.yticks(np.arange(20), labels)
 </pre>
 </div>
+
+
+<div class="figure">
+<p><img src="figure/dim-reduction.org/pca-vs-zifa-corr.png" alt="pca-vs-zifa-corr.png">
+</p>
 </div>
 </div>
-<div id="outline-container-org9923084" class="outline-2">
-<h2 id="org9923084">Predict the data using covariates</h2>
+</div>
+
+<div id="outline-container-org1f5a079" class="outline-2">
+<h2 id="org1f5a079">Effect of normalization on PCA</h2>
+<div class="outline-text-2" id="text-org1f5a079">
+<p>
+Should we expect that the top principal component of log CPM is still
+sequencing depth?  <a href="https://dx.doi.org/10.1093/biostatistics/kxx053">Hicks et al 2017</a> claim that correlation of the first
+principal component with detection rate can be explained by two facts:
+</p>
+
+<ol class="org-ol">
+<li>Centering the values of \(X\) does not center the values of \(\log X\)
+(and vice versa)</li>
+<li>\(E[\log X]\) depends on the gene detection rate</li>
+</ol>
+
+<p>
+To see whether these facts can explain the correlation between PC1 and
+sequencing metrics we see in our data, we perform the following simulation:
+</p>
+
+<ol class="org-ol">
+<li><p>
+Generate un-normalized relative expression values for two groups of
+samples, where one group has a true fold change in mean expression
+\(\beta\):
+</p>
+
+<p>
+\[ a^{(1)}_j \sim \mathrm{LogNormal}(0, 1) \]
+</p>
+
+<p>
+\[ a^{(2)}_0 = \beta a^{(1)}_0 \]
+</p>
+
+<p>
+\[ a^{(2)}_j = a^{(1)}_j,\ j \neq 0 \]
+</p></li>
+
+<li>Compute the relative expression for each group \(p^{(k)}_j = a^{(k)}_j /
+     \sum_j a^{(k)}_j\)</li>
+<li>Sample a number of molecules \(R_i\) from the observed distribution of
+molecules</li>
+<li>Sample molecule counts \(x_{ij} \sim \mathrm{Multinomial}(R_i, p)\)</li>
+<li>Normalize to log CPM using the <code>edgeR</code> definition</li>
+<li><p>
+Fit probabilistic PCA (<a href="http://www.miketipping.com/papers/met-mppca.pdf">Tipping et al 1999</a>) to explicitly account for mean
+differences in the normalized data:
+</p>
+
+<p>
+\[ p(x_i \mid z_i) \sim N(W z_i + \mu, \sigma^2 I) \]
+</p>
+
+<p>
+\[ p(z_i) \sim N(0, I) \]
+</p>
+
+<p>
+where:
+</p>
+
+<ul class="org-ul">
+<li>\(x_i\) is a \(p \times 1\) observation</li>
+<li>\(z_i\) is the associated \(k \times 1\) latent variable, \(k \ll p\)</li>
+<li>\(W\) is the \(p \times k\) matrix of loadings</li>
+<li>\(\mu\) is the \(p \times 1\) vector of gene-means</li>
+</ul></li>
+
+<li>Compute the squared correlation of loadings on each PC to \(R\)</li>
+</ol>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">class</span> <span class="org-type">Simulation</span>:
+  <span class="org-keyword">def</span> <span class="org-function-name">__init__</span>(<span class="org-keyword">self</span>, num_genes, fold_change=2, seed=0):
+    np.random.seed(seed)
+    <span class="org-keyword">self</span>.num_genes = num_genes
+    <span class="org-variable-name">rel_expr_1</span> = np.flip(np.sort(np.random.lognormal(size=<span class="org-keyword">self</span>.num_genes)), axis=-1)
+    <span class="org-variable-name">rel_expr_2</span> = rel_expr_1.copy()
+    <span class="org-variable-name">rel_expr_2</span>[0] *= fold_change
+    <span class="org-keyword">self</span>.rel_expr = [rel_expr_1, rel_expr_2]
+    <span class="org-keyword">for</span> r <span class="org-keyword">in</span> <span class="org-keyword">self</span>.rel_expr:
+      <span class="org-variable-name">r</span> /= r.<span class="org-builtin">sum</span>()
+
+  <span class="org-keyword">def</span> <span class="org-function-name">generate_log_cpm</span>(<span class="org-keyword">self</span>, num_samples, library_sizes, detection_rates=<span class="org-constant">None</span>):
+    <span class="org-variable-name">libsize</span> = [np.random.choice(library_sizes, num_samples // 2) <span class="org-keyword">for</span> _ <span class="org-keyword">in</span> <span class="org-builtin">range</span>(2)]
+    <span class="org-keyword">if</span> detection_rates <span class="org-keyword">is</span> <span class="org-keyword">not</span> <span class="org-constant">None</span>:
+      <span class="org-variable-name">det_rate</span> = [np.random.choice(detection_rates, num_samples)]
+    <span class="org-variable-name">counts</span> = np.array([np.random.multinomial(n, p) <span class="org-keyword">for</span> sizes, p <span class="org-keyword">in</span> <span class="org-builtin">zip</span>(libsize, <span class="org-keyword">self</span>.rel_expr) <span class="org-keyword">for</span> n <span class="org-keyword">in</span> sizes]).reshape(num_samples, <span class="org-keyword">self</span>.num_genes)
+    <span class="org-keyword">if</span> detection_rates <span class="org-keyword">is</span> <span class="org-keyword">not</span> <span class="org-constant">None</span>:
+      <span class="org-variable-name">mask</span> = np.array([np.random.uniform() &lt; d <span class="org-keyword">for</span> d <span class="org-keyword">in</span> det_rate <span class="org-keyword">for</span> _ <span class="org-keyword">in</span> <span class="org-keyword">self</span>.rel_expr[0]]).reshape(num_samples, <span class="org-keyword">self</span>.num_genes)
+      <span class="org-variable-name">counts</span> *= mask
+    <span class="org-variable-name">total_counts</span> = counts.<span class="org-builtin">sum</span>(axis=1)
+    <span class="org-variable-name">psuedocount</span> = .5 * total_counts / total_counts.mean()
+    <span class="org-variable-name">log_cpm</span> = np.log(counts + psuedocount.reshape(-1, 1)) - np.log(total_counts + 2 * psuedocount).reshape(-1, 1) + 6 * np.log(10)
+    <span class="org-keyword">return</span> log_cpm
+
+  <span class="org-keyword">def</span> <span class="org-function-name">pca_corr</span>(num_components=10, num_trials=10):
+    <span class="org-variable-name">corr</span> = []
+    <span class="org-keyword">for</span> _ <span class="org-keyword">in</span> <span class="org-builtin">range</span>(num_trials):
+      <span class="org-variable-name">ppca</span> = skd.PCA(n_components=num_components)
+      <span class="org-variable-name">loadings</span> = ppca.fit_transform(log_cpm)
+      corr.append([st.pearsonr(x.ravel(), total_counts.ravel())[0] <span class="org-keyword">for</span> x <span class="org-keyword">in</span> loadings.T])
+    <span class="org-keyword">return</span> corr
+</pre>
+</div>
+
+<p>
+Look at a draw of the relative expression values:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">sim</span> = Simulation(num_genes=1000)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.hist(sim.rel_expr[0], density=<span class="org-constant">True</span>, bins=50)
+plt.xlabel(<span class="org-string">'Relative expression'</span>)
+plt.ylabel(<span class="org-string">'Density'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0,0.5,'Density')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/dim-reduction.org/simulated-rel-expr.png" alt="simulated-rel-expr.png">
+</p>
+</div>
+
+<p>
+Look at a draw of log CPM:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">quantiles</span> = np.linspace(0, 1, 9)[:-1]
+<span class="org-variable-name">simulated_log_cpm</span> = sim.generate_log_cpm(num_samples=50, library_sizes=annotations[<span class="org-string">'molecules'</span>])
+<span class="org-variable-name">simulated_log_cpm</span> = simulated_log_cpm[:,(quantiles * sim.num_genes).astype(<span class="org-builtin">int</span>)]
+<span class="org-variable-name">jitter</span> = np.random.normal(scale=.01, size=(50, 1)) + quantiles.reshape(1, -1)
+plt.clf()
+plt.scatter(jitter.ravel(), simulated_log_cpm.ravel())
+plt.xlabel(<span class="org-string">'Rank of relative gene expression'</span>)
+plt.ylabel(<span class="org-string">'log CPM'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0,0.5,'log CPM')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/dim-reduction.org/simulated-log-cpm.png" alt="simulated-log-cpm.png">
+</p>
+</div>
+
+<p>
+Although the first principal component has non-zero correlation with library
+size, our simulation does not produce correlations comparable to the
+correlation we see in the actual data. This result suggests that explanation
+(1), not centering the data, does not fully explain the correlation.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">corr</span> = simulate_pca_log_cpm(500, 1000, annotations[<span class="org-string">'molecules'</span>], fold_change=2, num_trials=20, seed=1)
+plt.clf()
+plt.boxplot(np.square(corr))
+plt.xlabel(<span class="org-string">'Principal component'</span>)
+plt.ylabel(<span class="org-string">'Squared correlation with library size'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0,0.5,'Squared correlation with library size')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/dim-reduction.org/simulated-pca.png" alt="simulated-pca.png">
+</p>
+</div>
+
+<p>
+In the simulation, the correlation does not appear to depend on the true fold
+change (i.e., proportion of variance explained by biological factors). This
+result could be explained if the proportion of variance explained by the true
+fold change were small compared to the proportion of variance explained by
+library size.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">corr_vs_fold_change</span> = [
+  simulate_pca_log_cpm(500, 1000, annotations[<span class="org-string">'molecules'</span>], fold_change=fold_change, num_components=1, num_trials=20, seed=0)
+  <span class="org-keyword">for</span> fold_change <span class="org-keyword">in</span> np.linspace(1.1, 2, 10)]
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.boxplot(np.square(np.array(corr_vs_fold_change).mean(axis=-1)).T, positions=np.arange(10))
+plt.xticks(np.arange(10), [<span class="org-string">'{:.3f}'</span>.<span class="org-builtin">format</span>(x) <span class="org-keyword">for</span> x <span class="org-keyword">in</span> np.linspace(1.1, 2, 10)])
+plt.xlabel(<span class="org-string">'True fold change'</span>)
+plt.ylabel(<span class="org-string">'Squared correlation with PC1'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0,0.5,'Squared correlation with PC1')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/dim-reduction.org/simulated-pca-vs-fold-change.png" alt="simulated-pca-vs-fold-change.png">
+</p>
+</div>
+
+<p>
+If (not) centering the data does not explain the correlation, does dropout
+explain the correlation? We simulated dropout after drawing molecule counts
+\(x_{ij}\) as follows:
+</p>
+
+<ol class="org-ol">
+<li>Draw gene detection rates \(q_i\) from the observed gene detection rates</li>
+<li>Draw \(h_{ij} \sim Bernoulli(q_i)\) iid.</li>
+<li>Use \(X^* = X \circ H\) as the observed count matrix</li>
+</ol>
+
+<p>
+Surprisingly, the correlation with the first PC goes away, likely because
+this dropout model is not correct.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">corr_with_dropout</span> = simulate_pca_log_cpm(500, 10000, annotations[<span class="org-string">'molecules'</span>], detection_rates=annotations[<span class="org-string">'detect_hs'</span>] / 2e4, fold_change=2, num_trials=20, seed=1)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+<span class="org-variable-name">_</span> = plt.boxplot(np.square(corr_with_dropout))
+plt.xlabel(<span class="org-string">'Principal component'</span>)
+plt.ylabel(<span class="org-string">'Squared correlation with library size'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0,0.5,'Squared correlation with library size')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/dim-reduction.org/simulated-pca-vs-dropout.png" alt="simulated-pca-vs-dropout.png">
+</p>
+</div>
+
+<p>
+Hicks et al also claim that the entire distribution of non-zero measurements
+depends on detection rate. They show this by plotting the percentiles of
+non-zero expressed genes in each cell versus detection rate in that cell.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">plot_quantiles_vs_detection</span>(umi, annotations, quantiles=<span class="org-constant">None</span>, pseudocount=<span class="org-constant">None</span>):
+  <span class="org-keyword">if</span> quantiles <span class="org-keyword">is</span> <span class="org-constant">None</span>:
+    <span class="org-variable-name">quantiles</span> = np.linspace(0, 1, 5)
+  <span class="org-keyword">else</span>:
+    <span class="org-keyword">assert</span> (quantiles &gt;= 0).<span class="org-builtin">all</span>()
+    <span class="org-keyword">assert</span> (quantiles &lt;= 1).<span class="org-builtin">all</span>()
+  <span class="org-variable-name">vals</span> = np.nanpercentile(np.ma.masked_equal(umi.values, 0).astype(<span class="org-builtin">float</span>).filled(np.nan), 100 * quantiles, axis=0, interpolation=<span class="org-string">'higher'</span>)
+  <span class="org-keyword">if</span> pseudocount <span class="org-keyword">is</span> <span class="org-constant">None</span>:
+    <span class="org-comment-delimiter"># </span><span class="org-comment">log CPM with per-cell pseudocount</span>
+    <span class="org-variable-name">total_counts</span> = umi.<span class="org-builtin">sum</span>()
+    <span class="org-variable-name">pseudocount</span> = .5 * total_counts / total_counts.mean()
+    <span class="org-variable-name">label</span> = <span class="org-string">'log CPM'</span>
+    <span class="org-variable-name">vals</span> = np.log(vals + pseudocount.values.reshape(1, -1)) - np.log(total_counts + 2 * pseudocount).values.reshape(1, -1) + 6 * np.log(10)
+  <span class="org-keyword">else</span>:
+    <span class="org-variable-name">vals</span> = np.log(vals + pseudocount)
+    <span class="org-variable-name">label</span> = <span class="org-string">'$\log(\mathrm{UMI} + {:.3g})$'</span>.<span class="org-builtin">format</span>(pseudocount)
+
+  plt.clf()
+  <span class="org-keyword">for</span> q, v <span class="org-keyword">in</span> <span class="org-builtin">zip</span>(quantiles, vals):
+    plt.scatter(annotations[<span class="org-string">'detect_hs'</span>] / umi.shape[0], v, c=colorcet.cm[<span class="org-string">'inferno'</span>](q), label=<span class="org-string">'{:.3f}'</span>.<span class="org-builtin">format</span>(q))
+  plt.legend(bbox_to_anchor=(1.04, .5), loc=<span class="org-string">'center left'</span>)
+  plt.xlabel(<span class="org-string">'Detection rate'</span>)
+  plt.ylabel(label)
+</pre>
+</div>
+
+<p>
+We recapitulate the main result of Hicks et al in our data.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plot_quantiles_vs_detection(umi, annotations)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/dim-reduction.org/umi-quantiles-vs-detection.png" alt="umi-quantiles-vs-detection.png">
+</p>
+</div>
+
+<p>
+log CPM as defined in <code>edgeR</code> uses a pseudocount which depends on library
+size, but the derivation in Hicks et al is for \(\log(X + \epsilon)\) where
+\(\epsilon\) is constant across cells. 
+</p>
+
+<p>
+Using constant \(\epsilon\) changes the shape of the relationship between
+quantiles of non-zero expression and detection rate, but does not remove the
+relationship.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plot_quantiles_vs_detection(umi, annotations, pseudocount=1)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/dim-reduction.org/umi-quantiles-vs-detection-1.png" alt="umi-quantiles-vs-detection-1.png">
+</p>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plot_quantiles_vs_detection(umi, annotations, pseudocount=1e-3)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/dim-reduction.org/umi-quantiles-vs-detection-1e-3.png" alt="umi-quantiles-vs-detection-1e-3.png">
+</p>
+</div>
+</div>
+</div>
+
+<div id="outline-container-org2ede9b3" class="outline-2">
+<h2 id="org2ede9b3">Effect of centering on PCA</h2>
+<div class="outline-text-2" id="text-org2ede9b3">
+<p>
+Bi-center the data.
+</p>
+
+<p>
+\[ x_{ij} \sim N(u_i + v_j, \sigma^2) \]
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">sample_feature_means</span>(obs, max_iters=10):
+  <span class="org-doc">"""Fit per-feature and per-sample means</span>
+
+<span class="org-doc">  x_ij ~ N(u_i + v_j, sigma^2)</span>
+
+<span class="org-doc">  Inputs:</span>
+
+<span class="org-doc">  x - ndarray (num_samples, num_features)</span>
+
+<span class="org-doc">  Returns:</span>
+<span class="org-doc">  sample_means - ndarray (num_samples, 1)</span>
+<span class="org-doc">  feature_means - ndarray (num_features, 1)</span>
+
+<span class="org-doc">  """</span>
+  <span class="org-variable-name">n</span>, <span class="org-variable-name">p</span> = obs.shape
+  <span class="org-variable-name">sample_means</span> = np.zeros((n, 1))
+  <span class="org-variable-name">feature_means</span> = np.zeros((1, p))
+  <span class="org-variable-name">resid</span> = obs.var()
+  <span class="org-variable-name">llik</span> = -.5 * np.<span class="org-builtin">sum</span>(np.log(2 * np.pi * resid) + (obs - feature_means - sample_means) / resid)
+  <span class="org-comment-delimiter"># </span><span class="org-comment">Coordinate ascent on llik</span>
+  <span class="org-keyword">for</span> _ <span class="org-keyword">in</span> <span class="org-builtin">range</span>(max_iters):
+    <span class="org-variable-name">sample_means</span> = np.mean(obs - feature_means, axis=1, keepdims=<span class="org-constant">True</span>)
+    <span class="org-variable-name">feature_means</span> = np.mean(obs - sample_means, axis=0, keepdims=<span class="org-constant">True</span>)
+    <span class="org-comment-delimiter"># </span><span class="org-comment">By default, np divides by N, not N - 1</span>
+    <span class="org-variable-name">resid</span> = np.var(obs - feature_means - sample_means)
+    <span class="org-variable-name">update</span> = -.5 * np.<span class="org-builtin">sum</span>(np.log(2 * np.pi * resid) + (obs - feature_means - sample_means) / resid)
+    <span class="org-keyword">print</span>(update)
+    <span class="org-keyword">if</span> np.isclose(update, llik):
+      <span class="org-keyword">return</span> sample_means, feature_means.T
+    <span class="org-keyword">else</span>:
+      <span class="org-variable-name">llik</span> = update
+  <span class="org-keyword">raise</span> <span class="org-type">ValueError</span>(<span class="org-string">"Failed to converge"</span>)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">sample_means</span>, <span class="org-variable-name">feature_means</span> = sample_feature_means(log_cpm.values.T)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">ppca_bicentered</span> = skd.PCA(n_components=10)
+<span class="org-variable-name">loadings_bicentered</span> = ppca_bicentered.fit_transform(log_cpm.values.T - sample_means - feature_means.T)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">corr_bicentered</span> = pd.concat(
+  [correlation(pd.DataFrame(loadings_bicentered), cont_covars)] +
+  [categorical_r2(loadings_bicentered, annotations, k) <span class="org-keyword">for</span> k <span class="org-keyword">in</span> cat_covars])
+<span class="org-variable-name">corr_bicentered</span> = corr_bicentered.pivot(index=<span class="org-string">'covar'</span>, columns=<span class="org-string">'pc'</span>)
+plot_pca_covar_corr(ppca_bicentered, corr_bicentered)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/dim-reduction.org/pca-bicentered-covars.png" alt="pca-bicentered-covars.png">
+</p>
+</div>
+</div>
 </div>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-01-29 Mon 19:12</p>
+<p class="date">Created: 2018-02-02 Fri 14:20</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>

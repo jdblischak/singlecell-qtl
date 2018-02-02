@@ -58,15 +58,21 @@
 
   Importantly, these analyses are not directly usable for confounder correction
   for QTL mapping. Instead, we first need to [[file:zinb.org][learn the underlying distributions
-  of the data]] and then perform dimensionality reduction on those parameters.
+  of the data]] and then perform dimensionality reduction on those
+  parameters. However, it will be important to consider what data went into
+  learning the underlying those distributions, and how to incorporate known and
+  inferred confounders into that estimation procedure.
 
   Here, we perform the following analyses:
 
   1. [[*Principal components analysis][We perform PCA on the post-QC data]] and show that most variation is
      still explained by variation in sequencing metrics
-  2. [[*Zero-inflated factor analysis][We provide an accelerated implementation of zero-inflated factor analysis]]
-  3. [[*Variational autoencoder][We fit a variational autoencoder to the data]]
-  4. [[*Predict the data using covariates][We predict mean expression and dropout probability using covariates only]]
+  2. [[*Zero-inflated factor analysis][We fit zero-inflated factor analysis]] and show that after explicitly
+     modeling dropout, we still recover a factor correlated with sequencing
+  3. [[*Effect of normalization on PCA][We show that normalization alone cannot explain the correlation we see]]
+     between the top PC and sequencing
+  4. [[*Effect of centering on PCA][We show that adjusting for both sample- and gene-specific means]] eliminates
+     the correlation between the top PC and sequencing
 
 * Setup                                                            :noexport:
 
@@ -822,3 +828,76 @@
   [[file:figure/dim-reduction.org/umi-quantiles-vs-detection-1e-3.png]]
   :END:
 
+* Effect of centering on PCA
+
+  Bi-center the data.
+
+  \[ x_{ij} \sim N(u_i + v_j, \sigma^2) \]
+
+  #+BEGIN_SRC ipython
+    def sample_feature_means(obs, max_iters=10):
+      """Fit per-feature and per-sample means
+
+      x_ij ~ N(u_i + v_j, sigma^2)
+
+      Inputs:
+
+      x - ndarray (num_samples, num_features)
+
+      Returns:
+      sample_means - ndarray (num_samples, 1)
+      feature_means - ndarray (num_features, 1)
+
+      """
+      n, p = obs.shape
+      sample_means = np.zeros((n, 1))
+      feature_means = np.zeros((1, p))
+      resid = obs.var()
+      llik = -.5 * np.sum(np.log(2 * np.pi * resid) + (obs - feature_means - sample_means) / resid)
+      # Coordinate ascent on llik
+      for _ in range(max_iters):
+        sample_means = np.mean(obs - feature_means, axis=1, keepdims=True)
+        feature_means = np.mean(obs - sample_means, axis=0, keepdims=True)
+        # By default, np divides by N, not N - 1
+        resid = np.var(obs - feature_means - sample_means)
+        update = -.5 * np.sum(np.log(2 * np.pi * resid) + (obs - feature_means - sample_means) / resid)
+        print(update)
+        if np.isclose(update, llik):
+          return sample_means, feature_means.T
+        else:
+          llik = update
+      raise ValueError("Failed to converge")
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[20]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    sample_means, feature_means = sample_feature_means(log_cpm.values.T)
+  #+END_SRC
+
+  #+BEGIN_SRC ipython
+    ppca_bicentered = skd.PCA(n_components=10)
+    loadings_bicentered = ppca_bicentered.fit_transform(log_cpm.values.T - sample_means - feature_means.T)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[31]:
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/pca-bicentered-covars.png
+    corr_bicentered = pd.concat(
+      [correlation(pd.DataFrame(loadings_bicentered), cont_covars)] +
+      [categorical_r2(loadings_bicentered, annotations, k) for k in cat_covars])
+    corr_bicentered = corr_bicentered.pivot(index='covar', columns='pc')
+    plot_pca_covar_corr(ppca_bicentered, corr_bicentered)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[45]:
+  [[file:figure/dim-reduction.org/pca-bicentered-covars.png]]
+  :END:
