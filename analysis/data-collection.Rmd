@@ -7,7 +7,8 @@ output:
     toc: false
 ---
 
-<!-- The file analysis/chunks.R contains chunks that define default settings
+<!-- The file analysis/chunks.R contains chunks that define defau
+lt settings
 shared across the workflowr files. -->
 ```{r read-chunk, include=FALSE, cache=FALSE}
 knitr::read_chunk("chunks.R")
