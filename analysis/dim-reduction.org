@@ -136,6 +136,32 @@
   :RESULTS:
   # Out[4]:
   : (10886, 3910)
+  The expected ERCC spike-in molecule counts were previously tabulated for
+  1:50\(\times\) dilution.
+
+  #+BEGIN_SRC ipython
+    ercc_mean_mols_50x = pd.read_table('https://raw.githubusercontent.com/jdblischak/singleCellSeq/master/data/expected-ercc-molecules.txt')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[34]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    def efficiency(sample, ercc_mean_mols_50x):
+      res = sample['mol_ercc'] / ercc_mean_mols_50x['ercc_molecules_well'].sum()
+      if sample['ERCC'] == '50x dilution':
+        return res
+      elif sample['ERCC'] == '100x dilution':
+        return .5 * res
+      else:
+        return np.nan
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[35]:
   :END:
 
 * Principal components analysis
@@ -183,11 +209,12 @@
         'experiment': 10000 * (annotations['experiment'] % 10000) + annotations['experiment'] // 10000,
         'index': annotations['index'],
         'concentration': annotations['concentration'],
-        'reads': annotations['raw'],
+        'reads_with_umi': annotations['umi'],
         'mols': annotations['molecules'],
-        'mapped_prop_hs': annotations['mapped'] / annotations['raw'],
-        'mapped_prop_dm': annotations['reads_dm'] / annotations['raw'],
-        'mapped_prop_ce': annotations['reads_ce'] / annotations['raw'],
+        'efficiency': efficiency(annotations, ercc_mean_mols_50x=ercc_mean_mols_50x),
+        'mapped_prop_hs': annotations['reads_hs'] / annotations['mapped'],
+        'mapped_prop_dm': annotations['reads_dm'] / annotations['mapped'],
+        'mapped_prop_ce': annotations['reads_ce'] / annotations['mapped'],
         'detect_hs': annotations['detect_hs'],
         'chipmix': annotations['chipmix'],
         'freemix': annotations['freemix'],
@@ -196,16 +223,17 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[62]:
+  # Out[32]:
   :END:
 
   #+BEGIN_SRC ipython
     cont_covars = annotations.apply(extract_covars, axis=1)
+    cat_covars = annotations[['chip_id', 'well']]
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[63]:
+  # Out[36]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -256,12 +284,10 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[65]:
+  # Out[38]:
   :END:
 
   #+BEGIN_SRC ipython
-    cat_covars = annotations[['chip_id', 'well']]
-
     corr = pd.concat(
       [correlation(pd.DataFrame(loadings), cont_covars)] +
       [categorical_r2(loadings, annotations, k) for k in cat_covars])
