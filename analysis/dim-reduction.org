@@ -906,6 +906,51 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[29]:
+  # Out[43]:
   [[file:figure/dim-reduction.org/pca-bicentered-covars.png]]
+  :END:
+
+  After bicentering the data, the top PC is still correlated with detection
+  rate.
+
+  #+BEGIN_SRC ipython
+    corr_bicentered.loc['detect_hs', ('corr', 0)]
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[49]:
+  : 0.26792105510441244
+  :END:
+
+  The top PC is more strongly correlated with the percentiles of non-zero gene
+  expression, suggesting that it is capturing the fact that the higher moments
+  (shape) of the distribution of non-zero gene expression depends on gene
+  detection rate.
+
+  #+BEGIN_SRC ipython
+    percentiles = np.nanpercentile(np.ma.masked_equal(umi.values, 0).astype(float).filled(np.nan), 100 * np.linspace(0, 1, 5), axis=0, interpolation='higher')
+    normalized_percentiles = (np.log(percentiles + pseudocount.values.reshape(1, -1)) - np.log(libsize + 2 * pseudocount).values.reshape(1, -1) + 6 * np.log(10)) / np.log(2)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[68]:
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/pca-expr-percentile-corr.png
+    plt.clf()
+    im = plt.imshow(np.square(np.corrcoef(loadings_bicentered.T, normalized_percentiles)[10:,:10]), cmap=colorcet.cm['fire'], vmin=0, vmax=1)
+    cb = plt.colorbar(im, orientation='horizontal')
+    cb.set_label('Squared correlation')
+    plt.xlabel('Principal component')
+    plt.ylabel('Percentile of non-zero log CPM')
+    _ = plt.xticks(np.arange(10), np.arange(1, 11))
+    _ = plt.yticks(np.arange(5), ['{:.2f}'.format(x) for x in np.linspace(0, 1, 5)])
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[83]:
+  [[file:figure/dim-reduction.org/pca-expr-percentile-corr.png]]
   :END:
