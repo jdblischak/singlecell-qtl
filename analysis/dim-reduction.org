@@ -5,74 +5,37 @@
 * Introduction
 
   The fundamental inference task is to infer \(p(z_i \mid x_i)\), where \(x_i\)
-  is the \(p\)-dimensional observation (one sample), \(z_i\) is a
-  \(k\)-dimensional latent variable, and \(k \ll n\).
+  is a \(p\)-dimensional observation, \(z_i\) is a \(k\)-dimensional latent
+  variable, and \(k \ll n\).
 
-  Why do we want to do this? 
+  Why do we want to do this?
+
   - determine how much variation in the data is explained by known technical
     factors
-  - remove that variation before trying to explain the data using biological
-    covariates
-
-  The typical procedure to apply PCA to single cell RNA-Seq data is:
-
-  1. Normalize counts
-  2. Select a subset of genes, e.g. those detected in some minimum proportion
-     of cells, with high mean/variability of expression, etc.
-  3. Compute singular vectors (principal components) of the count matrix
-  4. Take loadings on the top \(k\) singular vectors as the latent \(z_i\)
-  5. Correlate the loadings with the known covariates.
-
-  Assuming this is the right way to quantify how much variation in the data is
-  explained by covariates, there are several problems with this
-  procedure. Prior work showed that (probabilistic) PCA fails to accurately
-  infer \(z_i\) under a variety of scenarios ([[https://dx.doi.org/10.1186/s13059-015-0805-z][Pierson et al 2015]]):
-
-  - high missingness
-  - stringent gene selection
-
-  Several methods have been proposed to improve inference of latent gene
-  expression:
-
-  - ZIFA ([[https://dx.doi.org/10.1186/s13059-015-0805-z][Pierson et al 2015]])
-  - ZINB-WAVE ([[https://www.nature.com/articles/s41467-017-02554-5][Risso et al 2018]])
-  - scVI ([[https://arxiv.org/abs/1709.02082][Lopez et al 2017]])
-  - countae (Eraslen et al 2017)
-
-  The main disadvantage of the first two methods is high computational cost and
-  poor scaling with data size. The main disadvantage of the last two is they
-  rely on neural networks making interpretation more difficult.
-
-  It is also worth asking whether this is actually the right way to quantify
-  how much variation in the data is explained by covariates. A different, but
-  still natural way to phrase the question is to ask whether the expression
-  values can be accurately predicted using known covariates. This procedure
-  naturally suggests a confounder correction method: regress out known
-  covariates from the expression values.
-
-  This idea is related to half-sibling regression ([[http://www.pnas.org/cgi/doi/10.1073/pnas.1511656113][Schölkopf et al 2016]]): we
-  can only accurately predict gene expression using genes on other chromosomes
-  if there is true /trans/-regulation or systematic confounding. Again, the
-  natural solution is to regress out the rest of the genome from the gene
-  expression values.
+  - decide whether, and how to remove that variation before trying to explain
+    the data using biological covariates
 
   Importantly, these analyses are not directly usable for confounder correction
   for QTL mapping. Instead, we first need to [[file:zinb.org][learn the underlying distributions
   of the data]] and then perform dimensionality reduction on those
   parameters. However, it will be important to consider what data went into
-  learning the underlying those distributions, and how to incorporate known and
-  inferred confounders into that estimation procedure.
+  learning those distributions, and how to incorporate known and inferred
+  confounders into that estimation procedure.
 
   Here, we perform the following analyses:
 
   1. [[*Principal components analysis][We perform PCA on the post-QC data]] and show that most variation is
-     still explained by variation in sequencing metrics
+     explained by gene detection rate
   2. [[*Zero-inflated factor analysis][We fit zero-inflated factor analysis]] and show that after explicitly
-     modeling dropout, we still recover a factor correlated with sequencing
-  3. [[*Effect of normalization on PCA][We show that normalization alone cannot explain the correlation we see]]
-     between the top PC and sequencing
-  4. [[*Effect of centering on PCA][We show that adjusting for both sample- and gene-specific means]] eliminates
-     the correlation between the top PC and sequencing
+     modeling dropout, we still recover a factor correlated with gene detection
+     rate
+  3. [[*Effect of normalization on PCA][We show in simulation]] that PC1 is correlated with library size even in the
+     absence of dropout
+  4. [[*Effect of dropout on gene expression][We confirm in the real data]] that the entire distribution of non-zero gene
+     expression is correlated with gene detection rate
+  5. [[*Effect of centering on PCA][We show that after adjusting for both sample- and gene-specific means]] the
+     top PC is less correlated with gene detection rate, and is likely
+     explained simply by higher order variation between samples
 
 * Setup                                                            :noexport:
 
@@ -743,6 +706,8 @@
   [[file:figure/dim-reduction.org/simulated-pca-vs-dropout.png]]
   :END:
 
+* Effect of dropout on gene expression
+
   Hicks et al also claim that the entire distribution of non-zero measurements
   depends on detection rate. They show this by plotting the percentiles of
   non-zero expressed genes in each cell versus detection rate in that cell.
@@ -947,10 +912,11 @@
     plt.ylabel('Percentile of non-zero log CPM')
     _ = plt.xticks(np.arange(10), np.arange(1, 11))
     _ = plt.yticks(np.arange(5), ['{:.2f}'.format(x) for x in np.linspace(0, 1, 5)])
+    plt.gcf().tight_layout()
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[83]:
+  # Out[84]:
   [[file:figure/dim-reduction.org/pca-expr-percentile-corr.png]]
   :END:
