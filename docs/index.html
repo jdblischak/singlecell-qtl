@@ -313,17 +313,20 @@ div.tocify {
 
 <section id="introduction" class="level2">
 <h2>Introduction</h2>
-<p>Phenotypic heterogeneity in cell populations has been shown to play critical roles in determining biologically and clinically significant phenotypes. The goal of this project is to identify loci in the human genomes that are associated with inter-individual variability in regulatory noise (robustness/variance QTLs), as measured by cell-to-cell variability in gene expression levels.</p>
+<p>Phenotypic heterogeneity in cell populations has been shown to play critical roles in determining biologically and clinically significant phenotypes. The goal of this project is to identify <em>robustness QTLs</em>, loci in the human genome that are associated with within-individual variation in gene expression levels.</p>
 </section>
 <section id="data-collection" class="level2">
 <h2>Data collection</h2>
-<p>We collected single cell RNA-seq data from <a href="data-collection.html">YRI invididuals</a> using the C1 platform. The 96 single cell samples of each C1 chip were pooled and <a href="totals.html">sequenced</a> on an Illumina HiSeq 2500.</p>
-<p>Single cell <a href="identity.html">sample identification</a> were determined by examining the SNPs present in their RNA sequencing reads using the method verifyBamID. Using the identification of each single cell sample, we performed <a href="correlations.html">pairwise correlations</a> between the samples and found that the effect of individual is stronger than the effect of C1 chip. We performed <a href="pca-variable.html">PCA</a> on a subset of most variable genes and found that PC1 is most highly correlated with the percentage of detected genes and other metrics of sequencing depth. We also analyzed per-gene expression profiles and computed <a href="partition.html">variance component</a> estimates for the effects of individual and C1 batch.</p>
-<p>Next, we performed <a href="qc-filter-ipsc.html">quality control</a> to identify low quality single cells. We <a href="filter-gene.html">filtered</a> both over-expressed genes and lowly-expressed genes for downstream analysis.</p>
+<p>We <a href="data-collection.html">collected single cell RNA-seq data</a> from YRI invididuals using the C1 platform. We <a href="totals.html">pooled and sequenced</a> each C1 chip on an Illumina HiSeq 2500.</p>
+<p>We identified sample swaps and <a href="identity.html">matched samples to individuals</a> using verifyBamID.</p>
+<p>Next, we <a href="sampleqc.html">filtered low quality samples</a> and both <a href="filter-gene.html">over- and lowly-expressed genes</a> for downstream analysis.</p>
+<p>We then <a href="dim-reduction.html">performed dimensionality reduction</a> on the quality-controlled samples and genes to identify the remaining major sources of variation.</p>
 </section>
 <section id="qtl-mapping" class="level2">
 <h2>QTL mapping</h2>
-<p>We looked at <a href="sc-stratified-geno.html">UMI count distribution stratified by genotype</a> of the top 5 mean QTLs in YRI iPSCs. We investigated <a href="sc-vs-bulk.html">the concordance between single cell and bulk RNA-seq data</a> and found that 50 cells are sufficient. With the attempt to <a href="power.html">estimate the power</a> to detect mean and variance QTL, we took the strategy of resample scRNA-seq. We <a href="zinb.html">estimated means and dispersions</a> per individual per gene and set up the infrastructure to <a href="qtl-mapping.html">call mean and variance QTLs</a>.</p>
+<p>We first <a href="sc-vs-bulk.html">investigated the concordance between scRNA-Seq and matched bulk RNA-seq data</a>.</p>
+<p>We then built an <a href="https://hpimentel.shinyapps.io/eqtl-shiny/">interactive browser</a> to view the distribution of scRNA-Seq counts stratified by genotype at top eQTLs in the matched bulk RNA-Seq data.</p>
+<p>Next, we <a href="zinb.html">estimated means and dispersions</a> per individual per gene. We then <a href="qtl-mapping.html">treated these as continuous phenotypes and mapped QTLs</a> using QTLtools.</p>
 </section>
 
 <hr>
