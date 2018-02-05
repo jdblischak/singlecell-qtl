@@ -86,7 +86,7 @@
   #+CALL: ipython3(memory="16G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 42818938
+  : Submitted batch job 42836177
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -112,7 +112,7 @@
 
   #+RESULTS: dim-reduction-imports
   :RESULTS:
-  # Out[1]:
+  # Out[2]:
   :END:
 
 * Read the data
@@ -131,7 +131,7 @@
 
   #+RESULTS: read-data-qc
   :RESULTS:
-  # Out[22]:
+  # Out[29]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -140,7 +140,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[4]:
+  # Out[30]:
   : (10978, 4865)
   :END:
 
@@ -153,7 +153,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[34]:
+  # Out[31]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -169,24 +169,24 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[35]:
+  # Out[32]:
   :END:
 
 * Principal components analysis
 
   Use PPCA ([[http://www.miketipping.com/papers/met-mppca.pdf][Tipping et al 1999]]) to incorporate gene-specific mean
-  expression. Use the ~edgeR~ psuedocount.
+  expression. Use the ~edgeR~ pseudocount.
 
   #+NAME: normalize
   #+BEGIN_SRC ipython
     libsize = umi.sum(axis=0)
-    psuedocount = .5 * libsize / libsize.mean()
-    log_cpm = (np.log(umi + psuedocount) - np.log(libsize + 2 * psuedocount) + 6 * np.log(10)) / np.log(2)
+    pseudocount = .5 * libsize / libsize.mean()
+    log_cpm = (np.log(umi + pseudocount) - np.log(libsize + 2 * pseudocount) + 6 * np.log(10)) / np.log(2)
   #+END_SRC
 
   #+RESULTS: normalize
   :RESULTS:
-  # Out[23]:
+  # Out[6]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -216,8 +216,23 @@
   [[file:figure/dim-reduction.org/pca.png]]
   :END:
 
-  Correlate PCs with known continuous covariates.
+  Correlate PCs with known continuous covariates by computing squared Pearson
+  correlation.
 
+  Correlating PCs with individual (or other discrete covariates) is non-obvious
+  because it is a categorical variable, and simply recoding it as integer is
+  sensitive to ordering. Instead, regress the loading of each cell on each
+  principal component \(l_{ij}\) against indicator variables for each
+  individual \(X_{ik}\).
+
+  \[ l_{ij} = \sum_j X_{ik} \beta_{jk} + \mu + \epsilon \]
+
+  From the regression fit, we can compute the coefficient of determination
+  \(R^2\) for each PC \(j\):
+
+  \[ 1 - \frac{l_j - X \hat{\beta}_j}{l_j - \bar{l_j}} \]
+
+  #+NAME: corr-def
   #+BEGIN_SRC ipython
     def extract_covars(annotations):
       return pd.Series({
@@ -236,24 +251,7 @@
         'chipmix': annotations['chipmix'],
         'freemix': annotations['freemix'],
       })
-  #+END_SRC
 
-  #+RESULTS:
-  :RESULTS:
-  # Out[32]:
-  :END:
-
-  #+BEGIN_SRC ipython
-    cont_covars = annotations.apply(extract_covars, axis=1)
-    cat_covars = annotations[['chip_id', 'well']]
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[36]:
-  :END:
-
-  #+BEGIN_SRC ipython
     def correlation(pcs, cont_covars):
       """Return squared correlation between principal components and covariates
 
@@ -267,27 +265,7 @@
           keep = np.isfinite(cont_covars[j].values)
           result.append([i, j, np.square(st.pearsonr(pcs[i][keep], cont_covars[j][keep]))[0]])
       return pd.DataFrame(result, columns=['pc', 'covar', 'corr'])
-  #+END_SRC
 
-  #+RESULTS:
-  :RESULTS:
-  # Out[37]:
-  :END:
-
-  Correlating with individual is non-obvious because it is a categorical
-  variable, and simply recoding it as integer is sensitive to
-  ordering. Instead, regress the loading of each cell on each principal
-  component \(l_{ij}\) against indicator variables for each individual
-  \(X_{ik}\).
-
-  \[ l_{ij} = \sum_j X_{ik} \beta_{jk} + \mu + \epsilon \]
-
-  From the regression fit, we can compute the coefficient of determination
-  \(R^2\) for each PC \(j\):
-
-  \[ 1 - \frac{l_j - X \hat{\beta}_j}{l_j - \bar{l_j}} \]
-
-  #+BEGIN_SRC ipython
     def categorical_r2(loadings, annotations, key):
       categories = sorted(annotations[key].unique())
       onehot = np.zeros((annotations.shape[0], len(categories)), dtype=np.float32)
@@ -301,7 +279,18 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[38]:
+  # Out[11]:
+  :END:
+
+  #+NAME: extract-covars
+  #+BEGIN_SRC ipython
+    cont_covars = annotations.apply(extract_covars, axis=1)
+    cat_covars = annotations[['chip_id', 'well']]
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[15]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -316,6 +305,7 @@
   # Out[14]:
   :END:
 
+  #+NAME: plot-covars-def
   #+BEGIN_SRC ipython
     def plot_pca_covar_corr(pca, corr):
       plt.clf()
@@ -338,7 +328,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[44]:
+  # Out[28]:
   :END:
 
   #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/pca-vs-covars.png
@@ -605,8 +595,8 @@
           mask = np.array([np.random.uniform() < d for d in det_rate for _ in self.rel_expr[0]]).reshape(num_samples, self.num_genes)
           counts *= mask
         total_counts = counts.sum(axis=1)
-        psuedocount = .5 * total_counts / total_counts.mean()
-        log_cpm = np.log(counts + psuedocount.reshape(-1, 1)) - np.log(total_counts + 2 * psuedocount).reshape(-1, 1) + 6 * np.log(10)
+        pseudocount = .5 * total_counts / total_counts.mean()
+        log_cpm = np.log(counts + pseudocount.reshape(-1, 1)) - np.log(total_counts + 2 * pseudocount).reshape(-1, 1) + 6 * np.log(10)
         return log_cpm
 
       def pca_corr(num_components=10, num_trials=10):
@@ -830,7 +820,8 @@
 
 * Effect of centering on PCA
 
-  Bi-center the data.
+  Bi-center the data, by fitting a model where observations depend on a
+  row-mean and a column-mean.
 
   \[ x_{ij} \sim N(u_i + v_j, \sigma^2) \]
 
@@ -871,24 +862,41 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[20]:
+  # Out[35]:
   :END:
 
-  #+BEGIN_SRC ipython
-    sample_means, feature_means = sample_feature_means(log_cpm.values.T)
-  #+END_SRC
-
-  #+BEGIN_SRC ipython
-    ppca_bicentered = skd.PCA(n_components=10)
-    loadings_bicentered = ppca_bicentered.fit_transform(log_cpm.values.T - sample_means - feature_means.T)
-  #+END_SRC
+  #+CALL: normalize()
 
   #+RESULTS:
   :RESULTS:
-  # Out[31]:
+  # Out[56]:
+  :END:
+
+  #+CALL: corr-def()
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[40]:
+  :END:
+
+  #+CALL: extract-covars()
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[41]:
+  :END:
+
+  #+CALL: plot-covars-def()
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[42]:
   :END:
 
   #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/pca-bicentered-covars.png
+    sample_means, feature_means = sample_feature_means(log_cpm.values.T)
+    ppca_bicentered = skd.PCA(n_components=10)
+    loadings_bicentered = ppca_bicentered.fit_transform(log_cpm.values.T - sample_means - feature_means.T)
     corr_bicentered = pd.concat(
       [correlation(pd.DataFrame(loadings_bicentered), cont_covars)] +
       [categorical_r2(loadings_bicentered, annotations, k) for k in cat_covars])
@@ -898,6 +906,6 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[45]:
+  # Out[29]:
   [[file:figure/dim-reduction.org/pca-bicentered-covars.png]]
   :END:
