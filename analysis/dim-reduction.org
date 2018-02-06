@@ -49,7 +49,7 @@
   #+CALL: ipython3(memory="16G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 42836177
+  : Submitted batch job 42961278
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -94,7 +94,7 @@
 
   #+RESULTS: read-data-qc
   :RESULTS:
-  # Out[29]:
+  # Out[3]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -103,7 +103,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[30]:
+  # Out[4]:
   : (10978, 4865)
   :END:
 
@@ -116,7 +116,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[31]:
+  # Out[5]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -132,7 +132,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[32]:
+  # Out[6]:
   :END:
 
 * Principal components analysis
@@ -790,6 +790,7 @@
 
   \[ x_{ij} \sim N(u_i + v_j, \sigma^2) \]
 
+  #+c
   #+BEGIN_SRC ipython
     def sample_feature_means(obs, max_iters=10):
       """Fit per-feature and per-sample means
@@ -827,46 +828,56 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[35]:
+  # Out[7]:
   :END:
 
   #+CALL: normalize()
 
   #+RESULTS:
   :RESULTS:
-  # Out[56]:
+  # Out[8]:
   :END:
 
   #+CALL: corr-def()
 
   #+RESULTS:
   :RESULTS:
-  # Out[40]:
+  # Out[9]:
   :END:
 
   #+CALL: extract-covars()
 
   #+RESULTS:
   :RESULTS:
-  # Out[41]:
+  # Out[10]:
   :END:
 
   #+CALL: plot-covars-def()
 
   #+RESULTS:
   :RESULTS:
-  # Out[42]:
+  # Out[11]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    def plot_bicentered_pca(log_cpm, annotations, cont_covars, cat_covars):
+      sample_means, feature_means = sample_feature_means(log_cpm.values.T)
+      ppca = skd.PCA(n_components=10)
+      loadings = ppca.fit_transform(log_cpm.values.T - sample_means - feature_means.T)
+      corr = pd.concat(
+        [correlation(pd.DataFrame(loadings), cont_covars)] +
+        [categorical_r2(loadings, annotations, k) for k in cat_covars])
+      corr = corr.pivot(index='covar', columns='pc')
+      plot_pca_covar_corr(ppca, corr)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[46]:
   :END:
 
   #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/pca-bicentered-covars.png
-    sample_means, feature_means = sample_feature_means(log_cpm.values.T)
-    ppca_bicentered = skd.PCA(n_components=10)
-    loadings_bicentered = ppca_bicentered.fit_transform(log_cpm.values.T - sample_means - feature_means.T)
-    corr_bicentered = pd.concat(
-      [correlation(pd.DataFrame(loadings_bicentered), cont_covars)] +
-      [categorical_r2(loadings_bicentered, annotations, k) for k in cat_covars])
-    corr_bicentered = corr_bicentered.pivot(index='covar', columns='pc')
-    plot_pca_covar_corr(ppca_bicentered, corr_bicentered)
+    plot_bicentered_pca(log_cpm, annotations, cont_covars, cat_covars)
   #+END_SRC
 
   #+RESULTS:
@@ -900,7 +911,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[68]:
+  # Out[38]:
   :END:
 
   #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/pca-expr-percentile-corr.png
@@ -919,4 +930,27 @@
   :RESULTS:
   # Out[84]:
   [[file:figure/dim-reduction.org/pca-expr-percentile-corr.png]]
+  :END:
+
+  Although the dependency of the percentiles of non-zero gene expression
+  appears to be nonlinear, we can partially correct for it by regressing out
+  the percentiles of expression from the expression values for each gene.
+
+  #+BEGIN_SRC ipython :async t
+    log_cpm_residuals = log_cpm.apply(lambda y: y - sklm.LinearRegression(fit_intercept=True).fit(normalized_percentiles.T, y).predict(normalized_percentiles.T), axis=1)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[43]:
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/pca-expr-residual-covars.png
+    plot_bicentered_pca(log_cpm_residuals, annotations, cont_covars, cat_covars)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[48]:
+  [[file:figure/dim-reduction.org/pca-expr-residual-covars.png]]
   :END:

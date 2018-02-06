@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-02-07 Wed 13:35 -->
+<!-- 2018-02-06 Tue 16:24 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Dimensionality reduction</title>
@@ -1110,6 +1110,9 @@ row-mean and a column-mean.
 \[ x_{ij} \sim N(u_i + v_j, \sigma^2) \]
 </p>
 
+<p>
+#+c
+</p>
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">sample_feature_means</span>(obs, max_iters=10):
   <span class="org-doc">"""Fit per-feature and per-sample means</span>
@@ -1147,14 +1150,20 @@ row-mean and a column-mean.
 </div>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">sample_means</span>, <span class="org-variable-name">feature_means</span> = sample_feature_means(log_cpm.values.T)
-<span class="org-variable-name">ppca_bicentered</span> = skd.PCA(n_components=10)
-<span class="org-variable-name">loadings_bicentered</span> = ppca_bicentered.fit_transform(log_cpm.values.T - sample_means - feature_means.T)
-<span class="org-variable-name">corr_bicentered</span> = pd.concat(
-  [correlation(pd.DataFrame(loadings_bicentered), cont_covars)] +
-  [categorical_r2(loadings_bicentered, annotations, k) <span class="org-keyword">for</span> k <span class="org-keyword">in</span> cat_covars])
-<span class="org-variable-name">corr_bicentered</span> = corr_bicentered.pivot(index=<span class="org-string">'covar'</span>, columns=<span class="org-string">'pc'</span>)
-plot_pca_covar_corr(ppca_bicentered, corr_bicentered)
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">plot_bicentered_pca</span>(log_cpm, annotations, cont_covars, cat_covars):
+  <span class="org-variable-name">sample_means</span>, <span class="org-variable-name">feature_means</span> = sample_feature_means(log_cpm.values.T)
+  <span class="org-variable-name">ppca</span> = skd.PCA(n_components=10)
+  <span class="org-variable-name">loadings</span> = ppca.fit_transform(log_cpm.values.T - sample_means - feature_means.T)
+  <span class="org-variable-name">corr</span> = pd.concat(
+    [correlation(pd.DataFrame(loadings), cont_covars)] +
+    [categorical_r2(loadings, annotations, k) <span class="org-keyword">for</span> k <span class="org-keyword">in</span> cat_covars])
+  <span class="org-variable-name">corr</span> = corr.pivot(index=<span class="org-string">'covar'</span>, columns=<span class="org-string">'pc'</span>)
+  plot_pca_covar_corr(ppca, corr)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plot_bicentered_pca(log_cpm, annotations, cont_covars, cat_covars)
 </pre>
 </div>
 
@@ -1210,12 +1219,34 @@ plt.gcf().tight_layout()
 <p><img src="figure/dim-reduction.org/pca-expr-percentile-corr.png" alt="pca-expr-percentile-corr.png">
 </p>
 </div>
+
+<p>
+Although the dependency of the percentiles of non-zero gene expression
+appears to be nonlinear, we can partially correct for it by regressing out
+the percentiles of expression from the expression values for each gene.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">log_cpm_residuals</span> = log_cpm.<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> y: y - sklm.LinearRegression(fit_intercept=<span class="org-constant">True</span>).fit(normalized_percentiles.T, y).predict(normalized_percentiles.T), axis=1)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plot_bicentered_pca(log_cpm_residuals, annotations, cont_covars, cat_covars)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/dim-reduction.org/pca-expr-residual-covars.png" alt="pca-expr-residual-covars.png">
+</p>
+</div>
 </div>
 </div>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-02-07 Wed 13:35</p>
+<p class="date">Created: 2018-02-06 Tue 16:24</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
