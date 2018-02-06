@@ -34,17 +34,10 @@ library("DT")
 library("Biobase")
 source("../code/functions.R")
 eset <- readRDS("../data/eset.rds")
-# Determine all individuals that have more than 5 cells on at least 1 chip
-individuals <- pData(eset) %>%
-  group_by(chip_id, experiment) %>%
-  summarize(n = n()) %>%
-  filter(n > 5) %>%
-  select(chip_id) %>%
-  unlist() %>%
-  unique()
-eset_quality <- eset[, eset$cell_number == 1 &
-                       eset$tra1.60 &
-                       eset$chip_id %in% individuals]
+quality <- read.table("../data/quality-single-cells.txt",
+                      stringsAsFactors = FALSE)
+colnames(quality) <- c("sample", "quality")
+eset_quality <- eset[, quality$quality]
 eset_hs <- eset_quality[fData(eset_quality)$source == "H. sapiens", ]
 eset_hs_clean <- eset_hs[rowSums(exprs(eset_hs)) != 0, ]
 eset_hs_clean <- eset_hs_clean[apply(exprs(eset_hs_clean), 1, present), ]
@@ -54,8 +47,10 @@ collection <- pData(eset_hs_clean) %>%
   cbind(sums) %>%
   group_by(chip_id) %>%
   summarize(n = n(),
-            detect_med = median(detect_hs),
-            sum_med = median(sums)) %>%
+            # Round the medians to reduce the noise from tie breaks which cause
+            # a trivial 0.5 to be added
+            detect_med = round(median(detect_hs)),
+            sum_med = round(median(sums))) %>%
   arrange(desc(n))
 ```
 
