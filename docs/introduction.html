@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+
+
+<meta name="author" content="Po-Yuan Tung" />
+
+<meta name="date" content="2018-01-25" />
+
+<title>Introduction</title>
+
+<script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<script src="site_libs/jqueryui-1.11.4/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<link href="site_libs/font-awesome-4.5.0/css/font-awesome.min.css" rel="stylesheet" />
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+  pre:not([class]) {
+    background-color: white;
+  }
+</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+<style type="text/css">
+h1 {
+  font-size: 34px;
+}
+h1.title {
+  font-size: 38px;
+}
+h2 {
+  font-size: 30px;
+}
+h3 {
+  font-size: 24px;
+}
+h4 {
+  font-size: 18px;
+}
+h5 {
+  font-size: 16px;
+}
+h6 {
+  font-size: 12px;
+}
+.table th:not([align]) {
+  text-align: left;
+}
+</style>
+
+
+</head>
+
+<body>
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+code {
+  color: inherit;
+  background-color: rgba(0, 0, 0, 0.04);
+}
+img {
+  max-width:100%;
+  height: auto;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+</style>
+
+
+<style type="text/css">
+/* padding for bootstrap navbar */
+body {
+  padding-top: 51px;
+  padding-bottom: 40px;
+}
+/* offset scroll position for anchor links (for fixed navbar)  */
+.section h1 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+
+.section h2 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h3 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h4 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h5 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h6 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+</style>
+
+<script>
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark it active
+  menuAnchor.parent().addClass('active');
+
+  // if it's got a parent navbar menu mark it active as well
+  menuAnchor.closest('li.dropdown').addClass('active');
+});
+</script>
+
+
+<div class="container-fluid main-container">
+
+<!-- tabsets -->
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+</script>
+
+<!-- code folding -->
+
+
+
+
+<script>
+$(document).ready(function ()  {
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_').toLowerCase();
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+  padding-left: 25px;
+  text-indent: 0;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row-fluid">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">singlecell-qtl</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Overview</a>
+</li>
+<li>
+  <a href="data-collection.html">Data</a>
+</li>
+<li>
+  <a href="analysis.html">Analysis</a>
+</li>
+<li>
+  <a href="contributing.html">Contributing</a>
+</li>
+<li>
+  <a href="license.html">License</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/jdblischak/singlecell-qtl">
+    <span class="fa fa-github"></span>
+     
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div class="fluid-row" id="header">
+
+
+
+<h1 class="title toc-ignore">Introduction</h1>
+<h4 class="author"><em>Po-Yuan Tung</em></h4>
+<h4 class="date"><em>2018-01-25</em></h4>
+
+</div>
+
+
+<!-- The file analysis/chunks.R contains chunks that define default settings
+shared across the workflowr files. -->
+<!-- Update knitr chunk options -->
+<!-- Insert the date the file was last updated -->
+<p><strong>Last updated:</strong> 2018-02-07</p>
+<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
+ package git2r is installed -->
+<p><strong>Code version:</strong> a0952b4</p>
+<p>The importance of robustness and the regulation of noise as mechanisms that maintain high evolutionary fitness is evident<span class="citation" data-cites="Kirschner1998 Kitano2004 Masel2009">[@Kirschner1998;@Kitano2004;@Masel2009]</span>. Yet, we still have a relatively poor understanding of how robustness is achieved and how expression noise is being regulated at the molecular level. In model organisms, robustness and evolvability can be studied using experimental evolution approaches. Relative robustness is typically quantified with respect to the change in variation of a specific trait when the experimental perturbation is applied <span class="citation" data-cites="Barrick2013 deVisser2003">[@Barrick2013; @deVisser2003]</span>. In such experiments, the phenotypic outcomes rather than the underlying mechanisms of robustness are measured. To take first steps towards understanding how robustness is regulated in humans, we proposed to focus on a molecular phenotype, namely gene expression levels.</p>
+<p>With few exceptions <span class="citation" data-cites="Deng2014 Marinov2014">[@Deng2014;@Marinov2014]</span>, experimental evolution studies have always considered population-average measurements of phenotypes using entire organisms, tissues, or cell cultures. However, as was often suggested in the literature, to truly understand how robustness is established and encoded in the genome, one needs to consider variation in phenotypes across individual cells<span class="citation" data-cites="Raser2004 Kaern2005 Balazsi2011">[@Raser2004;@Kaern2005;@Balazsi2011]</span>. The motivation to learn more about the property of robustness has led to the advent of new approaches to study ‘noise genetics’ – essentially using existing paradigms to characterize naturally occurring cell-to-cell variation instead of the population-average response to an artificial perturbation<span class="citation" data-cites="Farkash-Amar2014">[@Farkash-Amar2014]</span>. The idea of using the probability of gene expression at the single cell level as a genetic phenotype, termed ‘particle genetics’, has also been introduced to study complex traits <span class="citation" data-cites="Yvert2014">[@Yvert2014]</span>. While a large number of studies have focused on the robustness of particular cellular functions or individual genes in humans <span class="citation" data-cites="Wills2013 Shaffer2014">[@Wills2013;@Shaffer2014]</span>, genome-wide analysis and mapping of the genetic loci underlying robustness has yet to be performed.</p>
+<p>Recent advances in single-cell and single-molecule techniques have revealed that gene expression noise caused by stochastic fluctuations is a complex genetic trait in yeasts<span class="citation" data-cites="Ansel2008">[@Ansel2008]</span>. As a result, research is also aimed at understanding how expression noise is controlled and interpreted within gene regulatory networks <span class="citation" data-cites="Eldar2010">[@Eldar2010]</span>. However, a lack of appropriate quantitative experimental approaches has made the mapping of genetic loci responsible for differential cell-cell variation (or gene expression noise) extremely difficult. One methodology that has been proved powerful as a tool to dissect the genetic architecture of complex phenotypes is the quantitative trait loci (QTL) mapping approach. In the context of molecular phenotypes, such as gene expression levels and epigenetic regulatory features, QTL studies in a wide range of species, including humans, have provided important insights into the genetic basis for inter-individual variation in gene regulation <span class="citation" data-cites="Gilad2008 Pickrell2010 Majewski2011">[@Gilad2008; @Pickrell2010; @Majewski2011]</span>. Since gene expression levels of population-average measurements are proven to be genetically controlled, it stands to reason that the levels of acceptable regulatory noise (or the degree of robustness) would also be genetically encoded. Indeed, the identification of QTLs influencing stochastic cell–cell variability in yeast lends some measure of support to this notion<span class="citation" data-cites="Chuffart2016">[@Chuffart2016]</span>. Yet, regulatory QTL studies in mammalian systems have not yet considered this aspect. All studies to date focused on the mean expression levels across millions of cells, lacking the expression profiling information at the single cell level.</p>
+<p>Induced pluripotency stem cells (iPSCs)<span class="citation" data-cites="Takahashi2006">[@Takahashi2006]</span> are a tantalizingly flexible system with which many different developmental and cell lineage determination pathways can be explored. Recent studies have demonstrated that iPSCs can be utilized as a powerful tool for studies of the genetic association with variation in gene regulation<span class="citation" data-cites="Thomas2015 Burrows2016 DeBoever2017 Kilpinen2017">[@Thomas2015; @Burrows2016; @DeBoever2017; @Kilpinen2017]</span>. In particular, iPSCs provide a means by which to examine the contribution of changes in gene regulation to human evolution and diversity<span class="citation" data-cites="Romero2012 Banovich2018">[@Romero2012; @Banovich2018]</span>. Importantly, the heterogeneous gene expression levels between individual cells observed in population of iPSCs has been proposed to reflect the alternate cell states that represent multiple differentiation potentials<span class="citation" data-cites="Narsinh2011">[@Narsinh2011]</span>. To understand the underlying mechanisms of such plasticity in human iPSCs, quantification of gene expression at the single-cell level is required. Furthermore, the lack of an iPSC system for single cell studies of robustness has hindered the investigation of regulatory noise during differentiation and development in humans.</p>
+<p>In this genome-wide study, the relative genetic robustness is measured as the inter-individual difference in magnitude of variation in gene expression levels across individual cells. To do so, we applied a QTL approach to map inter-individual variation in regulatory noise in a panel of iPSCs reprogrammed from deeply characterized Yoruba HapMap lymphoblastoid cell lines (LCLs)<span class="citation" data-cites="Banovich2018">[@Banovich2018]</span>. Using the Fluidigm C1 system, we collected single-cell RNA-seq from 54 individuals using the technique of unique molecular identifiers (UMIs). This approach allows for the detection of mRNA molecule counts and hence provides more accurate estimation of the mean and the variance of expression level for each gene. We analyzed the variability in gene regulation across individual cells as a measure of expression regulatory noise. In addition, we developed a novel QTL mapping framework specifically applied to estimates of variance rather than average. To our knowledge, this is the first attempt to map genome wide robustness QTLs in humans.</p>
+
+<hr>
+<p>
+    This <a href="http://rmarkdown.rstudio.com">R Markdown</a> site was created with <a href="https://github.com/jdblischak/workflowr">workflowr</a>
+</p>
+<hr>
+
+<!-- To enable disqus, uncomment the section below and provide your disqus_shortname -->
+
+<!-- disqus
+  <div id="disqus_thread"></div>
+    <script type="text/javascript">
+        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+        var disqus_shortname = 'rmarkdown'; // required: replace example with your forum shortname
+
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+    <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+    <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+-->
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.header').parent('thead').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
