@@ -35,10 +35,10 @@ With few exceptions [@Deng2014;@Marinov2014], experimental evolution studies hav
 However, as was often suggested in the literature, to truly understand how robustness is established and encoded in the genome, one needs to consider variation in phenotypes across individual cells[@Raser2004;@Kaern2005;@Balazsi2011].
 The motivation to learn more about the property of robustness has led to the advent of new approaches to study ‘noise genetics’ – essentially using existing paradigms to characterize naturally occurring cell-to-cell variation instead of the population-average response to an artificial perturbation[@Farkash-Amar2014].
 The idea of using the probability of gene expression at the single cell level as a genetic phenotype, termed ‘particle genetics’, has also been introduced to study complex traits [@Yvert2014].
-While a large number of studies have focused on the robustness of particular cellular functions or individual genes in humans [@Wills2013;@Shaffer2014], genome-wide analysis and mapping of the genetic loci underlying robustness has yet to be performed.
+While a large number of studies have focused on the robustness of particular cellular functions or individual genes in humans [@Wills2013;@Shaffer2014;@Halpern2015;@Hendy2017], genome-wide analysis and mapping of the genetic loci underlying robustness has yet to be performed.
 
 Recent advances in single-cell and single-molecule techniques have revealed that gene expression noise caused by stochastic fluctuations is a complex genetic trait in yeasts[@Ansel2008].
-As a result, research is also aimed at understanding how expression noise is controlled and interpreted within gene regulatory networks [@Eldar2010].
+As a result, research is also aimed at understanding how expression noise is controlled and interpreted within gene regulatory networks [@Eldar2010;@Chalancon2012].
 However, a lack of appropriate quantitative experimental approaches has made the mapping of genetic loci responsible for differential cell-cell variation (or gene expression noise) extremely difficult.
 One methodology that has been proved powerful as a tool to dissect the genetic architecture of complex phenotypes is the quantitative trait loci (QTL) mapping approach.
 In the context of molecular phenotypes, such as gene expression levels and epigenetic regulatory features, QTL studies in a wide range of species, including humans, have provided important insights into the genetic basis for inter-individual variation in gene regulation [@Gilad2008; @Pickrell2010; @Majewski2011].
@@ -52,7 +52,7 @@ Recent studies have demonstrated that iPSCs can be utilized as a powerful tool f
 In particular, iPSCs provide a means by which to examine the contribution of changes in gene regulation to human evolution and diversity[@Romero2012; @Banovich2018].
 Importantly, the heterogeneous gene expression levels between individual cells observed in population of iPSCs has been proposed to reflect the alternate cell states that represent multiple differentiation potentials[@Narsinh2011].
 To understand the underlying mechanisms of such plasticity in human iPSCs, quantification of gene expression at the single-cell level is required.
-Furthermore, the lack of an iPSC system for single cell studies of robustness has hindered the investigation of regulatory noise during differentiation and development in humans.
+Nevertheless, the lack of an iPSC system for single cell studies of robustness has hindered the investigation of regulatory noise during differentiation and development in humans.
 
 In this genome-wide study, the relative genetic robustness is measured as the inter-individual difference in magnitude of variation in gene expression levels across individual cells.
 To do so, we applied a QTL approach to map inter-individual variation in regulatory noise in a panel of iPSCs reprogrammed from deeply characterized Yoruba HapMap lymphoblastoid cell lines (LCLs)[@Banovich2018]. 
