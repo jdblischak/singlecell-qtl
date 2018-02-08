@@ -33,9 +33,11 @@
      absence of dropout
   4. [[*Effect of dropout on gene expression][We confirm in the real data]] that the entire distribution of non-zero gene
      expression is correlated with gene detection rate
-  5. [[*Effect of centering on PCA][We show that after adjusting for both sample- and gene-specific means]] the
-     top PC is less correlated with gene detection rate, and is likely
-     explained simply by higher order variation between samples
+  5. [[*PCA on bicentered data][We show that adjusting for both sample- and gene-specific means]] eliminates
+     the first technical PC
+  6. [[*Kernel PCA][We show that applying kernel PCA]] eliminates the second technical PC
+  7. [[*PCA on gene expression residuals][We show that regressing out the percentiles of gene expression]] eliminates
+     both technical PCs
 
 * Setup                                                            :noexport:
 
@@ -49,7 +51,7 @@
   #+CALL: ipython3(memory="16G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 42961278
+  : Submitted batch job 43009166
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -57,7 +59,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[1]:
+  # Out[17]:
   :END:
 
   #+NAME: dim-reduction-imports
@@ -783,14 +785,13 @@
   [[file:figure/dim-reduction.org/umi-quantiles-vs-detection-1e-3.png]]
   :END:
 
-* Effect of centering on PCA
+* PCA on bicentered data
 
   Bi-center the data, by fitting a model where observations depend on a
   row-mean and a column-mean.
 
   \[ x_{ij} \sim N(u_i + v_j, \sigma^2) \]
 
-  #+c
   #+BEGIN_SRC ipython
     def sample_feature_means(obs, max_iters=10):
       """Fit per-feature and per-sample means
@@ -828,35 +829,35 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[7]:
+  # Out[8]:
   :END:
 
   #+CALL: normalize()
 
   #+RESULTS:
   :RESULTS:
-  # Out[8]:
+  # Out[9]:
   :END:
 
   #+CALL: corr-def()
 
   #+RESULTS:
   :RESULTS:
-  # Out[9]:
+  # Out[10]:
   :END:
 
   #+CALL: extract-covars()
 
   #+RESULTS:
   :RESULTS:
-  # Out[10]:
+  # Out[11]:
   :END:
 
   #+CALL: plot-covars-def()
 
   #+RESULTS:
   :RESULTS:
-  # Out[11]:
+  # Out[12]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -873,7 +874,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[46]:
+  # Out[13]:
   :END:
 
   #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/pca-bicentered-covars.png
@@ -886,8 +887,8 @@
   [[file:figure/dim-reduction.org/pca-bicentered-covars.png]]
   :END:
 
-  After bicentering the data, the top PC is still correlated with detection
-  rate.
+  After bicentering the data, the subsequent top PC is still correlated with
+  detection rate.
 
   #+BEGIN_SRC ipython
     corr_bicentered.loc['detect_hs', ('corr', 0)]
@@ -932,9 +933,65 @@
   [[file:figure/dim-reduction.org/pca-expr-percentile-corr.png]]
   :END:
 
+* Kernel PCA
+
+  The dependency of non-zero gene expression on gene detection rate is
+  non-linear, so use kernel PCA to perform non-linear dimensionality reduction
+  ([[https://www.mitpressjournals.org/doi/10.1162/089976698300017467][Schölkopf et al 1998]]). The basic idea is to non-linearly map the original
+  points into a different space, and perform PCA in that space.
+
+  The method eliminates the second technical PC by accurately modeling the
+  non-linearity in the data, but it fails to eliminate the first technical PC
+  because it does not include sample-specific mean parameters. 
+
+  It is non-trivial to add such parameters because we have to center the
+  projections of the samples, and the key algorithmic trick used is that we
+  never have to actually compute the projections. In particular, we assume the
+  radial basis function kernel, which projects the data into infinite
+  dimensional space, making it impossible to compute the projections.
+
+  #+BEGIN_SRC ipython :async t
+    kpca = skd.KernelPCA(kernel='rbf', n_components=10)
+    loadings_kpca = kpca.fit_transform(log_cpm.values.T)
+    corr_kpca = pd.concat(
+      [correlation(pd.DataFrame(loadings_kpca), cont_covars)] +
+      [categorical_r2(loadings_kpca, annotations, k) for k in cat_covars])
+    corr_kpca = corr_kpca.pivot(index='covar', columns='pc')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[15]:
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/kpca-covars.png
+    plt.clf()
+    plt.gcf().set_size_inches(8, 12)
+    im = plt.imshow(corr_kpca.values, cmap=colorcet.cm['fire'], vmin=0, vmax=1, aspect='auto')
+    cb = plt.colorbar(im, orientation='horizontal')
+    cb.set_label('Squared correlation')
+    plt.gca().set_xlabel('Principal component')
+    plt.gca().set_yticks(np.arange(corr_kpca.shape[0]))
+    plt.gca().set_yticklabels(corr_kpca.index)
+    plt.gca().set_ylabel('Covariate')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[20]:
+  : Text(0,0.5,'Covariate')
+  [[file:figure/dim-reduction.org/kpca-covars.png]]
+  :END:
+
+* PCA on gene expression residuals
+
   Although the dependency of the percentiles of non-zero gene expression
   appears to be nonlinear, we can partially correct for it by regressing out
   the percentiles of expression from the expression values for each gene.
+
+  \[ y_{ij} = p_i \beta + \mu_j + \epsilon_{ij} \]
+
+  \[ \tilde{y}_{ij} = y_{ij} - p_i \hat\beta - \hat\mu_j \]
 
   #+BEGIN_SRC ipython :async t
     log_cpm_residuals = log_cpm.apply(lambda y: y - sklm.LinearRegression(fit_intercept=True).fit(normalized_percentiles.T, y).predict(normalized_percentiles.T), axis=1)

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-02-06 Tue 16:24 -->
+<!-- 2018-02-07 Wed 19:01 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Dimensionality reduction</title>
@@ -297,9 +297,11 @@ rate</li>
 absence of dropout</li>
 <li><a href="#orgaaa876e">We confirm in the real data</a> that the entire distribution of non-zero gene
 expression is correlated with gene detection rate</li>
-<li><a href="#org2ede9b3">We show that after adjusting for both sample- and gene-specific means</a> the
-top PC is less correlated with gene detection rate, and is likely
-explained simply by higher order variation between samples</li>
+<li><a href="#org884f6e8">We show that adjusting for both sample- and gene-specific means</a> eliminates
+the first technical PC</li>
+<li><a href="#orgce4b8c0">We show that applying kernel PCA</a> eliminates the second technical PC</li>
+<li><a href="#orga05a10f">We show that regressing out the percentiles of gene expression</a> eliminates
+both technical PCs</li>
 </ol>
 </div>
 </div>
@@ -1098,9 +1100,9 @@ relationship.
 </div>
 </div>
 
-<div id="outline-container-org2ede9b3" class="outline-2">
-<h2 id="org2ede9b3">Effect of centering on PCA</h2>
-<div class="outline-text-2" id="text-org2ede9b3">
+<div id="outline-container-org884f6e8" class="outline-2">
+<h2 id="org884f6e8">PCA on bicentered data</h2>
+<div class="outline-text-2" id="text-org884f6e8">
 <p>
 Bi-center the data, by fitting a model where observations depend on a
 row-mean and a column-mean.
@@ -1110,9 +1112,6 @@ row-mean and a column-mean.
 \[ x_{ij} \sim N(u_i + v_j, \sigma^2) \]
 </p>
 
-<p>
-#+c
-</p>
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">sample_feature_means</span>(obs, max_iters=10):
   <span class="org-doc">"""Fit per-feature and per-sample means</span>
@@ -1174,8 +1173,8 @@ row-mean and a column-mean.
 </div>
 
 <p>
-After bicentering the data, the top PC is still correlated with detection
-rate.
+After bicentering the data, the subsequent top PC is still correlated with
+detection rate.
 </p>
 
 <div class="org-src-container">
@@ -1219,11 +1218,83 @@ plt.gcf().tight_layout()
 <p><img src="figure/dim-reduction.org/pca-expr-percentile-corr.png" alt="pca-expr-percentile-corr.png">
 </p>
 </div>
+</div>
+</div>
 
+<div id="outline-container-orgce4b8c0" class="outline-2">
+<h2 id="orgce4b8c0">Kernel PCA</h2>
+<div class="outline-text-2" id="text-orgce4b8c0">
+<p>
+The dependency of non-zero gene expression on gene detection rate is
+non-linear, so use kernel PCA to perform non-linear dimensionality reduction
+(<a href="https://www.mitpressjournals.org/doi/10.1162/089976698300017467">Schölkopf et al 1998</a>). The basic idea is to non-linearly map the original
+points into a different space, and perform PCA in that space.
+</p>
+
+<p>
+The method eliminates the second technical PC by accurately modeling the
+non-linearity in the data, but it fails to eliminate the first technical PC
+because it does not include sample-specific mean parameters. 
+</p>
+
+<p>
+It is non-trivial to add such parameters because we have to center the
+projections of the samples, and the key algorithmic trick used is that we
+never have to actually compute the projections. In particular, we assume the
+radial basis function kernel, which projects the data into infinite
+dimensional space, making it impossible to compute the projections.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">kpca</span> = skd.KernelPCA(kernel=<span class="org-string">'rbf'</span>, n_components=10)
+<span class="org-variable-name">loadings_kpca</span> = kpca.fit_transform(log_cpm.values.T)
+<span class="org-variable-name">corr_kpca</span> = pd.concat(
+  [correlation(pd.DataFrame(loadings_kpca), cont_covars)] +
+  [categorical_r2(loadings_kpca, annotations, k) <span class="org-keyword">for</span> k <span class="org-keyword">in</span> cat_covars])
+<span class="org-variable-name">corr_kpca</span> = corr_kpca.pivot(index=<span class="org-string">'covar'</span>, columns=<span class="org-string">'pc'</span>)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.gcf().set_size_inches(8, 12)
+<span class="org-variable-name">im</span> = plt.imshow(corr_kpca.values, cmap=colorcet.cm[<span class="org-string">'fire'</span>], vmin=0, vmax=1, aspect=<span class="org-string">'auto'</span>)
+<span class="org-variable-name">cb</span> = plt.colorbar(im, orientation=<span class="org-string">'horizontal'</span>)
+cb.set_label(<span class="org-string">'Squared correlation'</span>)
+plt.gca().set_xlabel(<span class="org-string">'Principal component'</span>)
+plt.gca().set_yticks(np.arange(corr_kpca.shape[0]))
+plt.gca().set_yticklabels(corr_kpca.index)
+plt.gca().set_ylabel(<span class="org-string">'Covariate'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0,0.5,'Covariate')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/dim-reduction.org/kpca-covars.png" alt="kpca-covars.png">
+</p>
+</div>
+</div>
+</div>
+
+<div id="outline-container-orga05a10f" class="outline-2">
+<h2 id="orga05a10f">PCA on gene expression residuals</h2>
+<div class="outline-text-2" id="text-orga05a10f">
 <p>
 Although the dependency of the percentiles of non-zero gene expression
 appears to be nonlinear, we can partially correct for it by regressing out
 the percentiles of expression from the expression values for each gene.
+</p>
+
+<p>
+\[ y_{ij} = p_i \beta + \mu_j + \epsilon_{ij} \]
+</p>
+
+<p>
+\[ \tilde{y}_{ij} = y_{ij} - p_i \hat\beta - \hat\mu_j \]
 </p>
 
 <div class="org-src-container">
@@ -1246,7 +1317,7 @@ the percentiles of expression from the expression values for each gene.
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-02-06 Tue 16:24</p>
+<p class="date">Created: 2018-02-07 Wed 19:01</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
