@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-01-22 Mon 16:07 -->
+<!-- 2018-02-07 Wed 18:51 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mean/dispersion estimation</title>
@@ -259,7 +259,7 @@ for the JavaScript code in this tag.
 <ul>
 <li><a href="#org6af1f01">Introduction</a></li>
 <li><a href="#orgad32fb3">Model specification</a></li>
-<li><a href="#orgc967b6d">Quality control</a></li>
+<li><a href="#org05dec60">Quality control</a></li>
 <li><a href="#orgde19fe3">Read the data</a></li>
 <li><a href="#org978d4fc">Serial algorithm</a></li>
 <li><a href="#org21f6e33">Parallel algorithm</a></li>
@@ -347,9 +347,9 @@ Then, the log-likelihood of the data is:
 </div>
 </div>
 
-<div id="outline-container-orgc967b6d" class="outline-2">
-<h2 id="orgc967b6d">Quality control</h2>
-<div class="outline-text-2" id="text-orgc967b6d">
+<div id="outline-container-org05dec60" class="outline-2">
+<h2 id="org05dec60">Quality control</h2>
+<div class="outline-text-2" id="text-org05dec60">
 <p>
 Filter out cells on percent spike-in and gene detection rate, and filter out
 genes on individual detection rate. For now, use conservative filters:
@@ -362,7 +362,7 @@ genes on individual detection rate. For now, use conservative filters:
 </ul>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="orgdfffb52"><span class="org-variable-name">keep_cells</span> = functools.<span class="org-builtin">reduce</span>(
+<pre class="src src-ipython" id="org825aeab"><span class="org-variable-name">keep_cells</span> = functools.<span class="org-builtin">reduce</span>(
   np.logical_and,
   [
     annotations[<span class="org-string">'reads_ercc'</span>] / annotations.<span class="org-builtin">filter</span>(like=<span class="org-string">'reads_'</span>, axis=1).agg(np.<span class="org-builtin">sum</span>, axis=1) &lt; 0.5,
@@ -435,7 +435,7 @@ True
 <h2 id="orgde19fe3">Read the data</h2>
 <div class="outline-text-2" id="text-orgde19fe3">
 <div class="org-src-container">
-<pre class="src src-ipython" id="org8f219ad"><span class="org-variable-name">umi</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/umi-qc.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
+<pre class="src src-ipython" id="org6243a93"><span class="org-variable-name">umi</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/umi-qc.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
 <span class="org-variable-name">onehot</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/onehot-qc.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
 <span class="org-variable-name">annotations</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/annotations-qc.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
 </pre>
@@ -548,7 +548,7 @@ perform gradient descent.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org8a5aab3"><span class="org-keyword">def</span> <span class="org-function-name">sigmoid</span>(x):
+<pre class="src src-ipython" id="org5083854"><span class="org-keyword">def</span> <span class="org-function-name">sigmoid</span>(x):
   <span class="org-doc">"""Numerically safe sigmoid"""</span>
   <span class="org-keyword">return</span> tf.clip_by_value(tf.sigmoid(x), -13, 13)
 
@@ -1020,7 +1020,7 @@ Plot the data and fitted distribution for the zero-inflated model.
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-01-22 Mon 16:07</p>
+<p class="date">Created: 2018-02-07 Wed 18:51</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
