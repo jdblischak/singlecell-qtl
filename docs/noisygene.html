@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+
+
+<meta name="author" content="Po-Yuan Tung" />
+
+<meta name="date" content="2018-01-25" />
+
+<title>Noisy gene</title>
+
+<script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<script src="site_libs/jqueryui-1.11.4/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<link href="site_libs/font-awesome-4.5.0/css/font-awesome.min.css" rel="stylesheet" />
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+  pre:not([class]) {
+    background-color: white;
+  }
+</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+<style type="text/css">
+h1 {
+  font-size: 34px;
+}
+h1.title {
+  font-size: 38px;
+}
+h2 {
+  font-size: 30px;
+}
+h3 {
+  font-size: 24px;
+}
+h4 {
+  font-size: 18px;
+}
+h5 {
+  font-size: 16px;
+}
+h6 {
+  font-size: 12px;
+}
+.table th:not([align]) {
+  text-align: left;
+}
+</style>
+
+
+</head>
+
+<body>
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+code {
+  color: inherit;
+  background-color: rgba(0, 0, 0, 0.04);
+}
+img {
+  max-width:100%;
+  height: auto;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+</style>
+
+
+<style type="text/css">
+/* padding for bootstrap navbar */
+body {
+  padding-top: 51px;
+  padding-bottom: 40px;
+}
+/* offset scroll position for anchor links (for fixed navbar)  */
+.section h1 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+
+.section h2 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h3 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h4 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h5 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h6 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+</style>
+
+<script>
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark it active
+  menuAnchor.parent().addClass('active');
+
+  // if it's got a parent navbar menu mark it active as well
+  menuAnchor.closest('li.dropdown').addClass('active');
+});
+</script>
+
+
+<div class="container-fluid main-container">
+
+<!-- tabsets -->
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+</script>
+
+<!-- code folding -->
+
+
+
+
+<script>
+$(document).ready(function ()  {
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_').toLowerCase();
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+  padding-left: 25px;
+  text-indent: 0;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row-fluid">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">singlecell-qtl</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Overview</a>
+</li>
+<li>
+  <a href="data-collection.html">Data</a>
+</li>
+<li>
+  <a href="analysis.html">Analysis</a>
+</li>
+<li>
+  <a href="contributing.html">Contributing</a>
+</li>
+<li>
+  <a href="license.html">License</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/jdblischak/singlecell-qtl">
+    <span class="fa fa-github"></span>
+     
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div class="fluid-row" id="header">
+
+
+
+<h1 class="title toc-ignore">Noisy gene</h1>
+<h4 class="author"><em>Po-Yuan Tung</em></h4>
+<h4 class="date"><em>2018-01-25</em></h4>
+
+</div>
+
+
+<!-- The file analysis/chunks.R contains chunks that define default settings
+shared across the workflowr files. -->
+<!-- Update knitr chunk options -->
+<!-- Insert the date the file was last updated -->
+<p><strong>Last updated:</strong> 2018-02-09</p>
+<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
+ package git2r is installed -->
+<p><strong>Code version:</strong> 3fb7149</p>
+<section id="setup" class="level2">
+<h2>Setup</h2>
+<pre class="r"><code>library(&quot;cowplot&quot;)
+library(&quot;dplyr&quot;)
+library(&quot;edgeR&quot;)
+library(&quot;ggplot2&quot;)
+library(&quot;knitr&quot;)
+theme_set(theme_cowplot())
+source(&quot;../code/functions.R&quot;)
+library(&quot;Biobase&quot;) # has to be loaded last to use `combine`</code></pre>
+<p>Import data.</p>
+<pre class="r"><code>eset &lt;- readRDS(&quot;../data/eset.rds&quot;)
+dim(eset)</code></pre>
+<pre><code>Features  Samples 
+   54792     6432 </code></pre>
+<p>Keep human genes and ERCC</p>
+<pre class="r"><code>eset &lt;- eset[fData(eset)$source %in% c(&quot;H. sapiens&quot;, &quot;ERCC&quot;) , ]
+dim(eset) </code></pre>
+<pre><code>Features  Samples 
+   20419     6432 </code></pre>
+<p>Only keep high-quality single cells.</p>
+<pre class="r"><code>quality &lt;- read.table(&quot;../data/quality-single-cells.txt&quot;, stringsAsFactors = FALSE)
+colnames(quality) &lt;- c(&quot;sample&quot;, &quot;quality&quot;)
+eset &lt;- eset[, quality$quality]
+dim(eset)</code></pre>
+<pre><code>Features  Samples 
+   20419     4865 </code></pre>
+<p>Remove zeros.</p>
+<pre class="r"><code>eset &lt;- eset[rowSums(exprs(eset)) != 0, ]
+dim(eset)</code></pre>
+<pre><code>Features  Samples 
+   19796     4865 </code></pre>
+</section>
+<section id="mean-and-cv" class="level2">
+<h2>Mean and CV</h2>
+<p>First, we need to correct for collision probability.</p>
+<pre class="r"><code>eset_data &lt;- exprs(eset)
+eset_data_cr &lt;- as.data.frame(-4^6*log(1-eset_data/4^6))
+dim(eset_data_cr)</code></pre>
+<pre><code>[1] 19796  4865</code></pre>
+<p>Calculate mean for each gene</p>
+<pre class="r"><code>eset_data_cr$mean &lt;- apply(eset_data_cr, 1, function(x) mean(x,na.rm=TRUE) )</code></pre>
+<p>Calculate CV for each gene</p>
+<pre class="r"><code>eset_data_cr$CV &lt;- apply(eset_data_cr, 1, function(x) sd(x,na.rm=TRUE) )/ apply(eset_data_cr, 1, function(x) mean(x,na.rm=TRUE))</code></pre>
+<p>Plot CV vs mean</p>
+<pre class="r"><code>## plot with color-blind-friendly palettes
+cbPalette &lt;- c(&quot;#999999&quot;, &quot;#0000FF&quot;, &quot;#56B4E9&quot;, &quot;#009E73&quot;, &quot;#F0E442&quot;, &quot;#0072B2&quot;, &quot;#D55E00&quot;, &quot;#CC79A7&quot;)
+
+## create a flag to ERCC
+eset_data_cr$ERCC &lt;- grepl(&quot;ERCC&quot;,rownames(eset_data_cr))
+
+## plot
+ggplot(eset_data_cr, aes(x = mean, y = CV, col = ERCC))  + 
+  geom_point(size = 2, alpha = 0.5)  + 
+  scale_x_log10() +
+  scale_colour_manual(values=cbPalette)</code></pre>
+<p><img src="figure/noisygene.Rmd/plot-1.png" width="768" style="display: block; margin: auto;" /></p>
+</section>
+<section id="poisson" class="level2">
+<h2>Poisson</h2>
+<p>Identification of noisy genes using the <a href="http://jdblischak.github.io/singleCellSeq/analysis/noisy-gene.html#poisson-sucks">function created for the previous study</a></p>
+<pre class="r"><code>### this function will plot the mean vs cv based on the ERCC molecules counts
+### only need to specify the input dataset
+### the inpute dataset needs to have mean, cv and ERCC flag
+### make minipar global
+plot.cv.and.mean &lt;- function(data.in){
+    # model based on ERCC only
+    # need to have a ERCC flag on the data.in
+    molecules_single_qc_expressed_ERCC &lt;- data.in[data.in$ERCC,]    
+    
+    # defnine poisson function on a log x scale
+    poisson.c &lt;- function (x) {
+        x^(-0.5)
+    }
+
+    # compute the lossy factor based on ERCC
+    ####   use LS: first define the function of f, then find the minimum
+    ####   dont use the points from ERCC.mol.mean &lt; 0.1 to fit. 
+
+    ERCC.mol.mean &lt;- molecules_single_qc_expressed_ERCC$mean
+    ERCC.mol.CV   &lt;- molecules_single_qc_expressed_ERCC$CV
+
+    # compute the sum of square errors
+    target.fun &lt;- function(f){
+        sum((ERCC.mol.CV[ERCC.mol.mean&gt;0.1]- sqrt(1/(f*ERCC.mol.mean[ERCC.mol.mean&gt;0.1])))^2)
+    }
+    # find out the minimum
+    ans &lt;- nlminb(0.05,target.fun,lower=0.0000001,upper=1)
+    minipar &lt;- ans$par
+    # use the minimum to create the lossy poisson
+    lossy.posson &lt;- function (x) {
+        1/sqrt((x)*minipar)
+    }
+
+    # 4 s.d. 
+    four.sd &lt;- function (x) {
+        4*(x)^(0.5)/(x)
+    }
+
+    # 3.7 sd + 0.3
+    three.sd &lt;- function (x) {
+        3.7*(x)^(0.5)/((x))+0.3
+    }
+
+    ggplot(data.in, aes(x = mean, y = CV, col = ERCC))  + 
+      scale_x_log10() +
+      geom_point(size = 2, alpha = 0.5) +  
+      stat_function(fun= poisson.c, col= &quot;#CC79A7&quot;) + 
+      stat_function(fun= four.sd, col= &quot;#F0E442&quot;) + 
+      stat_function(fun= lossy.posson, col= &quot;#56B4E9&quot;) + 
+      ylim(0, max(data.in$CV)*1.1) + 
+      scale_colour_manual(values=cbPalette) + 
+      xlab(&quot;Average number of molecules&quot;) + 
+      ylab (&quot;coefficient of variation (CV)&quot;)
+
+}
+plot.cv.and.mean(data.in=eset_data_cr)</code></pre>
+<pre><code>Warning: Removed 18 rows containing missing values (geom_path).</code></pre>
+<pre><code>Warning: Removed 2 rows containing missing values (geom_path).</code></pre>
+<p><img src="figure/noisygene.Rmd/poisson-1.png" width="768" style="display: block; margin: auto;" /></p>
+</section>
+<section id="noisy-genes" class="level2">
+<h2>Noisy genes</h2>
+<pre class="r"><code>### this function will identify the noisy gene based on 4 sd
+### only need to specify the input dataset
+### the inpute dataset needs to have mean and CV
+noisy_gene &lt;- function(data.in){
+
+ #  larger than 4 sd
+ count.index  &lt;- (!is.na(data.in$mean))&amp;(data.in$mean&gt;1)
+ condi.index &lt;- (data.in$CV &gt; 4*(data.in$mean^(0.5))/data.in$mean)
+
+ sum(count.index&amp;condi.index)
+
+ rownames(data.in)[count.index&amp;condi.index]
+}
+
+# noisy genes of all sampels
+noisy_gene_all &lt;- noisy_gene(data.in=eset_data_cr)
+noisy_gene_all</code></pre>
+<pre><code>  [1] &quot;ENSG00000002822&quot; &quot;ENSG00000005022&quot; &quot;ENSG00000008988&quot;
+  [4] &quot;ENSG00000034510&quot; &quot;ENSG00000062716&quot; &quot;ENSG00000070756&quot;
+  [7] &quot;ENSG00000071082&quot; &quot;ENSG00000074800&quot; &quot;ENSG00000075624&quot;
+ [10] &quot;ENSG00000079459&quot; &quot;ENSG00000080824&quot; &quot;ENSG00000084207&quot;
+ [13] &quot;ENSG00000087086&quot; &quot;ENSG00000089157&quot; &quot;ENSG00000092841&quot;
+ [16] &quot;ENSG00000096384&quot; &quot;ENSG00000100316&quot; &quot;ENSG00000105372&quot;
+ [19] &quot;ENSG00000108298&quot; &quot;ENSG00000108518&quot; &quot;ENSG00000108821&quot;
+ [22] &quot;ENSG00000109971&quot; &quot;ENSG00000110700&quot; &quot;ENSG00000110713&quot;
+ [25] &quot;ENSG00000111640&quot; &quot;ENSG00000111716&quot; &quot;ENSG00000114391&quot;
+ [28] &quot;ENSG00000115541&quot; &quot;ENSG00000117450&quot; &quot;ENSG00000118181&quot;
+ [31] &quot;ENSG00000119705&quot; &quot;ENSG00000120437&quot; &quot;ENSG00000122406&quot;
+ [34] &quot;ENSG00000123416&quot; &quot;ENSG00000124614&quot; &quot;ENSG00000124762&quot;
+ [37] &quot;ENSG00000124766&quot; &quot;ENSG00000125144&quot; &quot;ENSG00000125691&quot;
+ [40] &quot;ENSG00000127184&quot; &quot;ENSG00000130255&quot; &quot;ENSG00000131469&quot;
+ [43] &quot;ENSG00000131969&quot; &quot;ENSG00000132341&quot; &quot;ENSG00000132475&quot;
+ [46] &quot;ENSG00000136810&quot; &quot;ENSG00000136942&quot; &quot;ENSG00000137154&quot;
+ [49] &quot;ENSG00000137818&quot; &quot;ENSG00000138326&quot; &quot;ENSG00000140264&quot;
+ [52] &quot;ENSG00000142534&quot; &quot;ENSG00000142541&quot; &quot;ENSG00000143947&quot;
+ [55] &quot;ENSG00000144713&quot; &quot;ENSG00000145592&quot; &quot;ENSG00000149273&quot;
+ [58] &quot;ENSG00000149591&quot; &quot;ENSG00000149925&quot; &quot;ENSG00000156482&quot;
+ [61] &quot;ENSG00000161016&quot; &quot;ENSG00000164032&quot; &quot;ENSG00000164587&quot;
+ [64] &quot;ENSG00000166681&quot; &quot;ENSG00000167526&quot; &quot;ENSG00000167996&quot;
+ [67] &quot;ENSG00000170315&quot; &quot;ENSG00000172809&quot; &quot;ENSG00000174748&quot;
+ [70] &quot;ENSG00000175063&quot; &quot;ENSG00000177105&quot; &quot;ENSG00000177600&quot;
+ [73] &quot;ENSG00000177954&quot; &quot;ENSG00000181163&quot; &quot;ENSG00000182481&quot;
+ [76] &quot;ENSG00000182899&quot; &quot;ENSG00000184009&quot; &quot;ENSG00000185885&quot;
+ [79] &quot;ENSG00000186468&quot; &quot;ENSG00000187193&quot; &quot;ENSG00000189043&quot;
+ [82] &quot;ENSG00000189403&quot; &quot;ENSG00000196230&quot; &quot;ENSG00000196262&quot;
+ [85] &quot;ENSG00000196531&quot; &quot;ENSG00000197061&quot; &quot;ENSG00000197756&quot;
+ [88] &quot;ENSG00000198518&quot; &quot;ENSG00000198712&quot; &quot;ENSG00000198727&quot;
+ [91] &quot;ENSG00000198763&quot; &quot;ENSG00000198786&quot; &quot;ENSG00000198804&quot;
+ [94] &quot;ENSG00000198840&quot; &quot;ENSG00000198886&quot; &quot;ENSG00000198888&quot;
+ [97] &quot;ENSG00000198899&quot; &quot;ENSG00000198938&quot; &quot;ENSG00000204628&quot;
+[100] &quot;ENSG00000212907&quot; &quot;ENSG00000213741&quot; &quot;ENSG00000228253&quot;
+[103] &quot;ENSG00000231500&quot; &quot;ENSG00000240972&quot; &quot;ENSG00000255823&quot;
+[106] &quot;ERCC-00002&quot;      &quot;ERCC-00003&quot;      &quot;ERCC-00004&quot;     
+[109] &quot;ERCC-00046&quot;      &quot;ERCC-00074&quot;      &quot;ERCC-00096&quot;     
+[112] &quot;ERCC-00113&quot;      &quot;ERCC-00130&quot;      &quot;ERCC-00136&quot;     
+[115] &quot;ERCC-00171&quot;     </code></pre>
+</section>
+
+<hr>
+<p>
+    This <a href="http://rmarkdown.rstudio.com">R Markdown</a> site was created with <a href="https://github.com/jdblischak/workflowr">workflowr</a>
+</p>
+<hr>
+
+<!-- To enable disqus, uncomment the section below and provide your disqus_shortname -->
+
+<!-- disqus
+  <div id="disqus_thread"></div>
+    <script type="text/javascript">
+        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+        var disqus_shortname = 'rmarkdown'; // required: replace example with your forum shortname
+
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+    <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+    <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+-->
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.header').parent('thead').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
