@@ -1,0 +1,192 @@
+---
+title: "Noisy gene"
+author: "Po-Yuan Tung"
+date: 2018-01-25
+output: html_document
+---
+
+<!-- The file analysis/chunks.R contains chunks that define default settings
+shared across the workflowr files. -->
+```{r read-chunk, include=FALSE, cache=FALSE}
+knitr::read_chunk("chunks.R")
+```
+
+<!-- Update knitr chunk options -->
+```{r knitr-opts-chunk, include=FALSE}
+```
+
+<!-- Insert the date the file was last updated -->
+```{r last-updated, echo=FALSE, results='asis'}
+```
+
+<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
+ package git2r is installed -->
+```{r code-version, echo=FALSE, results='asis'}
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setup
+
+```{r packages, message=FALSE}
+library("cowplot")
+library("dplyr")
+library("edgeR")
+library("ggplot2")
+library("knitr")
+theme_set(theme_cowplot())
+source("../code/functions.R")
+library("Biobase") # has to be loaded last to use `combine`
+```
+
+Import data.
+
+```{r import}
+eset <- readRDS("../data/eset.rds")
+dim(eset)
+```
+
+Keep human genes and ERCC
+```{r human-genes}
+eset <- eset[fData(eset)$source %in% c("H. sapiens", "ERCC") , ]
+dim(eset) 
+```
+
+Only keep high-quality single cells.
+
+```{r quality-cell}
+quality <- read.table("../data/quality-single-cells.txt", stringsAsFactors = FALSE)
+colnames(quality) <- c("sample", "quality")
+eset <- eset[, quality$quality]
+dim(eset)
+```
+
+Remove zeros.
+
+```{r remove-zeros}
+eset <- eset[rowSums(exprs(eset)) != 0, ]
+dim(eset)
+```
+
+
+## Mean and CV
+
+First, we need to correct for collision probability.
+```{r collision}
+eset_data <- exprs(eset)
+eset_data_cr <- as.data.frame(-4^6*log(1-eset_data/4^6))
+dim(eset_data_cr)
+```
+
+Calculate mean for each gene
+
+```{r mean}
+eset_data_cr$mean <- apply(eset_data_cr, 1, function(x) mean(x,na.rm=TRUE) )
+```
+
+Calculate CV for each gene
+
+```{r CV}
+eset_data_cr$CV <- apply(eset_data_cr, 1, function(x) sd(x,na.rm=TRUE) )/ apply(eset_data_cr, 1, function(x) mean(x,na.rm=TRUE))
+```
+
+Plot CV vs mean
+```{r plot}
+## plot with color-blind-friendly palettes
+cbPalette <- c("#999999", "#0000FF", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
+## create a flag to ERCC
+eset_data_cr$ERCC <- grepl("ERCC",rownames(eset_data_cr))
+
+## plot
+ggplot(eset_data_cr, aes(x = mean, y = CV, col = ERCC))  + 
+  geom_point(size = 2, alpha = 0.5)  + 
+  scale_x_log10() +
+  scale_colour_manual(values=cbPalette)
+```
+
+## Poisson 
+Identification of noisy genes using the [function created for the previous study](http://jdblischak.github.io/singleCellSeq/analysis/noisy-gene.html#poisson-sucks)
+
+```{r poisson}
+### this function will plot the mean vs cv based on the ERCC molecules counts
+### only need to specify the input dataset
+### the inpute dataset needs to have mean, cv and ERCC flag
+### make minipar global
+plot.cv.and.mean <- function(data.in){
+    # model based on ERCC only
+    # need to have a ERCC flag on the data.in
+    molecules_single_qc_expressed_ERCC <- data.in[data.in$ERCC,]    
+    
+    # defnine poisson function on a log x scale
+    poisson.c <- function (x) {
+        x^(-0.5)
+    }
+
+    # compute the lossy factor based on ERCC
+    ####   use LS: first define the function of f, then find the minimum
+    ####   dont use the points from ERCC.mol.mean < 0.1 to fit. 
+
+    ERCC.mol.mean <- molecules_single_qc_expressed_ERCC$mean
+    ERCC.mol.CV   <- molecules_single_qc_expressed_ERCC$CV
+
+    # compute the sum of square errors
+    target.fun <- function(f){
+        sum((ERCC.mol.CV[ERCC.mol.mean>0.1]- sqrt(1/(f*ERCC.mol.mean[ERCC.mol.mean>0.1])))^2)
+    }
+    # find out the minimum
+    ans <- nlminb(0.05,target.fun,lower=0.0000001,upper=1)
+    minipar <- ans$par
+    # use the minimum to create the lossy poisson
+    lossy.posson <- function (x) {
+        1/sqrt((x)*minipar)
+    }
+
+    # 4 s.d. 
+    four.sd <- function (x) {
+        4*(x)^(0.5)/(x)
+    }
+
+    # 3.7 sd + 0.3
+    three.sd <- function (x) {
+        3.7*(x)^(0.5)/((x))+0.3
+    }
+
+    ggplot(data.in, aes(x = mean, y = CV, col = ERCC))  + 
+      scale_x_log10() +
+      geom_point(size = 2, alpha = 0.5) +  
+      stat_function(fun= poisson.c, col= "#CC79A7") + 
+      stat_function(fun= four.sd, col= "#F0E442") + 
+      stat_function(fun= lossy.posson, col= "#56B4E9") + 
+      ylim(0, max(data.in$CV)*1.1) + 
+      scale_colour_manual(values=cbPalette) + 
+      xlab("Average number of molecules") + 
+      ylab ("coefficient of variation (CV)")
+
+}
+plot.cv.and.mean(data.in=eset_data_cr)
+```
+
+## Noisy genes 
+```{r genes}
+### this function will identify the noisy gene based on 4 sd
+### only need to specify the input dataset
+### the inpute dataset needs to have mean and CV
+noisy_gene <- function(data.in){
+
+ #  larger than 4 sd
+ count.index  <- (!is.na(data.in$mean))&(data.in$mean>1)
+ condi.index <- (data.in$CV > 4*(data.in$mean^(0.5))/data.in$mean)
+
+ sum(count.index&condi.index)
+
+ rownames(data.in)[count.index&condi.index]
+}
+
+# noisy genes of all sampels
+noisy_gene_all <- noisy_gene(data.in=eset_data_cr)
+noisy_gene_all
+```
+
