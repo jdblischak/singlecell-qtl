@@ -10,7 +10,7 @@
 * `md5-core/` - md5 checksums for each FASTQ file provided by the core. Used by
   `code/fastq-download.py`.
 
-* `singlecell-qtl.txt.gz` - A gzipped tab-delimited file with counts for human
+* `scqtl-counts.txt.gz` - A gzipped tab-delimited file with counts for human
   genes. Version with Git LFS. Created by `code/output-exp-mat.R`. Make edits to
   the upstream script, not this file.
 
@@ -38,12 +38,12 @@ Git repository.
 in `.gitignore`).
     a. After exporting from Excel, fix the line endings by importing into R with
     `readLines` and exporting with `writeLines`.
-    b. The script should be executed from `code/`.
 
 1. John manually runs a small script, e.g. `code/scratch-batch1.R`, to generate
 one QC file per C1 chip in `data/lab-info/`.
     a. Batch 1 is so different from the other batches (spike-ins and sample
     swaps) that it wasn't worth building one universal script for this step.
+    b. The script should be executed from `code/`.
 
 1. The Snakemake pipeline automatically detects the files in `data/lab-info/`
 and executes the script `code/create-expressionset.R`. This inserts the lab-info
