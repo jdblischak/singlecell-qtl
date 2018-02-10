@@ -319,10 +319,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2018-02-01</p>
+<p><strong>Last updated:</strong> 2018-02-09</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> cbf9a35</p>
+<p><strong>Code version:</strong> 2ce9a87</p>
 <p>This is for qc of the samples. Based on obsevation under the scope and the sequencing results, samples with bad quality will be removed.</p>
 <section id="setup" class="level2">
 <h2>Setup</h2>
@@ -626,17 +626,17 @@ anno$filter_all &lt;- anno$cell_number == 1 &amp;
                    anno$cut_off_genes 
 sort(table(anno[anno$filter_all, &quot;chip_id&quot;]))</code></pre>
 <pre><code>
-NA18498 NA19203 NA19159 NA18913 NA19204 NA19092 NA18505 NA19193 NA19152 
-     19      24      31      43      49      51      53      56      58 
-NA18519 NA19143 NA18522 NA18859 NA19098 NA19130 NA18517 NA19210 NA19206 
-     62      64      65      65      65      65      67      69      71 
-NA18907 NA18862 NA19102 NA19127 NA18870 NA18856 NA18853 NA19209 NA18489 
-     72      73      73      73      74      76      79      81      82 
-NA18912 NA19114 NA19140 NA18516 NA18852 NA18855 NA19108 NA19153 NA19257 
-     82      82      82      84      85      86      88      89      89 
-NA19099 NA19225 NA19101 NA19190 NA19144 NA19093 NA19160 NA19116 NA19128 
-     91      91      94      96      97     102     105     106     108 
-NA18511 NA18520 NA18499 NA19207 NA18858 NA18508 NA18502 NA18501 NA18507 
+NA18498 NA19203 NA19159 NA18913 NA19204 NA19092 NA18505 NA19193 NA18519 
+     19      24      31      43      49      51      53      56      62 
+NA19143 NA18522 NA18859 NA19098 NA19130 NA18517 NA19210 NA19206 NA18907 
+     64      65      65      65      65      67      69      71      72 
+NA18862 NA19102 NA19127 NA18870 NA18856 NA18853 NA19209 NA18489 NA18912 
+     73      73      73      74      76      79      81      82      82 
+NA19114 NA19140 NA18516 NA18852 NA18855 NA19108 NA19153 NA19257 NA19099 
+     82      82      84      85      86      88      89      89      91 
+NA19225 NA19101 NA19190 NA19144 NA19093 NA19160 NA19116 NA19128 NA18511 
+     91      94      96      97     102     105     106     108     112 
+NA19152 NA18520 NA18499 NA19207 NA18858 NA18508 NA18502 NA18501 NA18507 
     112     136     138     148     153     168     194     198     301 </code></pre>
 <pre class="r"><code>write.table(data.frame(row.names(anno), anno[,&quot;filter_all&quot;]),
             file = &quot;../data/quality-single-cells.txt&quot;, quote = FALSE,
@@ -798,20 +798,20 @@ plot_grid(pc1_reads + theme(legend.position=c(.7,.5)),
 eset_hs_clean_filter &lt;- eset_hs_clean[,anno$filter_all]
 dim(eset_hs_clean_filter)</code></pre>
 <pre><code>Features  Samples 
-   19735     4865 </code></pre>
+   19735     4919 </code></pre>
 <pre class="r"><code>## convert to log2 cpm
 mol_hs_cpm_filter &lt;- cpm(exprs(eset_hs_clean_filter), log = TRUE)
 stopifnot(rownames(anno[anno$filter_all,]) == colnames(mol_hs_cpm_filter))
 mol_hs_cpm_filter_means &lt;- rowMeans(mol_hs_cpm_filter)
 summary(mol_hs_cpm_filter_means)</code></pre>
 <pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-  2.619   2.667   3.220   3.927   4.694  12.931 </code></pre>
+  2.623   2.671   3.222   3.930   4.693  12.930 </code></pre>
 <pre class="r"><code>hist(mol_hs_cpm_filter_means)
 abline(v = median(mol_hs_cpm_filter_means), col = &quot;red&quot;)</code></pre>
 <p><img src="figure/sampleqc.Rmd/pca-after-1.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>mol_hs_cpm_filter &lt;- mol_hs_cpm_filter[mol_hs_cpm_filter_means &gt; median(mol_hs_cpm_filter_means), ]
 dim(mol_hs_cpm_filter)</code></pre>
-<pre><code>[1] 9867 4865</code></pre>
+<pre><code>[1] 9867 4919</code></pre>
 <pre class="r"><code>## pca of genes with reasonable expression levels
 pca_hs_filter &lt;- run_pca(mol_hs_cpm_filter)
 

@@ -319,10 +319,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2018-02-01</p>
+<p><strong>Last updated:</strong> 2018-02-09</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> cbf9a35</p>
+<p><strong>Code version:</strong> 2ce9a87</p>
 <p><a href="https://catalog.coriell.org/0/Sections/Collections/NHGRI/1000IndSamples.aspx?PgId=665&amp;did=MGENOME27">Link to Yoruba samples on Coriell</a></p>
 <section id="setup" class="level2">
 <h2>Setup</h2>
@@ -371,9 +371,9 @@ Annotation:  </code></pre>
 <pre class="r"><code>table(eset$valid_id)</code></pre>
 <pre><code>
 FALSE  TRUE 
-  217  6215 </code></pre>
+  147  6285 </code></pre>
 <pre class="r"><code>mean(eset$valid_id)</code></pre>
-<pre><code>[1] 0.9662624</code></pre>
+<pre><code>[1] 0.9771455</code></pre>
 </section>
 <section id="plot-per-c1-chip" class="level2">
 <h2>Plot per C1 chip</h2>
@@ -466,21 +466,20 @@ df_obs</code></pre>
 38 NA19140       120       108
 39 NA19143        96        86
 40 NA19144       144       159
-41 NA19152        96       160
+41 NA19152       192       160
 42 NA19153        96       120
 43 NA19159        48        41
 44 NA19160       120       137
 45 NA19190       120       120
-46 NA19192        96         1
-47 NA19193        96        72
-48 NA19203        48        28
-49 NA19204        96        64
-50 NA19206       120        91
-51 NA19207       192       189
-52 NA19209        96       104
-53 NA19210        96        73
-54 NA19225        96       110
-55 NA19257       168       101</code></pre>
+46 NA19193        96        72
+47 NA19203        48        28
+48 NA19204        96        64
+49 NA19206       120        91
+50 NA19207       192       189
+51 NA19209        96       104
+52 NA19210        96        73
+53 NA19225        96       110
+54 NA19257       168       101</code></pre>
 <pre class="r"><code># The max observed number of cells for any indvidual
 max_cells &lt;- max(df_obs$count.exp, df_obs$count.obs)
 ggplot(df_obs, aes(x = count.exp, y = count.obs)) +
@@ -873,7 +872,7 @@ knitr::kable(top, col.names = c(&quot;C1 chip&quot;, &quot;Expected 1&quot;, &qu
 <td style="text-align: left;">11082017</td>
 <td style="text-align: left;">NA18507</td>
 <td style="text-align: left;">NA19160</td>
-<td style="text-align: left;">NA19192</td>
+<td style="text-align: left;">NA19152</td>
 <td style="text-align: left;">NA19209</td>
 <td style="text-align: left;">NA18507 - 35; NA19209 - 25; NA19152 - 20; NA19160 - 15</td>
 </tr>
@@ -921,7 +920,7 @@ knitr::kable(top, col.names = c(&quot;C1 chip&quot;, &quot;Expected 1&quot;, &qu
 <td style="text-align: left;">11162017</td>
 <td style="text-align: left;">NA18516</td>
 <td style="text-align: left;">NA19099</td>
-<td style="text-align: left;">NA19192</td>
+<td style="text-align: left;">NA19152</td>
 <td style="text-align: left;">NA19206</td>
 <td style="text-align: left;">NA19099 - 38; NA18516 - 23; NA19152 - 19; NA19206 - 16</td>
 </tr>
@@ -929,7 +928,7 @@ knitr::kable(top, col.names = c(&quot;C1 chip&quot;, &quot;Expected 1&quot;, &qu
 <td style="text-align: left;">11172017</td>
 <td style="text-align: left;">NA18913</td>
 <td style="text-align: left;">NA19144</td>
-<td style="text-align: left;">NA19192</td>
+<td style="text-align: left;">NA19152</td>
 <td style="text-align: left;">NA19207</td>
 <td style="text-align: left;">NA19152 - 31; NA19144 - 30; NA19207 - 17; NA18913 - 15</td>
 </tr>
@@ -938,7 +937,7 @@ knitr::kable(top, col.names = c(&quot;C1 chip&quot;, &quot;Expected 1&quot;, &qu
 <td style="text-align: left;">NA18907</td>
 <td style="text-align: left;">NA18855</td>
 <td style="text-align: left;">NA19152</td>
-<td style="text-align: left;">NA19192</td>
+<td style="text-align: left;">NA19152</td>
 <td style="text-align: left;">NA19152 - 38; NA18855 - 31; NA18907 - 27</td>
 </tr>
 <tr class="odd">
