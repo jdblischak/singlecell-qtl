@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- 2018-02-12 Mon 18:52 -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Estimating transcript count from UMI count</title>
+<meta name="generator" content="Org mode">
+<meta name="author" content="Abhishek Sarkar">
+<style type="text/css">
+ <!--/*--><![CDATA[/*><!--*/
+  .title  { text-align: center;
+             margin-bottom: .2em; }
+  .subtitle { text-align: center;
+              font-size: medium;
+              font-weight: bold;
+              margin-top:0; }
+  .todo   { font-family: monospace; color: red; }
+  .done   { font-family: monospace; color: green; }
+  .priority { font-family: monospace; color: orange; }
+  .tag    { background-color: #eee; font-family: monospace;
+            padding: 2px; font-size: 80%; font-weight: normal; }
+  .timestamp { color: #bebebe; }
+  .timestamp-kwd { color: #5f9ea0; }
+  .org-right  { margin-left: auto; margin-right: 0px;  text-align: right; }
+  .org-left   { margin-left: 0px;  margin-right: auto; text-align: left; }
+  .org-center { margin-left: auto; margin-right: auto; text-align: center; }
+  .underline { text-decoration: underline; }
+  #postamble p, #preamble p { font-size: 90%; margin: .2em; }
+  p.verse { margin-left: 3%; }
+  pre {
+    border: 1px solid #ccc;
+    box-shadow: 3px 3px 3px #eee;
+    padding: 8pt;
+    font-family: monospace;
+    overflow: auto;
+    margin: 1.2em;
+  }
+  pre.src {
+    position: relative;
+    overflow: visible;
+    padding-top: 1.2em;
+  }
+  pre.src:before {
+    display: none;
+    position: absolute;
+    background-color: white;
+    top: -10px;
+    right: 10px;
+    padding: 3px;
+    border: 1px solid black;
+  }
+  pre.src:hover:before { display: inline;}
+  /* Languages per Org manual */
+  pre.src-asymptote:before { content: 'Asymptote'; }
+  pre.src-awk:before { content: 'Awk'; }
+  pre.src-C:before { content: 'C'; }
+  /* pre.src-C++ doesn't work in CSS */
+  pre.src-clojure:before { content: 'Clojure'; }
+  pre.src-css:before { content: 'CSS'; }
+  pre.src-D:before { content: 'D'; }
+  pre.src-ditaa:before { content: 'ditaa'; }
+  pre.src-dot:before { content: 'Graphviz'; }
+  pre.src-calc:before { content: 'Emacs Calc'; }
+  pre.src-emacs-lisp:before { content: 'Emacs Lisp'; }
+  pre.src-fortran:before { content: 'Fortran'; }
+  pre.src-gnuplot:before { content: 'gnuplot'; }
+  pre.src-haskell:before { content: 'Haskell'; }
+  pre.src-hledger:before { content: 'hledger'; }
+  pre.src-java:before { content: 'Java'; }
+  pre.src-js:before { content: 'Javascript'; }
+  pre.src-latex:before { content: 'LaTeX'; }
+  pre.src-ledger:before { content: 'Ledger'; }
+  pre.src-lisp:before { content: 'Lisp'; }
+  pre.src-lilypond:before { content: 'Lilypond'; }
+  pre.src-lua:before { content: 'Lua'; }
+  pre.src-matlab:before { content: 'MATLAB'; }
+  pre.src-mscgen:before { content: 'Mscgen'; }
+  pre.src-ocaml:before { content: 'Objective Caml'; }
+  pre.src-octave:before { content: 'Octave'; }
+  pre.src-org:before { content: 'Org mode'; }
+  pre.src-oz:before { content: 'OZ'; }
+  pre.src-plantuml:before { content: 'Plantuml'; }
+  pre.src-processing:before { content: 'Processing.js'; }
+  pre.src-python:before { content: 'Python'; }
+  pre.src-R:before { content: 'R'; }
+  pre.src-ruby:before { content: 'Ruby'; }
+  pre.src-sass:before { content: 'Sass'; }
+  pre.src-scheme:before { content: 'Scheme'; }
+  pre.src-screen:before { content: 'Gnu Screen'; }
+  pre.src-sed:before { content: 'Sed'; }
+  pre.src-sh:before { content: 'shell'; }
+  pre.src-sql:before { content: 'SQL'; }
+  pre.src-sqlite:before { content: 'SQLite'; }
+  /* additional languages in org.el's org-babel-load-languages alist */
+  pre.src-forth:before { content: 'Forth'; }
+  pre.src-io:before { content: 'IO'; }
+  pre.src-J:before { content: 'J'; }
+  pre.src-makefile:before { content: 'Makefile'; }
+  pre.src-maxima:before { content: 'Maxima'; }
+  pre.src-perl:before { content: 'Perl'; }
+  pre.src-picolisp:before { content: 'Pico Lisp'; }
+  pre.src-scala:before { content: 'Scala'; }
+  pre.src-shell:before { content: 'Shell Script'; }
+  pre.src-ebnf2ps:before { content: 'ebfn2ps'; }
+  /* additional language identifiers per "defun org-babel-execute"
+       in ob-*.el */
+  pre.src-cpp:before  { content: 'C++'; }
+  pre.src-abc:before  { content: 'ABC'; }
+  pre.src-coq:before  { content: 'Coq'; }
+  pre.src-groovy:before  { content: 'Groovy'; }
+  /* additional language identifiers from org-babel-shell-names in
+     ob-shell.el: ob-shell is the only babel language using a lambda to put
+     the execution function name together. */
+  pre.src-bash:before  { content: 'bash'; }
+  pre.src-csh:before  { content: 'csh'; }
+  pre.src-ash:before  { content: 'ash'; }
+  pre.src-dash:before  { content: 'dash'; }
+  pre.src-ksh:before  { content: 'ksh'; }
+  pre.src-mksh:before  { content: 'mksh'; }
+  pre.src-posh:before  { content: 'posh'; }
+  /* Additional Emacs modes also supported by the LaTeX listings package */
+  pre.src-ada:before { content: 'Ada'; }
+  pre.src-asm:before { content: 'Assembler'; }
+  pre.src-caml:before { content: 'Caml'; }
+  pre.src-delphi:before { content: 'Delphi'; }
+  pre.src-html:before { content: 'HTML'; }
+  pre.src-idl:before { content: 'IDL'; }
+  pre.src-mercury:before { content: 'Mercury'; }
+  pre.src-metapost:before { content: 'MetaPost'; }
+  pre.src-modula-2:before { content: 'Modula-2'; }
+  pre.src-pascal:before { content: 'Pascal'; }
+  pre.src-ps:before { content: 'PostScript'; }
+  pre.src-prolog:before { content: 'Prolog'; }
+  pre.src-simula:before { content: 'Simula'; }
+  pre.src-tcl:before { content: 'tcl'; }
+  pre.src-tex:before { content: 'TeX'; }
+  pre.src-plain-tex:before { content: 'Plain TeX'; }
+  pre.src-verilog:before { content: 'Verilog'; }
+  pre.src-vhdl:before { content: 'VHDL'; }
+  pre.src-xml:before { content: 'XML'; }
+  pre.src-nxml:before { content: 'XML'; }
+  /* add a generic configuration mode; LaTeX export needs an additional
+     (add-to-list 'org-latex-listings-langs '(conf " ")) in .emacs */
+  pre.src-conf:before { content: 'Configuration File'; }
+
+  table { border-collapse:collapse; }
+  caption.t-above { caption-side: top; }
+  caption.t-bottom { caption-side: bottom; }
+  td, th { vertical-align:top;  }
+  th.org-right  { text-align: center;  }
+  th.org-left   { text-align: center;   }
+  th.org-center { text-align: center; }
+  td.org-right  { text-align: right;  }
+  td.org-left   { text-align: left;   }
+  td.org-center { text-align: center; }
+  dt { font-weight: bold; }
+  .footpara { display: inline; }
+  .footdef  { margin-bottom: 1em; }
+  .figure { padding: 1em; }
+  .figure p { text-align: center; }
+  .inlinetask {
+    padding: 10px;
+    border: 2px solid gray;
+    margin: 10px;
+    background: #ffffcc;
+  }
+  #org-div-home-and-up
+   { text-align: right; font-size: 70%; white-space: nowrap; }
+  textarea { overflow-x: auto; }
+  .linenr { font-size: smaller }
+  .code-highlighted { background-color: #ffff00; }
+  .org-info-js_info-navigation { border-style: none; }
+  #org-info-js_console-label
+    { font-size: 10px; font-weight: bold; white-space: nowrap; }
+  .org-info-js_search-highlight
+    { background-color: #ffff00; color: #000000; font-weight: bold; }
+  .org-svg { width: 90%; }
+  /*]]>*/-->
+</style>
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<link rel="stylesheet" type="text/css" href="https://www.pirilampo.org/styles/readtheorg/css/htmlize.css"/>
+<style type="text/css">body {width: 60em; margin:auto} pre.src {overflow:auto}</style>
+<script type="text/javascript">
+/*
+@licstart  The following is the entire license notice for the
+JavaScript code in this tag.
+
+Copyright (C) 2012-2017 Free Software Foundation, Inc.
+
+The JavaScript code in this tag is free software: you can
+redistribute it and/or modify it under the terms of the GNU
+General Public License (GNU GPL) as published by the Free Software
+Foundation, either version 3 of the License, or (at your option)
+any later version.  The code is distributed WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU GPL for more details.
+
+As additional permission under GNU GPL version 3 section 7, you
+may distribute non-source (e.g., minimized or compacted) forms of
+that code without the copy of the GNU GPL normally required by
+section 4, provided you include this license notice and a URL
+through which recipients can access the Corresponding Source.
+
+
+@licend  The above is the entire license notice
+for the JavaScript code in this tag.
+*/
+<!--/*--><![CDATA[/*><!--*/
+ function CodeHighlightOn(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(null != target) {
+     elem.cacheClassElem = elem.className;
+     elem.cacheClassTarget = target.className;
+     target.className = "code-highlighted";
+     elem.className   = "code-highlighted";
+   }
+ }
+ function CodeHighlightOff(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(elem.cacheClassElem)
+     elem.className = elem.cacheClassElem;
+   if(elem.cacheClassTarget)
+     target.className = elem.cacheClassTarget;
+ }
+/*]]>*///-->
+</script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+        displayAlign: "center",
+        displayIndent: "0em",
+
+        "HTML-CSS": { scale: 100,
+                        linebreaks: { automatic: "false" },
+                        webFont: "TeX"
+                       },
+        SVG: {scale: 100,
+              linebreaks: { automatic: "false" },
+              font: "TeX"},
+        NativeMML: {scale: 100},
+        TeX: { equationNumbers: {autoNumber: "AMS"},
+               MultLineWidth: "85%",
+               TagSide: "right",
+               TagIndent: ".8em"
+             }
+});
+</script>
+<script type="text/javascript"
+        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS_HTML"></script>
+</head>
+<body>
+<div id="content">
+<h1 class="title">Estimating transcript count from UMI count</h1>
+
+<div id="outline-container-org171e1ad" class="outline-2">
+<h2 id="org171e1ad">Introduction</h2>
+<div class="outline-text-2" id="text-org171e1ad">
+<p>
+The labelling of molecules by UMIs is stochastic, such that it is not
+guaranteed that every molecule present in a sample will be labelled by a
+UMI. This was previously termed <a href="https://jdblischak.github.io/singleCellSeq/analysis/cpm.html#correct-for-collision-probability">collision probability</a>.
+</p>
+
+<p>
+Here, we perform the following analyses:
+</p>
+
+<ol class="org-ol">
+<li><a href="#org9def765">We show that the maximum likelihood estimator of the number of transcripts
+does not agree</a> with previously published estimators</li>
+<li><a href="#orge40e991">We show that applying the correction</a> on our data will change the majority
+of observations by less than 1%</li>
+</ol>
+</div>
+</div>
+
+<div id="outline-container-org007b4ad" class="outline-2">
+<h2 id="org007b4ad">Moment estimators</h2>
+<div class="outline-text-2" id="text-org007b4ad">
+<p>
+Consider a single gene, and let \(x\) be the observed number of unique UMIs,
+\(K\) be the maximum possible number of UMIs (which depends only on the
+length of the UMIs), and \(n\) be the true molecule count. <a href="https://www.pnas.org/cgi/doi/10.1073/pnas.1017621108">Fu et al 2011</a>
+suggest a moment estimator for \(n\):
+</p>
+
+<p>
+\[ E[x] = K\left[1 - \left(1 - \frac{1}{K}\right)^n\right] \]
+</p>
+
+<p>
+\[ \hat{n} = \frac{\ln(1 - x/K)}{\ln(1 - 1/K)} \]
+</p>
+
+<p>
+<a href="https://dx.doi.org/doi:10.1038/nmeth.2930">Grun et al 2014</a> give an approximation to this formula:
+</p>
+
+<p>
+\[ \hat{n} \approx -K \ln\left(1 - \frac{x}{K}\right) \]
+</p>
+
+<p>
+Look at the implied number of transcripts for each possible value of UMI,
+according to each of the formulas:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">K</span> = 4 ** 6
+<span class="org-variable-name">grid</span> = np.logspace(1, 6, num=200, base=4)[:-1]
+plt.clf()
+plt.plot(grid, -K * np.log(1 - grid / K), color=<span class="org-string">'k'</span>, label=<span class="org-string">'Grun et al'</span>)
+plt.plot(grid, np.log(1 - grid / K) / np.log(1 - 1 / K), color=<span class="org-string">'r'</span>, label=<span class="org-string">'Fu et al'</span>)
+plt.plot([grid.<span class="org-builtin">min</span>(), grid.<span class="org-builtin">max</span>()], [grid.<span class="org-builtin">min</span>(), grid.<span class="org-builtin">max</span>()], color=<span class="org-string">'k'</span>, ls=<span class="org-string">'dotted'</span>, label=<span class="org-string">'Uncorrected'</span>)
+plt.legend()
+plt.xlabel(<span class="org-string">'Observed UMI count'</span>)
+plt.ylabel(<span class="org-string">'Estimated true molecule count'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0,0.5,'Estimated true molecule count')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/tx-count.org/moment-estimators.png" alt="moment-estimators.png">
+</p>
+</div>
+
+<p>
+Tabulate the percentiles of absolute difference between the two formulas.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">pd.Series(-K * np.log(1 - grid / K) - np.log(1 - grid / K) / np.log(1 - 1 / K)).<span class="org-builtin">apply</span>(<span class="org-builtin">abs</span>).describe()
+</pre>
+</div>
+
+<pre class="example">
+count    199.000000
+mean       0.112062
+std        0.238900
+min        0.000489
+25%        0.002746
+50%        0.015597
+75%        0.094526
+max        1.687368
+dtype: float64
+</pre>
+
+<p>
+Plot the absolute difference between uncorrected and corrected:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.plot(grid, np.log(1 - grid / K) / np.log(1 - 1 / K) - grid)
+plt.xlabel(<span class="org-string">'Observed UMI count'</span>)
+plt.ylabel(<span class="org-string">'Magnitude of correction'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0,0.5,'Magnitude of correction')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/tx-count.org/moment-est-vs-uncorrected.png" alt="moment-est-vs-uncorrected.png">
+</p>
+</div>
+</div>
+</div>
+
+<div id="outline-container-org9def765" class="outline-2">
+<h2 id="org9def765">Maximum likelihood estimator</h2>
+<div class="outline-text-2" id="text-org9def765">
+<p>
+We also estimate \(n\) via maximum likelihood assuming (<a href="https://www.pnas.org/cgi/doi/10.1073/pnas.1017621108">Fu et al 2011</a>):
+</p>
+
+<p>
+\[ x \sim \mathrm{Bin}(K, 1 - (1 - 1 / K)^n) \] 
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython" id="orgc9c456c"><span class="org-keyword">def</span> <span class="org-function-name">ml_binom</span>(x, K, **kwargs):
+  <span class="org-doc">"""Maximum likelihood estimator of n"""</span>
+  <span class="org-variable-name">x</span> = np.atleast_1d(x)
+  <span class="org-keyword">def</span> <span class="org-function-name">neg_llik</span>(n):
+    <span class="org-variable-name">p</span> = 1 - <span class="org-builtin">pow</span>(1 - 1 / K, n)
+    <span class="org-keyword">return</span> -(x * np.log(p) + (K - x) * np.log(1 - p) + sp.gammaln(K + 1) - sp.gammaln(x + 1) - sp.gammaln(K - x + 1)).<span class="org-builtin">sum</span>()
+  <span class="org-variable-name">res</span> = so.minimize(neg_llik, x0=x, bounds=[(1, <span class="org-constant">None</span>) <span class="org-keyword">for</span> _ <span class="org-keyword">in</span> x], **kwargs)
+  <span class="org-keyword">return</span> res.x
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">grid</span> = np.logspace(1, 6, num=200, base=4)[:-1]
+<span class="org-variable-name">nhat</span> = ml_binom(grid, 4 ** 6)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.plot(grid, nhat, color=<span class="org-string">'r'</span>, label=<span class="org-string">'ML'</span>)
+plt.plot(grid, np.log(1 - grid / K) / np.log(1 - 1 / K), color=<span class="org-string">'k'</span>, label=<span class="org-string">'Moment'</span>)
+plt.plot([0, grid.<span class="org-builtin">max</span>()], [0, grid.<span class="org-builtin">max</span>()], ls=<span class="org-string">'dotted'</span>, color=<span class="org-string">'k'</span>, label=<span class="org-string">'Uncorrected'</span>)
+plt.legend()
+plt.xlabel(<span class="org-string">'Observed UMI count'</span>)
+plt.ylabel(<span class="org-string">'Estimated number of molecules'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0,0.5,'Estimated number of molecules')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/tx-count.org/ml-estimators.png" alt="ml-estimators.png">
+</p>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.plot(grid, <span class="org-builtin">abs</span>(nhat - np.log(1 - grid / K) / np.log(1 - 1 / K)), color=<span class="org-string">'k'</span>)
+plt.xlabel(<span class="org-string">'Observed UMI count'</span>)
+plt.ylabel(<span class="org-string">'Absolute difference in estimate'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0,0.5,'Absolute difference in estimate')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/tx-count.org/ml-vs-moment.png" alt="ml-vs-moment.png">
+</p>
+</div>
+
+<p>
+Plot the difference between ML-corrected and non-corrected:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.plot(grid, <span class="org-builtin">abs</span>(nhat - grid), color=<span class="org-string">'k'</span>)
+plt.xlabel(<span class="org-string">'Observed UMI count'</span>)
+plt.ylabel(<span class="org-string">'Magnitude of correction'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0,0.5,'Magnitude of correction')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/tx-count.org/ml-vs-uncorrected.png" alt="ml-vs-uncorrected.png">
+</p>
+</div>
+</div>
+</div>
+
+<div id="outline-container-orge40e991" class="outline-2">
+<h2 id="orge40e991">Impact on real data analysis</h2>
+<div class="outline-text-2" id="text-orge40e991">
+<p>
+Look at the density of observed UMI counts:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
+<span class="org-variable-name">keep_genes</span> = pd.read_table(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">bins</span> = np.zeros(K)
+<span class="org-keyword">for</span> chunk <span class="org-keyword">in</span> pd.read_table(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>, index_col=0, chunksize=100):
+  <span class="org-variable-name">chunk</span> = chunk.<span class="org-builtin">filter</span>(items=keep_genes[keep_genes.values.ravel()].index, axis=<span class="org-string">'index'</span>).loc[:,keep_samples.values.ravel()]
+  <span class="org-variable-name">value</span>, <span class="org-variable-name">count</span> = np.unique(chunk, return_counts=<span class="org-constant">True</span>)
+  <span class="org-variable-name">bins</span>[value] += count
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.hist(np.arange(1, np.argmin(bins)), bins=100, weights=bins[1:np.argmin(bins)], density=<span class="org-constant">True</span>)
+plt.xlabel(<span class="org-string">'Observed UMI count'</span>)
+plt.ylabel(<span class="org-string">'Density'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0,0.5,'Density')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/tx-count.org/umi-hist.png" alt="umi-hist.png">
+</p>
+</div>
+
+<p>
+Plot the correction factor for the range of observed values.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">grid</span> = np.where(bins &gt; 0)[0][1:]
+plt.clf()
+plt.scatter(grid, np.log(1 - grid / K) / np.log(1 - 1 / K) / grid)
+plt.xlabel(<span class="org-string">'Observed UMI count'</span>)
+plt.ylabel(<span class="org-string">'Correction factor'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0,0.5,'Correction factor')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/tx-count.org/correction-factor.png" alt="correction-factor.png">
+</p>
+</div>
+</div>
+</div>
+</div>
+<div id="postamble" class="status">
+<p class="author">Author: Abhishek Sarkar</p>
+<p class="date">Created: 2018-02-12 Mon 18:52</p>
+<p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
+</div>
+</body>
+</html>
