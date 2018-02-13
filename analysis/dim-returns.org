@@ -1,0 +1,86 @@
+#+TITLE: Diminishing returns of sequencing depth
+#+SETUPFILE: setup.org
+
+* Introduction
+
+  [[https://jdblischak.github.io/singleCellSeq/analysis/subsample-lcl-final.html][We previously observed]] that the number of genes/molecules detected does not
+  saturate with increasing sequencing depth.
+
+  Here, we quantify the potential gain in additional sequencing of the samples
+  in terms of number of molecules and number of genes detected.
+
+* Setup                                                            :noexport:
+
+  #+BEGIN_SRC emacs-lisp
+    (org-babel-lob-ingest "/home/aksarkar/projects/singlecell-qtl/analysis/dim-reduction.org")
+    (org-babel-lob-ingest "/home/aksarkar/.emacs.d/org-templates/library.org")
+  #+END_SRC
+
+  #+RESULTS:
+  : 1
+
+  #+CALL: ipython3(memory="16G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
+
+  #+RESULTS:
+  : Submitted batch job 43199137
+
+  #+BEGIN_SRC ipython
+    import colorcet
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[28]:
+  :END:
+
+* Analysis
+
+  #+CALL: read-data-qc()
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[16]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    annotations.shape
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[17]:
+  : (4985, 40)
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/dim-returns.org/mol-vs-depth.png
+    plt.clf()
+    plt.scatter(annotations['umi'], annotations['mol_hs'], color='k', s=2)
+    plt.xticks(np.linspace(0, 1, 5) * 1e7, np.linspace(0, 1, 5) * 10)
+    plt.xlabel('Millions of reads with UMI')
+    plt.ylabel('Number of molecules detected')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[25]:
+  : Text(0,0.5,'Number of molecules detected')
+  [[file:figure/dim-returns.org/mol-vs-depth.png]]
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/dim-returns.org/detect-vs-depth.png
+    plt.clf()
+    plt.scatter(annotations['umi'], annotations['detect_hs'], color='k', s=2)
+    plt.xticks(np.linspace(0, 1, 5) * 1e7, np.linspace(0, 1, 5) * 10)
+    plt.xlabel('Millions of reads with UMI')
+    plt.ylabel('Number of genes detected')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[29]:
+  : Text(0,0.5,'Number of genes detected')
+  [[file:figure/dim-returns.org/detect-vs-depth.png]]
+  :END:
