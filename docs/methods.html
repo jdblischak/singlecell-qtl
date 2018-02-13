@@ -25,8 +25,8 @@
 <link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
 <script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
 <script src="site_libs/navigation-1.1/tabsets.js"></script>
-<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
-<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<link href="site_libs/highlightjs-1.1/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-1.1/highlight.js"></script>
 <link href="site_libs/font-awesome-4.5.0/css/font-awesome.min.css" rel="stylesheet" />
 
 <style type="text/css">code{white-space: pre;}</style>
@@ -36,12 +36,10 @@
   }
 </style>
 <script type="text/javascript">
-if (window.hljs) {
-  hljs.configure({languages: []});
-  hljs.initHighlightingOnLoad();
-  if (document.readyState && document.readyState === "complete") {
-    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
-  }
+if (window.hljs && document.readyState && document.readyState === "complete") {
+   window.setTimeout(function() {
+      hljs.initHighlighting();
+   }, 0);
 }
 </script>
 
@@ -321,13 +319,13 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2018-02-07</p>
+<p><strong>Last updated:</strong> 2018-02-13</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> c3d4855</p>
+<p><strong>Code version:</strong> 609c73d</p>
 <section id="sample-collection" class="level2">
 <h2>Sample collection</h2>
-<p>The YRI iPSCs<span class="citation" data-cites="Banovich">[@Banovich]</span> were cultured in feeder-free conditions for at least ten passages in E8 medium (Life Technologies)<span class="citation" data-cites="Chen2011">[@Chen2011]</span> before being colleted using the C1 Single-Cell Auto Prep IFC microfluidic chip (Fluidigm). Before being loaded on the C1 IFC chip, a mixture of cell suspensions from four individuals were prepared freshly each time. Live cell number was measured by trypan blue staining (ThermoFisher) to obtain eqaul cell numbers across individuals. Single cell capture and library preparation were performed the same as described before <span class="citation" data-cites="Tung2017">[@Tung2017]</span>, except that 6-bp random sequence UMIs were included instead of 5-bp. The 96 single cell samples of each C1 chip were pooled and sequenced on an Illumina HiSeq 2500 instrument using the TruSeq SBS Kit v3-HS (FC-401-3002).</p>
+<p>The YRI iPSCs<span class="citation" data-cites="Banovich">[@Banovich]</span> were cultured in feeder-free conditions for at least ten passages in E8 medium (Life Technologies)<span class="citation" data-cites="Chen2011">[@Chen2011]</span> before being colleted using the C1 Single-Cell Auto Prep IFC microfluidic chip (Fluidigm). Before being loaded on the C1 IFC chip, a mixture of cell suspensions from four individuals were prepared freshly each time. Live cell number was measured by trypan blue staining (ThermoFisher) to obtain eqaul cell numbers across individuals in each cell mixture. Single cell capture and library preparation were performed the same as described before <span class="citation" data-cites="Tung2017">[@Tung2017]</span>, except that 6-bp random sequence UMIs were included instead of 5-bp. The 96 single cell samples of each C1 chip were pooled and sequenced on an Illumina HiSeq 2500 instrument using the TruSeq SBS Kit v3-HS (FC-401-3002).</p>
 <p>We collected total X,XXX cells from total XX <a href="data-collection.html">invididuals</a>. We obtained an average of XX million <a href="totals.html">sequencing reads</a> per sample. Using the UMI information, we obtained an median of XX molecules per sample. We performed <a href="pca-variable.html">PCA</a> on a subset of most variable genes and found that PC1 is most highly correlated with the percentage of detected genes and other metrics of sequencing depth, which is consistent with the observations of Hicks et al., 2017 <span class="citation" data-cites="Hicks2017">[@Hicks2017]</span>.</p>
 </section>
 <section id="sample-quality-control" class="level2">
