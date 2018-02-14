@@ -52,10 +52,10 @@ Recent studies have demonstrated that iPSCs can be utilized as a powerful tool f
 In particular, iPSCs provide a means by which to examine the contribution of changes in gene regulation to human evolution and diversity[@Romero2012; @Banovich2018].
 Importantly, the heterogeneous gene expression levels between individual cells observed in population of iPSCs has been proposed to reflect the alternate cell states that represent multiple differentiation potentials[@Narsinh2011].
 To understand the underlying mechanisms of such plasticity in human iPSCs, quantification of gene expression at the single-cell level is required.
-Nevertheless, the lack of an iPSC system for single cell studies of robustness has hindered the investigation of regulatory noise during differentiation and development in humans.
+Nevertheless, the lack of an iPSC system for single cell studies of robustness has hindered the investigation of regulatory gene expression noise during differentiation and development in humans.
 
 In this genome-wide study, the relative genetic robustness is measured as the inter-individual difference in magnitude of variation in gene expression levels across individual cells.
-To do so, we applied a QTL approach to map inter-individual variation in regulatory noise in a panel of iPSCs reprogrammed from deeply characterized Yoruba HapMap lymphoblastoid cell lines (LCLs)[@Banovich2018]. 
+To do so, we applied a QTL approach to map inter-individual variation in gene expression noise in a panel of iPSCs reprogrammed from deeply characterized Yoruba HapMap lymphoblastoid cell lines (LCLs)[@Banovich2018]. 
 Using the Fluidigm C1 system, we collected single-cell RNA-seq from 54 individuals using the technique of unique molecular identifiers (UMIs).
 This approach allows for the detection of mRNA molecule counts and hence provides more accurate estimation of the mean and the variance of expression level for each gene.
 We analyzed the variability in gene regulation across individual cells as a measure of expression regulatory noise.
