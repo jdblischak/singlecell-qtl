@@ -1,0 +1,168 @@
+---
+title: "ERCC capture efficiency"
+author: "Po-Yuan Tung"
+date: 2018-02-15
+output: html_document
+---
+
+<!-- The file analysis/chunks.R contains chunks that define default settings
+shared across the workflowr files. -->
+```{r read-chunk, include=FALSE, cache=FALSE}
+knitr::read_chunk("chunks.R")
+```
+
+<!-- Update knitr chunk options -->
+```{r knitr-opts-chunk, include=FALSE}
+```
+
+<!-- Insert the date the file was last updated -->
+```{r last-updated, echo=FALSE, results='asis'}
+```
+
+<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
+ package git2r is installed -->
+```{r code-version, echo=FALSE, results='asis'}
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setup
+
+```{r packages, message=FALSE}
+library("cowplot")
+library("ggplot2")
+library("knitr")
+theme_set(theme_cowplot())
+source("../code/functions.R")
+library("Biobase") # has to be loaded last to use `combine`
+```
+
+Import data.
+
+```{r import}
+eset <- readRDS("../data/eset.rds")
+dim(eset)
+```
+
+Keep only ERCC
+```{r human-genes}
+eset <- eset[fData(eset)$source == "ERCC", ]
+dim(eset) 
+```
+
+Only keep high-quality single cells.
+
+```{r quality-cell}
+quality <- read.table("../data/quality-single-cells.txt", stringsAsFactors = FALSE)
+colnames(quality) <- c("sample", "quality")
+eset <- eset[, quality$quality]
+dim(eset)
+```
+
+Remove zeros.
+
+```{r remove-zeros}
+eset <- eset[rowSums(exprs(eset)) != 0, ]
+dim(eset)
+```
+
+correct for collision probability.
+
+```{r collision}
+eset_data <- exprs(eset)
+eset_data_cr <- as.data.frame(-4^6*log(1-eset_data/4^6))
+dim(eset_data_cr)
+```
+
+## Expected molecule number of each ERCC gene
+
+```{r expect-ercc}
+## input ERCC information
+## from https://www.thermofisher.com/order/catalog/product/4456740
+ercc <- read.table("../data/ercc-info.txt", header = TRUE, sep = "\t",
+                   stringsAsFactors = FALSE)
+colnames(ercc) <- c("num", "id", "subgroup", "conc_mix1", "conc_mix2",
+                    "expected_fc", "log2_mix1_mix2")
+head(ercc)
+stopifnot(nrow(ercc) == 92)
+
+## concentration of each ERCC was provided in attomoles per uL
+summary(ercc$conc_mix1)
+
+## mix 1 was diluted 1:2500 before adding to lysis buffer
+ercc_conc_diluted <- ercc$conc_mix1 / 2500
+
+## 1 ul was added to make 20 ul lysis buffer
+ercc_conc_lysis <- ercc_conc_diluted / 20
+
+## molecule number in the 20 ul lysis buffer
+ercc_molecules_lysis <- ercc_conc_lysis *
+                        20 * # Number of uL of lysis buffer
+                        1/10^18 * # Number of attomoles in a mole
+                        6.02214179e23 # Number of molecules in a mole
+
+## 9 nl of lysis buffer in each cell capture well
+## note: the molecule number is the same as the ones from the table provided by fluidigm
+ercc_molecules_well <- ercc_molecules_lysis * 9e-3 / 20
+summary(ercc_molecules_well)
+sum(ercc_molecules_well)
+sum(ercc_molecules_well >= 1)
+
+## output the expect number per well
+write.table(data.frame(id = ercc$id, conc_mix1 = ercc$conc_mix1, ercc_molecules_well),
+            "../data/expected-ercc-molecules.txt", sep = "\t", quote = FALSE,
+            row.names = FALSE)
+```
+
+## ERCC capture efficiency
+
+Using the code from [previous analysis](http://jdblischak.github.io/singleCellSeq/analysis/qc-plots.html) 
+
+```{r capture}
+## import expected ercc molecule number
+ercc <- read.table("../data/expected-ercc-molecules.txt", header = TRUE,
+                   stringsAsFactors = FALSE)
+head(ercc)
+
+## calculate efficiency using expected molecule more than 0.5
+ercc_list <- list()
+for (spike in ercc$id[ercc$ercc_molecules_well >= 0.5]) {
+  if (spike %in% rownames(eset_data)) {
+    ercc_list$id <- c(ercc_list$id, spike)
+    ercc_list$observed_mean <- c(ercc_list$observed_mean,
+                                 mean(as.numeric(eset_data[spike, ])))
+    ercc_list$observed_sem <- c(ercc_list$observed_sem,
+                                 sd(as.numeric(eset_data[spike, ])) /
+                                 sqrt(ncol(eset_data)))
+    ercc_list$expected <- c(ercc_list$expected,
+                            ercc$ercc_molecules_well[ercc$id == spike])
+  }
+}
+ercc_plot <- as.data.frame(ercc_list, stringsAsFactors = FALSE)
+str(ercc_plot)
+
+cor(ercc_plot$observed_mean, ercc_plot$expected)
+
+p_efficiency <- ggplot(ercc_plot, aes(x = expected, y = observed_mean, label = id)) +
+  geom_point(col = "red") +
+  geom_errorbar(aes(ymin = observed_mean - observed_sem,
+                    ymax = observed_mean + observed_sem), width = 0) +
+  labs(x = "Expected ERCC molecules",
+       y = "Observed ERCC molecules\n(mean +/- SEM)",
+       title = "ERCC capture efficiency")
+p_efficiency
+
+p_efficiency_plot <- p_efficiency + 
+  scale_x_log10() +
+  scale_y_log10() +
+  geom_abline(intercept = 0, alpha = 0.5, col = "red") +
+  geom_abline(intercept = - 0.50, alpha = 0.5) + 
+  geom_abline(intercept = - 0.99, alpha = 0.5, col ="blue") +
+  labs(x = "Expected ERCC molecules",
+       y = "Observed ERCC molecules\n(mean +/- SEM)",
+       title = "ERCC capture efficiency") 
+
+p_efficiency_plot
+```
