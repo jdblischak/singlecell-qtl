@@ -32,7 +32,6 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r packages, message=FALSE}
 library("cowplot")
-library("dplyr")
 library("edgeR")
 library("ggplot2")
 library("knitr")
@@ -120,11 +119,6 @@ plot.cv.and.mean <- function(data.in){
     # need to have a ERCC flag on the data.in
     molecules_single_qc_expressed_ERCC <- data.in[data.in$ERCC,]    
     
-    # defnine poisson function on a log x scale
-    poisson.c <- function (x) {
-        x^(-0.5)
-    }
-
     # compute the lossy factor based on ERCC
     ####   use LS: first define the function of f, then find the minimum
     ####   dont use the points from ERCC.mol.mean < 0.1 to fit. 
@@ -143,8 +137,13 @@ plot.cv.and.mean <- function(data.in){
     lossy.posson <- function (x) {
         1/sqrt((x)*minipar)
     }
-
-    # 4 s.d. 
+    
+    # defnine poisson function on a log x scale
+    poisson.c <- function (x) {
+        x^(-0.5)
+    }
+    
+     # 4 s.d. 
     four.sd <- function (x) {
         4*(x)^(0.5)/(x)
     }

@@ -29,7 +29,8 @@ The Yoruba (YRI) iPSCs[@Banovich] were cultured in feeder-free conditions for at
 A mixture of cell suspensions from four different individuals were prepared freshly each time for C1 collection.
 Additionally, cell viability was measured by the trypan blue staining (ThermoFisher) using the Automated Cell Counter (Bio-Rad) to obtain eqaul cell numbers across individuals in each cell mixture.
 Single cell capture and library preparation were performed the same as described before [@Tung2017], except that 6-bp random sequence UMIs were included instead of 5-bp.
-The 96 single cell samples of each C1 chip were pooled and sequenced on an Illumina HiSeq 2500 instrument using the TruSeq SBS Kit v3-HS (FC-401-3002).
+The 96 single cell samples from one C1 chip were pooled and sequenced on an Illumina HiSeq 2500 instrument using the TruSeq SBS Kit v3-HS (FC-401-3002).
+Each of the pooled sample were sequenced in more than two lanes to obtain two million good quality mapped reads from each single cell sample. 
 
 We collected total X,XXX cells from total 54 different YRI [invididuals](data-collection.html).
 We obtained an average of XX million [sequencing reads](totals.html) per single cell sample.
@@ -40,7 +41,7 @@ We performed [PCA](pca-variable.html) on a subset of most variable genes and fou
 ## Sample quality control
 Single cell [sample identification](identity.html) were determined by examining the SNPs present in their RNA sequencing reads using the method verifyBamID as described [@Tung2017].
 We obtained a 97.6 % valid identification from 54 individuals.
-
+We did not observe any systematic contamination arocss any C1 IFC collection. 
 Using the identification of each single cell sample, we performed [pairwise correlations](correlations.html) between the samples and found that the effect of individual is stronger than the effect of C1 chip.
 We also analyzed per-gene expression profiles and computed [variance component](partition.html) estimates for the effects of individual and C1 batch.
 
@@ -48,6 +49,8 @@ Next, we performed [quality control](sampleqc.html) to identify low quality sing
 We kept from high quality single cell samples which passed the following criteria:
 *  Only one cell observed per well
 *  Valid identification
+*  More than XX million mapped reads
 *  Less than XX % unmapped reads
 *  Less than X.X % ERCC reads
 *  More than X,XXX genes with at least one read
+
