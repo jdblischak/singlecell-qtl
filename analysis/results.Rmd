@@ -1,0 +1,38 @@
+---
+title: "Results"
+author: "Po-Yuan Tung"
+date: 2018-02-14
+output: html_document
+---
+
+<!-- The file analysis/chunks.R contains chunks that define default settings
+shared across the workflowr files. -->
+```{r read-chunk, include=FALSE, cache=FALSE}
+knitr::read_chunk("chunks.R")
+```
+
+<!-- Update knitr chunk options -->
+```{r knitr-opts-chunk, include=FALSE}
+```
+
+<!-- Insert the date the file was last updated -->
+```{r last-updated, echo=FALSE, results='asis'}
+```
+
+<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
+ package git2r is installed -->
+```{r code-version, echo=FALSE, results='asis'}
+```
+
+## Study design and data collection
+
+We utilized the automated C1 microfluidic platform (Fluidigm) for single cell RNA-seq, because the system has been shown to confer several advantages over tube-based library preparation with higher reproducibility and reduced bias [@Wu2014]. 
+Notably, the C1 system allows for higher sequencing depths and thus higher numbers of genes detected than other microfluidic methods, including the state of the art drop-seq technique [@Ziegenhain2017; @svensson2017].
+This feature is particularly important to this genome wide association study.
+However, as discussed from our previous study [@Tung2017], a limitation of using the C1 system is that batch effects from the C1 IFCs are inherently confounded with the biological covariate of interest, which in this case, is the difference between individuals.
+To explicitly model the technical variability across single cell samples and also to better account for the batch effect from C1 collections, we mixed equal cell numbers from four different individuals before single cell sorting on the C1 machine.
+With the genotype data of these individuals in hand, we can successfully identify the genetic background of each single cell.
+In order to get 75 good quality single cell samples per individual, each of the iPSC lines was collected on at least four C1 IFCs.
+More importantly, we used a balanced incomplete block design (BIBD) within batches of thirteen individuals (Figure1A) to avoid different numbers of single cell samples across individuals due to potentially biased selection on the C1 IFCs.
+
+
