@@ -22,18 +22,19 @@
   #+CALL: ipython3(memory="16G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 43199137
+  : Submitted batch job 43620934
 
   #+BEGIN_SRC ipython
     import colorcet
     import numpy as np
     import pandas as pd
     import matplotlib.pyplot as plt
+    import sklearn.linear_model as lm
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[28]:
+  # Out[1]:
   :END:
 
 * Analysis
@@ -42,7 +43,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[16]:
+  # Out[3]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -51,8 +52,8 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[17]:
-  : (4985, 40)
+  # Out[4]:
+  : (5012, 40)
   :END:
 
   #+BEGIN_SRC ipython :ipyfile figure/dim-returns.org/mol-vs-depth.png
@@ -60,13 +61,12 @@
     plt.scatter(annotations['umi'], annotations['mol_hs'], color='k', s=2)
     plt.xticks(np.linspace(0, 1, 5) * 1e7, np.linspace(0, 1, 5) * 10)
     plt.xlabel('Millions of reads with UMI')
-    plt.ylabel('Number of molecules detected')
+    _ = plt.ylabel('Number of molecules detected')
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[25]:
-  : Text(0,0.5,'Number of molecules detected')
+  # Out[6]:
   [[file:figure/dim-returns.org/mol-vs-depth.png]]
   :END:
 
@@ -75,12 +75,61 @@
     plt.scatter(annotations['umi'], annotations['detect_hs'], color='k', s=2)
     plt.xticks(np.linspace(0, 1, 5) * 1e7, np.linspace(0, 1, 5) * 10)
     plt.xlabel('Millions of reads with UMI')
-    plt.ylabel('Number of genes detected')
+    _ = plt.ylabel('Number of genes detected')
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[29]:
-  : Text(0,0.5,'Number of genes detected')
+  # Out[7]:
   [[file:figure/dim-returns.org/detect-vs-depth.png]]
+  :END:
+
+  To see whether the trend is different per individual, fit a linear regression
+  per individual:
+
+  #+BEGIN_SRC ipython :async t
+    def _lm(x):
+      m = lm.LinearRegression(fit_intercept=True).fit(x['umi'].values.reshape(-1, 1), x['mol_hs'].values)
+      rss = np.square(x['mol_hs'].values - m.predict(x['umi'].values.reshape(-1, 1))).sum()
+      sigma2 = rss / x.shape[0]
+      var = x['umi'].var()
+      se = sigma2 / var
+      return pd.Series({'beta': m.coef_[0], 'se': se, 'intercept': m.intercept_})
+
+    beta = annotations.groupby('chip_id').apply(_lm).sort_index()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[35]:
+  :END:
+
+  Plot the distribution of regression coefficients:
+
+  #+BEGIN_SRC ipython :ipyfile figure/dim-returns.org/mol-vs-depth-beta.png
+    plt.clf()
+    plt.hist(beta['beta'].values, color='k', bins=20)
+    plt.xlabel('Estimated number of molecules detected per additional read')
+    _ = plt.ylabel('Number of individuals')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[15]:
+  [[file:figure/dim-returns.org/mol-vs-depth-beta.png]]
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/dim-returns.org/mol-vs-depth-beta-errors.png
+    plt.clf()
+    plt.gcf().set_size_inches(12, 4)
+    plt.errorbar(x=np.arange(beta.shape[0]), y=beta['beta'].values, yerr=beta['se'].values, ls='', marker='o', ms=1)
+    plt.xticks(np.arange(beta.shape[0]), beta.index, rotation=90)
+    plt.xlabel('Individual')
+    _ = plt.ylabel('Estimated effect size')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[41]:
+  [[file:figure/dim-returns.org/mol-vs-depth-beta-errors.png]]
   :END:

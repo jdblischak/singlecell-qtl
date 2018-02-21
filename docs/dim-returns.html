@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-02-13 Tue 13:51 -->
+<!-- 2018-02-21 Wed 10:01 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Diminishing returns of sequencing depth</title>
@@ -256,7 +256,7 @@ in terms of number of molecules and number of genes detected.
 </div>
 
 <pre class="example">
-(4985, 40)
+(5012, 40)
 
 </pre>
 
@@ -265,14 +265,10 @@ in terms of number of molecules and number of genes detected.
 plt.scatter(annotations[<span class="org-string">'umi'</span>], annotations[<span class="org-string">'mol_hs'</span>], color=<span class="org-string">'k'</span>, s=2)
 plt.xticks(np.linspace(0, 1, 5) * 1e7, np.linspace(0, 1, 5) * 10)
 plt.xlabel(<span class="org-string">'Millions of reads with UMI'</span>)
-plt.ylabel(<span class="org-string">'Number of molecules detected'</span>)
+<span class="org-variable-name">_</span> = plt.ylabel(<span class="org-string">'Number of molecules detected'</span>)
 </pre>
 </div>
 
-<pre class="example">
-Text(0,0.5,'Number of molecules detected')
-
-</pre>
 
 <div class="figure">
 <p><img src="figure/dim-returns.org/mol-vs-depth.png" alt="mol-vs-depth.png">
@@ -284,17 +280,65 @@ Text(0,0.5,'Number of molecules detected')
 plt.scatter(annotations[<span class="org-string">'umi'</span>], annotations[<span class="org-string">'detect_hs'</span>], color=<span class="org-string">'k'</span>, s=2)
 plt.xticks(np.linspace(0, 1, 5) * 1e7, np.linspace(0, 1, 5) * 10)
 plt.xlabel(<span class="org-string">'Millions of reads with UMI'</span>)
-plt.ylabel(<span class="org-string">'Number of genes detected'</span>)
+<span class="org-variable-name">_</span> = plt.ylabel(<span class="org-string">'Number of genes detected'</span>)
 </pre>
 </div>
 
-<pre class="example">
-Text(0,0.5,'Number of genes detected')
-
-</pre>
 
 <div class="figure">
 <p><img src="figure/dim-returns.org/detect-vs-depth.png" alt="detect-vs-depth.png">
+</p>
+</div>
+
+<p>
+To see whether the trend is different per individual, fit a linear regression
+per individual:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">_lm</span>(x):
+  <span class="org-variable-name">m</span> = lm.LinearRegression(fit_intercept=<span class="org-constant">True</span>).fit(x[<span class="org-string">'umi'</span>].values.reshape(-1, 1), x[<span class="org-string">'mol_hs'</span>].values)
+  <span class="org-variable-name">rss</span> = np.square(x[<span class="org-string">'mol_hs'</span>].values - m.predict(x[<span class="org-string">'umi'</span>].values.reshape(-1, 1))).<span class="org-builtin">sum</span>()
+  <span class="org-variable-name">sigma2</span> = rss / x.shape[0]
+  <span class="org-variable-name">var</span> = x[<span class="org-string">'umi'</span>].var()
+  <span class="org-variable-name">se</span> = sigma2 / var
+  <span class="org-keyword">return</span> pd.Series({<span class="org-string">'beta'</span>: m.coef_[0], <span class="org-string">'se'</span>: se, <span class="org-string">'intercept'</span>: m.intercept_})
+
+<span class="org-variable-name">beta</span> = annotations.groupby(<span class="org-string">'chip_id'</span>).<span class="org-builtin">apply</span>(_lm).sort_index()
+</pre>
+</div>
+
+<p>
+Plot the distribution of regression coefficients:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.hist(beta[<span class="org-string">'beta'</span>].values, color=<span class="org-string">'k'</span>, bins=20)
+plt.xlabel(<span class="org-string">'Estimated number of molecules detected per additional read'</span>)
+<span class="org-variable-name">_</span> = plt.ylabel(<span class="org-string">'Number of individuals'</span>)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/dim-returns.org/mol-vs-depth-beta.png" alt="mol-vs-depth-beta.png">
+</p>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.gcf().set_size_inches(12, 4)
+plt.errorbar(x=np.arange(beta.shape[0]), y=beta[<span class="org-string">'beta'</span>].values, yerr=beta[<span class="org-string">'se'</span>].values, ls=<span class="org-string">''</span>, marker=<span class="org-string">'o'</span>, ms=1)
+plt.xticks(np.arange(beta.shape[0]), beta.index, rotation=90)
+plt.xlabel(<span class="org-string">'Individual'</span>)
+<span class="org-variable-name">_</span> = plt.ylabel(<span class="org-string">'Estimated effect size'</span>)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/dim-returns.org/mol-vs-depth-beta-errors.png" alt="mol-vs-depth-beta-errors.png">
 </p>
 </div>
 </div>
@@ -302,7 +346,7 @@ Text(0,0.5,'Number of genes detected')
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-02-13 Tue 13:51</p>
+<p class="date">Created: 2018-02-21 Wed 10:01</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
