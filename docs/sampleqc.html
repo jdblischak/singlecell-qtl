@@ -319,10 +319,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2018-02-17</p>
+<p><strong>Last updated:</strong> 2018-02-22</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> 6a16d7b</p>
+<p><strong>Code version:</strong> 2df7b00</p>
 <p>This is for qc of the samples. Based on obsevation under the scope and the sequencing results, samples with bad quality will be removed.</p>
 <section id="setup" class="level2">
 <h2>Setup</h2>
@@ -352,9 +352,9 @@ cut_off_reads</code></pre>
 
 ## numbers of cells 
 sum(anno[anno$cell_number == 1, &quot;mapped&quot;] &gt; cut_off_reads)</code></pre>
-<pre><code>[1] 4622</code></pre>
+<pre><code>[1] 4890</code></pre>
 <pre class="r"><code>sum(anno[anno$cell_number == 1, &quot;mapped&quot;] &lt;= cut_off_reads)</code></pre>
-<pre><code>[1] 1297</code></pre>
+<pre><code>[1] 1029</code></pre>
 <pre class="r"><code>## density plots
 plot_reads &lt;- ggplot(anno[anno$cell_number == 0 |
                           anno$cell_number == 1 , ],
@@ -463,14 +463,14 @@ cut_off_genes &lt;- quantile(anno[anno$cell_number == 0,&quot;detect_hs&quot;], 
 
 cut_off_genes</code></pre>
 <pre><code>   90% 
-4052.7 </code></pre>
+4079.1 </code></pre>
 <pre class="r"><code>anno$cut_off_genes &lt;- anno$detect_hs &gt; cut_off_genes
 
 ## numbers of cells 
 sum(anno[anno$cell_number == 1, &quot;detect_hs&quot;] &gt; cut_off_genes)</code></pre>
-<pre><code>[1] 5249</code></pre>
+<pre><code>[1] 5319</code></pre>
 <pre class="r"><code>sum(anno[anno$cell_number == 1, &quot;detect_hs&quot;] &lt;= cut_off_genes)</code></pre>
-<pre><code>[1] 670</code></pre>
+<pre><code>[1] 600</code></pre>
 <pre class="r"><code>## density plots
 plot_gene &lt;- ggplot(anno[anno$cell_number == 0 |
                          anno$cell_number == 1 , ],
@@ -516,8 +516,8 @@ table(data_lda_p, data[, &quot;group&quot;])</code></pre>
 <pre><code>          
 data_lda_p   no  one  two
        no     0    0    0
-       one  234 5881  223
-       two    0   38   56</code></pre>
+       one  234 5874  214
+       two    0   45   65</code></pre>
 <pre class="r"><code>data$data_lda_p &lt;- data_lda_p
 
 
@@ -555,7 +555,7 @@ ggplot(anno, aes(x = dm_conversion, y = conversion,
   labs(x = &quot;Convertion of Fly spike-ins&quot;, y = &quot;Conversion of genes&quot;) +
   scale_color_brewer(palette = &quot;Dark2&quot;) +
   theme(legend.position = &quot;none&quot;)</code></pre>
-<pre><code>Warning: Removed 4 rows containing missing values (geom_text).</code></pre>
+<pre><code>Warning: Removed 1 rows containing missing values (geom_text).</code></pre>
 <p><img src="figure/sampleqc.Rmd/convertion-1.png" width="1152" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>## try lda
 data$conversion &lt;- anno$conversion
@@ -566,20 +566,12 @@ data_ercc_lda &lt;- lda(group ~ dm_conversion + conversion, data = data)
 data_ercc_lda_p &lt;- predict(data_ercc_lda,  newdata = data[,c(&quot;dm_conversion&quot;, &quot;conversion&quot;)])$class</code></pre>
 <pre><code>Warning in FUN(newX[, i], ...): no non-missing arguments to min; returning
 Inf</code></pre>
-<pre><code>Warning in FUN(newX[, i], ...): no non-missing arguments to min; returning
-Inf
-
-Warning in FUN(newX[, i], ...): no non-missing arguments to min; returning
-Inf
-
-Warning in FUN(newX[, i], ...): no non-missing arguments to min; returning
-Inf</code></pre>
 <pre class="r"><code>## determine how well the model fix
 table(data_ercc_lda_p, data[, &quot;group&quot;])</code></pre>
 <pre><code>               
 data_ercc_lda_p   no  one  two
-            no   137  108    5
-            one   97 5807  274
+            no   131  105    4
+            one  103 5813  275
             two    0    0    0</code></pre>
 <pre class="r"><code>data$data_ercc_lda_p &lt;- data_ercc_lda_p
 
@@ -607,8 +599,9 @@ plot_ercc_after &lt;- ggplot(data, aes(x = dm_conversion, y = conversion,
 plot_grid(plot_ercc_before, 
           plot_ercc_after,
           labels = LETTERS[3:4])</code></pre>
-<pre><code>Warning: Removed 4 rows containing missing values (geom_text).</code></pre>
-<pre><code>Warning: Removed 4 rows containing missing values (geom_text).</code></pre>
+<pre><code>Warning: Removed 1 rows containing missing values (geom_text).
+
+Warning: Removed 1 rows containing missing values (geom_text).</code></pre>
 <p><img src="figure/sampleqc.Rmd/convertion-2.png" width="1152" style="display: block; margin: auto;" /></p>
 </section>
 </section>
@@ -628,16 +621,16 @@ sort(table(anno[anno$filter_all, &quot;chip_id&quot;]))</code></pre>
 <pre><code>
 NA18498 NA19203 NA19159 NA19204 NA18913 NA19092 NA18505 NA19193 NA18519 
      19      24      31      49      51      51      53      56      62 
-NA19143 NA18522 NA18859 NA19098 NA19130 NA18517 NA19210 NA18862 NA19102 
-     64      65      65      65      65      67      69      73      73 
-NA19127 NA19206 NA18870 NA18856 NA18853 NA18489 NA18912 NA19114 NA19140 
-     73      73      74      76      79      82      82      82      82 
-NA18907 NA18852 NA19209 NA19108 NA19153 NA19257 NA19225 NA18855 NA19101 
-     84      85      87      88      89      89      91      93      94 
+NA18522 NA19098 NA19130 NA18859 NA19143 NA19210 NA18517 NA18862 NA19206 
+     65      65      66      67      67      69      72      73      73 
+NA18870 NA18856 NA19127 NA18853 NA18489 NA19114 NA18907 NA19102 NA18852 
+     74      76      77      79      82      82      84      84      85 
+NA19140 NA19209 NA19153 NA19257 NA18912 NA19225 NA18855 NA19101 NA19108 
+     86      87      88      89      90      91      93      94      95 
 NA18516 NA19190 NA19093 NA19099 NA19160 NA19116 NA19128 NA18511 NA19144 
-     96      96     102     103     105     106     108     112     117 
+     96      96     101     103     105     106     108     115     117 
 NA19152 NA18520 NA18499 NA19207 NA18858 NA18508 NA18502 NA18501 NA18507 
-    119     136     138     149     153     168     194     198     307 </code></pre>
+    119     136     138     149     153     167     194     226     307 </code></pre>
 <pre class="r"><code>write.table(data.frame(row.names(anno), anno[,&quot;filter_all&quot;]),
             file = &quot;../data/quality-single-cells.txt&quot;, quote = FALSE,
             sep = &quot;\t&quot;, row.names = FALSE, col.names = FALSE)</code></pre>
@@ -723,19 +716,19 @@ head(featureNames(eset_hs))</code></pre>
 eset_hs_clean &lt;- eset_hs[rowSums(exprs(eset_hs)) != 0, ]
 dim(eset_hs_clean)</code></pre>
 <pre><code>Features  Samples 
-   19763     6432 </code></pre>
+   19777     6432 </code></pre>
 <pre class="r"><code>## convert to log2 cpm
 mol_hs_cpm &lt;- cpm(exprs(eset_hs_clean), log = TRUE)
 mol_hs_cpm_means &lt;- rowMeans(mol_hs_cpm)
 summary(mol_hs_cpm_means)</code></pre>
 <pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-  2.702   2.746   3.250   3.922   4.602  13.079 </code></pre>
+  2.650   2.696   3.217   3.898   4.604  13.082 </code></pre>
 <pre class="r"><code>hist(mol_hs_cpm_means)
 abline(v = median(mol_hs_cpm_means), col = &quot;red&quot;)</code></pre>
 <p><img src="figure/sampleqc.Rmd/select-gene-before-1.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>mol_hs_cpm &lt;- mol_hs_cpm[mol_hs_cpm_means &gt; median(mol_hs_cpm_means), ]
 dim(mol_hs_cpm)</code></pre>
-<pre><code>[1] 9881 6432</code></pre>
+<pre><code>[1] 9888 6432</code></pre>
 <p>Using the genes with reasonable expression levels to perform PCA</p>
 <pre class="r"><code>## pca of genes with reasonable expression levels
 pca_hs &lt;- run_pca(mol_hs_cpm)
@@ -798,20 +791,20 @@ plot_grid(pc1_reads + theme(legend.position=c(.7,.5)),
 eset_hs_clean_filter &lt;- eset_hs_clean[,anno$filter_all]
 dim(eset_hs_clean_filter)</code></pre>
 <pre><code>Features  Samples 
-   19763     5012 </code></pre>
+   19777     5085 </code></pre>
 <pre class="r"><code>## convert to log2 cpm
 mol_hs_cpm_filter &lt;- cpm(exprs(eset_hs_clean_filter), log = TRUE)
 stopifnot(rownames(anno[anno$filter_all,]) == colnames(mol_hs_cpm_filter))
 mol_hs_cpm_filter_means &lt;- rowMeans(mol_hs_cpm_filter)
 summary(mol_hs_cpm_filter_means)</code></pre>
 <pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-  2.536   2.588   3.168   3.883   4.687  12.964 </code></pre>
+  2.500   2.554   3.145   3.865   4.687  12.986 </code></pre>
 <pre class="r"><code>hist(mol_hs_cpm_filter_means)
 abline(v = median(mol_hs_cpm_filter_means), col = &quot;red&quot;)</code></pre>
 <p><img src="figure/sampleqc.Rmd/pca-after-1.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>mol_hs_cpm_filter &lt;- mol_hs_cpm_filter[mol_hs_cpm_filter_means &gt; median(mol_hs_cpm_filter_means), ]
 dim(mol_hs_cpm_filter)</code></pre>
-<pre><code>[1] 9881 5012</code></pre>
+<pre><code>[1] 9888 5085</code></pre>
 <pre class="r"><code>## pca of genes with reasonable expression levels
 pca_hs_filter &lt;- run_pca(mol_hs_cpm_filter)
 
