@@ -1,0 +1,121 @@
+---
+title: "scde"
+author: "Po-Yuan Tung"
+date: 2018-02-21
+output: html_document
+---
+
+<!-- The file analysis/chunks.R contains chunks that define default settings
+shared across the workflowr files. -->
+```{r read-chunk, include=FALSE, cache=FALSE}
+knitr::read_chunk("chunks.R")
+```
+
+<!-- Update knitr chunk options -->
+```{r knitr-opts-chunk, include=FALSE}
+```
+
+<!-- Insert the date the file was last updated -->
+```{r last-updated, echo=FALSE, results='asis'}
+```
+
+<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
+ package git2r is installed -->
+```{r code-version, echo=FALSE, results='asis'}
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setup
+
+```{r packages, message=FALSE}
+library("cowplot")
+library("edgeR")
+library("ggplot2")
+library("knitr")
+library("scde")
+theme_set(theme_cowplot())
+source("../code/functions.R")
+library("Biobase") # has to be loaded last to use `combine`
+```
+
+Import data.
+
+```{r import}
+eset <- readRDS("../data/eset.rds")
+dim(eset)
+```
+
+Keep human genes and ERCC
+```{r human-genes}
+eset <- eset[fData(eset)$source %in% c("H. sapiens", "ERCC") , ]
+dim(eset) 
+```
+
+Only keep high-quality single cells.
+
+```{r quality-cell}
+quality <- read.table("../data/quality-single-cells.txt", stringsAsFactors = FALSE)
+colnames(quality) <- c("sample", "quality")
+eset <- eset[, quality$quality]
+dim(eset)
+```
+
+Remove zeros.
+
+```{r remove-zeros}
+eset <- eset[rowSums(exprs(eset)) != 0, ]
+dim(eset)
+```
+
+Only keep genes which are observed in at least 50% of the samples.
+
+```{r present}
+# Function `present` is defined in ../code/functions.R
+eset <- eset[apply(exprs(eset), 1, present), ]
+dim(eset)
+```
+
+## SCDE
+
+```{r}
+## generate count matrix (integer matrix, rows- genes, columns- cells)
+eset_data <- exprs(eset)
+
+## try a subset of cells first
+eset_data_sub <- eset_data[,2000:2500]
+dim(eset_data_sub)
+
+## Fitting error models
+eset_sub_knn <- knn.error.models(eset_data_sub, k = ncol(eset_data_sub)/4, n.cores = 6, min.count.threshold = 1, min.nonfailed = 5, max.model.plots = 10)
+
+## Normalizing variance
+varinfo <- pagoda.varnorm(eset_sub_knn, counts = eset_data_sub, trim = 3/ncol(eset_data_sub), max.adj.var = 5, n.cores = 1, plot = TRUE)
+
+## list top overdispersed genes
+sort(varinfo$arv, decreasing = TRUE)[1:10]
+
+## Controlling for sequencing depth
+varinfo_dep <- pagoda.subtract.aspect(varinfo, colSums(eset_data_sub[, rownames(eset_sub_knn)]>0))
+```
+
+## Evaluate overdispersion of pre-defined gene sets
+```{r}
+# create go environment
+library(org.Hs.eg.db)
+# translate gene names to ids
+ids <- unlist(lapply(mget(rownames(cd), org.Hs.egALIAS2EG, ifnotfound = NA), function(x) x[1]))
+rids <- names(ids)
+go.env <- lapply(mget(ls(org.Hs.egGO2ALLEGS), org.Hs.egGO2ALLEGS), function(x) as.character(na.omit(rids[x])))
+# clean GOs
+go.env <- clean.gos(go.env)
+# convert to an environment
+go.env <- list2env(go.env)
+
+
+pwpca <- pagoda.pathway.wPCA(varinfo, go.env, n.components=1, n.cores=6, n.internal.shuffles=50)
+df <- pagoda.top.aspects(pwpca, return.table = TRUE, plot = TRUE, z.score = 1.96)
+```
+
