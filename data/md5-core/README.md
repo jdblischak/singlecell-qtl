@@ -36,3 +36,4 @@ YG-PYT-ReSEQ5-2.md5 - batch 5 flow cell 2
 
 YG-PYT-ReSEQ5-3.md5 - batch 5 flow cell 3
 
+YG-PYT-ReSEQ5-4.md5 - batch 5 flow cell 4
