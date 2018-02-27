@@ -134,7 +134,7 @@ First try without controlling for sequencing depth
 ```{r info}
 # Now, we can calculate weighted first principal component magnitudes for each GO gene set in the provided environment.
 set.seed(1106)
-pwpca_eset <- pagoda.pathway.wPCA(varinfo_eset_sub, go.env, n.components=1, n.cores=1, n.internal.shuffles=50)
+pwpca_eset <- pagoda.pathway.wPCA(varinfo_eset_sub, go.env, n.components=1, n.cores=1)
 
 # We can now evaluate the statistical significance of the observed overdispersion for each GO gene set.
 df_pwpca <- pagoda.top.aspects(pwpca_eset, return.table = TRUE, plot = TRUE, z.score = 1.96)
@@ -146,7 +146,7 @@ df_pwpca[1:20,]
 
 Then try controlling for sequencing depth. The top GOs are very similar with or without controling for sequencing depth.
 ```{r depth-control}
-pwpca_eset_dep <- pagoda.pathway.wPCA(varinfo_dep, go.env, n.components=1, n.cores=1, n.internal.shuffles=50)
+pwpca_eset_dep <- pagoda.pathway.wPCA(varinfo_dep, go.env, n.components=1, n.cores=1)
 
 df_pwpca_dep <- pagoda.top.aspects(pwpca_eset_dep, return.table = TRUE, plot = TRUE, z.score = 1.96)
 
