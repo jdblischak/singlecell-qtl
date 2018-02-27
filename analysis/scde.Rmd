@@ -80,42 +80,138 @@ dim(eset)
 
 ## SCDE
 
-```{r}
+```{r varinfo}
 ## generate count matrix (integer matrix, rows- genes, columns- cells)
 eset_data <- exprs(eset)
 
 ## try a subset of cells first
-eset_data_sub <- eset_data[,2000:2500]
+eset_data_sub <- eset_data[,2000:2100]
 dim(eset_data_sub)
 
 ## Fitting error models
 eset_sub_knn <- knn.error.models(eset_data_sub, k = ncol(eset_data_sub)/4, n.cores = 6, min.count.threshold = 1, min.nonfailed = 5, max.model.plots = 10)
 
 ## Normalizing variance
-varinfo <- pagoda.varnorm(eset_sub_knn, counts = eset_data_sub, trim = 3/ncol(eset_data_sub), max.adj.var = 5, n.cores = 1, plot = TRUE)
+varinfo_eset_sub <- pagoda.varnorm(eset_sub_knn, counts = eset_data_sub, trim = 3/ncol(eset_data_sub), max.adj.var = 5, n.cores = 1, plot = TRUE)
 
 ## list top overdispersed genes
-sort(varinfo$arv, decreasing = TRUE)[1:10]
+sort(varinfo_eset_sub$arv, decreasing = TRUE)[1:10]
 
 ## Controlling for sequencing depth
-varinfo_dep <- pagoda.subtract.aspect(varinfo, colSums(eset_data_sub[, rownames(eset_sub_knn)]>0))
+varinfo_dep <- pagoda.subtract.aspect(varinfo_eset_sub, colSums(eset_data_sub[, rownames(eset_sub_knn)]>0))
 ```
 
 ## Evaluate overdispersion of pre-defined gene sets
-```{r}
-# create go environment
-library(org.Hs.eg.db)
-# translate gene names to ids
-ids <- unlist(lapply(mget(rownames(cd), org.Hs.egALIAS2EG, ifnotfound = NA), function(x) x[1]))
-rids <- names(ids)
-go.env <- lapply(mget(ls(org.Hs.egGO2ALLEGS), org.Hs.egGO2ALLEGS), function(x) as.character(na.omit(rids[x])))
-# clean GOs
-go.env <- clean.gos(go.env)
-# convert to an environment
-go.env <- list2env(go.env)
 
+```{r create-go}
+library(biomaRt)
+library(GO.db)
 
-pwpca <- pagoda.pathway.wPCA(varinfo, go.env, n.components=1, n.cores=6, n.internal.shuffles=50)
-df <- pagoda.top.aspects(pwpca, return.table = TRUE, plot = TRUE, z.score = 1.96)
+# Initialize the connection to the Ensembl BioMart Service
+# Available datasets can be listed with 
+# listDatasets(useMart("ENSEMBL_MART_ENSEMBL", host="www.ensembl.org"))
+# Use mmusculus_gene_ensembl for mouse
+ensembl <- useMart("ENSEMBL_MART_ENSEMBL", dataset = "hsapiens_gene_ensembl", host="www.ensembl.org")
+
+# Constructs a dataframe with two columns: hgnc_symbol and go_id
+# If rownames are Ensembl IDs, use ensembl_gene_id as filter value
+go <- getBM(attributes = c("ensembl_gene_id", "go_id"), filters = "ensembl_gene_id", values = rownames(eset_data_sub), mart = ensembl)
+
+# Use the GO.db library to add a column with the GO-term to the dataframe
+go$term <- Term(go$go_id)
+
+# Create a named list of character vectors out of the df
+s = split(go$ensembl_gene_id, paste(go$go_id,go$term))
+
+# Saves the list as a R environment
+go.env <- list2env(s)
+
+# Test
+class(go.env)
 ```
 
+First try without controlling for sequencing depth
+```{r info}
+# Now, we can calculate weighted first principal component magnitudes for each GO gene set in the provided environment.
+set.seed(1106)
+pwpca_eset <- pagoda.pathway.wPCA(varinfo_eset_sub, go.env, n.components=1, n.cores=1, n.internal.shuffles=50)
+
+# We can now evaluate the statistical significance of the observed overdispersion for each GO gene set.
+df_pwpca <- pagoda.top.aspects(pwpca_eset, return.table = TRUE, plot = TRUE, z.score = 1.96)
+
+# Each point on the plot shows the PC1 variance (lambda1) magnitude (normalized by set size) as a function of set size. The red lines show expected (solid) and 95% upper bound (dashed) magnitudes based on the Tracey-Widom model.
+
+df_pwpca[1:20,]
+```
+
+Then try controlling for sequencing depth. The top GOs are very similar with or without controling for sequencing depth.
+```{r depth-control}
+pwpca_eset_dep <- pagoda.pathway.wPCA(varinfo_dep, go.env, n.components=1, n.cores=1, n.internal.shuffles=50)
+
+df_pwpca_dep <- pagoda.top.aspects(pwpca_eset_dep, return.table = TRUE, plot = TRUE, z.score = 1.96)
+
+df_pwpca_dep[1:20,]
+```
+
+Note:
+* The z column gives the Z-score of pathway over-dispersion relative to the genome-wide model (Z-score of 1.96 corresponds to P-value of 5%, etc.).
+* "z.adj" column shows the Z-score adjusted for multiple hypothesis (using Benjamini-Hochberg correction).
+* "score" gives observed/expected variance ratio
+* "sh.z" and "adj.sh.z" columns give the raw and adjusted Z-scores of "pathway cohesion", which compares the observed PC1 magnitude to the magnitudes obtained when the observations for each gene are randomized with respect to cells. When such Z-score is high (e.g. for GO:0008009) then multiple genes within the pathway contribute to the coordinated pattern.
+
+## Evaluate overdispersion of 'de novo' gene sets
+
+First try without controlling for sequencing depth
+```{r denovo}
+clpca_eset <- pagoda.gene.clusters(varinfo_eset_sub, trim = 7.1/ncol(varinfo_eset_sub$mat), n.clusters = 50, n.cores = 1, plot = TRUE)
+
+df_clpca <- pagoda.top.aspects(pwpca_eset, clpca_eset, return.table = TRUE, plot = TRUE, z.score = 1.96)
+
+head(df_clpca)
+```
+
+Then try controlling for sequencing depth.
+```{r denovo-dep}
+clpca_eset_dep <- pagoda.gene.clusters(varinfo_dep, trim = 7.1/ncol(varinfo_dep$mat), n.clusters = 50, n.cores = 1, plot = TRUE)
+
+df_clpca_dep <- pagoda.top.aspects(pwpca_eset_dep, clpca_eset_dep, return.table = TRUE, plot = TRUE, z.score = 1.96)
+
+head(df_clpca_dep)
+```
+
+Note:
+* The plot above shows background distribution of the first principal component (PC1) variance (lambda1) magnitude. The blue scatterplot on the left shows lambda1 magnitude vs. cluster size for clusters determined based on randomly-generated matrices of the same size. The black circles show top cluster in each simulation. The red lines show expected magnitude and 95% confidence interval based on Tracy-Widom distribution. The right plot shows extreme value distribution fit of residual cluster PC1 variance magnitude relative to the Gumbel (extreme value) distribution.
+* The gene clusters and their corresponding model expected value and 95% upper bound are shown in green.
+
+## Visualize significant aspects of heterogeneity
+
+Look at the results that controlled for the sequencing depth.
+
+```{r top}
+# get full info on the top aspects
+tam_eset_sub <- pagoda.top.aspects(pwpca_eset_dep, clpca_eset_dep, n.cells = NULL, z.score = qnorm(0.01/2, lower.tail = FALSE))
+
+# determine overall cell clustering
+hc_eset_sub <- pagoda.cluster.cells(tam_eset_sub, varinfo_dep)
+
+# Next, we will reduce redundant aspects in two steps. First we will combine pathways that are driven by the same sets of genes:
+tamr_eset_sub <- pagoda.reduce.loading.redundancy(tam_eset_sub, pwpca_eset_dep, clpca_eset_dep)
+
+# In the second step we will combine aspects that show similar patterns (i.e. separate the same sets of cells). Here we will plot the cells using the overall cell clustering determined above:
+tamr2_eset_sub <- pagoda.reduce.redundancy(tamr_eset_sub, distance.threshold = 0.9, plot = TRUE, cell.clustering = hc_eset_sub, labRow = NA, labCol = NA, box = TRUE, margins = c(0.5, 0.5), trim = 0)
+```
+
+```{r top-pattern}
+# We will view the top aspects, clustering them by pattern similarity (note, to view aspects in the order of increasing lambda1 magnitude, use row.clustering = NA).
+
+col.cols <- rbind(groups = cutree(hc_eset_sub, 3))
+pagoda.view.aspects(tamr2_eset_sub, cell.clustering = hc_eset_sub, box = TRUE, labCol = NA, margins = c(0.5, 20), col.cols = col.cols)
+```
+
+```{r cell-cycle}
+# get cell cycle signature and view the top genes
+cc.pattern_eset_sub <- pagoda.show.pathways("GO:0010972 negative regulation of G2/M transition of mitotic cell cycle", varinfo_dep, go.env, show.cell.dendrogram = TRUE, cell.clustering = hc_eset_sub, showRowLabels = TRUE)
+
+# get oxidative stress signature and view the top genes
+cc.pattern_eset_sub <- pagoda.show.pathways(c("GO:0055093 response to hyperoxia", "GO:0006979 response to oxidative stress", "GO:0001666 response to hypoxia"), varinfo_dep, go.env, show.cell.dendrogram = TRUE, cell.clustering = hc_eset_sub, showRowLabels = TRUE)
+```
