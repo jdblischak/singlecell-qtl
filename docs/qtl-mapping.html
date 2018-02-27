@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-01-22 Mon 11:04 -->
+<!-- 2018-02-24 Sat 11:18 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>QTL mapping pipeline</title>
@@ -253,28 +253,13 @@ for the JavaScript code in this tag.
 <body>
 <div id="content">
 <h1 class="title">QTL mapping pipeline</h1>
-<div id="table-of-contents">
-<h2>Table of Contents</h2>
-<div id="text-table-of-contents">
-<ul>
-<li><a href="#org5ed2a04">Introduction</a></li>
-<li><a href="#org94b2817">Genotype processing</a></li>
-<li><a href="#org051ecfa">Mean-QTL calling</a></li>
-<li><a href="#org018b84e">Dispersion-QTL calling</a></li>
-</ul>
-</div>
-</div>
 
-<div id="outline-container-org5ed2a04" class="outline-2">
-<h2 id="org5ed2a04">Introduction</h2>
-<div class="outline-text-2" id="text-org5ed2a04">
+<div id="outline-container-orgad18615" class="outline-2">
+<h2 id="orgad18615">Introduction</h2>
+<div class="outline-text-2" id="text-orgad18615">
 <p>
-Here, we set up the infrastructure to call mean and variance QTLs.
-</p>
-
-<p>
-We previously <a href="zinb.html">estimated means and dispersions per individual, per gene</a>. We
-now fit log linear models for each:
+We previously <a href="zinb.html">estimated means and dispersions per individual, per gene</a>. In
+our modular approach, we now fit log linear models for each:
 </p>
 
 <p>
@@ -290,12 +275,22 @@ where \(\mu_{ik}, \phi_{ik}\) are the mean and dispersion for individual
 \(i\), gene \(k\), \(X\) is the genotype matrix (\(n \times 1)\), and
 \(\beta_\mu, \beta_\phi\) are the effect sizes (scalar).
 </p>
+
+<p>
+Here, we present the following analyses:
+</p>
+
+<ol class="org-ol">
+<li><a href="#orgda6deb9">We replicate eQTLs</a> discovered in matched bulk RNA-Seq</li>
+<li><a href="#org553273f">We call mean QTLs</a> in the scRNA-Seq data and replicate in bulk</li>
+<li><a href="#org763d71a">We call robustness QTLs</a> in the scRNA-Seq data</li>
+</ol>
 </div>
 </div>
 
-<div id="outline-container-org94b2817" class="outline-2">
-<h2 id="org94b2817">Genotype processing</h2>
-<div class="outline-text-2" id="text-org94b2817">
+<div id="outline-container-org8dec8e0" class="outline-2">
+<h2 id="org8dec8e0">Genotype processing</h2>
+<div class="outline-text-2" id="text-org8dec8e0">
 <p>
 <code>QTLtools</code> reported 0 variants in cis for an unexpected number of genes when
 using the provided genotype file, so reprocess the genotypes to fix it.
@@ -313,15 +308,152 @@ tabix genotypes.vcf.gz
 </div>
 </div>
 
-<div id="outline-container-org051ecfa" class="outline-2">
-<h2 id="org051ecfa">Mean-QTL calling</h2>
-<div class="outline-text-2" id="text-org051ecfa">
+<div id="outline-container-orgda6deb9" class="outline-2">
+<h2 id="orgda6deb9">Test bulk eQTLs in the single cell data</h2>
+<div class="outline-text-2" id="text-orgda6deb9">
 <p>
 Read the estimated parameters (phenotypes) then center them.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">mean</span> = (pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/mean2.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
+<pre class="src src-ipython"><span class="org-variable-name">mean</span> = (pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/zi2-mean.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
+        .transform(<span class="org-keyword">lambda</span> x: x - x.mean(), axis=1))
+</pre>
+</div>
+
+<p>
+Read the bulk eQTLs (nominally significant).
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">parse_bulk_qtl_record</span>(row):
+  <span class="org-variable-name">gene</span>, <span class="org-variable-name">_</span> = row[0].split(<span class="org-string">'.'</span>)
+  id_, *<span class="org-variable-name">_</span> = row[5].split(<span class="org-string">'.'</span>)
+  <span class="org-keyword">return</span> pd.Series({<span class="org-string">'gene'</span>: gene, <span class="org-string">'id'</span>: id_, <span class="org-string">'beta'</span>: row.iloc[-3], <span class="org-string">'p_bulk'</span>: row.iloc[-1]})
+<span class="org-variable-name">bulk_qtls</span> = (pd.read_table(<span class="org-string">'/project2/gilad/singlecell-qtl/bulk/permutations.all.RNAseq_run.fixed.txt.gz'</span>, sep=<span class="org-string">' '</span>, header=<span class="org-constant">None</span>)
+             .fillna(<span class="org-string">''</span>)
+             .<span class="org-builtin">apply</span>(parse_bulk_qtl_record, axis=1))
+</pre>
+</div>
+
+<p>
+Read the bulk eQTLs (significant by permutation test).
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">parse_perm_bulk_qtl_record</span>(row):
+  gene, *<span class="org-variable-name">_</span> = row[0].split(<span class="org-string">'.'</span>)
+  <span class="org-variable-name">id_</span>, <span class="org-variable-name">chr_</span>, <span class="org-variable-name">pos</span> = row[1].split(<span class="org-string">'.'</span>)
+  <span class="org-keyword">return</span> pd.Series({<span class="org-string">'gene'</span>: gene, <span class="org-string">'id'</span>: id_, <span class="org-string">'chr'</span>: chr_, <span class="org-string">'pos'</span>: pos, <span class="org-string">'p_bulk'</span>: row.iloc[-1]})
+<span class="org-variable-name">perm_bulk_qtls</span> = (pd.read_table(<span class="org-string">'/project2/gilad/singlecell-qtl/bulk/permutations.all.RNAseq_run.fixed.txt.gz.bh.txt'</span>, sep=<span class="org-string">' '</span>, header=0)
+                  .<span class="org-builtin">apply</span>(parse_perm_bulk_qtl_record, axis=1))
+</pre>
+</div>
+
+<p>
+Test each bulk QTL-gene pair in the single cell data.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">parse_vcf</span>(record):
+  <span class="org-variable-name">geno</span> = np.ma.masked_equal([<span class="org-builtin">sum</span>(<span class="org-builtin">float</span>(h) <span class="org-keyword">for</span> h <span class="org-keyword">in</span> g.split(<span class="org-string">'/'</span>)) <span class="org-keyword">if</span> <span class="org-string">'.'</span> <span class="org-keyword">not</span> <span class="org-keyword">in</span> g <span class="org-keyword">else</span> -1 <span class="org-keyword">for</span> g <span class="org-keyword">in</span> record[9:]], -1)
+  <span class="org-variable-name">maf</span> = .5 * geno.mean()
+  <span class="org-variable-name">geno</span> = geno.filled(geno.mean())
+  <span class="org-keyword">if</span> maf &gt; .5:
+    <span class="org-variable-name">geno</span> = 2 - geno
+  <span class="org-variable-name">geno</span> -= geno.mean()
+  <span class="org-keyword">return</span> pd.Series(geno)
+
+<span class="org-keyword">def</span> <span class="org-function-name">extract_qtl_gene_pair</span>(bulk_qtls, means):
+  <span class="org-variable-name">Y</span>, <span class="org-variable-name">common_qtls</span> = means.align(bulk_qtls.set_index(<span class="org-string">'gene'</span>), join=<span class="org-string">'inner'</span>, axis=0)
+  <span class="org-variable-name">header</span> = pd.read_table(<span class="org-string">'/project2/gilad/singlecell-qtl/bulk/genotypes.vcf.gz'</span>, skiprows=1, nrows=1, header=0)[9:]
+  <span class="org-variable-name">genotypes</span> = tabix.<span class="org-builtin">open</span>(<span class="org-string">'/project2/gilad/singlecell-qtl/bulk/genotypes.vcf.gz'</span>)
+  <span class="org-variable-name">X</span> = (common_qtls
+       .<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: parse_vcf(<span class="org-builtin">next</span>(genotypes.query(x[<span class="org-string">'chr'</span>], <span class="org-builtin">int</span>(x[<span class="org-string">'pos'</span>]) - 1, <span class="org-builtin">int</span>(x[<span class="org-string">'pos'</span>])))), axis=1)
+       .rename(columns={i: ind <span class="org-keyword">for</span> i, ind <span class="org-keyword">in</span> <span class="org-builtin">enumerate</span>(header.columns[9:])})
+       .align(Y, join=<span class="org-string">'inner'</span>, axis=<span class="org-constant">None</span>)[0])
+  <span class="org-keyword">return</span> X, Y
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">X</span>, <span class="org-variable-name">Y</span> = extract_qtl_gene_pair(perm_bulk_qtls, mean)
+<span class="org-variable-name">result</span> = []
+<span class="org-variable-name">_sf</span> = st.chi2(1).sf
+<span class="org-keyword">for</span> (_, x), (name, y) <span class="org-keyword">in</span> <span class="org-builtin">zip</span>(X.iterrows(), Y.iterrows()):
+  beta, rss, *<span class="org-variable-name">_</span> = np.linalg.lstsq(x.values.reshape(-1, 1), y.values.ravel(), rcond=<span class="org-constant">None</span>)
+  <span class="org-variable-name">sigma2</span> = rss / y.shape[0]
+  <span class="org-variable-name">se</span> = sigma2 / np.inner(x.values, x.values)
+  <span class="org-variable-name">pval</span> = _sf(np.square(beta / se))
+  result.append({<span class="org-string">'gene'</span>: name, <span class="org-string">'beta'</span>: beta[0], <span class="org-string">'p_sc'</span>: pval.ravel()[0]})
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">merged</span> = (bulk_qtls.merge(pd.DataFrame.from_dict(result), on=<span class="org-string">'gene'</span>, suffixes=[<span class="org-string">'_bulk'</span>, <span class="org-string">'_sc'</span>])
+          .set_index(<span class="org-string">'gene'</span>)
+          .sort_values(<span class="org-string">'p_bulk'</span>)
+          .reset_index()[[<span class="org-string">'gene'</span>, <span class="org-string">'id'</span>, <span class="org-string">'p_bulk'</span>, <span class="org-string">'beta_bulk'</span>, <span class="org-string">'p_sc'</span>, <span class="org-string">'beta_sc'</span>]])
+merged.to_csv(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/zi2-mean-qtls.txt.gz'</span>, compression=<span class="org-string">'gzip'</span>, sep=<span class="org-string">' '</span>)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">X.to_csv(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/bulk-qtl-genotypes.txt.gz'</span>, compression=<span class="org-string">'gzip'</span>, sep=<span class="org-string">' '</span>) 
+</pre>
+</div>
+
+<p>
+Count how many bulk QTLs replicate in the single cell data at FDR 5%.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">bh</span>(df, column, fdr=0.05):
+  <span class="org-variable-name">num_tests</span> = df.shape[0]
+  <span class="org-keyword">return</span> np.logical_and.accumulate(df.sort_values(column)[column] &lt; fdr * np.arange(1, num_tests + 1) / num_tests)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">bulk_fdr_pass</span> = bh(merged, <span class="org-string">'p_bulk'</span>)
+<span class="org-variable-name">sc_fdr_pass</span> = bh(merged, <span class="org-string">'p_sc'</span>)
+<span class="org-variable-name">replicated</span> = merged[np.logical_and(*bulk_fdr_pass.align(sc_fdr_pass))]
+replicated.shape[0], replicated.shape[0] / merged.shape[0]
+</pre>
+</div>
+
+<pre class="example">
+(621, 0.6336734693877552)
+
+</pre>
+
+<p>
+Count how many bulk QTLs replicate in the single cell data at FDR 5% and have
+the same sign.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">sign_pass</span> = (replicated[<span class="org-string">'beta_bulk'</span>] * replicated[<span class="org-string">'beta_sc'</span>]).values &gt; 0
+replicated[sign_pass].shape[0]
+</pre>
+</div>
+
+<pre class="example">
+338
+
+</pre>
+</div>
+</div>
+
+<div id="outline-container-org553273f" class="outline-2">
+<h2 id="org553273f">Call mean-QTLs in the single cell data</h2>
+<div class="outline-text-2" id="text-org553273f">
+<p>
+Read the estimated parameters (phenotypes) then center them.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">mean</span> = (pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/zi2-mean.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
         .transform(<span class="org-keyword">lambda</span> x: x - x.mean(), axis=1))
 </pre>
 </div>
@@ -331,35 +463,28 @@ Write out the <a href="https://qtltools.github.io/qtltools/pages/input_files.htm
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org6264062"><span class="org-variable-name">gene_info</span> = (pd.read_table(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/scqtl-genes.txt.gz'</span>)
+<pre class="src src-ipython" id="orgc412e84"><span class="org-variable-name">gene_info</span> = (pd.read_table(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/scqtl-genes.txt.gz'</span>)
              .set_index(<span class="org-string">'gene'</span>)
              .query(<span class="org-string">'source == "H. sapiens"'</span>)
              .query(<span class="org-string">'chr != "hsX"'</span>)
              .query(<span class="org-string">'chr != "hsY"'</span>)
              .query(<span class="org-string">'chr != "hsMT"'</span>))
-gene_info.head()
 </pre>
 </div>
 
-<pre class="example">
-chr      start        end      name strand      source
-gene
-ENSG00000000419  hs20   49551404   49575092      DPM1      -  H. sapiens
-ENSG00000000457   hs1  169818772  169863408     SCYL3      -  H. sapiens
-ENSG00000000460   hs1  169631245  169823221  C1orf112      +  H. sapiens
-ENSG00000000938   hs1   27938575   27961788       FGR      -  H. sapiens
-ENSG00000000971   hs1  196621008  196716634       CFH      +  H. sapiens
-</pre>
-
 <div class="org-src-container">
-<pre class="src src-ipython" id="org042c79c"><span class="org-keyword">def</span> <span class="org-function-name">qtltools_format</span>(row):
+<pre class="src src-ipython" id="org0c97908"><span class="org-keyword">def</span> <span class="org-function-name">qtltools_format</span>(row):
   <span class="org-variable-name">row</span>[<span class="org-string">'#Chr'</span>] = <span class="org-string">'chr{}'</span>.<span class="org-builtin">format</span>(row[<span class="org-string">'chr'</span>][2:])
   <span class="org-variable-name">row</span>[<span class="org-string">'gid'</span>] = row.name
   <span class="org-variable-name">row</span>[<span class="org-string">'pid'</span>] = row.name
   <span class="org-keyword">return</span> row
 
-<span class="org-keyword">def</span> <span class="org-function-name">write_pheno_file</span>(pheno, gene_info, output_file):
-  (gene_info
+<span class="org-keyword">def</span> <span class="org-function-name">write_pheno_file</span>(pheno, gene_info, output_file, holdout=<span class="org-constant">True</span>):
+  <span class="org-keyword">if</span> holdout:
+    <span class="org-variable-name">genes</span> = gene_info.loc[gene_info[<span class="org-string">'chr'</span>].<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: <span class="org-builtin">bool</span>(<span class="org-builtin">int</span>(x[2:]) % 2)).values]
+  <span class="org-keyword">else</span>:
+    <span class="org-variable-name">genes</span> = gene_info
+  (genes
    .<span class="org-builtin">apply</span>(qtltools_format, axis=1)
    .merge(pheno, left_index=<span class="org-constant">True</span>, right_index=<span class="org-constant">True</span>)
    .to_csv(output_file,
@@ -382,7 +507,7 @@ Index the phenotype file.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sh" id="orge80d324"><span class="org-builtin">export</span> <span class="org-variable-name">input</span>=$<span class="org-variable-name">input</span>
+<pre class="src src-sh" id="orgbf314d5"><span class="org-builtin">export</span> <span class="org-variable-name">input</span>=$<span class="org-variable-name">input</span>
 sbatch --partition=$<span class="org-variable-name">partition</span> --wait
 <span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
 sort -k1,1 -k2,2n -k3,3n $<span class="org-variable-name">input</span> | bgzip &gt;$<span class="org-variable-name">input</span>.gz
@@ -396,7 +521,7 @@ Run the QTL mapping, using the approximate permutation test implemented in
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sh" id="org5a3e21d"><span class="org-builtin">export</span> <span class="org-variable-name">pheno</span>=$<span class="org-variable-name">pheno</span>
+<pre class="src src-sh" id="orgcc5a2e3"><span class="org-builtin">export</span> <span class="org-variable-name">pheno</span>=$<span class="org-variable-name">pheno</span>
 sbatch --partition=$<span class="org-variable-name">partition</span> -N1 -c16 -J $<span class="org-variable-name">pheno</span>-qtl -o $<span class="org-variable-name">pheno</span>-qtl.log
 <span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
 <span class="org-builtin">source</span> activate scqtl
@@ -441,70 +566,1610 @@ Apply the Benjamini-Hochberg procedure:
 
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-variable-name">keep_mean_qtls</span> = bh(mean_qtls)
-keep_mean_qtls.<span class="org-builtin">sum</span>()
 </pre>
 </div>
 
 <pre class="example">
-35
+189
 
 </pre>
 
 <div class="org-src-container">
-<pre class="src src-ipython">mean_qtls[keep_mean_qtls].merge(gene_info, left_on=<span class="org-string">'gene'</span>, right_index=<span class="org-constant">True</span>)[[<span class="org-string">'gene'</span>, <span class="org-string">'name'</span>, <span class="org-string">'id'</span>, <span class="org-string">'beta'</span>, <span class="org-string">'p_beta'</span>]]
+<pre class="src src-ipython"><span class="org-keyword">print</span>(mean_qtls[keep_mean_qtls].merge(gene_info, left_on=<span class="org-string">'gene'</span>, right_index=<span class="org-constant">True</span>)[[<span class="org-string">'gene'</span>, <span class="org-string">'name'</span>, <span class="org-string">'id'</span>, <span class="org-string">'beta'</span>, <span class="org-string">'p_beta'</span>]].reset_index(drop=<span class="org-constant">True</span>).to_html(classes=[<span class="org-string">'table'</span>]))
+</pre>
+</div>
+
+<table border="1" class="dataframe table">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>gene</th>
+      <th>name</th>
+      <th>id</th>
+      <th>beta</th>
+      <th>p_beta</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>ENSG00000162517</td>
+      <td>PEF1</td>
+      <td>rs115438012</td>
+      <td>-0.614188</td>
+      <td>0.000000e+00</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>ENSG00000121486</td>
+      <td>TRMT1L</td>
+      <td>rs73059600</td>
+      <td>7.770620</td>
+      <td>0.000000e+00</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>ENSG00000151502</td>
+      <td>VPS26B</td>
+      <td>rs59014772</td>
+      <td>9.085280</td>
+      <td>0.000000e+00</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>ENSG00000088280</td>
+      <td>ASAP3</td>
+      <td>rs142168595</td>
+      <td>8.061380</td>
+      <td>2.311830e-311</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>ENSG00000154814</td>
+      <td>OXNAD1</td>
+      <td>rs186345075</td>
+      <td>6.056120</td>
+      <td>1.244260e-248</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>ENSG00000169515</td>
+      <td>CCDC8</td>
+      <td>rs115292552</td>
+      <td>8.416460</td>
+      <td>1.162980e-247</td>
+    </tr>
+    <tr>
+      <th>6</th>
+      <td>ENSG00000105732</td>
+      <td>ZNF574</td>
+      <td>rs138978828</td>
+      <td>6.917230</td>
+      <td>1.363250e-222</td>
+    </tr>
+    <tr>
+      <th>7</th>
+      <td>ENSG00000146067</td>
+      <td>FAM193B</td>
+      <td>rs191336763</td>
+      <td>6.666040</td>
+      <td>5.046890e-222</td>
+    </tr>
+    <tr>
+      <th>8</th>
+      <td>ENSG00000118197</td>
+      <td>DDX59</td>
+      <td>rs189972380</td>
+      <td>9.531930</td>
+      <td>5.553180e-201</td>
+    </tr>
+    <tr>
+      <th>9</th>
+      <td>ENSG00000086300</td>
+      <td>SNX10</td>
+      <td>rs193043296</td>
+      <td>5.148360</td>
+      <td>4.541970e-176</td>
+    </tr>
+    <tr>
+      <th>10</th>
+      <td>ENSG00000144909</td>
+      <td>OSBPL11</td>
+      <td>rs142359735</td>
+      <td>6.324380</td>
+      <td>4.300360e-166</td>
+    </tr>
+    <tr>
+      <th>11</th>
+      <td>ENSG00000198466</td>
+      <td>ZNF587</td>
+      <td>rs138158391</td>
+      <td>6.448550</td>
+      <td>1.089520e-163</td>
+    </tr>
+    <tr>
+      <th>12</th>
+      <td>ENSG00000142556</td>
+      <td>ZNF614</td>
+      <td>rs57469094</td>
+      <td>10.462400</td>
+      <td>2.407550e-157</td>
+    </tr>
+    <tr>
+      <th>13</th>
+      <td>ENSG00000116337</td>
+      <td>AMPD2</td>
+      <td>rs115795881</td>
+      <td>8.250020</td>
+      <td>1.059290e-152</td>
+    </tr>
+    <tr>
+      <th>14</th>
+      <td>ENSG00000152601</td>
+      <td>MBNL1</td>
+      <td>rs151091865</td>
+      <td>7.133200</td>
+      <td>1.156550e-150</td>
+    </tr>
+    <tr>
+      <th>15</th>
+      <td>ENSG00000028277</td>
+      <td>POU2F2</td>
+      <td>rs141805699</td>
+      <td>6.914220</td>
+      <td>2.546100e-134</td>
+    </tr>
+    <tr>
+      <th>16</th>
+      <td>ENSG00000105671</td>
+      <td>DDX49</td>
+      <td>rs56165767</td>
+      <td>3.878050</td>
+      <td>2.622660e-115</td>
+    </tr>
+    <tr>
+      <th>17</th>
+      <td>ENSG00000002822</td>
+      <td>MAD1L1</td>
+      <td>rs77575700</td>
+      <td>6.492050</td>
+      <td>8.173360e-83</td>
+    </tr>
+    <tr>
+      <th>18</th>
+      <td>ENSG00000116793</td>
+      <td>PHTF1</td>
+      <td>rs114564397</td>
+      <td>5.112960</td>
+      <td>9.314330e-79</td>
+    </tr>
+    <tr>
+      <th>19</th>
+      <td>ENSG00000162636</td>
+      <td>FAM102B</td>
+      <td>rs481848</td>
+      <td>-4.752180</td>
+      <td>8.336260e-78</td>
+    </tr>
+    <tr>
+      <th>20</th>
+      <td>ENSG00000171612</td>
+      <td>SLC25A33</td>
+      <td>rs2401422</td>
+      <td>4.831560</td>
+      <td>8.401550e-75</td>
+    </tr>
+    <tr>
+      <th>21</th>
+      <td>ENSG00000116667</td>
+      <td>C1orf21</td>
+      <td>rs190731151</td>
+      <td>5.134630</td>
+      <td>4.383330e-58</td>
+    </tr>
+    <tr>
+      <th>22</th>
+      <td>ENSG00000162623</td>
+      <td>TYW3</td>
+      <td>rs28602706</td>
+      <td>-0.440675</td>
+      <td>2.126720e-51</td>
+    </tr>
+    <tr>
+      <th>23</th>
+      <td>ENSG00000131503</td>
+      <td>ANKHD1</td>
+      <td>rs58190825</td>
+      <td>4.887060</td>
+      <td>1.848730e-48</td>
+    </tr>
+    <tr>
+      <th>24</th>
+      <td>ENSG00000137726</td>
+      <td>FXYD6</td>
+      <td>rs190517409</td>
+      <td>5.676260</td>
+      <td>5.540640e-47</td>
+    </tr>
+    <tr>
+      <th>25</th>
+      <td>ENSG00000175567</td>
+      <td>UCP2</td>
+      <td>rs80217992</td>
+      <td>-0.330121</td>
+      <td>7.408280e-47</td>
+    </tr>
+    <tr>
+      <th>26</th>
+      <td>ENSG00000156876</td>
+      <td>SASS6</td>
+      <td>rs149086207</td>
+      <td>0.771629</td>
+      <td>8.289340e-41</td>
+    </tr>
+    <tr>
+      <th>27</th>
+      <td>ENSG00000134086</td>
+      <td>VHL</td>
+      <td>rs115909610</td>
+      <td>3.021960</td>
+      <td>1.079410e-40</td>
+    </tr>
+    <tr>
+      <th>28</th>
+      <td>ENSG00000169136</td>
+      <td>ATF5</td>
+      <td>rs142916709</td>
+      <td>9.093010</td>
+      <td>1.342720e-38</td>
+    </tr>
+    <tr>
+      <th>29</th>
+      <td>ENSG00000169733</td>
+      <td>RFNG</td>
+      <td>rs116264601</td>
+      <td>7.291060</td>
+      <td>4.530920e-31</td>
+    </tr>
+    <tr>
+      <th>30</th>
+      <td>ENSG00000137522</td>
+      <td>RNF121</td>
+      <td>rs72966136</td>
+      <td>4.343430</td>
+      <td>1.253280e-28</td>
+    </tr>
+    <tr>
+      <th>31</th>
+      <td>ENSG00000146828</td>
+      <td>SLC12A9</td>
+      <td>rs144139615</td>
+      <td>0.799752</td>
+      <td>3.568220e-27</td>
+    </tr>
+    <tr>
+      <th>32</th>
+      <td>ENSG00000197043</td>
+      <td>ANXA6</td>
+      <td>rs139372973</td>
+      <td>4.712600</td>
+      <td>5.333020e-25</td>
+    </tr>
+    <tr>
+      <th>33</th>
+      <td>ENSG00000129158</td>
+      <td>SERGEF</td>
+      <td>rs76783895</td>
+      <td>0.693966</td>
+      <td>2.181830e-24</td>
+    </tr>
+    <tr>
+      <th>34</th>
+      <td>ENSG00000113812</td>
+      <td>ACTR8</td>
+      <td>rs646929</td>
+      <td>8.324260</td>
+      <td>5.757600e-24</td>
+    </tr>
+    <tr>
+      <th>35</th>
+      <td>ENSG00000177181</td>
+      <td>RIMKLA</td>
+      <td>rs188847290</td>
+      <td>-4.209570</td>
+      <td>1.090790e-22</td>
+    </tr>
+    <tr>
+      <th>36</th>
+      <td>ENSG00000256061</td>
+      <td>DYX1C1</td>
+      <td>rs116165766</td>
+      <td>4.793750</td>
+      <td>1.221000e-22</td>
+    </tr>
+    <tr>
+      <th>37</th>
+      <td>ENSG00000074410</td>
+      <td>CA12</td>
+      <td>rs7169210</td>
+      <td>2.038040</td>
+      <td>1.304430e-22</td>
+    </tr>
+    <tr>
+      <th>38</th>
+      <td>ENSG00000183742</td>
+      <td>MACC1</td>
+      <td>rs144227987</td>
+      <td>7.267490</td>
+      <td>6.511140e-19</td>
+    </tr>
+    <tr>
+      <th>39</th>
+      <td>ENSG00000103876</td>
+      <td>FAH</td>
+      <td>rs151184550</td>
+      <td>8.591860</td>
+      <td>8.633840e-19</td>
+    </tr>
+    <tr>
+      <th>40</th>
+      <td>ENSG00000121410</td>
+      <td>A1BG</td>
+      <td>rs60059043</td>
+      <td>5.442380</td>
+      <td>9.716590e-18</td>
+    </tr>
+    <tr>
+      <th>41</th>
+      <td>ENSG00000165283</td>
+      <td>STOML2</td>
+      <td>rs4395979</td>
+      <td>0.151179</td>
+      <td>2.305820e-17</td>
+    </tr>
+    <tr>
+      <th>42</th>
+      <td>ENSG00000137135</td>
+      <td>ARHGEF39</td>
+      <td>rs191603510</td>
+      <td>-0.358879</td>
+      <td>7.421790e-15</td>
+    </tr>
+    <tr>
+      <th>43</th>
+      <td>ENSG00000136925</td>
+      <td>TSTD2</td>
+      <td>rs140231473</td>
+      <td>7.672790</td>
+      <td>2.165750e-14</td>
+    </tr>
+    <tr>
+      <th>44</th>
+      <td>ENSG00000116954</td>
+      <td>RRAGC</td>
+      <td>rs116582994</td>
+      <td>0.270896</td>
+      <td>4.566880e-14</td>
+    </tr>
+    <tr>
+      <th>45</th>
+      <td>ENSG00000204084</td>
+      <td>INPP5B</td>
+      <td>rs184506261</td>
+      <td>7.292920</td>
+      <td>1.185390e-13</td>
+    </tr>
+    <tr>
+      <th>46</th>
+      <td>ENSG00000136261</td>
+      <td>BZW2</td>
+      <td>rs140111609</td>
+      <td>0.230960</td>
+      <td>1.268790e-13</td>
+    </tr>
+    <tr>
+      <th>47</th>
+      <td>ENSG00000196776</td>
+      <td>CD47</td>
+      <td>rs113855548</td>
+      <td>5.684920</td>
+      <td>1.446670e-13</td>
+    </tr>
+    <tr>
+      <th>48</th>
+      <td>ENSG00000169519</td>
+      <td>METTL15</td>
+      <td>rs138052469</td>
+      <td>1.073050</td>
+      <td>5.393280e-13</td>
+    </tr>
+    <tr>
+      <th>49</th>
+      <td>ENSG00000095203</td>
+      <td>EPB41L4B</td>
+      <td>rs116362499</td>
+      <td>0.597181</td>
+      <td>5.859000e-13</td>
+    </tr>
+    <tr>
+      <th>50</th>
+      <td>ENSG00000214941</td>
+      <td>ZSWIM7</td>
+      <td>rs61374610</td>
+      <td>0.365951</td>
+      <td>7.146990e-13</td>
+    </tr>
+    <tr>
+      <th>51</th>
+      <td>ENSG00000116731</td>
+      <td>PRDM2</td>
+      <td>rs71629854</td>
+      <td>6.748660</td>
+      <td>9.855300e-13</td>
+    </tr>
+    <tr>
+      <th>52</th>
+      <td>ENSG00000197345</td>
+      <td>MRPL21</td>
+      <td>rs2444765</td>
+      <td>-0.294895</td>
+      <td>1.391330e-12</td>
+    </tr>
+    <tr>
+      <th>53</th>
+      <td>ENSG00000138613</td>
+      <td>APH1B</td>
+      <td>rs60234464</td>
+      <td>0.418741</td>
+      <td>6.885750e-12</td>
+    </tr>
+    <tr>
+      <th>54</th>
+      <td>ENSG00000160606</td>
+      <td>TLCD1</td>
+      <td>rs115029974</td>
+      <td>7.797170</td>
+      <td>9.732080e-12</td>
+    </tr>
+    <tr>
+      <th>55</th>
+      <td>ENSG00000132507</td>
+      <td>EIF5A</td>
+      <td>rs28636077</td>
+      <td>-0.310541</td>
+      <td>1.807330e-11</td>
+    </tr>
+    <tr>
+      <th>56</th>
+      <td>ENSG00000197724</td>
+      <td>PHF2</td>
+      <td>rs113363990</td>
+      <td>-8.798270</td>
+      <td>2.327250e-11</td>
+    </tr>
+    <tr>
+      <th>57</th>
+      <td>ENSG00000159128</td>
+      <td>IFNGR2</td>
+      <td>rs73205061</td>
+      <td>8.531770</td>
+      <td>2.908290e-11</td>
+    </tr>
+    <tr>
+      <th>58</th>
+      <td>ENSG00000188846</td>
+      <td>RPL14</td>
+      <td>rs7617989</td>
+      <td>-0.293238</td>
+      <td>3.816830e-11</td>
+    </tr>
+    <tr>
+      <th>59</th>
+      <td>ENSG00000131469</td>
+      <td>RPL27</td>
+      <td>rs691997</td>
+      <td>-0.300351</td>
+      <td>3.874950e-11</td>
+    </tr>
+    <tr>
+      <th>60</th>
+      <td>ENSG00000176783</td>
+      <td>RUFY1</td>
+      <td>rs75942553</td>
+      <td>6.779670</td>
+      <td>4.523390e-11</td>
+    </tr>
+    <tr>
+      <th>61</th>
+      <td>ENSG00000170291</td>
+      <td>ELP5</td>
+      <td>rs2074219</td>
+      <td>-0.257737</td>
+      <td>5.866820e-11</td>
+    </tr>
+    <tr>
+      <th>62</th>
+      <td>ENSG00000142207</td>
+      <td>URB1</td>
+      <td>rs2833538</td>
+      <td>1.124520</td>
+      <td>6.679250e-11</td>
+    </tr>
+    <tr>
+      <th>63</th>
+      <td>ENSG00000175348</td>
+      <td>TMEM9B</td>
+      <td>rs4485102</td>
+      <td>-0.641606</td>
+      <td>1.219720e-10</td>
+    </tr>
+    <tr>
+      <th>64</th>
+      <td>ENSG00000116670</td>
+      <td>MAD2L2</td>
+      <td>rs77542981</td>
+      <td>0.187661</td>
+      <td>1.438030e-10</td>
+    </tr>
+    <tr>
+      <th>65</th>
+      <td>ENSG00000131188</td>
+      <td>PRR7</td>
+      <td>rs2963668</td>
+      <td>4.209080</td>
+      <td>1.655120e-10</td>
+    </tr>
+    <tr>
+      <th>66</th>
+      <td>ENSG00000113558</td>
+      <td>SKP1</td>
+      <td>rs2110585</td>
+      <td>-0.305947</td>
+      <td>1.851350e-10</td>
+    </tr>
+    <tr>
+      <th>67</th>
+      <td>ENSG00000064490</td>
+      <td>RFXANK</td>
+      <td>rs181951113</td>
+      <td>-0.314333</td>
+      <td>2.061090e-10</td>
+    </tr>
+    <tr>
+      <th>68</th>
+      <td>ENSG00000130818</td>
+      <td>ZNF426</td>
+      <td>rs138767476</td>
+      <td>4.985920</td>
+      <td>2.613100e-10</td>
+    </tr>
+    <tr>
+      <th>69</th>
+      <td>ENSG00000196182</td>
+      <td>STK40</td>
+      <td>rs139974445</td>
+      <td>5.385340</td>
+      <td>3.887530e-10</td>
+    </tr>
+    <tr>
+      <th>70</th>
+      <td>ENSG00000121570</td>
+      <td>DPPA4</td>
+      <td>rs192809071</td>
+      <td>-0.213585</td>
+      <td>4.021830e-10</td>
+    </tr>
+    <tr>
+      <th>71</th>
+      <td>ENSG00000153006</td>
+      <td>SREK1IP1</td>
+      <td>rs3756739</td>
+      <td>-0.220404</td>
+      <td>4.369600e-10</td>
+    </tr>
+    <tr>
+      <th>72</th>
+      <td>ENSG00000162627</td>
+      <td>SNX7</td>
+      <td>rs12402103</td>
+      <td>0.472377</td>
+      <td>5.347220e-10</td>
+    </tr>
+    <tr>
+      <th>73</th>
+      <td>ENSG00000142599</td>
+      <td>RERE</td>
+      <td>rs1801785</td>
+      <td>0.234860</td>
+      <td>6.058890e-10</td>
+    </tr>
+    <tr>
+      <th>74</th>
+      <td>ENSG00000162441</td>
+      <td>LZIC</td>
+      <td>rs142306389</td>
+      <td>0.512300</td>
+      <td>1.698080e-09</td>
+    </tr>
+    <tr>
+      <th>75</th>
+      <td>ENSG00000196814</td>
+      <td>MVB12B</td>
+      <td>rs184853634</td>
+      <td>-7.484540</td>
+      <td>3.575350e-09</td>
+    </tr>
+    <tr>
+      <th>76</th>
+      <td>ENSG00000137947</td>
+      <td>GTF2B</td>
+      <td>rs12086963</td>
+      <td>0.457815</td>
+      <td>3.861370e-09</td>
+    </tr>
+    <tr>
+      <th>77</th>
+      <td>ENSG00000078902</td>
+      <td>TOLLIP</td>
+      <td>rs55998849</td>
+      <td>7.592410</td>
+      <td>4.624240e-09</td>
+    </tr>
+    <tr>
+      <th>78</th>
+      <td>ENSG00000037749</td>
+      <td>MFAP3</td>
+      <td>rs79836345</td>
+      <td>0.572392</td>
+      <td>9.485320e-09</td>
+    </tr>
+    <tr>
+      <th>79</th>
+      <td>ENSG00000122033</td>
+      <td>MTIF3</td>
+      <td>rs7321650</td>
+      <td>-0.204723</td>
+      <td>1.336920e-08</td>
+    </tr>
+    <tr>
+      <th>80</th>
+      <td>ENSG00000137806</td>
+      <td>NDUFAF1</td>
+      <td>rs114076007</td>
+      <td>0.213845</td>
+      <td>1.581320e-08</td>
+    </tr>
+    <tr>
+      <th>81</th>
+      <td>ENSG00000180304</td>
+      <td>OAZ2</td>
+      <td>rs11071824</td>
+      <td>-0.116594</td>
+      <td>1.969350e-08</td>
+    </tr>
+    <tr>
+      <th>82</th>
+      <td>ENSG00000161671</td>
+      <td>EMC10</td>
+      <td>rs59720693</td>
+      <td>-0.468246</td>
+      <td>1.971310e-08</td>
+    </tr>
+    <tr>
+      <th>83</th>
+      <td>ENSG00000118939</td>
+      <td>UCHL3</td>
+      <td>rs975938</td>
+      <td>-0.192146</td>
+      <td>2.000650e-08</td>
+    </tr>
+    <tr>
+      <th>84</th>
+      <td>ENSG00000171202</td>
+      <td>TMEM126A</td>
+      <td>rs631375</td>
+      <td>0.164852</td>
+      <td>3.432760e-08</td>
+    </tr>
+    <tr>
+      <th>85</th>
+      <td>ENSG00000181873</td>
+      <td>IBA57</td>
+      <td>rs79393783</td>
+      <td>-8.823200</td>
+      <td>5.815530e-08</td>
+    </tr>
+    <tr>
+      <th>86</th>
+      <td>ENSG00000214756</td>
+      <td>METTL12</td>
+      <td>rs11231105</td>
+      <td>-0.409931</td>
+      <td>1.227570e-07</td>
+    </tr>
+    <tr>
+      <th>87</th>
+      <td>ENSG00000198162</td>
+      <td>MAN1A2</td>
+      <td>rs798001</td>
+      <td>0.278305</td>
+      <td>1.250760e-07</td>
+    </tr>
+    <tr>
+      <th>88</th>
+      <td>ENSG00000154511</td>
+      <td>FAM69A</td>
+      <td>rs146124737</td>
+      <td>-8.693020</td>
+      <td>1.260050e-07</td>
+    </tr>
+    <tr>
+      <th>89</th>
+      <td>ENSG00000105248</td>
+      <td>CCDC94</td>
+      <td>rs115318476</td>
+      <td>0.270244</td>
+      <td>1.380890e-07</td>
+    </tr>
+    <tr>
+      <th>90</th>
+      <td>ENSG00000233927</td>
+      <td>RPS28</td>
+      <td>rs2241590</td>
+      <td>-0.353524</td>
+      <td>2.080250e-07</td>
+    </tr>
+    <tr>
+      <th>91</th>
+      <td>ENSG00000186230</td>
+      <td>ZNF749</td>
+      <td>rs3746224</td>
+      <td>-5.500270</td>
+      <td>2.672400e-07</td>
+    </tr>
+    <tr>
+      <th>92</th>
+      <td>ENSG00000173801</td>
+      <td>JUP</td>
+      <td>rs147506674</td>
+      <td>0.194621</td>
+      <td>2.694940e-07</td>
+    </tr>
+    <tr>
+      <th>93</th>
+      <td>ENSG00000182362</td>
+      <td>YBEY</td>
+      <td>rs11909164</td>
+      <td>-0.212379</td>
+      <td>3.380210e-07</td>
+    </tr>
+    <tr>
+      <th>94</th>
+      <td>ENSG00000243317</td>
+      <td>C7orf73</td>
+      <td>rs3110823</td>
+      <td>-0.159879</td>
+      <td>3.672340e-07</td>
+    </tr>
+    <tr>
+      <th>95</th>
+      <td>ENSG00000138495</td>
+      <td>COX17</td>
+      <td>rs116466015</td>
+      <td>-0.387611</td>
+      <td>3.943330e-07</td>
+    </tr>
+    <tr>
+      <th>96</th>
+      <td>ENSG00000166478</td>
+      <td>ZNF143</td>
+      <td>rs78398524</td>
+      <td>-0.171862</td>
+      <td>4.571140e-07</td>
+    </tr>
+    <tr>
+      <th>97</th>
+      <td>ENSG00000172500</td>
+      <td>FIBP</td>
+      <td>rs585557</td>
+      <td>0.113810</td>
+      <td>5.817270e-07</td>
+    </tr>
+    <tr>
+      <th>98</th>
+      <td>ENSG00000116350</td>
+      <td>SRSF4</td>
+      <td>rs116090399</td>
+      <td>0.304039</td>
+      <td>6.580060e-07</td>
+    </tr>
+    <tr>
+      <th>99</th>
+      <td>ENSG00000213123</td>
+      <td>TCTEX1D2</td>
+      <td>rs78980298</td>
+      <td>8.213270</td>
+      <td>6.886630e-07</td>
+    </tr>
+    <tr>
+      <th>100</th>
+      <td>ENSG00000014138</td>
+      <td>POLA2</td>
+      <td>rs115093909</td>
+      <td>3.994680</td>
+      <td>9.458300e-07</td>
+    </tr>
+    <tr>
+      <th>101</th>
+      <td>ENSG00000110367</td>
+      <td>DDX6</td>
+      <td>rs138358758</td>
+      <td>0.502877</td>
+      <td>1.172760e-06</td>
+    </tr>
+    <tr>
+      <th>102</th>
+      <td>ENSG00000104129</td>
+      <td>DNAJC17</td>
+      <td>rs139171837</td>
+      <td>7.782140</td>
+      <td>1.394540e-06</td>
+    </tr>
+    <tr>
+      <th>103</th>
+      <td>ENSG00000183020</td>
+      <td>AP2A2</td>
+      <td>rs201878429</td>
+      <td>6.775400</td>
+      <td>2.362580e-06</td>
+    </tr>
+    <tr>
+      <th>104</th>
+      <td>ENSG00000181104</td>
+      <td>F2R</td>
+      <td>rs77552570</td>
+      <td>0.588019</td>
+      <td>2.555810e-06</td>
+    </tr>
+    <tr>
+      <th>105</th>
+      <td>ENSG00000162413</td>
+      <td>KLHL21</td>
+      <td>rs79014847</td>
+      <td>9.966460</td>
+      <td>3.565340e-06</td>
+    </tr>
+    <tr>
+      <th>106</th>
+      <td>ENSG00000140464</td>
+      <td>PML</td>
+      <td>rs79418157</td>
+      <td>4.944420</td>
+      <td>3.792480e-06</td>
+    </tr>
+    <tr>
+      <th>107</th>
+      <td>ENSG00000198874</td>
+      <td>TYW1</td>
+      <td>rs150635487</td>
+      <td>5.562890</td>
+      <td>4.693400e-06</td>
+    </tr>
+    <tr>
+      <th>108</th>
+      <td>ENSG00000122034</td>
+      <td>GTF3A</td>
+      <td>rs145441597</td>
+      <td>-0.291743</td>
+      <td>4.908690e-06</td>
+    </tr>
+    <tr>
+      <th>109</th>
+      <td>ENSG00000145725</td>
+      <td>PPIP5K2</td>
+      <td>rs32840</td>
+      <td>0.157580</td>
+      <td>5.540950e-06</td>
+    </tr>
+    <tr>
+      <th>110</th>
+      <td>ENSG00000142459</td>
+      <td>EVI5L</td>
+      <td>rs116240065</td>
+      <td>-7.908300</td>
+      <td>6.943580e-06</td>
+    </tr>
+    <tr>
+      <th>111</th>
+      <td>ENSG00000126217</td>
+      <td>MCF2L</td>
+      <td>rs193004743</td>
+      <td>-8.844480</td>
+      <td>1.350470e-05</td>
+    </tr>
+    <tr>
+      <th>112</th>
+      <td>ENSG00000146701</td>
+      <td>MDH2</td>
+      <td>rs3973188</td>
+      <td>-0.145699</td>
+      <td>1.434610e-05</td>
+    </tr>
+    <tr>
+      <th>113</th>
+      <td>ENSG00000121621</td>
+      <td>KIF18A</td>
+      <td>rs10835274</td>
+      <td>0.203743</td>
+      <td>1.578890e-05</td>
+    </tr>
+    <tr>
+      <th>114</th>
+      <td>ENSG00000142794</td>
+      <td>NBPF3</td>
+      <td>rs114523368</td>
+      <td>-4.125680</td>
+      <td>1.678470e-05</td>
+    </tr>
+    <tr>
+      <th>115</th>
+      <td>ENSG00000198843</td>
+      <td>SELT</td>
+      <td>rs78779254</td>
+      <td>-0.346021</td>
+      <td>1.738070e-05</td>
+    </tr>
+    <tr>
+      <th>116</th>
+      <td>ENSG00000169131</td>
+      <td>ZNF354A</td>
+      <td>rs78586018</td>
+      <td>7.299670</td>
+      <td>1.880990e-05</td>
+    </tr>
+    <tr>
+      <th>117</th>
+      <td>ENSG00000117410</td>
+      <td>ATP6V0B</td>
+      <td>rs115208426</td>
+      <td>-0.260339</td>
+      <td>2.119750e-05</td>
+    </tr>
+    <tr>
+      <th>118</th>
+      <td>ENSG00000164654</td>
+      <td>MIOS</td>
+      <td>rs7799645</td>
+      <td>7.586740</td>
+      <td>2.352920e-05</td>
+    </tr>
+    <tr>
+      <th>119</th>
+      <td>ENSG00000221829</td>
+      <td>FANCG</td>
+      <td>rs148349712</td>
+      <td>2.092610</td>
+      <td>2.365830e-05</td>
+    </tr>
+    <tr>
+      <th>120</th>
+      <td>ENSG00000121413</td>
+      <td>ZSCAN18</td>
+      <td>rs193080271</td>
+      <td>6.606120</td>
+      <td>2.435200e-05</td>
+    </tr>
+    <tr>
+      <th>121</th>
+      <td>ENSG00000121289</td>
+      <td>CEP89</td>
+      <td>rs34564291</td>
+      <td>7.394310</td>
+      <td>2.497730e-05</td>
+    </tr>
+    <tr>
+      <th>122</th>
+      <td>ENSG00000005075</td>
+      <td>POLR2J</td>
+      <td>rs77974347</td>
+      <td>-0.283879</td>
+      <td>2.766620e-05</td>
+    </tr>
+    <tr>
+      <th>123</th>
+      <td>ENSG00000164346</td>
+      <td>NSA2</td>
+      <td>rs62366458</td>
+      <td>0.126860</td>
+      <td>3.191640e-05</td>
+    </tr>
+    <tr>
+      <th>124</th>
+      <td>ENSG00000233276</td>
+      <td>GPX1</td>
+      <td>rs1800668</td>
+      <td>0.199491</td>
+      <td>3.554400e-05</td>
+    </tr>
+    <tr>
+      <th>125</th>
+      <td>ENSG00000167081</td>
+      <td>PBX3</td>
+      <td>rs113434592</td>
+      <td>0.362778</td>
+      <td>3.594830e-05</td>
+    </tr>
+    <tr>
+      <th>126</th>
+      <td>ENSG00000136908</td>
+      <td>DPM2</td>
+      <td>rs4837215</td>
+      <td>-0.134521</td>
+      <td>4.065690e-05</td>
+    </tr>
+    <tr>
+      <th>127</th>
+      <td>ENSG00000159199</td>
+      <td>ATP5G1</td>
+      <td>rs8075255</td>
+      <td>-0.181133</td>
+      <td>4.370140e-05</td>
+    </tr>
+    <tr>
+      <th>128</th>
+      <td>ENSG00000242110</td>
+      <td>AMACR</td>
+      <td>rs115750665</td>
+      <td>-7.361770</td>
+      <td>5.954660e-05</td>
+    </tr>
+    <tr>
+      <th>129</th>
+      <td>ENSG00000011422</td>
+      <td>PLAUR</td>
+      <td>rs75415913</td>
+      <td>7.757180</td>
+      <td>6.418640e-05</td>
+    </tr>
+    <tr>
+      <th>130</th>
+      <td>ENSG00000132005</td>
+      <td>RFX1</td>
+      <td>rs143333902</td>
+      <td>8.133100</td>
+      <td>8.322350e-05</td>
+    </tr>
+    <tr>
+      <th>131</th>
+      <td>ENSG00000186073</td>
+      <td>C15orf41</td>
+      <td>rs140347939</td>
+      <td>5.406380</td>
+      <td>8.502450e-05</td>
+    </tr>
+    <tr>
+      <th>132</th>
+      <td>ENSG00000107372</td>
+      <td>ZFAND5</td>
+      <td>rs180736405</td>
+      <td>0.480490</td>
+      <td>9.048110e-05</td>
+    </tr>
+    <tr>
+      <th>133</th>
+      <td>ENSG00000157184</td>
+      <td>CPT2</td>
+      <td>rs138187492</td>
+      <td>8.037230</td>
+      <td>1.127390e-04</td>
+    </tr>
+    <tr>
+      <th>134</th>
+      <td>ENSG00000133884</td>
+      <td>DPF2</td>
+      <td>rs116180923</td>
+      <td>-0.827008</td>
+      <td>1.207400e-04</td>
+    </tr>
+    <tr>
+      <th>135</th>
+      <td>ENSG00000162852</td>
+      <td>CNST</td>
+      <td>rs78594483</td>
+      <td>1.139320</td>
+      <td>1.308010e-04</td>
+    </tr>
+    <tr>
+      <th>136</th>
+      <td>ENSG00000162300</td>
+      <td>ZFPL1</td>
+      <td>rs150099266</td>
+      <td>8.817740</td>
+      <td>1.493320e-04</td>
+    </tr>
+    <tr>
+      <th>137</th>
+      <td>ENSG00000095209</td>
+      <td>TMEM38B</td>
+      <td>rs75155349</td>
+      <td>0.715246</td>
+      <td>1.586890e-04</td>
+    </tr>
+    <tr>
+      <th>138</th>
+      <td>ENSG00000137801</td>
+      <td>THBS1</td>
+      <td>rs74720782</td>
+      <td>5.115500</td>
+      <td>1.845040e-04</td>
+    </tr>
+    <tr>
+      <th>139</th>
+      <td>ENSG00000084070</td>
+      <td>SMAP2</td>
+      <td>rs116476671</td>
+      <td>-3.594770</td>
+      <td>2.007990e-04</td>
+    </tr>
+    <tr>
+      <th>140</th>
+      <td>ENSG00000162194</td>
+      <td>C11orf48</td>
+      <td>rs73502133</td>
+      <td>-0.203695</td>
+      <td>2.020100e-04</td>
+    </tr>
+    <tr>
+      <th>141</th>
+      <td>ENSG00000243444</td>
+      <td>PALM2</td>
+      <td>rs10980424</td>
+      <td>-5.337620</td>
+      <td>2.204050e-04</td>
+    </tr>
+    <tr>
+      <th>142</th>
+      <td>ENSG00000161036</td>
+      <td>LRWD1</td>
+      <td>rs181216015</td>
+      <td>7.835470</td>
+      <td>2.237740e-04</td>
+    </tr>
+    <tr>
+      <th>143</th>
+      <td>ENSG00000165323</td>
+      <td>FAT3</td>
+      <td>rs12294676</td>
+      <td>0.209672</td>
+      <td>2.686770e-04</td>
+    </tr>
+    <tr>
+      <th>144</th>
+      <td>ENSG00000154719</td>
+      <td>MRPL39</td>
+      <td>rs8130611</td>
+      <td>-0.130636</td>
+      <td>2.901800e-04</td>
+    </tr>
+    <tr>
+      <th>145</th>
+      <td>ENSG00000254901</td>
+      <td>MEF2BNB</td>
+      <td>rs17683509</td>
+      <td>4.850530</td>
+      <td>3.030270e-04</td>
+    </tr>
+    <tr>
+      <th>146</th>
+      <td>ENSG00000162734</td>
+      <td>PEA15</td>
+      <td>rs11265424</td>
+      <td>0.147112</td>
+      <td>3.048420e-04</td>
+    </tr>
+    <tr>
+      <th>147</th>
+      <td>ENSG00000165271</td>
+      <td>NOL6</td>
+      <td>rs12551976</td>
+      <td>-0.317672</td>
+      <td>3.262110e-04</td>
+    </tr>
+    <tr>
+      <th>148</th>
+      <td>ENSG00000078124</td>
+      <td>ACER3</td>
+      <td>rs114643069</td>
+      <td>-0.463298</td>
+      <td>3.370090e-04</td>
+    </tr>
+    <tr>
+      <th>149</th>
+      <td>ENSG00000113522</td>
+      <td>RAD50</td>
+      <td>rs138880373</td>
+      <td>-0.289701</td>
+      <td>3.971860e-04</td>
+    </tr>
+    <tr>
+      <th>150</th>
+      <td>ENSG00000188186</td>
+      <td>LAMTOR4</td>
+      <td>rs3736591</td>
+      <td>-0.148621</td>
+      <td>3.972570e-04</td>
+    </tr>
+    <tr>
+      <th>151</th>
+      <td>ENSG00000142684</td>
+      <td>ZNF593</td>
+      <td>1-26369927</td>
+      <td>-0.167434</td>
+      <td>4.092790e-04</td>
+    </tr>
+    <tr>
+      <th>152</th>
+      <td>ENSG00000179361</td>
+      <td>ARID3B</td>
+      <td>rs4887151</td>
+      <td>0.095080</td>
+      <td>4.425700e-04</td>
+    </tr>
+    <tr>
+      <th>153</th>
+      <td>ENSG00000078967</td>
+      <td>UBE2D4</td>
+      <td>rs7803525</td>
+      <td>7.765890</td>
+      <td>4.605880e-04</td>
+    </tr>
+    <tr>
+      <th>154</th>
+      <td>ENSG00000136783</td>
+      <td>NIPSNAP3A</td>
+      <td>rs146234114</td>
+      <td>7.400410</td>
+      <td>4.750710e-04</td>
+    </tr>
+    <tr>
+      <th>155</th>
+      <td>ENSG00000106290</td>
+      <td>TAF6</td>
+      <td>rs35649099</td>
+      <td>0.121440</td>
+      <td>4.940710e-04</td>
+    </tr>
+    <tr>
+      <th>156</th>
+      <td>ENSG00000145907</td>
+      <td>G3BP1</td>
+      <td>rs183164757</td>
+      <td>-0.224776</td>
+      <td>5.492650e-04</td>
+    </tr>
+    <tr>
+      <th>157</th>
+      <td>ENSG00000131475</td>
+      <td>VPS25</td>
+      <td>rs73320304</td>
+      <td>0.244143</td>
+      <td>5.905990e-04</td>
+    </tr>
+    <tr>
+      <th>158</th>
+      <td>ENSG00000027001</td>
+      <td>MIPEP</td>
+      <td>rs7328867</td>
+      <td>10.033100</td>
+      <td>6.014580e-04</td>
+    </tr>
+    <tr>
+      <th>159</th>
+      <td>ENSG00000162585</td>
+      <td>C1orf86</td>
+      <td>rs436543</td>
+      <td>0.117010</td>
+      <td>6.688970e-04</td>
+    </tr>
+    <tr>
+      <th>160</th>
+      <td>ENSG00000106853</td>
+      <td>PTGR1</td>
+      <td>rs7028222</td>
+      <td>-0.247891</td>
+      <td>6.997520e-04</td>
+    </tr>
+    <tr>
+      <th>161</th>
+      <td>ENSG00000160685</td>
+      <td>ZBTB7B</td>
+      <td>rs12134456</td>
+      <td>-7.110410</td>
+      <td>7.170970e-04</td>
+    </tr>
+    <tr>
+      <th>162</th>
+      <td>ENSG00000130770</td>
+      <td>ATPIF1</td>
+      <td>rs530426</td>
+      <td>-0.094513</td>
+      <td>7.544320e-04</td>
+    </tr>
+    <tr>
+      <th>163</th>
+      <td>ENSG00000166938</td>
+      <td>DIS3L</td>
+      <td>rs79824500</td>
+      <td>8.834890</td>
+      <td>8.095130e-04</td>
+    </tr>
+    <tr>
+      <th>164</th>
+      <td>ENSG00000253797</td>
+      <td>UTP14C</td>
+      <td>rs115432565</td>
+      <td>0.381140</td>
+      <td>8.122250e-04</td>
+    </tr>
+    <tr>
+      <th>165</th>
+      <td>ENSG00000136856</td>
+      <td>SLC2A8</td>
+      <td>rs149587918</td>
+      <td>5.056830</td>
+      <td>8.605430e-04</td>
+    </tr>
+    <tr>
+      <th>166</th>
+      <td>ENSG00000165140</td>
+      <td>FBP1</td>
+      <td>rs10989709</td>
+      <td>-8.628560</td>
+      <td>9.267410e-04</td>
+    </tr>
+    <tr>
+      <th>167</th>
+      <td>ENSG00000269343</td>
+      <td>ZNF587B</td>
+      <td>rs188747487</td>
+      <td>8.310020</td>
+      <td>9.522340e-04</td>
+    </tr>
+    <tr>
+      <th>168</th>
+      <td>ENSG00000085491</td>
+      <td>SLC25A24</td>
+      <td>rs607101</td>
+      <td>-0.146611</td>
+      <td>9.530610e-04</td>
+    </tr>
+    <tr>
+      <th>169</th>
+      <td>ENSG00000182973</td>
+      <td>CNOT10</td>
+      <td>rs6788735</td>
+      <td>-0.132575</td>
+      <td>9.827390e-04</td>
+    </tr>
+    <tr>
+      <th>170</th>
+      <td>ENSG00000150753</td>
+      <td>CCT5</td>
+      <td>rs2548546</td>
+      <td>-0.105278</td>
+      <td>9.926300e-04</td>
+    </tr>
+    <tr>
+      <th>171</th>
+      <td>ENSG00000169174</td>
+      <td>PCSK9</td>
+      <td>rs77965618</td>
+      <td>6.162400</td>
+      <td>1.024780e-03</td>
+    </tr>
+    <tr>
+      <th>172</th>
+      <td>ENSG00000127184</td>
+      <td>COX7C</td>
+      <td>rs12332473</td>
+      <td>0.074714</td>
+      <td>1.052670e-03</td>
+    </tr>
+    <tr>
+      <th>173</th>
+      <td>ENSG00000117118</td>
+      <td>SDHB</td>
+      <td>rs12066331</td>
+      <td>-0.221960</td>
+      <td>1.057660e-03</td>
+    </tr>
+    <tr>
+      <th>174</th>
+      <td>ENSG00000137880</td>
+      <td>GCHFR</td>
+      <td>rs190530286</td>
+      <td>4.580140</td>
+      <td>1.085450e-03</td>
+    </tr>
+    <tr>
+      <th>175</th>
+      <td>ENSG00000198799</td>
+      <td>LRIG2</td>
+      <td>rs144581772</td>
+      <td>0.748893</td>
+      <td>1.144320e-03</td>
+    </tr>
+    <tr>
+      <th>176</th>
+      <td>ENSG00000153885</td>
+      <td>KCTD15</td>
+      <td>rs146198944</td>
+      <td>2.407710</td>
+      <td>1.182870e-03</td>
+    </tr>
+    <tr>
+      <th>177</th>
+      <td>ENSG00000134809</td>
+      <td>TIMM10</td>
+      <td>rs2454664</td>
+      <td>-0.263685</td>
+      <td>1.202400e-03</td>
+    </tr>
+    <tr>
+      <th>178</th>
+      <td>ENSG00000086062</td>
+      <td>B4GALT1</td>
+      <td>rs1125479</td>
+      <td>0.229450</td>
+      <td>1.218740e-03</td>
+    </tr>
+    <tr>
+      <th>179</th>
+      <td>ENSG00000213523</td>
+      <td>SRA1</td>
+      <td>rs778591</td>
+      <td>-0.144387</td>
+      <td>1.301270e-03</td>
+    </tr>
+    <tr>
+      <th>180</th>
+      <td>ENSG00000267645</td>
+      <td>POLR2J2</td>
+      <td>rs183117024</td>
+      <td>-8.381680</td>
+      <td>1.314740e-03</td>
+    </tr>
+    <tr>
+      <th>181</th>
+      <td>ENSG00000116489</td>
+      <td>CAPZA1</td>
+      <td>rs1994604</td>
+      <td>0.099928</td>
+      <td>1.353860e-03</td>
+    </tr>
+    <tr>
+      <th>182</th>
+      <td>ENSG00000185787</td>
+      <td>MORF4L1</td>
+      <td>rs8039144</td>
+      <td>-0.083248</td>
+      <td>1.362930e-03</td>
+    </tr>
+    <tr>
+      <th>183</th>
+      <td>ENSG00000150401</td>
+      <td>DCUN1D2</td>
+      <td>rs74999777</td>
+      <td>6.601230</td>
+      <td>1.363650e-03</td>
+    </tr>
+    <tr>
+      <th>184</th>
+      <td>ENSG00000116791</td>
+      <td>CRYZ</td>
+      <td>rs28594379</td>
+      <td>-0.670421</td>
+      <td>1.408140e-03</td>
+    </tr>
+    <tr>
+      <th>185</th>
+      <td>ENSG00000134153</td>
+      <td>EMC7</td>
+      <td>rs17237191</td>
+      <td>-0.373564</td>
+      <td>1.419180e-03</td>
+    </tr>
+    <tr>
+      <th>186</th>
+      <td>ENSG00000166444</td>
+      <td>ST5</td>
+      <td>rs181100237</td>
+      <td>6.130040</td>
+      <td>1.477240e-03</td>
+    </tr>
+    <tr>
+      <th>187</th>
+      <td>ENSG00000121775</td>
+      <td>TMEM39B</td>
+      <td>rs111714251</td>
+      <td>7.927280</td>
+      <td>1.505640e-03</td>
+    </tr>
+    <tr>
+      <th>188</th>
+      <td>ENSG00000249992</td>
+      <td>TMEM158</td>
+      <td>rs73829696</td>
+      <td>9.665750</td>
+      <td>1.544280e-03</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>
+Check the beta approximation to the permutation p-values:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.scatter(mean_qtls[<span class="org-string">'p_empirical'</span>], mean_qtls[<span class="org-string">'p_beta'</span>], s=1, c=<span class="org-string">'k'</span>)
+plt.plot([0, 1], [0, 1], c=<span class="org-string">'r'</span>, ls=<span class="org-string">'--'</span>)
+plt.xlabel(<span class="org-string">'Empirical p-value'</span>)
+plt.ylabel(<span class="org-string">'Approximate p-value'</span>)
 </pre>
 </div>
 
 <pre class="example">
-gene      name           id      beta        p_beta
-6   ENSG00000163719    MTMR14    rs1438641 -0.178056  1.113220e-85
-37  ENSG00000162623      TYW3   rs28602706 -0.469924  3.853500e-64
-2   ENSG00000165323      FAT3   rs11019873  0.304741  5.130510e-28
-19  ENSG00000013375      PGM3   rs76411140 -0.413721  1.935500e-26
-25  ENSG00000136261      BZW2  rs140111609  0.229461  2.138450e-22
-60  ENSG00000133884      DPF2  rs116180923 -0.892610  1.357080e-12
-31  ENSG00000101003     GINS1  rs117553461 -0.155267  1.357910e-11
-23  ENSG00000145604      SKP2   rs10063618 -0.663646  1.424240e-10
-7   ENSG00000166557     TMED3   rs10519274 -0.257261  9.518380e-10
-3   ENSG00000258289    CHURC1       rs8943 -0.184327  1.353480e-09
-12  ENSG00000113558      SKP1    rs2110585 -0.254785  1.218800e-08
-3   ENSG00000132507     EIF5A   rs28636077 -0.347747  1.630960e-08
-24  ENSG00000197345    MRPL21    rs2444765 -0.306477  3.740190e-08
-27  ENSG00000125450     NUP85    rs7216538 -0.196893  5.696300e-08
-19  ENSG00000114098     ARMC8  rs137911898 -0.387751  1.566310e-07
-54  ENSG00000149636      DSN1   rs75741568 -1.160820  5.967950e-07
-14  ENSG00000131469     RPL27     rs691997 -0.256838  6.878420e-07
-19  ENSG00000188846     RPL14    rs2276868 -0.294612  6.934550e-07
-45  ENSG00000153006  SREK1IP1    rs3756739 -0.228774  7.929660e-07
-23  ENSG00000163743     RCHY1   rs77289963 -0.149948  8.327720e-07
-31  ENSG00000167196    FBXO22   rs58829645 -0.455050  2.465320e-06
-20  ENSG00000214941    ZSWIM7   rs61374610  0.405601  3.606540e-06
-22  ENSG00000008324    SS18L2    rs3774396  0.130177  3.976200e-06
-12  ENSG00000138160     KIF11  rs111760303 -0.414358  5.566760e-06
-51  ENSG00000171202  TMEM126A   rs78417512  0.214181  7.301260e-06
-1   ENSG00000170291      ELP5    rs2654190 -0.281837  2.730180e-05
-7   ENSG00000183648    NDUFB1    rs7151027 -0.133751  3.359160e-05
-33  ENSG00000151725     CENPU     rs873687  0.214583  3.977640e-05
-22  ENSG00000008988     RPS20   rs16920295 -0.155873  4.080270e-05
-28  ENSG00000136908      DPM2    rs3780666 -0.112947  7.454780e-05
-4   ENSG00000106853     PTGR1    rs7030900 -0.350006  1.564970e-04
-24  ENSG00000138757     G3BP2    rs6830063 -0.160755  2.030550e-04
-21  ENSG00000171311    EXOSC1  rs150672414 -0.137090  2.531660e-04
-20  ENSG00000073712    FERMT2   rs79469134  0.150080  3.481460e-04
-33  ENSG00000145725   PPIP5K2      rs32840  0.168351  4.349820e-04
+Text(0,0.5,'Approximate p-value')
+
 </pre>
+
+<div class="figure">
+<p><img src="figure/qtl-mapping.org/zi2-mean-qtl-beta.png" alt="zi2-mean-qtl-beta.png">
+</p>
+</div>
+
+<p>
+Plot the quantile-quantile plot of QTL test statistics:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">qqplot</span>(x):
+  <span class="org-variable-name">y</span> = -np.log10(x[np.logical_and(np.isfinite(x), x &gt; 0)])
+  <span class="org-variable-name">y</span> = y[np.isfinite(y)]
+  <span class="org-variable-name">n</span> = y.shape[0]
+  plt.clf()
+  plt.scatter(np.flip(-np.log10(np.linspace(0, 1, n + 1)[1:]), -1), np.sort(y), s=1, c=<span class="org-string">'k'</span>)
+  plt.plot([0, np.log10(n)], [0, np.log10(n)], color=<span class="org-string">'r'</span>, ls=<span class="org-string">'dashed'</span>)
+  plt.xlabel(<span class="org-string">'Expected -$\log_{10}(p)$'</span>)
+  plt.ylabel(<span class="org-string">'Observed -$\log_{10}(p)$'</span>)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">qqplot(mean_qtls[<span class="org-string">'p_beta'</span>])
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/qtl-mapping.org/zi2-mean-qtl-qq.png" alt="zi2-mean-qtl-qq.png">
+</p>
+</div>
 </div>
 </div>
 
-<div id="outline-container-org018b84e" class="outline-2">
-<h2 id="org018b84e">Dispersion-QTL calling</h2>
-<div class="outline-text-2" id="text-org018b84e">
+
+
+<div id="outline-container-org763d71a" class="outline-2">
+<h2 id="org763d71a">Dispersion-QTL calling</h2>
+<div class="outline-text-2" id="text-org763d71a">
 <p>
 Read the estimated parameters and center them.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">disp</span> = (pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/dispersion2.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
+<pre class="src src-ipython"><span class="org-variable-name">disp</span> = (pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/zi2-dispersion.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
         .transform(<span class="org-keyword">lambda</span> x: x - x.mean(), axis=1))
 </pre>
 </div>
@@ -519,7 +2184,7 @@ Index the phenotype file.
 </p>
 
 <pre class="example">
-Submitted batch job 42306096
+Submitted batch job 43380178
 
 </pre>
 
@@ -528,7 +2193,7 @@ Run <code>qtltools</code>.
 </p>
 
 <pre class="example">
-Submitted batch job 42306172
+Submitted batch job 43380210
 
 </pre>
 
@@ -539,92 +2204,861 @@ Read the output.
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-variable-name">disp_qtls</span> = read_qtltools_output(<span class="org-string">'disp'</span>)
 <span class="org-variable-name">keep_disp_qtls</span> = bh(disp_qtls)
-keep_disp_qtls.<span class="org-builtin">sum</span>()
 </pre>
 </div>
 
 <pre class="example">
-71
+98
 
 </pre>
 
 <div class="org-src-container">
-<pre class="src src-ipython">disp_qtls[keep_disp_qtls].merge(gene_info, left_on=<span class="org-string">'gene'</span>, right_index=<span class="org-constant">True</span>)[[<span class="org-string">'gene'</span>, <span class="org-string">'name'</span>, <span class="org-string">'id'</span>, <span class="org-string">'beta'</span>, <span class="org-string">'p_beta'</span>]]
+<pre class="src src-ipython"><span class="org-keyword">print</span>(disp_qtls[keep_disp_qtls].merge(gene_info, left_on=<span class="org-string">'gene'</span>, right_index=<span class="org-constant">True</span>)[[<span class="org-string">'gene'</span>, <span class="org-string">'name'</span>, <span class="org-string">'id'</span>, <span class="org-string">'beta'</span>, <span class="org-string">'p_beta'</span>]].reset_index(drop=<span class="org-constant">True</span>).to_html(classes=[<span class="org-string">'table'</span>]))
+</pre>
+</div>
+
+<table border="1" class="dataframe table">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>gene</th>
+      <th>name</th>
+      <th>id</th>
+      <th>beta</th>
+      <th>p_beta</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>ENSG00000165283</td>
+      <td>STOML2</td>
+      <td>rs151013351</td>
+      <td>-3.309280</td>
+      <td>0.000000e+00</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>ENSG00000170085</td>
+      <td>SIMC1</td>
+      <td>rs115194011</td>
+      <td>-4.063380</td>
+      <td>0.000000e+00</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>ENSG00000197724</td>
+      <td>PHF2</td>
+      <td>rs113363990</td>
+      <td>-4.412720</td>
+      <td>7.294860e-228</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>ENSG00000174405</td>
+      <td>LIG4</td>
+      <td>rs115154048</td>
+      <td>-5.077620</td>
+      <td>2.507990e-182</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>ENSG00000176697</td>
+      <td>BDNF</td>
+      <td>rs143827698</td>
+      <td>-4.773690</td>
+      <td>2.225750e-170</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>ENSG00000123810</td>
+      <td>B9D2</td>
+      <td>rs79026999</td>
+      <td>-4.370730</td>
+      <td>1.672330e-151</td>
+    </tr>
+    <tr>
+      <th>6</th>
+      <td>ENSG00000102743</td>
+      <td>SLC25A15</td>
+      <td>rs115773631</td>
+      <td>-3.519380</td>
+      <td>6.031130e-123</td>
+    </tr>
+    <tr>
+      <th>7</th>
+      <td>ENSG00000125449</td>
+      <td>ARMC7</td>
+      <td>rs75902792</td>
+      <td>-4.630780</td>
+      <td>6.994600e-88</td>
+    </tr>
+    <tr>
+      <th>8</th>
+      <td>ENSG00000143183</td>
+      <td>TMCO1</td>
+      <td>rs114697800</td>
+      <td>-2.691680</td>
+      <td>4.711220e-50</td>
+    </tr>
+    <tr>
+      <th>9</th>
+      <td>ENSG00000105865</td>
+      <td>DUS4L</td>
+      <td>rs187529047</td>
+      <td>2.818420</td>
+      <td>1.040130e-44</td>
+    </tr>
+    <tr>
+      <th>10</th>
+      <td>ENSG00000120314</td>
+      <td>WDR55</td>
+      <td>rs11167791</td>
+      <td>3.441270</td>
+      <td>2.458160e-42</td>
+    </tr>
+    <tr>
+      <th>11</th>
+      <td>ENSG00000164970</td>
+      <td>FAM219A</td>
+      <td>rs78437190</td>
+      <td>-2.935010</td>
+      <td>2.794990e-37</td>
+    </tr>
+    <tr>
+      <th>12</th>
+      <td>ENSG00000162909</td>
+      <td>CAPN2</td>
+      <td>rs2172360</td>
+      <td>3.311410</td>
+      <td>9.247940e-35</td>
+    </tr>
+    <tr>
+      <th>13</th>
+      <td>ENSG00000170860</td>
+      <td>LSM3</td>
+      <td>rs143962723</td>
+      <td>-3.295380</td>
+      <td>2.297400e-33</td>
+    </tr>
+    <tr>
+      <th>14</th>
+      <td>ENSG00000244165</td>
+      <td>P2RY11</td>
+      <td>rs76392887</td>
+      <td>-3.159010</td>
+      <td>1.709660e-32</td>
+    </tr>
+    <tr>
+      <th>15</th>
+      <td>ENSG00000116898</td>
+      <td>MRPS15</td>
+      <td>rs144661059</td>
+      <td>-2.239470</td>
+      <td>1.479050e-28</td>
+    </tr>
+    <tr>
+      <th>16</th>
+      <td>ENSG00000160049</td>
+      <td>DFFA</td>
+      <td>rs5007607</td>
+      <td>-2.658710</td>
+      <td>4.592440e-26</td>
+    </tr>
+    <tr>
+      <th>17</th>
+      <td>ENSG00000171608</td>
+      <td>PIK3CD</td>
+      <td>rs138247028</td>
+      <td>-4.697440</td>
+      <td>4.235250e-25</td>
+    </tr>
+    <tr>
+      <th>18</th>
+      <td>ENSG00000117143</td>
+      <td>UAP1</td>
+      <td>rs12067012</td>
+      <td>1.433560</td>
+      <td>3.856740e-23</td>
+    </tr>
+    <tr>
+      <th>19</th>
+      <td>ENSG00000205356</td>
+      <td>TECPR1</td>
+      <td>rs116757663</td>
+      <td>-2.618370</td>
+      <td>9.657750e-18</td>
+    </tr>
+    <tr>
+      <th>20</th>
+      <td>ENSG00000114859</td>
+      <td>CLCN2</td>
+      <td>rs116709730</td>
+      <td>4.131380</td>
+      <td>1.859410e-17</td>
+    </tr>
+    <tr>
+      <th>21</th>
+      <td>ENSG00000172830</td>
+      <td>SSH3</td>
+      <td>rs7105623</td>
+      <td>-0.638843</td>
+      <td>4.644960e-17</td>
+    </tr>
+    <tr>
+      <th>22</th>
+      <td>ENSG00000183020</td>
+      <td>AP2A2</td>
+      <td>rs186982458</td>
+      <td>2.609980</td>
+      <td>2.456720e-16</td>
+    </tr>
+    <tr>
+      <th>23</th>
+      <td>ENSG00000125734</td>
+      <td>GPR108</td>
+      <td>rs184583582</td>
+      <td>-2.822690</td>
+      <td>2.470850e-15</td>
+    </tr>
+    <tr>
+      <th>24</th>
+      <td>ENSG00000161682</td>
+      <td>FAM171A2</td>
+      <td>rs12944040</td>
+      <td>2.363410</td>
+      <td>3.075220e-15</td>
+    </tr>
+    <tr>
+      <th>25</th>
+      <td>ENSG00000179409</td>
+      <td>GEMIN4</td>
+      <td>rs2293067</td>
+      <td>1.929650</td>
+      <td>8.587390e-15</td>
+    </tr>
+    <tr>
+      <th>26</th>
+      <td>ENSG00000223802</td>
+      <td>CERS1</td>
+      <td>rs116562609</td>
+      <td>-3.084010</td>
+      <td>1.026820e-13</td>
+    </tr>
+    <tr>
+      <th>27</th>
+      <td>ENSG00000172273</td>
+      <td>HINFP</td>
+      <td>rs115425447</td>
+      <td>1.686380</td>
+      <td>1.513860e-13</td>
+    </tr>
+    <tr>
+      <th>28</th>
+      <td>ENSG00000205309</td>
+      <td>NT5M</td>
+      <td>rs8511</td>
+      <td>-2.068040</td>
+      <td>2.680890e-13</td>
+    </tr>
+    <tr>
+      <th>29</th>
+      <td>ENSG00000197043</td>
+      <td>ANXA6</td>
+      <td>rs139372973</td>
+      <td>3.311060</td>
+      <td>7.743520e-13</td>
+    </tr>
+    <tr>
+      <th>30</th>
+      <td>ENSG00000221829</td>
+      <td>FANCG</td>
+      <td>rs10972619</td>
+      <td>1.169450</td>
+      <td>1.578270e-12</td>
+    </tr>
+    <tr>
+      <th>31</th>
+      <td>ENSG00000142197</td>
+      <td>DOPEY2</td>
+      <td>rs77145506</td>
+      <td>-4.209130</td>
+      <td>2.389840e-12</td>
+    </tr>
+    <tr>
+      <th>32</th>
+      <td>ENSG00000160218</td>
+      <td>TRAPPC10</td>
+      <td>rs111257004</td>
+      <td>1.450660</td>
+      <td>2.654090e-12</td>
+    </tr>
+    <tr>
+      <th>33</th>
+      <td>ENSG00000133103</td>
+      <td>COG6</td>
+      <td>rs147106597</td>
+      <td>1.708220</td>
+      <td>4.361340e-12</td>
+    </tr>
+    <tr>
+      <th>34</th>
+      <td>ENSG00000158195</td>
+      <td>WASF2</td>
+      <td>rs11399</td>
+      <td>-2.338620</td>
+      <td>1.294060e-10</td>
+    </tr>
+    <tr>
+      <th>35</th>
+      <td>ENSG00000145041</td>
+      <td>VPRBP</td>
+      <td>rs115267057</td>
+      <td>2.494370</td>
+      <td>2.579560e-09</td>
+    </tr>
+    <tr>
+      <th>36</th>
+      <td>ENSG00000110321</td>
+      <td>EIF4G2</td>
+      <td>rs78742382</td>
+      <td>-2.541230</td>
+      <td>2.636980e-09</td>
+    </tr>
+    <tr>
+      <th>37</th>
+      <td>ENSG00000110200</td>
+      <td>ANAPC15</td>
+      <td>rs186789865</td>
+      <td>-2.565120</td>
+      <td>3.441620e-09</td>
+    </tr>
+    <tr>
+      <th>38</th>
+      <td>ENSG00000149196</td>
+      <td>C11orf73</td>
+      <td>rs1939103</td>
+      <td>2.447090</td>
+      <td>4.040330e-09</td>
+    </tr>
+    <tr>
+      <th>39</th>
+      <td>ENSG00000108828</td>
+      <td>VAT1</td>
+      <td>rs2355375</td>
+      <td>-1.710740</td>
+      <td>4.750800e-09</td>
+    </tr>
+    <tr>
+      <th>40</th>
+      <td>ENSG00000179862</td>
+      <td>CITED4</td>
+      <td>rs115694669</td>
+      <td>-5.187470</td>
+      <td>8.669450e-09</td>
+    </tr>
+    <tr>
+      <th>41</th>
+      <td>ENSG00000052841</td>
+      <td>TTC17</td>
+      <td>rs144392024</td>
+      <td>-1.613270</td>
+      <td>1.177680e-08</td>
+    </tr>
+    <tr>
+      <th>42</th>
+      <td>ENSG00000166012</td>
+      <td>TAF1D</td>
+      <td>rs116078422</td>
+      <td>-2.003780</td>
+      <td>1.928780e-08</td>
+    </tr>
+    <tr>
+      <th>43</th>
+      <td>ENSG00000130287</td>
+      <td>NCAN</td>
+      <td>rs116770984</td>
+      <td>-4.604760</td>
+      <td>4.709950e-08</td>
+    </tr>
+    <tr>
+      <th>44</th>
+      <td>ENSG00000116473</td>
+      <td>RAP1A</td>
+      <td>rs114787626</td>
+      <td>1.540230</td>
+      <td>5.546490e-08</td>
+    </tr>
+    <tr>
+      <th>45</th>
+      <td>ENSG00000136861</td>
+      <td>CDK5RAP2</td>
+      <td>rs115356711</td>
+      <td>1.754840</td>
+      <td>5.685210e-08</td>
+    </tr>
+    <tr>
+      <th>46</th>
+      <td>ENSG00000154640</td>
+      <td>BTG3</td>
+      <td>rs2823971</td>
+      <td>2.413580</td>
+      <td>1.038640e-07</td>
+    </tr>
+    <tr>
+      <th>47</th>
+      <td>ENSG00000126524</td>
+      <td>SBDS</td>
+      <td>rs118141535</td>
+      <td>2.133510</td>
+      <td>1.073340e-07</td>
+    </tr>
+    <tr>
+      <th>48</th>
+      <td>ENSG00000152942</td>
+      <td>RAD17</td>
+      <td>rs141370675</td>
+      <td>0.927315</td>
+      <td>1.714180e-07</td>
+    </tr>
+    <tr>
+      <th>49</th>
+      <td>ENSG00000172893</td>
+      <td>DHCR7</td>
+      <td>rs115998124</td>
+      <td>-2.496930</td>
+      <td>1.870360e-07</td>
+    </tr>
+    <tr>
+      <th>50</th>
+      <td>ENSG00000154380</td>
+      <td>ENAH</td>
+      <td>rs11584969</td>
+      <td>-2.854720</td>
+      <td>4.772460e-07</td>
+    </tr>
+    <tr>
+      <th>51</th>
+      <td>ENSG00000154511</td>
+      <td>FAM69A</td>
+      <td>rs146124737</td>
+      <td>-4.834600</td>
+      <td>6.027520e-07</td>
+    </tr>
+    <tr>
+      <th>52</th>
+      <td>ENSG00000131238</td>
+      <td>PPT1</td>
+      <td>rs12090353</td>
+      <td>-1.503680</td>
+      <td>9.294670e-07</td>
+    </tr>
+    <tr>
+      <th>53</th>
+      <td>ENSG00000188811</td>
+      <td>NHLRC3</td>
+      <td>rs143196152</td>
+      <td>1.264350</td>
+      <td>1.191190e-06</td>
+    </tr>
+    <tr>
+      <th>54</th>
+      <td>ENSG00000122435</td>
+      <td>TRMT13</td>
+      <td>rs139250635</td>
+      <td>1.128600</td>
+      <td>1.201480e-06</td>
+    </tr>
+    <tr>
+      <th>55</th>
+      <td>ENSG00000131469</td>
+      <td>RPL27</td>
+      <td>rs146750609</td>
+      <td>1.649960</td>
+      <td>1.505230e-06</td>
+    </tr>
+    <tr>
+      <th>56</th>
+      <td>ENSG00000161558</td>
+      <td>TMEM143</td>
+      <td>rs142646336</td>
+      <td>-4.522090</td>
+      <td>1.611620e-06</td>
+    </tr>
+    <tr>
+      <th>57</th>
+      <td>ENSG00000093167</td>
+      <td>LRRFIP2</td>
+      <td>rs77491290</td>
+      <td>2.096840</td>
+      <td>2.965970e-06</td>
+    </tr>
+    <tr>
+      <th>58</th>
+      <td>ENSG00000170946</td>
+      <td>DNAJC24</td>
+      <td>rs75350757</td>
+      <td>2.622850</td>
+      <td>4.225450e-06</td>
+    </tr>
+    <tr>
+      <th>59</th>
+      <td>ENSG00000149591</td>
+      <td>TAGLN</td>
+      <td>rs75419894</td>
+      <td>-1.560600</td>
+      <td>4.950990e-06</td>
+    </tr>
+    <tr>
+      <th>60</th>
+      <td>ENSG00000131236</td>
+      <td>CAP1</td>
+      <td>rs150600342</td>
+      <td>-1.748100</td>
+      <td>7.383560e-06</td>
+    </tr>
+    <tr>
+      <th>61</th>
+      <td>ENSG00000167766</td>
+      <td>ZNF83</td>
+      <td>rs141851483</td>
+      <td>3.292110</td>
+      <td>1.065440e-05</td>
+    </tr>
+    <tr>
+      <th>62</th>
+      <td>ENSG00000179163</td>
+      <td>FUCA1</td>
+      <td>rs79403581</td>
+      <td>-2.898940</td>
+      <td>1.160650e-05</td>
+    </tr>
+    <tr>
+      <th>63</th>
+      <td>ENSG00000254585</td>
+      <td>MAGEL2</td>
+      <td>rs12916127</td>
+      <td>-2.993250</td>
+      <td>1.536980e-05</td>
+    </tr>
+    <tr>
+      <th>64</th>
+      <td>ENSG00000166436</td>
+      <td>TRIM66</td>
+      <td>rs143365151</td>
+      <td>-4.038500</td>
+      <td>1.777680e-05</td>
+    </tr>
+    <tr>
+      <th>65</th>
+      <td>ENSG00000154814</td>
+      <td>OXNAD1</td>
+      <td>rs186345075</td>
+      <td>3.438130</td>
+      <td>1.895770e-05</td>
+    </tr>
+    <tr>
+      <th>66</th>
+      <td>ENSG00000172531</td>
+      <td>PPP1CA</td>
+      <td>rs4930435</td>
+      <td>-2.254580</td>
+      <td>2.211000e-05</td>
+    </tr>
+    <tr>
+      <th>67</th>
+      <td>ENSG00000011243</td>
+      <td>AKAP8L</td>
+      <td>rs74393806</td>
+      <td>1.997810</td>
+      <td>2.666640e-05</td>
+    </tr>
+    <tr>
+      <th>68</th>
+      <td>ENSG00000248098</td>
+      <td>BCKDHA</td>
+      <td>rs140346884</td>
+      <td>-2.913330</td>
+      <td>2.763770e-05</td>
+    </tr>
+    <tr>
+      <th>69</th>
+      <td>ENSG00000143198</td>
+      <td>MGST3</td>
+      <td>rs144467420</td>
+      <td>-2.748340</td>
+      <td>4.538870e-05</td>
+    </tr>
+    <tr>
+      <th>70</th>
+      <td>ENSG00000174574</td>
+      <td>AKIRIN1</td>
+      <td>rs143588389</td>
+      <td>-2.988750</td>
+      <td>6.604600e-05</td>
+    </tr>
+    <tr>
+      <th>71</th>
+      <td>ENSG00000103707</td>
+      <td>MTFMT</td>
+      <td>rs137966506</td>
+      <td>3.245180</td>
+      <td>6.846880e-05</td>
+    </tr>
+    <tr>
+      <th>72</th>
+      <td>ENSG00000145681</td>
+      <td>HAPLN1</td>
+      <td>rs114887660</td>
+      <td>-3.971260</td>
+      <td>7.128160e-05</td>
+    </tr>
+    <tr>
+      <th>73</th>
+      <td>ENSG00000184408</td>
+      <td>KCND2</td>
+      <td>rs143795479</td>
+      <td>-4.538730</td>
+      <td>8.513240e-05</td>
+    </tr>
+    <tr>
+      <th>74</th>
+      <td>ENSG00000137841</td>
+      <td>PLCB2</td>
+      <td>rs62019961</td>
+      <td>-4.512630</td>
+      <td>8.853740e-05</td>
+    </tr>
+    <tr>
+      <th>75</th>
+      <td>ENSG00000108557</td>
+      <td>RAI1</td>
+      <td>rs59212772</td>
+      <td>-6.439100</td>
+      <td>1.211490e-04</td>
+    </tr>
+    <tr>
+      <th>76</th>
+      <td>ENSG00000006016</td>
+      <td>CRLF1</td>
+      <td>rs10414298</td>
+      <td>-1.853580</td>
+      <td>1.396770e-04</td>
+    </tr>
+    <tr>
+      <th>77</th>
+      <td>ENSG00000109084</td>
+      <td>TMEM97</td>
+      <td>rs144069393</td>
+      <td>-2.782690</td>
+      <td>1.462980e-04</td>
+    </tr>
+    <tr>
+      <th>78</th>
+      <td>ENSG00000106086</td>
+      <td>PLEKHA8</td>
+      <td>rs118033320</td>
+      <td>2.487410</td>
+      <td>1.639470e-04</td>
+    </tr>
+    <tr>
+      <th>79</th>
+      <td>ENSG00000116906</td>
+      <td>GNPAT</td>
+      <td>rs10779810</td>
+      <td>-1.170110</td>
+      <td>1.677310e-04</td>
+    </tr>
+    <tr>
+      <th>80</th>
+      <td>ENSG00000064666</td>
+      <td>CNN2</td>
+      <td>rs184326775</td>
+      <td>-1.410370</td>
+      <td>1.764350e-04</td>
+    </tr>
+    <tr>
+      <th>81</th>
+      <td>ENSG00000149256</td>
+      <td>TENM4</td>
+      <td>rs189331375</td>
+      <td>-4.245470</td>
+      <td>1.807590e-04</td>
+    </tr>
+    <tr>
+      <th>82</th>
+      <td>ENSG00000117036</td>
+      <td>ETV3</td>
+      <td>rs188035981</td>
+      <td>3.118750</td>
+      <td>1.978480e-04</td>
+    </tr>
+    <tr>
+      <th>83</th>
+      <td>ENSG00000073050</td>
+      <td>XRCC1</td>
+      <td>rs138843872</td>
+      <td>3.159450</td>
+      <td>2.268670e-04</td>
+    </tr>
+    <tr>
+      <th>84</th>
+      <td>ENSG00000185453</td>
+      <td>C19orf68</td>
+      <td>rs138701164</td>
+      <td>4.117920</td>
+      <td>2.468340e-04</td>
+    </tr>
+    <tr>
+      <th>85</th>
+      <td>ENSG00000166452</td>
+      <td>AKIP1</td>
+      <td>rs141004297</td>
+      <td>3.508760</td>
+      <td>2.546470e-04</td>
+    </tr>
+    <tr>
+      <th>86</th>
+      <td>ENSG00000092978</td>
+      <td>GPATCH2</td>
+      <td>rs113462534</td>
+      <td>4.085070</td>
+      <td>2.997230e-04</td>
+    </tr>
+    <tr>
+      <th>87</th>
+      <td>ENSG00000131473</td>
+      <td>ACLY</td>
+      <td>rs111713404</td>
+      <td>-2.099470</td>
+      <td>3.098620e-04</td>
+    </tr>
+    <tr>
+      <th>88</th>
+      <td>ENSG00000160867</td>
+      <td>FGFR4</td>
+      <td>rs111567185</td>
+      <td>2.796980</td>
+      <td>3.604680e-04</td>
+    </tr>
+    <tr>
+      <th>89</th>
+      <td>ENSG00000186472</td>
+      <td>PCLO</td>
+      <td>rs78573728</td>
+      <td>-4.342580</td>
+      <td>3.955380e-04</td>
+    </tr>
+    <tr>
+      <th>90</th>
+      <td>ENSG00000132510</td>
+      <td>KDM6B</td>
+      <td>rs115083985</td>
+      <td>-1.067740</td>
+      <td>4.668840e-04</td>
+    </tr>
+    <tr>
+      <th>91</th>
+      <td>ENSG00000070669</td>
+      <td>ASNS</td>
+      <td>rs79183163</td>
+      <td>-2.619050</td>
+      <td>4.672200e-04</td>
+    </tr>
+    <tr>
+      <th>92</th>
+      <td>ENSG00000105671</td>
+      <td>DDX49</td>
+      <td>rs147349438</td>
+      <td>1.518330</td>
+      <td>5.734510e-04</td>
+    </tr>
+    <tr>
+      <th>93</th>
+      <td>ENSG00000165895</td>
+      <td>ARHGAP42</td>
+      <td>rs111702886</td>
+      <td>-4.671170</td>
+      <td>5.748990e-04</td>
+    </tr>
+    <tr>
+      <th>94</th>
+      <td>ENSG00000166333</td>
+      <td>ILK</td>
+      <td>rs77801446</td>
+      <td>-2.310190</td>
+      <td>7.091510e-04</td>
+    </tr>
+    <tr>
+      <th>95</th>
+      <td>ENSG00000148110</td>
+      <td>HIATL1</td>
+      <td>rs9409727</td>
+      <td>-1.103750</td>
+      <td>8.033820e-04</td>
+    </tr>
+    <tr>
+      <th>96</th>
+      <td>ENSG00000117906</td>
+      <td>RCN2</td>
+      <td>rs8026731</td>
+      <td>-1.355620</td>
+      <td>8.237700e-04</td>
+    </tr>
+    <tr>
+      <th>97</th>
+      <td>ENSG00000085276</td>
+      <td>MECOM</td>
+      <td>rs140988682</td>
+      <td>-4.053850</td>
+      <td>8.395570e-04</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>
+Check the beta approximation to the permutation p-values:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.scatter(disp_qtls[<span class="org-string">'p_empirical'</span>], disp_qtls[<span class="org-string">'p_beta'</span>], s=1, c=<span class="org-string">'k'</span>)
+plt.plot([0, 1], [0, 1], c=<span class="org-string">'r'</span>, ls=<span class="org-string">'--'</span>)
+plt.xlabel(<span class="org-string">'Empirical p-value'</span>)
+plt.ylabel(<span class="org-string">'Approximate p-value'</span>)
 </pre>
 </div>
 
 <pre class="example">
-gene     name           id      beta        p_beta
-3   ENSG00000172500     FIBP    rs2904964  3.269360  5.982850e-59
-30  ENSG00000173812     EIF1  rs141050869  2.236620  4.159740e-36
-30  ENSG00000170558     CDH2   rs61062435 -3.124730  5.966380e-21
-19  ENSG00000136603     SKIL    rs9818860 -3.706300  1.497410e-20
-14  ENSG00000109919    MTCH2  rs112598354 -3.852610  8.516750e-20
-11  ENSG00000138385      SSB   rs74671773 -1.864580  7.731550e-16
-9   ENSG00000174721   FGFBP3  rs187269100 -3.340610  1.541350e-14
-4   ENSG00000184640    SEPT9  rs191371465 -1.613220  5.537410e-13
-6   ENSG00000005955   GGNBP2  rs115379718 -1.710560  6.033150e-13
-17  ENSG00000163430    FSTL1  rs116138205 -3.701820  6.574070e-13
-47  ENSG00000159596   TMEM69   rs80159866 -2.123730  1.515510e-10
-3   ENSG00000077782    FGFR1  rs114441110 -2.509560  4.331400e-10
-28  ENSG00000145592    RPL37  rs187287478 -1.854770  5.122680e-10
-6   ENSG00000122483   CCDC18  rs114147805 -3.600390  5.673670e-09
-35  ENSG00000164111    ANXA5  rs115667801 -1.147140  1.413170e-08
-38  ENSG00000125977   EIF2S2   rs11696530 -0.964617  1.653160e-08
-20  ENSG00000113658    SMAD5   rs76508606 -3.901540  3.115330e-08
-29  ENSG00000115947     ORC4  rs149751455 -3.032940  5.041500e-08
-49  ENSG00000205302     SNX2  rs148079226 -2.528050  1.294880e-07
-16  ENSG00000155099  TMEM55A  rs143924177 -2.212820  1.463260e-07
-24  ENSG00000099995    SF3A1  rs183441901 -2.124210  1.815250e-07
-20  ENSG00000138778    CENPE  rs115865776 -2.262560  4.304580e-07
-14  ENSG00000163535    SGOL2  rs186627329 -0.768620  4.388750e-07
-30  ENSG00000166794     PPIB  rs138296314 -2.078340  5.791490e-07
-19  ENSG00000104765   BNIP3L   rs17055905 -1.117420  6.768970e-07
-10  ENSG00000181192   DHTKD1  rs186223298 -1.268940  1.822810e-06
-23  ENSG00000049449     RCN1   rs61891674 -3.869610  2.008800e-06
-0   ENSG00000110955    ATP5B   rs11172053 -4.315500  2.393400e-06
-25  ENSG00000166483     WEE1  rs141629226 -3.647780  2.537660e-06
-27  ENSG00000076003     MCM6   rs77680868 -2.576420  8.176020e-06
-..              ...      ...          ...       ...           ...
-24  ENSG00000167088   SNRPD1     rs599489 -3.443700  3.313140e-05
-40  ENSG00000132676     DAP3  rs113643555 -3.610080  3.764670e-05
-48  ENSG00000171858    RPS21  rs113006457 -1.777300  3.930040e-05
-21  ENSG00000188994   ZNF292  rs190797589 -2.552210  4.493770e-05
-38  ENSG00000118363    SPCS2  rs111846212 -2.637530  5.210370e-05
-14  ENSG00000104738     MCM4   rs67441342  1.010130  6.201410e-05
-4   ENSG00000166012    TAF1D  rs114156459 -2.464560  6.227290e-05
-20  ENSG00000111300    NAA25  rs183463906 -1.903450  7.658170e-05
-13  ENSG00000162694    EXTL2  rs114515441 -2.430710  8.293420e-05
-22  ENSG00000143543      JTB  rs145970450 -2.513580  8.404170e-05
-36  ENSG00000123737   EXOSC9   rs72684801 -4.150150  8.928880e-05
-24  ENSG00000160049     DFFA  rs191456265 -1.834670  9.046540e-05
-21  ENSG00000103353    UBFD1  rs187686990 -3.084110  1.050590e-04
-26  ENSG00000069849   ATP1B3  rs181098445 -2.219060  1.351460e-04
-9   ENSG00000112305    SMAP1    rs3805977 -1.484410  1.355490e-04
-26  ENSG00000133027     PEMT  rs149534292 -3.130120  1.362530e-04
-25  ENSG00000172586   CHCHD1  rs150231882 -1.491500  1.570080e-04
-41  ENSG00000152904    GGPS1   rs77412086 -3.326680  1.738940e-04
-11  ENSG00000112695   COX7A2  rs116524695 -1.969520  2.009070e-04
-28  ENSG00000143575     HAX1  rs191047822 -3.161070  2.198430e-04
-28  ENSG00000116489   CAPZA1  rs112268692 -1.440870  2.665790e-04
-13  ENSG00000137807    KIF23  rs146358835 -3.455250  2.677390e-04
-17  ENSG00000113328    CCNG1   rs61114041 -1.741340  3.823830e-04
-30  ENSG00000148773    MKI67  rs114309437 -1.111450  4.412160e-04
-23  ENSG00000184076   UQCR10  rs140062784 -2.846960  4.843060e-04
-38  ENSG00000112335     SNX3  rs146420004 -2.824480  5.119260e-04
-5   ENSG00000145907    G3BP1   rs78692171 -0.997360  6.671770e-04
-22  ENSG00000162923    WDR26   rs56887412 -1.836620  7.486450e-04
-47  ENSG00000065361    ERBB3   rs12314191 -1.623870  7.577620e-04
-14  ENSG00000173145    NOC3L   rs74151073 -2.267200  8.821250e-04
+Text(0,0.5,'Approximate p-value')
 
-[71 rows x 5 columns]
 </pre>
+
+<div class="figure">
+<p><img src="figure/qtl-mapping.org/zi2-disp-qtl-beta.png" alt="zi2-disp-qtl-beta.png">
+</p>
+</div>
+
+<p>
+Plot the quantile-quantile plot of QTL test statistics:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">qqplot(disp_qtls[<span class="org-string">'p_beta'</span>])
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/qtl-mapping.org/zi2-disp-qtl-qq.png" alt="zi2-disp-qtl-qq.png">
+</p>
+</div>
 </div>
 </div>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-01-22 Mon 11:04</p>
+<p class="date">Created: 2018-02-24 Sat 11:18</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>

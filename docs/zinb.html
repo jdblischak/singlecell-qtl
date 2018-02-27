@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-02-07 Wed 18:51 -->
+<!-- 2018-02-24 Sat 11:15 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mean/dispersion estimation</title>
@@ -253,42 +253,37 @@ for the JavaScript code in this tag.
 <body>
 <div id="content">
 <h1 class="title">Mean/dispersion estimation</h1>
-<div id="table-of-contents">
-<h2>Table of Contents</h2>
-<div id="text-table-of-contents">
-<ul>
-<li><a href="#org6af1f01">Introduction</a></li>
-<li><a href="#orgad32fb3">Model specification</a></li>
-<li><a href="#org05dec60">Quality control</a></li>
-<li><a href="#orgde19fe3">Read the data</a></li>
-<li><a href="#org978d4fc">Serial algorithm</a></li>
-<li><a href="#org21f6e33">Parallel algorithm</a></li>
-<li><a href="#org7363c08">Visualize the fitted models</a></li>
-<li><a href="#org9ee0e04">Compare NB to ZINB</a></li>
-</ul>
-</div>
-</div>
 
-<div id="outline-container-org6af1f01" class="outline-2">
-<h2 id="org6af1f01">Introduction</h2>
-<div class="outline-text-2" id="text-org6af1f01">
+<div id="outline-container-orgbddc3b7" class="outline-2">
+<h2 id="orgbddc3b7">Introduction</h2>
+<div class="outline-text-2" id="text-orgbddc3b7">
 <p>
-The simplest approach to call mean/variance QTLs is to estimate a mean and a
-dispersion for each individual, treat them as continuous phenotypes, and plug
-into standard QTL mapping software.
+The simplest approach to call mean/variance QTLs is modular:
 </p>
 
+<ol class="org-ol">
+<li>Estimate a mean and a dispersion for each individual</li>
+<li>Treat the mean/dispersion as continuous phenotypes and perform QTL mapping</li>
+</ol>
+
 <p>
-As a first pass, perform stringent QC to avoid the sparsest genes and simply
-find maximum likelihood estimates of a negative binomial model for the mean,
-and dispersion per individual per gene.
+Here, we solve (1), and <a href="qtl-mapping.html">use QTLtools</a> to solve (2). We perform the following
+analyses:
 </p>
+
+<ol class="org-ol">
+<li><a href="#org269d03c">We implement GPU-based</a> maximum likelihood estimation of the parameters</li>
+<li><a href="#orge3a2968">We develop visual diagnostics</a> of the fitted models to check goodness of fit</li>
+<li><a href="#org1429fd2">We fit a model without dropout</a> and show it does not fit the data</li>
+<li><a href="#orga8ab6f4">We fit a model assuming dropout per gene</a></li>
+<li><a href="#org1986c5b">We fit a model assuming dropout per individual per gene</a></li>
+</ol>
 </div>
 </div>
 
-<div id="outline-container-orgad32fb3" class="outline-2">
-<h2 id="orgad32fb3">Model specification</h2>
-<div class="outline-text-2" id="text-orgad32fb3">
+<div id="outline-container-orge096f85" class="outline-2">
+<h2 id="orge096f85">Model specification</h2>
+<div class="outline-text-2" id="text-orge096f85">
 <p>
 Let \(r_{ijk}\) denote the number of molecules for individual \(i\), cell
 \(j\), gene \(k\). Let \(R_{ij}\) denote a size factor for each cell. As a
@@ -325,11 +320,16 @@ estimates.
 </p>
 
 <p>
-We can additionally account for zero-inflation, by letting \(\pi_{ijk}\)
+We can additionally account for zero-inflation, by letting \(\pi_{\cdot}\)
 denote the probability of a "technical zero" (i.e., not arising from the
-negative-binomial). Following prior work, we introduce a dropout parameter
-for each cell (indexed by \(i\) and \(j\)) and each gene (<a href="https://arxiv.org/abs/1709.02082">Lopez et al 2017</a>,
-<a href="https://www.nature.com/articles/s41467-017-02554-5">Risso et al 2017</a>).
+negative-binomial).
+</p>
+
+<p>
+As a first pass, estimate dropout assuming parameters \(\pi_k\) are shared
+across cells (and individuals) for each gene. This assumption allows us to
+directly estimate the parameter from the data without requiring
+shrinkage/regularization to avoid overfitting.
 </p>
 
 <p>
@@ -337,65 +337,47 @@ Then, the log-likelihood of the data is:
 </p>
 
 <p>
-\[ \ln p(r_{ijk} \mid r_{ijk} = 0, \cdot) = -\ln(\pi_{ijk} + (1 - \pi_{ijk})
+\[ \ln p(r_{ijk} \mid r_{ijk} = 0, \cdot) = -\ln(\pi_\cdot + (1 - \pi_{\cdot})
   \exp(\ln p(r_{ijk} \mid R_{ij}, \mu_{ik}, \phi_{ik}))) \]
 </p>
 
 <p>
-\[ \ln p(r_{ijk} \mid r_{ijk} > 0, \cdot) = \ln(1 - \pi_{ijk}) + \ln p(r_{ijk} \mid R_{ij}, \mu_{ik}, \phi_{ik})) \]
+\[ \ln p(r_{ijk} \mid r_{ijk} > 0, \cdot) = \ln(1 - \pi_{\cdot}) + \ln p(r_{ijk} \mid R_{ij}, \mu_{ik}, \phi_{ik})) \]
 </p>
 </div>
 </div>
 
-<div id="outline-container-org05dec60" class="outline-2">
-<h2 id="org05dec60">Quality control</h2>
-<div class="outline-text-2" id="text-org05dec60">
+<div id="outline-container-orga83ce40" class="outline-2">
+<h2 id="orga83ce40">Read the data</h2>
+<div class="outline-text-2" id="text-orga83ce40">
 <p>
-Filter out cells on percent spike-in and gene detection rate, and filter out
-genes on individual detection rate. For now, use conservative filters:
+Read the QC'ed data.
 </p>
 
-<ul class="org-ul">
-<li>keep cells with % spike-in &lt; 50%</li>
-<li>keep cells with detected genes &gt; 4000</li>
-<li>keep genes detected in &gt;70% of cells</li>
-</ul>
+<p>
+Compute size factors.
+</p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org825aeab"><span class="org-variable-name">keep_cells</span> = functools.<span class="org-builtin">reduce</span>(
-  np.logical_and,
-  [
-    annotations[<span class="org-string">'reads_ercc'</span>] / annotations.<span class="org-builtin">filter</span>(like=<span class="org-string">'reads_'</span>, axis=1).agg(np.<span class="org-builtin">sum</span>, axis=1) &lt; 0.5,
-    annotations[<span class="org-string">'detect_hs'</span>] &gt; 4000,
-    annotations[<span class="org-string">'chip_id'</span>] != <span class="org-string">'NA19092'</span>,
-  ]).values
-<span class="org-variable-name">keep_genes</span> = functools.<span class="org-builtin">reduce</span>(
-  np.logical_and,
-  [
-    umi.<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: x &gt; 0).agg(np.mean, axis=1).<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: x &gt; .7),
-  ]).values
-<span class="org-variable-name">umi_qc</span> = umi.loc[keep_genes, keep_cells]
-<span class="org-variable-name">annotations_qc</span> = annotations.loc[keep_cells]
-umi_qc.shape
+<pre class="src src-ipython"><span class="org-variable-name">size</span> = umi.agg(np.<span class="org-builtin">sum</span>)
 </pre>
 </div>
 
-<pre class="example">
-(4148, 3100)
-
-</pre>
+<p>
+Onehot-encode the samples.
+</p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org5400cb3"><span class="org-variable-name">individuals</span> = <span class="org-builtin">sorted</span>(annotations_qc[<span class="org-string">'chip_id'</span>].unique())
-<span class="org-variable-name">onehot</span> = np.zeros((umi_qc.shape[1], <span class="org-builtin">len</span>(individuals)), dtype=np.float32)
-onehot[np.arange(onehot.shape[0]),annotations_qc[<span class="org-string">'chip_id'</span>].<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: individuals.index(x))] = 1
-<span class="org-variable-name">onehot</span> = pd.DataFrame(onehot, columns=individuals, index=umi_qc.columns)
+<pre class="src src-ipython" id="org9e8be09"><span class="org-variable-name">individuals</span> = <span class="org-builtin">sorted</span>(annotations[<span class="org-string">'chip_id'</span>].unique())
+<span class="org-variable-name">onehot</span> = np.zeros((umi.shape[1], <span class="org-builtin">len</span>(individuals)), dtype=np.float32)
+onehot[np.arange(onehot.shape[0]),annotations[<span class="org-string">'chip_id'</span>].<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: individuals.index(x))] = 1
+<span class="org-variable-name">onehot</span> = pd.DataFrame(onehot, columns=individuals, index=umi.columns)
 onehot.shape
 </pre>
 </div>
 
 <pre class="example">
-(3100, 32)
+(4985, 54)
 
 </pre>
 
@@ -404,151 +386,35 @@ Check that one-hot encoding is OK:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython">(umi_qc.loc[<span class="org-string">'ENSG00000000003'</span>, (annotations_qc[<span class="org-string">'chip_id'</span>] == <span class="org-string">'NA18489'</span>).values] == 
- umi_qc.loc[<span class="org-string">'ENSG00000000003'</span>, onehot.dot(np.eye(onehot.shape[1])[0]).astype(<span class="org-builtin">bool</span>)]).<span class="org-builtin">all</span>()
-</pre>
-</div>
-
-<pre class="example">
-True
-
-</pre>
-
-<div class="org-src-container">
-<pre class="src src-ipython">umi_qc.to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/umi-qc.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython">onehot.to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/onehot-qc.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython">annotations_qc.to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/annotations-qc.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
+<pre class="src src-ipython"><span class="org-keyword">for</span> _ <span class="org-keyword">in</span> <span class="org-builtin">range</span>(100):
+  <span class="org-variable-name">gene</span> = np.random.choice(umi.index)
+  <span class="org-variable-name">ind</span> = np.random.choice(individuals)
+  <span class="org-variable-name">idx</span> = individuals.index(ind)
+  <span class="org-keyword">assert</span> (umi.loc[gene, (annotations[<span class="org-string">'chip_id'</span>] == ind).values] == 
+          umi.loc[gene, onehot.dot(np.eye(onehot.shape[1])[idx]).astype(<span class="org-builtin">bool</span>)]).<span class="org-builtin">all</span>()
 </pre>
 </div>
 </div>
 </div>
 
-<div id="outline-container-orgde19fe3" class="outline-2">
-<h2 id="orgde19fe3">Read the data</h2>
-<div class="outline-text-2" id="text-orgde19fe3">
-<div class="org-src-container">
-<pre class="src src-ipython" id="org6243a93"><span class="org-variable-name">umi</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/umi-qc.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
-<span class="org-variable-name">onehot</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/onehot-qc.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
-<span class="org-variable-name">annotations</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/annotations-qc.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
-</pre>
-</div>
-</div>
-</div>
-
-<div id="outline-container-org978d4fc" class="outline-2">
-<h2 id="org978d4fc">Serial algorithm</h2>
-<div class="outline-text-2" id="text-org978d4fc">
-<p>
-Optimize each pair of mean/dispersion parameters by sequentially considering
-each subset of the data (set of cells per gene per individual). Use
-<code>multiprocessing</code> to parallelize this over chunks of genes.
-</p>
-
-<p>
-Optimize the negative log-likelihood using BFGS.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">nll</span>(theta, x, size):
-  <span class="org-variable-name">mean</span>, <span class="org-variable-name">inv_disp</span> = np.exp(theta)
-  <span class="org-variable-name">mean</span> *= size
-  <span class="org-keyword">assert</span> mean.shape == x.shape
-  <span class="org-keyword">return</span> -(x * np.log(mean / inv_disp + 1e-8) -
-           x * np.log(1 + mean / inv_disp + 1e-8) -
-           inv_disp * np.log(1 + mean / inv_disp + 1e-8) +
-           scipy.special.gammaln(x + inv_disp) -
-           scipy.special.gammaln(inv_disp) -
-           scipy.special.gammaln(x + 1)).<span class="org-builtin">sum</span>()
-
-<span class="org-keyword">def</span> <span class="org-function-name">fit_scipy</span>(x, size):
-  <span class="org-variable-name">res</span> = scipy.optimize.minimize(fun=nll, x0=[0, 0], args=(x, size), tol=1e-4)
-  <span class="org-keyword">if</span> res.success:
-    <span class="org-keyword">return</span> <span class="org-builtin">tuple</span>(res.x)
-  <span class="org-keyword">else</span>:
-    <span class="org-keyword">return</span> (<span class="org-builtin">float</span>(<span class="org-string">'nan'</span>), <span class="org-builtin">float</span>(<span class="org-string">'nan'</span>))
-
-<span class="org-keyword">def</span> <span class="org-function-name">process_chunk</span>(x, size):
-  <span class="org-variable-name">res</span> = pd.DataFrame([(gene, k) + fit_scipy(row.loc[g].values, size.loc[g].values)
-                       <span class="org-keyword">for</span> gene, row <span class="org-keyword">in</span> x.iterrows()
-                       <span class="org-keyword">for</span> k, g <span class="org-keyword">in</span> row.groupby(annotations[<span class="org-string">'chip_id'</span>].values).groups.items()])
-  <span class="org-variable-name">res.columns</span> = [<span class="org-string">'gene'</span>, <span class="org-string">'individual'</span>, <span class="org-string">'mean'</span>, <span class="org-string">'dispersion'</span>]
-  res.set_index(<span class="org-string">'gene'</span>, inplace=<span class="org-constant">True</span>)
-  <span class="org-keyword">return</span> res
-</pre>
-</div>
-
-<p>
-Output record-like data for each parameter to make reassembling the result
-easier.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">process_chunk(umi.iloc[:5], size).head()
-</pre>
-</div>
-
-<pre class="example">
-individual      mean  dispersion
-gene
-ENSG00000000003    NA18519 -8.223728    2.564775
-ENSG00000000003    NA18862 -8.406216    2.263670
-ENSG00000000003    NA19093 -8.339645    2.393590
-ENSG00000000003    NA19128 -8.479335    2.293822
-ENSG00000000003    NA18852 -8.609513    2.454818
-</pre>
-
-<div class="org-src-container">
-<pre class="src src-ipython">Out[90].pivot(columns=<span class="org-string">'individual'</span>, values=<span class="org-string">'mean'</span>) 
-</pre>
-</div>
-
-<pre class="example">
-individual        NA18519   NA18852   NA18862   NA19093   NA19128
-gene
-ENSG00000000003 -8.223728 -8.609513 -8.406216 -8.339645 -8.479335
-</pre>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">f</span> = functools.partial(process_chunk, size=umi.agg(np.<span class="org-builtin">sum</span>))
-<span class="org-keyword">with</span> mp.Pool() <span class="org-keyword">as</span> pool:
-  <span class="org-variable-name">result</span> = pd.concat(pool.<span class="org-builtin">map</span>(f, np.array_split(umi, 100)))
-
-<span class="org-variable-name">log_mean</span> = result.pivot(columns=<span class="org-string">'individual'</span>, values=<span class="org-string">'mean'</span>)
-<span class="org-variable-name">log_disp</span> = result.pivot(columns=<span class="org-string">'individual'</span>, values=<span class="org-string">'dispersion'</span>) 
-
-log_mean.to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/mean.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
-log_disp.to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/disp.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
-</pre>
-</div>
-</div>
-</div>
-
-<div id="outline-container-org21f6e33" class="outline-2">
-<h2 id="org21f6e33">Parallel algorithm</h2>
-<div class="outline-text-2" id="text-org21f6e33">
+<div id="outline-container-org269d03c" class="outline-2">
+<h2 id="org269d03c">Tensorflow implementation</h2>
+<div class="outline-text-2" id="text-org269d03c">
 <p>
 We optimize all of the parameters together, using one-hot encoding to map
 parameters to data points. This makes inference more amenable to running on
 the GPU. Although this is slower for the NB estimation problem, it will be
-faster for the ZINB estimation problem when parameters are shared between
-genes and we need to operate on the entire count matrix.
+faster for the ZINB estimation problem when parameters are shared and we need
+to operate on the entire count matrix.
 </p>
 
 <p>
-Use tensorflow to automatically differentiate the negative log likelihood and
+Use <code>tensorflow</code> to automatically differentiate the negative log likelihood and
 perform gradient descent.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org5083854"><span class="org-keyword">def</span> <span class="org-function-name">sigmoid</span>(x):
+<pre class="src src-ipython" id="org9a4aea9"><span class="org-keyword">def</span> <span class="org-function-name">sigmoid</span>(x):
   <span class="org-doc">"""Numerically safe sigmoid"""</span>
   <span class="org-keyword">return</span> tf.clip_by_value(tf.sigmoid(x), -13, 13)
 
@@ -586,7 +452,7 @@ perform gradient descent.
   <span class="org-variable-name">case_non_zero</span> = -tf.nn.softplus(logodds) + nb_llik(x, mean, inv_disp)
   <span class="org-keyword">return</span> tf.where(tf.less(x, 1e-8), case_zero, case_non_zero)
 
-<span class="org-keyword">def</span> <span class="org-function-name">fit</span>(umi, onehot, size_factor, zero_inflation=<span class="org-constant">False</span>, learning_rate=1e-2, max_epochs=1000):
+<span class="org-keyword">def</span> <span class="org-function-name">fit</span>(umi, onehot, size_factor, gene_dropout=<span class="org-constant">False</span>, ind_dropout=<span class="org-constant">False</span>, learning_rate=1e-2, max_epochs=1000):
   <span class="org-doc">"""Return estimated log mean and log dispersion. </span>
 
 <span class="org-doc">  If fitting a zero-inflated model, additionally return dropout log odds.</span>
@@ -614,25 +480,27 @@ perform gradient descent.
     <span class="org-variable-name">mean</span> = tf.exp(tf.Variable(tf.zeros([m, p])))
     <span class="org-variable-name">inv_disp</span> = tf.exp(tf.Variable(tf.zeros([m, p])))
 
-    <span class="org-keyword">if</span> zero_inflation:
-      <span class="org-variable-name">dropout</span> = tf.Variable(tf.zeros([n, p]))
+    <span class="org-keyword">if</span> gene_dropout:
+      <span class="org-keyword">if</span> ind_dropout:
+        <span class="org-variable-name">dropout_params</span> = tf.Variable(tf.zeros([m, p]))
+        <span class="org-variable-name">dropout</span> = tf.matmul(onehot, dropout_params)
+      <span class="org-keyword">else</span>:
+        <span class="org-variable-name">dropout_params</span> = tf.Variable(tf.zeros([1, p]))
+        <span class="org-variable-name">dropout</span> = dropout_params
       <span class="org-variable-name">llik</span> = tf.reduce_mean(
         zinb_llik(umi, size_factor * tf.matmul(onehot, mean),
                   tf.matmul(onehot, inv_disp), dropout))
+    <span class="org-keyword">elif</span> ind_dropout:
+      <span class="org-keyword">raise</span> <span class="org-type">ValueError</span>(<span class="org-string">'Cannot specify individual-specific dropout without gene-specific dropout'</span>)
     <span class="org-keyword">else</span>:
       <span class="org-variable-name">llik</span> = tf.reduce_sum(
         nb_llik(umi, size_factor * tf.matmul(onehot, mean),
                 tf.matmul(onehot, inv_disp)))
 
-    <span class="org-keyword">with</span> graph.device(<span class="org-string">'/cpu:0'</span>):
-      <span class="org-variable-name">check_op</span> = tf.assert_non_positive(llik)
-
-    <span class="org-keyword">with</span> tf.control_dependencies([check_op]):
-      <span class="org-variable-name">train</span> = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(-llik)
-
+    <span class="org-variable-name">train</span> = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(-llik)
     <span class="org-variable-name">opt</span> = [tf.log(mean), -tf.log(inv_disp)]
-    <span class="org-keyword">if</span> zero_inflation:
-      opt.append(dropout)
+    <span class="org-keyword">if</span> gene_dropout:
+      opt.append(dropout_params)
     <span class="org-variable-name">curr</span> = <span class="org-builtin">float</span>(<span class="org-string">'-inf'</span>)
     <span class="org-keyword">with</span> tf.Session() <span class="org-keyword">as</span> sess:
       sess.run(tf.global_variables_initializer())
@@ -645,70 +513,12 @@ perform gradient descent.
       <span class="org-keyword">return</span> sess.run(opt)
 </pre>
 </div>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">mean</span>, <span class="org-variable-name">dispersion</span> = fit(
-  umi=umi.values.T.astype(np.float32),
-  onehot=onehot.values.astype(np.float32),
-  size_factor=umi.agg(np.<span class="org-builtin">sum</span>).astype(np.float32).values.reshape(-1, 1),
-  learning_rate=1e-2,
-  max_epochs=8000)
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython">pd.DataFrame(mean.T, index=umi.index, columns=onehot.columns).to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/mean2.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
-pd.DataFrame(dispersion.T, index=umi.index, columns=onehot.columns).to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/dispersion2.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">mean</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/mean.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
-<span class="org-variable-name">mean2</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/mean2.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
-</pre>
-</div>
-
-<p>
-Check how close the estimated parameters are.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">(np.isclose(mean.values, mean2.values)).<span class="org-builtin">all</span>()
-</pre>
-</div>
-
-<pre class="example">
-False
-
-</pre>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">mask</span> = np.where(np.logical_and(np.isfinite(mean.values), ~np.isclose(mean.values, mean2.values)))
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython">pd.Series(<span class="org-builtin">abs</span>(mean.values[mask] - mean2.values[mask])).describe()
-</pre>
-</div>
-
-<pre class="example">
-count    5685.000000
-mean        0.000546
-std         0.000889
-min         0.000054
-25%         0.000165
-50%         0.000302
-75%         0.000623
-max         0.030600
-dtype: float64
-</pre>
 </div>
 </div>
 
-<div id="outline-container-org7363c08" class="outline-2">
-<h2 id="org7363c08">Visualize the fitted models</h2>
-<div class="outline-text-2" id="text-org7363c08">
+<div id="outline-container-orge3a2968" class="outline-2">
+<h2 id="orge3a2968">Quantile-quantile diagnostic plot</h2>
+<div class="outline-text-2" id="text-orge3a2968">
 <p>
 The challenge in visualizing the fitted distributions is that the
 observations \(r_{ijk}\) are not drawn iid. from a distribution
@@ -721,22 +531,89 @@ likelihood to estimate distributions \(\hat{g}_{ijk}\).
 </p>
 
 <p>
-We can use an idea from <code>ashr</code>: Let \(\hat{G}_{ijk}\) denote the CDF of
-\(\hat{g}_{ijk}\). Then, the distribution of values
-\(\hat{G}_{ijk}(r_{ijk})\) should be uniform.
+We can use the probability integral transform to develop a diagnostic (as in
+<code>ashr</code>): Let \(\hat{G}_{ijk}\) denote the CDF of \(\hat{g}_{ijk}\). Then, the
+distribution of values \(\hat{G}_{ijk}(r_{ijk})\) should be uniform.
+</p>
+
+<p>
+In the case of modeling dropout, the CDF is discontinuous due to the point
+mass on zero, which we can observe using a point-normal mixture:
+</p>
+
+<p>
+\[ x \sim \pi \delta(x) + (1 - \pi) N(0, 1) \]
+</p>
+
+<p>
+\[ \Pr(X < x) = \pi 1_{x > 0} + (1 - \pi) \Phi(x) \]
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">estimated_cdf</span>(x, mean, disp, size, onehot):
+<pre class="src src-ipython"><span class="org-variable-name">N</span> = 1000
+<span class="org-variable-name">G</span> = st.norm()
+<span class="org-variable-name">observations</span> = G.rvs(size=N) * (np.random.uniform(size=N) &lt; 0.5)
+<span class="org-variable-name">quantiles</span> = .5 * (observations &gt; 0) + .5 * G.cdf(observations)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.hist(quantiles, bins=50, color=<span class="org-string">'k'</span>)
+plt.xlabel(<span class="org-string">'Estimated quantile'</span>)
+<span class="org-variable-name">_</span> = plt.ylabel(<span class="org-string">'Number of observations'</span>)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/zinb.org/point-normal-cdf.png" alt="point-normal-cdf.png">
+</p>
+</div>
+
+<p>
+In this case, we can instead compute a randomized quantile, which will be
+uniform in expectation.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">rand_quantiles</span> = G.cdf(observations) + np.random.uniform(size=N) * np.isclose(observations, 0)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.hist(rand_quantiles, color=<span class="org-string">'k'</span>, bins=50)
+plt.xlabel(<span class="org-string">'Estimated quantile'</span>)
+<span class="org-variable-name">_</span> = plt.ylabel(<span class="org-string">'Number of observations'</span>)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/zinb.org/point-normal-diagnostic.png" alt="point-normal-diagnostic.png">
+</p>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">estimated_cdf</span>(x, mean, disp, size, onehot, gene_dropout=<span class="org-constant">None</span>, ind_dropout=<span class="org-constant">None</span>):
   <span class="org-variable-name">n</span> = onehot.dot(np.exp(-disp.values.T) + 1e-8)
   <span class="org-variable-name">p</span> = 1 / (1 + size.to_frame().values * onehot.dot(np.exp(mean.values + disp.values).T))
   <span class="org-keyword">assert</span> (n.values &gt; 0).<span class="org-builtin">all</span>()
   <span class="org-keyword">assert</span> (p.values &gt;= 0).<span class="org-builtin">all</span>()
   <span class="org-keyword">assert</span> (p.values &lt;= 1).<span class="org-builtin">all</span>()
-  <span class="org-keyword">return</span> st.nbinom(n=n, p=p).cdf(x)
+  <span class="org-variable-name">G</span> = st.nbinom(n=n, p=p).cdf(x)
+  <span class="org-keyword">if</span> gene_dropout <span class="org-keyword">is</span> <span class="org-keyword">not</span> <span class="org-constant">None</span>:
+    <span class="org-variable-name">G</span> *= sp.expit(-gene_dropout.values.T)
+    <span class="org-variable-name">G</span> += sp.expit(gene_dropout.values.T)
+  <span class="org-keyword">elif</span> ind_dropout <span class="org-keyword">is</span> <span class="org-keyword">not</span> <span class="org-constant">None</span>:
+    <span class="org-variable-name">G</span> *= onehot.dot(sp.expit(-ind_dropout.values.T))
+    <span class="org-variable-name">G</span> += onehot.dot(sp.expit(ind_dropout.values.T))
+  <span class="org-keyword">assert</span> (G &lt;= 1).<span class="org-builtin">all</span>()
+  <span class="org-keyword">return</span> G
 
-<span class="org-keyword">def</span> <span class="org-function-name">diagnostic</span>(umi, mean, disp, size, onehot):
-  <span class="org-variable-name">q</span> = estimated_cdf(umi.values.T, mean, disp, size, onehot)
+<span class="org-keyword">def</span> <span class="org-function-name">diagnostic</span>(umi, mean, disp, size, onehot, **kwargs):
+  <span class="org-variable-name">q</span> = estimated_cdf(umi.values.T, mean, disp, size, onehot, **kwargs)
   plt.clf()
   plt.scatter(x=np.linspace(0, 1, q.shape[0]),
               y=<span class="org-builtin">sorted</span>(q.ravel()),
@@ -749,13 +626,62 @@ We can use an idea from <code>ashr</code>: Let \(\hat{G}_{ijk}\) denote the CDF 
 </div>
 
 <p>
-Look at a particular gene:
+Look at the quantiles of the QQ plots over all genes:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">diagnostic_quantiles</span>(umi, mean, disp, size, onehot, quantiles=<span class="org-constant">None</span>, **kwargs):
+  <span class="org-keyword">if</span> quantiles <span class="org-keyword">is</span> <span class="org-constant">None</span>:
+    <span class="org-variable-name">quantiles</span> = np.array([.05, .25, .5, .75, .95])
+  <span class="org-keyword">else</span>:
+    <span class="org-variable-name">quantiles</span> = np.array(quantiles)
+    <span class="org-keyword">assert</span> (0 &lt;= quantiles &lt;= 1).<span class="org-builtin">all</span>()
+  <span class="org-variable-name">cdf</span> = np.sort(estimated_cdf(umi.values.T, mean, disp, size, onehot, **kwargs).T)
+  <span class="org-variable-name">cdf_quantiles</span> = np.percentile(cdf, 100 * quantiles, interpolation=<span class="org-string">'higher'</span>, axis=0)
+
+  plt.clf()
+  <span class="org-keyword">for</span> q, row <span class="org-keyword">in</span> <span class="org-builtin">zip</span>(quantiles, cdf_quantiles):
+    plt.scatter(x=np.linspace(0, 1, row.shape[0]), y=row, c=colorcet.cm[<span class="org-string">'kbc'</span>](q), s=.5, label=q)
+  plt.plot([0, 1], [0, 1], c=<span class="org-string">'r'</span>, ls=<span class="org-string">'dashed'</span>)
+  plt.legend()
+  plt.xlabel(<span class="org-string">'Expected quantile'</span>)
+  plt.ylabel(<span class="org-string">'Estimated quantile'</span>)
+</pre>
+</div>
+</div>
+</div>
+
+<div id="outline-container-org1429fd2" class="outline-2">
+<h2 id="org1429fd2">Fit NB</h2>
+<div class="outline-text-2" id="text-org1429fd2">
+<p>
+Estimate means and dispersions assuming no dropout.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">&lt;&lt;zinb-imports&gt;&gt;
+&lt;&lt;tf-imports&gt;&gt;
+&lt;&lt;zinb-impl&gt;&gt;
+&lt;&lt;read-data-qc&gt;&gt;
+&lt;&lt;onehot-qc&gt;&gt;
+<span class="org-variable-name">mean</span>, <span class="org-variable-name">dispersion</span> = fit(
+  umi=umi.values.T.astype(np.float32),
+  onehot=onehot.values.astype(np.float32),
+  size_factor=umi.agg(np.<span class="org-builtin">sum</span>).astype(np.float32).values.reshape(-1, 1),
+  learning_rate=1e-2,
+  max_epochs=8000)
+pd.DataFrame(mean.T, index=umi.index, columns=onehot.columns).to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/mean2.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
+pd.DataFrame(dispersion.T, index=umi.index, columns=onehot.columns).to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/dispersion2.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
+</pre>
+</div>
+
+<p>
+Check the goodness of fit.
 </p>
 
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-variable-name">mean</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/mean2.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
 <span class="org-variable-name">disp</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/dispersion2.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
-<span class="org-variable-name">size</span> = umi.agg(np.<span class="org-builtin">sum</span>)
 </pre>
 </div>
 
@@ -772,35 +698,11 @@ Look at a particular gene:
 
 <p>
 The estimated quantiles are higher than the expected quantiles, suggesting
-that the estimated distributions have too much density at lower values. One
-explanation is that even for this stringent subset of genes, means are biased
-downwards and dispersions are biased upwards due to zero-inflation. If this
-were the case, then we should expect to find some genes which depart even
-more from uniform quantiles.
+that the estimated distributions have too much density at lower values. This
+result is explained by the fact that means are biased downwards and
+dispersions are biased upwards due to zero-inflation. Accordingly, we expect
+to find some genes which depart even more from uniform quantiles.
 </p>
-
-<p>
-Look at the quantiles of the QQ plots over all genes:
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">diagnostic_quantiles</span>(umi, mean, disp, size, onehot, quantiles=<span class="org-constant">None</span>):
-  <span class="org-keyword">if</span> quantiles <span class="org-keyword">is</span> <span class="org-constant">None</span>:
-    <span class="org-variable-name">quantiles</span> = np.array([.1, .25, .5, .75, .99])
-  <span class="org-keyword">else</span>:
-    <span class="org-variable-name">quantiles</span> = np.array(quantiles)
-    <span class="org-keyword">assert</span> (0 &lt;= quantiles &lt;= 1).<span class="org-builtin">all</span>()
-  <span class="org-variable-name">cdf</span> = np.sort(estimated_cdf(umi.values.T, mean, disp, size, onehot).T)
-  <span class="org-variable-name">cdf_quantiles</span> = np.percentile(cdf, 100 * quantiles, interpolation=<span class="org-string">'higher'</span>, axis=0)
-
-  plt.clf()
-  <span class="org-keyword">for</span> q, row <span class="org-keyword">in</span> <span class="org-builtin">zip</span>(quantiles, cdf_quantiles):
-    plt.scatter(x=np.linspace(0, 1, row.shape[0]), y=row, c=colorcet.cm[<span class="org-string">'kbc'</span>](q), s=.5, label=q)
-  plt.legend()
-  plt.xlabel(<span class="org-string">'Expected quantile'</span>)
-  plt.ylabel(<span class="org-string">'Estimated quantile'</span>)
-</pre>
-</div>
 
 <div class="org-src-container">
 <pre class="src src-ipython">diagnostic_quantiles(umi, mean, disp, size, onehot)
@@ -812,207 +714,106 @@ Look at the quantiles of the QQ plots over all genes:
 <p><img src="figure/zinb.org/nb-quantiles-dist.png" alt="nb-quantiles-dist.png">
 </p>
 </div>
+</div>
+</div>
 
+<div id="outline-container-orga8ab6f4" class="outline-2">
+<h2 id="orga8ab6f4">Fit ZINB</h2>
+<div class="outline-text-2" id="text-orga8ab6f4">
 <p>
-We can also compare the histogram of the observed data to the average density
-\(\bar{g}\):
-</p>
-
-<p>
-\[ \bar{g}(x) = \frac{1}{N} \sum_{i,j,k} \hat{g}_{ijk}(x) \]
-</p>
-
-<p>
-Following <code>locfdr</code>, we plot the expected number of draws from \(\bar{g}\),
-assuming the number of draws in the interval \([a, b]\) is
-\(\mathrm{Bin}(N, \bar{G}(b) - \bar{G}(a))\), where \(N\) is the total number
-of observations and \(\bar{G}\) is the average CDF:
-</p>
-
-<p>
-\[ \bar{G}(x) = \frac{1}{N} \sum_{i,j,k} \hat{G}_{ijk}(x) \]
-</p>
-
-<p>
-The data distribution has an extremely long tail, so truncate it to make the
-majority of the fit easier to see:
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">query</span> = (pd.Series([50, 75, 90, 95, 99])
-         .<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: np.percentile(umi.values.ravel(), x))
-         .to_frame()
-         .rename_axis(<span class="org-string">'Percentile'</span>, axis=<span class="org-string">'index'</span>))
-<span class="org-variable-name">query.columns</span> = [<span class="org-string">'UMI'</span>]
-query
-</pre>
-</div>
-
-<pre class="example">
-UMI
-Percentile
-50           4.0
-75           9.0
-90          19.0
-95          32.0
-99          98.0
-</pre>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">expected_counts</span>(umi, mean, disp, size, onehot, grid):
-  <span class="org-variable-name">data</span> = umi.values.ravel()
-  <span class="org-variable-name">average_cdf</span> = [np.mean(estimated_cdf(g, mean, disp, size, onehot)) <span class="org-keyword">for</span> g <span class="org-keyword">in</span> grid]
-  <span class="org-keyword">return</span> data.shape[0] * np.diff(average_cdf)
-
-<span class="org-keyword">def</span> <span class="org-function-name">plot_fit</span>(umi, expected_counts, grid):
-  <span class="org-variable-name">data</span> = umi.values.ravel()
-  plt.clf()
-  plt.hist(data[data &lt;= grid.<span class="org-builtin">max</span>()], bins=grid, color=<span class="org-string">'k'</span>)
-  plt.plot(grid[1:] - 0.5, expected_counts, c=<span class="org-string">'r'</span>)
-  plt.xticks(grid)
-  plt.xlabel(<span class="org-string">'UMI count'</span>)
-  plt.ylabel(<span class="org-string">'Frequency'</span>)
-</pre>
-</div>
-
-<p>
-The model appears to be zero-biased as expected:
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">grid</span> = np.arange(20)
-<span class="org-variable-name">exp_counts</span> = expected_counts(umi, mean, disp, size, onehot, grid)
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython">plot_fit(umi, exp_counts, grid)
-</pre>
-</div>
-
-
-<div class="figure">
-<p><img src="figure/zinb.org/nb-hist.png" alt="nb-hist.png">
-</p>
-</div>
-
-<p>
-We can also visualize the quantiles of \(\bar{g}\):
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">predicted_counts</span>(umi, mean, disp, size, onehot, grid, quantiles=<span class="org-constant">None</span>):
-  <span class="org-keyword">if</span> quantiles <span class="org-keyword">is</span> <span class="org-constant">None</span>:
-    <span class="org-variable-name">quantiles</span> = [.1, .25, .5, .75, .99]
-  <span class="org-keyword">else</span>:
-    <span class="org-variable-name">quantiles</span> = np.atleast_1d(np.array(quantiles))
-    <span class="org-keyword">assert</span> (0 &lt;= quantiles).<span class="org-builtin">all</span>()
-    <span class="org-keyword">assert</span> (quantiles &lt;= 1).<span class="org-builtin">all</span>()
-  <span class="org-variable-name">data</span> = umi.values.ravel()
-  <span class="org-variable-name">cdf</span> = np.array([np.percentile(estimated_cdf(g, mean, disp, size, onehot), 100 * quantiles) <span class="org-keyword">for</span> g <span class="org-keyword">in</span> grid]).T
-  <span class="org-keyword">return</span> data.shape[0] * np.diff(cdf)
-
-<span class="org-keyword">def</span> <span class="org-function-name">plot_fit_quantiles</span>(umi, predicted_counts, quantiles, grid):
-  <span class="org-variable-name">data</span> = umi.values.ravel()
-  plt.clf()
-  plt.hist(data[data &lt;= grid.<span class="org-builtin">max</span>()], bins=grid, color=<span class="org-string">'k'</span>)
-  <span class="org-keyword">for</span> q, row <span class="org-keyword">in</span> <span class="org-builtin">zip</span>(quantiles, predicted_counts):
-    plt.plot(grid[1:] - 0.5, row, c=colorcet.cm[<span class="org-string">'linear_kry_5_95_c72'</span>](q), label=q)
-  plt.legend()
-  plt.xticks(grid)
-  plt.xlabel(<span class="org-string">'UMI count'</span>)
-  plt.ylabel(<span class="org-string">'Frequency'</span>)
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">grid</span> = np.arange(20)
-<span class="org-variable-name">quantiles</span> = [.1, .25, .5, .75, .99]
-<span class="org-variable-name">pred_counts</span> = predicted_counts(umi, mean, disp, size, onehot, grid, quantiles)
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython">plot_fit_quantiles(umi, pred_counts, quantiles, grid)
-</pre>
-</div>
-
-
-<div class="figure">
-<p><img src="figure/zinb.org/nb-hist-quantiles.png" alt="nb-hist-quantiles.png">
-</p>
-</div>
-</div>
-</div>
-
-<div id="outline-container-org9ee0e04" class="outline-2">
-<h2 id="org9ee0e04">Compare NB to ZINB</h2>
-<div class="outline-text-2" id="text-org9ee0e04">
-<p>
-Restrict to the genes which are detected in &gt;70% of samples and estimate the
-parameters of the zero-inflated model.
+Estimate the parameters of the zero-inflated model assuming dropout per gene.
 </p>
 
 <div class="org-src-container">
 <pre class="src src-ipython">&lt;&lt;zinb-imports&gt;&gt;
 &lt;&lt;tf-imports&gt;&gt;
-&lt;&lt;read-data&gt;&gt;
 &lt;&lt;zinb-impl&gt;&gt;
+&lt;&lt;read-data-qc&gt;&gt;
+&lt;&lt;onehot-qc&gt;&gt;
 <span class="org-variable-name">mean</span>, <span class="org-variable-name">dispersion</span>, <span class="org-variable-name">dropout</span> = fit(
   umi=umi.values.T.astype(np.float32),
   onehot=onehot.values.astype(np.float32),
   size_factor=umi.agg(np.<span class="org-builtin">sum</span>).astype(np.float32).values.reshape(-1, 1),
-  zero_inflation=<span class="org-constant">True</span>,
+  gene_dropout=<span class="org-constant">True</span>,
   learning_rate=1e-2,
   max_epochs=8000)
 pd.DataFrame(mean.T, index=umi.index, columns=onehot.columns).to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/zi-mean.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
 pd.DataFrame(dispersion.T, index=umi.index, columns=onehot.columns).to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/zi-dispersion.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
-pd.DataFrame(dropout.T, index=umi.index, columns=umi.columns).to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/zi-dropout.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
+pd.DataFrame(dropout.T, index=umi.index).to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/zi-dropout.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
 </pre>
 </div>
 
 <p>
-Plot the data and fitted distribution for the zero-inflated model.
+Plot the diagnostic for the model.
 </p>
 
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-variable-name">zi_mean</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/zi-mean.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
 <span class="org-variable-name">zi_disp</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/zi-dispersion.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
+<span class="org-variable-name">zi_dropout</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/zi-dropout.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
 </pre>
 </div>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">grid</span> = np.arange(20)
-<span class="org-variable-name">exp_counts</span> = expected_counts(umi, zi_mean, zi_disp, size, onehot, grid)
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython">plot_fit(umi, exp_counts, grid)
+<pre class="src src-ipython">diagnostic_quantiles(umi, zi_mean, zi_disp, size, onehot, gene_dropout=zi_dropout)
 </pre>
 </div>
 
 
 <div class="figure">
-<p><img src="figure/zinb.org/zinb-hist.png" alt="zinb-hist.png">
+<p><img src="figure/zinb.org/zinb-diagnostic.png" alt="zinb-diagnostic.png">
 </p>
 </div>
+</div>
+</div>
+
+<div id="outline-container-org1986c5b" class="outline-2">
+<h2 id="org1986c5b">Fit ZINB2</h2>
+<div class="outline-text-2" id="text-org1986c5b">
+<p>
+Estimate the parameters of the zero-inflated model assuming dropout per
+individual and gene.
+</p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">grid</span> = np.arange(20)
-<span class="org-variable-name">quantiles</span> = [.1, .25, .5, .75, .99]
-<span class="org-variable-name">pred_counts</span> = predicted_counts(umi, zi_mean, zi_disp, size, onehot, grid, quantiles)
+<pre class="src src-ipython">&lt;&lt;zinb-imports&gt;&gt;
+&lt;&lt;tf-imports&gt;&gt;
+&lt;&lt;zinb-impl&gt;&gt;
+&lt;&lt;read-data-qc&gt;&gt;
+&lt;&lt;onehot-qc&gt;&gt;
+<span class="org-variable-name">mean</span>, <span class="org-variable-name">dispersion</span>, <span class="org-variable-name">dropout</span> = fit(
+  umi=umi.values.T.astype(np.float32),
+  onehot=onehot.values.astype(np.float32),
+  size_factor=umi.agg(np.<span class="org-builtin">sum</span>).astype(np.float32).values.reshape(-1, 1),
+  gene_dropout=<span class="org-constant">True</span>,
+  ind_dropout=<span class="org-constant">True</span>,
+  learning_rate=1e-2,
+  max_epochs=8000)
+pd.DataFrame(mean.T, index=umi.index, columns=onehot.columns).to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/zi2-mean.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
+pd.DataFrame(dispersion.T, index=umi.index, columns=onehot.columns).to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/zi2-dispersion.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
+pd.DataFrame(dropout.T, index=umi.index, columns=onehot.columns).to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/zi2-dropout.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
+</pre>
+</div>
+
+<p>
+Plot the data and fitted distribution.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">zi2_mean</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/zi2-mean.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
+<span class="org-variable-name">zi2_disp</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/zi2-dispersion.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
+<span class="org-variable-name">zi2_dropout</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/zi2-dropout.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
 </pre>
 </div>
 
 <div class="org-src-container">
-<pre class="src src-ipython">plot_fit_quantiles(umi, pred_counts, quantiles, grid)
+<pre class="src src-ipython">diagnostic_quantiles(umi, zi2_mean, zi2_disp, size, onehot, ind_dropout=zi2_dropout)
 </pre>
 </div>
 
 
 <div class="figure">
-<p><img src="figure/zinb.org/zinb-hist-quantiles.png" alt="zinb-hist-quantiles.png">
+<p><img src="figure/zinb.org/zinb2-diagnostic.png" alt="zinb2-diagnostic.png">
 </p>
 </div>
 </div>
@@ -1020,7 +821,7 @@ Plot the data and fitted distribution for the zero-inflated model.
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-02-07 Wed 18:51</p>
+<p class="date">Created: 2018-02-24 Sat 11:15</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
