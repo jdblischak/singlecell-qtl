@@ -1,0 +1,163 @@
+---
+title: "Cell cycle gene"
+author: "Po-Yuan Tung"
+date: 2018-02-28
+output: html_document
+---
+
+<!-- The file analysis/chunks.R contains chunks that define default settings
+shared across the workflowr files. -->
+```{r read-chunk, include=FALSE, cache=FALSE}
+knitr::read_chunk("chunks.R")
+```
+
+<!-- Update knitr chunk options -->
+```{r knitr-opts-chunk, include=FALSE}
+```
+
+<!-- Insert the date the file was last updated -->
+```{r last-updated, echo=FALSE, results='asis'}
+```
+
+<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
+ package git2r is installed -->
+```{r code-version, echo=FALSE, results='asis'}
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setup
+
+```{r packages, message=FALSE}
+library("dplyr")
+library("edgeR")
+library("knitr")
+library("scde")
+source("../code/functions.R")
+library("Biobase") # has to be loaded last to use `combine`
+```
+
+Import data.
+
+```{r import}
+eset <- readRDS("../data/eset.rds")
+dim(eset)
+```
+
+Keep human genes and ERCC
+```{r human-genes}
+eset <- eset[fData(eset)$source %in% c("H. sapiens", "ERCC") , ]
+dim(eset) 
+```
+
+Only keep high-quality single cells.
+
+```{r quality-cell}
+quality <- read.table("../data/quality-single-cells.txt", stringsAsFactors = FALSE)
+colnames(quality) <- c("sample", "quality")
+eset <- eset[, quality$quality]
+dim(eset)
+```
+
+Remove zeros.
+
+```{r remove-zeros}
+eset <- eset[rowSums(exprs(eset)) != 0, ]
+dim(eset)
+```
+
+Convert to log2 counts per million.
+
+```{r hist}
+log2cpm <- cpm(exprs(eset), log = TRUE)
+dim(log2cpm)
+```
+
+Filter for cell cycle gene
+
+```{r filter}
+## input cell cycle gene Gene sets reflecting 5 cell cycle phases were taken from Table S2 of Macosko2015 Gene ID conversion was done by using the DAVID http://david.abcc.ncifcrf.gov
+
+cell_cycle_genes <- read.table("../data/cellcyclegenes.txt", header = TRUE, sep="\t")
+
+## keep only cell cycle gene
+log2cpm_cycle <- log2cpm[rownames(log2cpm) %in% unlist(cell_cycle_genes),]
+dim(log2cpm_cycle)
+
+heatmap(log2cpm_cycle)
+```
+
+## Pagoda
+
+```{r varinfo}
+# We will set the associated weights to 1 for all observations in all cells and calculated variances for each gene
+
+# Set all weights to 1
+N <- nrow(log2cpm_cycle)
+M <- ncol(log2cpm_cycle)
+log2cpm_cycle_w <- matrix(1, N, M)
+rownames(log2cpm_cycle_w) <- rownames(log2cpm_cycle)
+colnames(log2cpm_cycle_w) <- colnames(log2cpm_cycle)
+
+# Regular variance since equal weights anyway
+log2cpm_cycle_var <- apply(log2cpm_cycle, 1, var)
+
+# Create varinfo object to pipe into PAGODA
+varinfo <- list('mat' = log2cpm_cycle, 'matw' = log2cpm_cycle_w, 'arv' = log2cpm_cycle_var)
+```
+
+```{r create-go}
+library(biomaRt)
+library(GO.db)
+
+# Initialize the connection to the Ensembl BioMart Service
+# Available datasets can be listed with 
+# listDatasets(useMart("ENSEMBL_MART_ENSEMBL", host="www.ensembl.org"))
+# Use mmusculus_gene_ensembl for mouse
+ensembl <- useMart("ENSEMBL_MART_ENSEMBL", dataset = "hsapiens_gene_ensembl", host="www.ensembl.org")
+
+# Constructs a dataframe with two columns: hgnc_symbol and go_id
+# If rownames are Ensembl IDs, use ensembl_gene_id as filter value
+go <- getBM(attributes = c("ensembl_gene_id", "go_id"), filters = "ensembl_gene_id", values = rownames(log2cpm_cycle), mart = ensembl)
+
+# Use the GO.db library to add a column with the GO-term to the dataframe
+go$term <- Term(go$go_id)
+
+# Create a named list of character vectors out of the df
+s = split(go$ensembl_gene_id, paste(go$go_id,go$term))
+
+# Saves the list as a R environment
+go.env <- list2env(s)
+
+# Test
+class(go.env)
+```
+
+```{r pagoda}
+# Run PAGODA with generated data
+pwpca <- pagoda.pathway.wPCA(varinfo, go.env, n.components = 1, batch.center = FALSE)
+df <- pagoda.top.aspects(pwpca, return.table = TRUE, plot = TRUE, z.score = 1.96)
+df$name
+
+# get full info on the top aspects
+tam <- pagoda.top.aspects(pwpca, n.cells = NULL, z.score = qnorm(0.01/2, lower.tail = FALSE))
+
+# determine overall cell clustering
+hc <- pagoda.cluster.cells(tam, varinfo)
+
+# combine pathways that are driven by the same sets of genes
+tamr <- pagoda.reduce.loading.redundancy(tam, pwpca)
+
+# combine aspects that show similar patterns
+tamr2 <- pagoda.reduce.redundancy(tamr, distance.threshold = 0.9, plot = TRUE, cell.clustering = hc, labRow = NA, labCol = NA, box = TRUE, margins = c(0.5, 0.5), trim = 0)
+
+# view the top aspects, clustering them by pattern similarity
+col.cols <- rbind(groups = cutree(hc, 5))
+pagoda.view.aspects(tamr2, cell.clustering = hc, box = TRUE, labCol = NA, margins = c(0.5, 20), col.cols = col.cols)
+
+# get cell cycle signature and view the top genes
+pagoda.show.pathways(c("GO:0007049 cell cycle","GO:0051301 cell division"), varinfo, go.env, cell.clustering = hc, margins = c(1,5), show.cell.dendrogram = TRUE, showRowLabels = TRUE, showPC = TRUE)
+```
+
