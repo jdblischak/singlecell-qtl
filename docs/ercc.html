@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+
+
+<meta name="author" content="Po-Yuan Tung" />
+
+<meta name="date" content="2018-02-15" />
+
+<title>ERCC capture efficiency</title>
+
+<script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<script src="site_libs/jqueryui-1.11.4/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<link href="site_libs/font-awesome-4.5.0/css/font-awesome.min.css" rel="stylesheet" />
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+  pre:not([class]) {
+    background-color: white;
+  }
+</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+<style type="text/css">
+h1 {
+  font-size: 34px;
+}
+h1.title {
+  font-size: 38px;
+}
+h2 {
+  font-size: 30px;
+}
+h3 {
+  font-size: 24px;
+}
+h4 {
+  font-size: 18px;
+}
+h5 {
+  font-size: 16px;
+}
+h6 {
+  font-size: 12px;
+}
+.table th:not([align]) {
+  text-align: left;
+}
+</style>
+
+
+</head>
+
+<body>
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+code {
+  color: inherit;
+  background-color: rgba(0, 0, 0, 0.04);
+}
+img {
+  max-width:100%;
+  height: auto;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+</style>
+
+
+<style type="text/css">
+/* padding for bootstrap navbar */
+body {
+  padding-top: 51px;
+  padding-bottom: 40px;
+}
+/* offset scroll position for anchor links (for fixed navbar)  */
+.section h1 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+
+.section h2 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h3 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h4 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h5 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h6 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+</style>
+
+<script>
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark it active
+  menuAnchor.parent().addClass('active');
+
+  // if it's got a parent navbar menu mark it active as well
+  menuAnchor.closest('li.dropdown').addClass('active');
+});
+</script>
+
+
+<div class="container-fluid main-container">
+
+<!-- tabsets -->
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+</script>
+
+<!-- code folding -->
+
+
+
+
+<script>
+$(document).ready(function ()  {
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_').toLowerCase();
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+  padding-left: 25px;
+  text-indent: 0;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row-fluid">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">singlecell-qtl</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Overview</a>
+</li>
+<li>
+  <a href="data-collection.html">Data</a>
+</li>
+<li>
+  <a href="analysis.html">Analysis</a>
+</li>
+<li>
+  <a href="contributing.html">Contributing</a>
+</li>
+<li>
+  <a href="license.html">License</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/jdblischak/singlecell-qtl">
+    <span class="fa fa-github"></span>
+     
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div class="fluid-row" id="header">
+
+
+
+<h1 class="title toc-ignore">ERCC capture efficiency</h1>
+<h4 class="author"><em>Po-Yuan Tung</em></h4>
+<h4 class="date"><em>2018-02-15</em></h4>
+
+</div>
+
+
+<!-- The file analysis/chunks.R contains chunks that define default settings
+shared across the workflowr files. -->
+<!-- Update knitr chunk options -->
+<!-- Insert the date the file was last updated -->
+<p><strong>Last updated:</strong> 2018-03-01</p>
+<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
+ package git2r is installed -->
+<p><strong>Code version:</strong> 6b16d24</p>
+<section id="setup" class="level2">
+<h2>Setup</h2>
+<pre class="r"><code>library(&quot;cowplot&quot;)
+library(&quot;ggplot2&quot;)
+library(&quot;knitr&quot;)
+theme_set(theme_cowplot())
+source(&quot;../code/functions.R&quot;)
+library(&quot;Biobase&quot;) # has to be loaded last to use `combine`</code></pre>
+<p>Import data.</p>
+<pre class="r"><code>eset &lt;- readRDS(&quot;../data/eset.rds&quot;)
+dim(eset)</code></pre>
+<pre><code>Features  Samples 
+   54792     6432 </code></pre>
+<p>Keep only ERCC</p>
+<pre class="r"><code>eset &lt;- eset[fData(eset)$source == &quot;ERCC&quot;, ]
+dim(eset) </code></pre>
+<pre><code>Features  Samples 
+      92     6432 </code></pre>
+<p>Only keep high-quality single cells.</p>
+<pre class="r"><code>quality &lt;- read.table(&quot;../data/quality-single-cells.txt&quot;, stringsAsFactors = FALSE)
+colnames(quality) &lt;- c(&quot;sample&quot;, &quot;quality&quot;)
+eset &lt;- eset[, quality$quality]
+dim(eset)</code></pre>
+<pre><code>Features  Samples 
+      92     4995 </code></pre>
+<p>Remove zeros.</p>
+<pre class="r"><code>eset &lt;- eset[rowSums(exprs(eset)) != 0, ]
+dim(eset)</code></pre>
+<pre><code>Features  Samples 
+      92     4995 </code></pre>
+<p>correct for collision probability.</p>
+<pre class="r"><code>eset_data &lt;- exprs(eset)
+eset_data_cr &lt;- as.data.frame(-4^6*log(1-eset_data/4^6))
+dim(eset_data_cr)</code></pre>
+<pre><code>[1]   92 4995</code></pre>
+</section>
+<section id="expected-molecule-number-of-each-ercc-gene" class="level2">
+<h2>Expected molecule number of each ERCC gene</h2>
+<pre class="r"><code>## input ERCC information
+## from https://www.thermofisher.com/order/catalog/product/4456740
+ercc &lt;- read.table(&quot;../data/ercc-info.txt&quot;, header = TRUE, sep = &quot;\t&quot;,
+                   stringsAsFactors = FALSE)
+colnames(ercc) &lt;- c(&quot;num&quot;, &quot;id&quot;, &quot;subgroup&quot;, &quot;conc_mix1&quot;, &quot;conc_mix2&quot;,
+                    &quot;expected_fc&quot;, &quot;log2_mix1_mix2&quot;)
+head(ercc)</code></pre>
+<pre><code>  num         id subgroup conc_mix1  conc_mix2 expected_fc log2_mix1_mix2
+1   1 ERCC-00130        A 30000.000 7500.00000           4              2
+2   2 ERCC-00004        A  7500.000 1875.00000           4              2
+3   3 ERCC-00136        A  1875.000  468.75000           4              2
+4   4 ERCC-00108        A   937.500  234.37500           4              2
+5   5 ERCC-00116        A   468.750  117.18750           4              2
+6   6 ERCC-00092        A   234.375   58.59375           4              2</code></pre>
+<pre class="r"><code>stopifnot(nrow(ercc) == 92)
+
+## concentration of each ERCC was provided in attomoles per uL
+summary(ercc$conc_mix1)</code></pre>
+<pre><code>     Min.   1st Qu.    Median      Mean   3rd Qu.      Max. 
+    0.014     0.801     7.324  1125.163   117.188 30000.000 </code></pre>
+<pre class="r"><code>## mix 1 was diluted 1:2500 before adding to lysis buffer
+ercc_conc_diluted &lt;- ercc$conc_mix1 / 2500
+
+## 1 ul was added to make 20 ul lysis buffer
+ercc_conc_lysis &lt;- ercc_conc_diluted / 20
+
+## molecule number in the 20 ul lysis buffer
+ercc_molecules_lysis &lt;- ercc_conc_lysis *
+                        20 * # Number of uL of lysis buffer
+                        1/10^18 * # Number of attomoles in a mole
+                        6.02214179e23 # Number of molecules in a mole
+
+## 9 nl of lysis buffer in each cell capture well
+## note: the molecule number is the same as the ones from the table provided by fluidigm
+ercc_molecules_well &lt;- ercc_molecules_lysis * 9e-3 / 20
+summary(ercc_molecules_well)</code></pre>
+<pre><code>    Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
+   0.002    0.087    0.794  121.966   12.703 3251.957 </code></pre>
+<pre class="r"><code>sum(ercc_molecules_well)</code></pre>
+<pre><code>[1] 11220.88</code></pre>
+<pre class="r"><code>sum(ercc_molecules_well &gt;= 1)</code></pre>
+<pre><code>[1] 45</code></pre>
+<pre class="r"><code>## output the expect number per well
+write.table(data.frame(id = ercc$id, conc_mix1 = ercc$conc_mix1, ercc_molecules_well),
+            &quot;../data/expected-ercc-molecules.txt&quot;, sep = &quot;\t&quot;, quote = FALSE,
+            row.names = FALSE)</code></pre>
+</section>
+<section id="ercc-capture-efficiency" class="level2">
+<h2>ERCC capture efficiency</h2>
+<p>Using the code from <a href="http://jdblischak.github.io/singleCellSeq/analysis/qc-plots.html">previous analysis</a></p>
+<pre class="r"><code>## import expected ercc molecule number
+ercc &lt;- read.table(&quot;../data/expected-ercc-molecules.txt&quot;, header = TRUE,
+                   stringsAsFactors = FALSE)
+head(ercc)</code></pre>
+<pre><code>          id conc_mix1 ercc_molecules_well
+1 ERCC-00130 30000.000          3251.95657
+2 ERCC-00004  7500.000           812.98914
+3 ERCC-00136  1875.000           203.24729
+4 ERCC-00108   937.500           101.62364
+5 ERCC-00116   468.750            50.81182
+6 ERCC-00092   234.375            25.40591</code></pre>
+<pre class="r"><code>## calculate efficiency using expected molecule more than 0.5
+ercc_list &lt;- list()
+for (spike in ercc$id[ercc$ercc_molecules_well &gt;= 0.5]) {
+  if (spike %in% rownames(eset_data)) {
+    ercc_list$id &lt;- c(ercc_list$id, spike)
+    ercc_list$observed_mean &lt;- c(ercc_list$observed_mean,
+                                 mean(as.numeric(eset_data[spike, ])))
+    ercc_list$observed_sem &lt;- c(ercc_list$observed_sem,
+                                 sd(as.numeric(eset_data[spike, ])) /
+                                 sqrt(ncol(eset_data)))
+    ercc_list$expected &lt;- c(ercc_list$expected,
+                            ercc$ercc_molecules_well[ercc$id == spike])
+  }
+}
+ercc_plot &lt;- as.data.frame(ercc_list, stringsAsFactors = FALSE)
+str(ercc_plot)</code></pre>
+<pre><code>&#39;data.frame&#39;:   50 obs. of  4 variables:
+ $ id           : chr  &quot;ERCC-00130&quot; &quot;ERCC-00004&quot; &quot;ERCC-00136&quot; &quot;ERCC-00108&quot; ...
+ $ observed_mean: num  760.95 353.95 84.35 43.98 7.94 ...
+ $ observed_sem : num  5.8358 2.4784 0.6528 0.3748 0.0852 ...
+ $ expected     : num  3252 813 203.2 101.6 50.8 ...</code></pre>
+<pre class="r"><code>cor(ercc_plot$observed_mean, ercc_plot$expected)</code></pre>
+<pre><code>[1] 0.946599</code></pre>
+<pre class="r"><code>p_efficiency &lt;- ggplot(ercc_plot, aes(x = expected, y = observed_mean, label = id)) +
+  geom_point(col = &quot;red&quot;) +
+  geom_errorbar(aes(ymin = observed_mean - observed_sem,
+                    ymax = observed_mean + observed_sem), width = 0) +
+  labs(x = &quot;Expected ERCC molecules&quot;,
+       y = &quot;Observed ERCC molecules\n(mean +/- SEM)&quot;,
+       title = &quot;ERCC capture efficiency&quot;)
+p_efficiency</code></pre>
+<p><img src="figure/ercc.Rmd/capture-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>p_efficiency_plot &lt;- p_efficiency + 
+  scale_x_log10() +
+  scale_y_log10() +
+  geom_abline(intercept = 0, alpha = 0.5, col = &quot;red&quot;) +
+  geom_abline(intercept = - 0.50, alpha = 0.5) + 
+  geom_abline(intercept = - 0.99, alpha = 0.5, col =&quot;blue&quot;) +
+  labs(x = &quot;Expected ERCC molecules&quot;,
+       y = &quot;Observed ERCC molecules\n(mean +/- SEM)&quot;,
+       title = &quot;ERCC capture efficiency&quot;) 
+
+p_efficiency_plot</code></pre>
+<p><img src="figure/ercc.Rmd/capture-2.png" width="768" style="display: block; margin: auto;" /></p>
+</section>
+
+<hr>
+<p>
+    This <a href="http://rmarkdown.rstudio.com">R Markdown</a> site was created with <a href="https://github.com/jdblischak/workflowr">workflowr</a>
+</p>
+<hr>
+
+<!-- To enable disqus, uncomment the section below and provide your disqus_shortname -->
+
+<!-- disqus
+  <div id="disqus_thread"></div>
+    <script type="text/javascript">
+        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+        var disqus_shortname = 'rmarkdown'; // required: replace example with your forum shortname
+
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+    <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+    <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+-->
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.header').parent('thead').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
