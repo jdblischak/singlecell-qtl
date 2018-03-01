@@ -49,6 +49,7 @@ dim(eset)
 ```
 
 Keep human genes and ERCC
+
 ```{r human-genes}
 eset <- eset[fData(eset)$source %in% c("H. sapiens", "ERCC") , ]
 dim(eset) 
@@ -60,6 +61,13 @@ Only keep high-quality single cells.
 quality <- read.table("../data/quality-single-cells.txt", stringsAsFactors = FALSE)
 colnames(quality) <- c("sample", "quality")
 eset <- eset[, quality$quality]
+dim(eset)
+```
+
+Use only cells from batch 4
+
+```{r batch4}
+eset <- eset[, eset$batch == "b4"]
 dim(eset)
 ```
 
@@ -85,11 +93,11 @@ dim(eset)
 eset_data <- exprs(eset)
 
 ## try a subset of cells first
-eset_data_sub <- eset_data[,2000:2100]
+eset_data_sub <- eset_data
 dim(eset_data_sub)
 
 ## Fitting error models
-eset_sub_knn <- knn.error.models(eset_data_sub, k = ncol(eset_data_sub)/4, n.cores = 6, min.count.threshold = 1, min.nonfailed = 5, max.model.plots = 10)
+eset_sub_knn <- knn.error.models(eset_data_sub, k = 3, n.cores = 6, min.count.threshold = 1, min.nonfailed = 5, max.model.plots = 10)
 
 ## Normalizing variance
 varinfo_eset_sub <- pagoda.varnorm(eset_sub_knn, counts = eset_data_sub, trim = 3/ncol(eset_data_sub), max.adj.var = 5, n.cores = 1, plot = TRUE)
@@ -98,6 +106,7 @@ varinfo_eset_sub <- pagoda.varnorm(eset_sub_knn, counts = eset_data_sub, trim = 
 sort(varinfo_eset_sub$arv, decreasing = TRUE)[1:10]
 
 ## Controlling for sequencing depth
+## control for the gene coverage (estimated as a number of genes with non-zero magnitude per cell) and normalize out that aspect of cell heterogeneity
 varinfo_dep <- pagoda.subtract.aspect(varinfo_eset_sub, colSums(eset_data_sub[, rownames(eset_sub_knn)]>0))
 ```
 
