@@ -14,6 +14,7 @@ dependencies:
 - bioconductor-iranges
 - bioconductor-limma
 - bioconductor-s4vectors
+- bioconductor-scde=1.99.1
 - fastqc
 - htslib
 - multiqc
@@ -171,6 +172,7 @@ dependencies:
 - r-dplyr
 - r-dt
 - r-evaluate
+- r-flexmix=2.3_13
 - r-foreach
 - r-gdata
 - r-getpass
