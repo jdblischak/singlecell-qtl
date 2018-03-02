@@ -97,10 +97,10 @@ eset_data_sub <- eset_data
 dim(eset_data_sub)
 
 ## Fitting error models
-eset_sub_knn <- knn.error.models(eset_data_sub, k = 3, n.cores = 6, min.count.threshold = 1, min.nonfailed = 5, max.model.plots = 10)
+eset_sub_knn <- knn.error.models(eset_data_sub, k = ncol(eset_data_sub)/4, n.cores = 6, min.count.threshold = 1, min.nonfailed = 5, max.model.plots = 10)
 
 ## Normalizing variance
-varinfo_eset_sub <- pagoda.varnorm(eset_sub_knn, counts = eset_data_sub, trim = 3/ncol(eset_data_sub), max.adj.var = 5, n.cores = 1, plot = TRUE)
+varinfo_eset_sub <- pagoda.varnorm(eset_sub_knn, counts = eset_data_sub, trim = 3, max.adj.var = 5, n.cores = 1, plot = TRUE)
 
 ## list top overdispersed genes
 sort(varinfo_eset_sub$arv, decreasing = TRUE)[1:10]
