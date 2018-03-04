@@ -11,7 +11,7 @@
 #
 # Submit from code/ directory:
 #
-# sbatch --job-name=scde --output=scde-slurm.out --time=24:00:00 --partition=broadwl --mem=32G --tasks-per-node=8 scde.R
+# sbatch --job-name=scde --output=scde-slurm.out --time=24:00:00 --partition=bigmem2 --mem=128G --tasks-per-node=8 scde.R
 
 library("biomaRt")
 library("cowplot")
@@ -23,6 +23,8 @@ theme_set(theme_cowplot())
 source("../code/functions.R")
 library("Biobase") # has to be loaded last to use `combine`
 library("GO.db")
+
+append <- "-filtered-b2-b5"
 
 # Setup ------------------------------------------------------------------------
 cat(sprintf("\n\nSetup...\n\n"))
@@ -38,22 +40,20 @@ quality <- read.table("../data/quality-single-cells.txt", stringsAsFactors = FAL
 colnames(quality) <- c("sample", "quality")
 eset <- eset[, quality$quality]
 
-# Remove zeros.
-eset <- eset[rowSums(exprs(eset)) != 0, ]
-
-# Only keep genes which are observed in at least 50% of the samples.
-# Function `present` is defined in ../code/functions.R
-eset <- eset[apply(exprs(eset), 1, present), ]
+# Only keep genes that passed the filters
+genes <- read.table("../data/genes-pass-filter.txt", stringsAsFactors = FALSE)
+colnames(genes) <- c("gene", "passed")
+eset <- eset[genes$passed, ]
 
 eset_data <- exprs(eset)
 
-# Limit cells to batch 4
-eset_data_sub <- eset_data[, pData(eset)$batch == "b4"]
+# Limit cells to batches 2-5 (not all cells in batch 1 had ERCC spike-in added)
+eset_data_sub <- eset_data[, pData(eset)$batch != "b1"]
 
 # SCDE -------------------------------------------------------------------------
 cat(sprintf("\n\nFit error models...\n\n"))
 
-fname_error_model <- "../data/eset-sub-knn.rds"
+fname_error_model <- paste0("../data/eset-sub-knn", append, ".rds")
 
 if (file.exists(fname_error_model)) {
   eset_sub_knn <- readRDS(fname_error_model)
@@ -114,7 +114,7 @@ stopifnot(class(go.env) == "environment")
 # Pagoda pathway analysis ------------------------------------------------------
 cat(sprintf("\n\nPagoda pathway analysis...\n\n"))
 
-fname_pagoda <- "../data/pwpca-eset-dep.rds"
+fname_pagoda <- paste0("../data/pwpca-eset-dep", append, ".rds")
 
 if (file.exists(fname_pagoda)) {
   pwpca_eset_dep <- readRDS(fname_pagoda)
