@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-02-24 Sat 11:18 -->
+<!-- 2018-03-05 Mon 14:04 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>QTL mapping pipeline</title>
@@ -254,9 +254,9 @@ for the JavaScript code in this tag.
 <div id="content">
 <h1 class="title">QTL mapping pipeline</h1>
 
-<div id="outline-container-orgad18615" class="outline-2">
-<h2 id="orgad18615">Introduction</h2>
-<div class="outline-text-2" id="text-orgad18615">
+<div id="outline-container-orga163d45" class="outline-2">
+<h2 id="orga163d45">Introduction</h2>
+<div class="outline-text-2" id="text-orga163d45">
 <p>
 We previously <a href="zinb.html">estimated means and dispersions per individual, per gene</a>. In
 our modular approach, we now fit log linear models for each:
@@ -281,16 +281,17 @@ Here, we present the following analyses:
 </p>
 
 <ol class="org-ol">
-<li><a href="#orgda6deb9">We replicate eQTLs</a> discovered in matched bulk RNA-Seq</li>
-<li><a href="#org553273f">We call mean QTLs</a> in the scRNA-Seq data and replicate in bulk</li>
-<li><a href="#org763d71a">We call robustness QTLs</a> in the scRNA-Seq data</li>
+<li><a href="#org592eadf">We replicate bulk eQTLs</a> in the scRNA-Seq data</li>
+<li><a href="#org7540462">We show that approximating a permutation test</a> is not appropriate</li>
+<li><a href="#orgaa637e2">We call mean QTLs</a> in the scRNA-Seq data</li>
+<li><a href="#orgf02711e">We call robustness QTLs</a> in the scRNA-Seq data</li>
 </ol>
 </div>
 </div>
 
-<div id="outline-container-org8dec8e0" class="outline-2">
-<h2 id="org8dec8e0">Genotype processing</h2>
-<div class="outline-text-2" id="text-org8dec8e0">
+<div id="outline-container-org9d05232" class="outline-2">
+<h2 id="org9d05232">Genotype processing</h2>
+<div class="outline-text-2" id="text-org9d05232">
 <p>
 <code>QTLtools</code> reported 0 variants in cis for an unexpected number of genes when
 using the provided genotype file, so reprocess the genotypes to fix it.
@@ -305,22 +306,22 @@ zcat /project/compbio/jointLCLs/genotype/hg19/YRI/vcf/chr{?,??}.hg19.vcf.gz | aw
 tabix genotypes.vcf.gz
 </pre>
 </div>
-</div>
-</div>
-
-<div id="outline-container-orgda6deb9" class="outline-2">
-<h2 id="orgda6deb9">Test bulk eQTLs in the single cell data</h2>
-<div class="outline-text-2" id="text-orgda6deb9">
-<p>
-Read the estimated parameters (phenotypes) then center them.
-</p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">mean</span> = (pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/zi2-mean.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
-        .transform(<span class="org-keyword">lambda</span> x: x - x.mean(), axis=1))
+<pre class="src src-sh">sbatch --partition=broadwl
+<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
+<span class="org-builtin">source</span> activate scqtl
+plink --memory 2000 --vcf genotypes.vcf.gz --geno 0.01 --maf 0.01 --recode vcf-iid --out genotypes-qc
+bgzip genotypes-qc.vcf
+tabix -f -p vcf genotypes-qc.vcf.gz
 </pre>
 </div>
+</div>
+</div>
 
+<div id="outline-container-org592eadf" class="outline-2">
+<h2 id="org592eadf">Replicate bulk eQTLs in the single cell data</h2>
+<div class="outline-text-2" id="text-org592eadf">
 <p>
 Read the bulk eQTLs (nominally significant).
 </p>
@@ -351,60 +352,39 @@ Read the bulk eQTLs (significant by permutation test).
 </div>
 
 <p>
-Test each bulk QTL-gene pair in the single cell data.
+Test each bulk QTL-gene pair in the single cell data. Mean-impute and
+center genotypes.
 </p>
 
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">parse_vcf</span>(record):
-  <span class="org-variable-name">geno</span> = np.ma.masked_equal([<span class="org-builtin">sum</span>(<span class="org-builtin">float</span>(h) <span class="org-keyword">for</span> h <span class="org-keyword">in</span> g.split(<span class="org-string">'/'</span>)) <span class="org-keyword">if</span> <span class="org-string">'.'</span> <span class="org-keyword">not</span> <span class="org-keyword">in</span> g <span class="org-keyword">else</span> -1 <span class="org-keyword">for</span> g <span class="org-keyword">in</span> record[9:]], -1)
-  <span class="org-variable-name">maf</span> = .5 * geno.mean()
-  <span class="org-variable-name">geno</span> = geno.filled(geno.mean())
-  <span class="org-keyword">if</span> maf &gt; .5:
-    <span class="org-variable-name">geno</span> = 2 - geno
-  <span class="org-variable-name">geno</span> -= geno.mean()
+  <span class="org-variable-name">geno</span> = [<span class="org-builtin">sum</span>(<span class="org-builtin">float</span>(h) <span class="org-keyword">for</span> h <span class="org-keyword">in</span> g.split(<span class="org-string">'/'</span>)) <span class="org-keyword">if</span> <span class="org-string">'.'</span> <span class="org-keyword">not</span> <span class="org-keyword">in</span> g <span class="org-keyword">else</span> -1 <span class="org-keyword">for</span> g <span class="org-keyword">in</span> record[9:]]
   <span class="org-keyword">return</span> pd.Series(geno)
 
+<span class="org-keyword">def</span> <span class="org-function-name">standardize</span>(geno):
+  <span class="org-comment-delimiter"># </span><span class="org-comment">Important: this has to be done after filtering to common individuals</span>
+  <span class="org-variable-name">orig_geno</span> = geno.copy()
+  <span class="org-comment-delimiter"># </span><span class="org-comment">Important: match the qtltools implementation</span>
+  <span class="org-variable-name">geno</span> = np.ma.masked_less(geno.values, 0)
+  <span class="org-variable-name">geno</span> = geno.filled(geno.mean())
+  <span class="org-variable-name">geno</span> -= geno.mean()
+  <span class="org-keyword">return</span> geno
+
 <span class="org-keyword">def</span> <span class="org-function-name">extract_qtl_gene_pair</span>(bulk_qtls, means):
-  <span class="org-variable-name">Y</span>, <span class="org-variable-name">common_qtls</span> = means.align(bulk_qtls.set_index(<span class="org-string">'gene'</span>), join=<span class="org-string">'inner'</span>, axis=0)
+  <span class="org-variable-name">common_means</span>, <span class="org-variable-name">common_qtls</span> = means.align(bulk_qtls.set_index(<span class="org-string">'gene'</span>), join=<span class="org-string">'inner'</span>, axis=0)
   <span class="org-variable-name">header</span> = pd.read_table(<span class="org-string">'/project2/gilad/singlecell-qtl/bulk/genotypes.vcf.gz'</span>, skiprows=1, nrows=1, header=0)[9:]
   <span class="org-variable-name">genotypes</span> = tabix.<span class="org-builtin">open</span>(<span class="org-string">'/project2/gilad/singlecell-qtl/bulk/genotypes.vcf.gz'</span>)
-  <span class="org-variable-name">X</span> = (common_qtls
-       .<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: parse_vcf(<span class="org-builtin">next</span>(genotypes.query(x[<span class="org-string">'chr'</span>], <span class="org-builtin">int</span>(x[<span class="org-string">'pos'</span>]) - 1, <span class="org-builtin">int</span>(x[<span class="org-string">'pos'</span>])))), axis=1)
-       .rename(columns={i: ind <span class="org-keyword">for</span> i, ind <span class="org-keyword">in</span> <span class="org-builtin">enumerate</span>(header.columns[9:])})
-       .align(Y, join=<span class="org-string">'inner'</span>, axis=<span class="org-constant">None</span>)[0])
+  <span class="org-variable-name">X</span>, <span class="org-variable-name">Y</span> = (common_qtls
+          .<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: parse_vcf(<span class="org-builtin">next</span>(genotypes.query(x[<span class="org-string">'chr'</span>], <span class="org-builtin">int</span>(x[<span class="org-string">'pos'</span>]) - 1, <span class="org-builtin">int</span>(x[<span class="org-string">'pos'</span>])))), axis=1)
+          .rename(columns={i: ind <span class="org-keyword">for</span> i, ind <span class="org-keyword">in</span> <span class="org-builtin">enumerate</span>(header.columns[9:])})
+          .align(common_means, join=<span class="org-string">'inner'</span>, axis=<span class="org-constant">None</span>))
+  <span class="org-variable-name">X</span> = X.<span class="org-builtin">apply</span>(standardize, axis=1)
   <span class="org-keyword">return</span> X, Y
 </pre>
 </div>
 
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">X</span>, <span class="org-variable-name">Y</span> = extract_qtl_gene_pair(perm_bulk_qtls, mean)
-<span class="org-variable-name">result</span> = []
-<span class="org-variable-name">_sf</span> = st.chi2(1).sf
-<span class="org-keyword">for</span> (_, x), (name, y) <span class="org-keyword">in</span> <span class="org-builtin">zip</span>(X.iterrows(), Y.iterrows()):
-  beta, rss, *<span class="org-variable-name">_</span> = np.linalg.lstsq(x.values.reshape(-1, 1), y.values.ravel(), rcond=<span class="org-constant">None</span>)
-  <span class="org-variable-name">sigma2</span> = rss / y.shape[0]
-  <span class="org-variable-name">se</span> = sigma2 / np.inner(x.values, x.values)
-  <span class="org-variable-name">pval</span> = _sf(np.square(beta / se))
-  result.append({<span class="org-string">'gene'</span>: name, <span class="org-string">'beta'</span>: beta[0], <span class="org-string">'p_sc'</span>: pval.ravel()[0]})
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">merged</span> = (bulk_qtls.merge(pd.DataFrame.from_dict(result), on=<span class="org-string">'gene'</span>, suffixes=[<span class="org-string">'_bulk'</span>, <span class="org-string">'_sc'</span>])
-          .set_index(<span class="org-string">'gene'</span>)
-          .sort_values(<span class="org-string">'p_bulk'</span>)
-          .reset_index()[[<span class="org-string">'gene'</span>, <span class="org-string">'id'</span>, <span class="org-string">'p_bulk'</span>, <span class="org-string">'beta_bulk'</span>, <span class="org-string">'p_sc'</span>, <span class="org-string">'beta_sc'</span>]])
-merged.to_csv(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/zi2-mean-qtls.txt.gz'</span>, compression=<span class="org-string">'gzip'</span>, sep=<span class="org-string">' '</span>)
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython">X.to_csv(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/bulk-qtl-genotypes.txt.gz'</span>, compression=<span class="org-string">'gzip'</span>, sep=<span class="org-string">' '</span>) 
-</pre>
-</div>
-
 <p>
-Count how many bulk QTLs replicate in the single cell data at FDR 5%.
+Define replication as significant at FDR 5% in both bulk and single cell.
 </p>
 
 <div class="org-src-container">
@@ -413,9 +393,70 @@ Count how many bulk QTLs replicate in the single cell data at FDR 5%.
   <span class="org-keyword">return</span> np.logical_and.accumulate(df.sort_values(column)[column] &lt; fdr * np.arange(1, num_tests + 1) / num_tests)
 </pre>
 </div>
+</div>
+
+<div id="outline-container-org1b9c87d" class="outline-3">
+<h3 id="org1b9c87d">NB model</h3>
+<div class="outline-text-3" id="text-org1b9c87d">
+<p>
+Estimate a lower bound on the replication rate using the following procedure:
+</p>
+
+<ol class="org-ol">
+<li>For each individual, for each gene, <a href="zinb.html#orga46d8c0">estimate a mean and dispersion in the
+single cell data ignoring zero inflation</a> (i.e., just fit a negative
+binomial model)</li>
+<li>For each bulk RNA-Seq eQTL-gene pair, test the SNP against the estimated
+means</li>
+</ol>
+
+<p>
+Read the estimated parameters (phenotypes) then center them.
+</p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">bulk_fdr_pass</span> = bh(merged, <span class="org-string">'p_bulk'</span>)
+<pre class="src src-ipython"><span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/browser.db'</span>) <span class="org-keyword">as</span> conn:
+  <span class="org-variable-name">mean</span> = (pd.read_sql(<span class="org-string">'select gene, ind, nb_log_mean from params'</span>, conn)
+          .pivot(index=<span class="org-string">'gene'</span>, columns=<span class="org-string">'ind'</span>, values=<span class="org-string">'nb_log_mean'</span>)
+          .transform(<span class="org-keyword">lambda</span> x: x - x.mean(), axis=1))
+</pre>
+</div>
+
+<p>
+Perform the eQTL tests.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython" id="org5c67bff"><span class="org-variable-name">X</span>, <span class="org-variable-name">Y</span> = extract_qtl_gene_pair(perm_bulk_qtls, mean)
+<span class="org-variable-name">result</span> = []
+<span class="org-variable-name">_sf</span> = st.chi2(1).sf
+<span class="org-keyword">for</span> (_, x), (name, y) <span class="org-keyword">in</span> <span class="org-builtin">zip</span>(X.iterrows(), Y.iterrows()):
+  <span class="org-keyword">if</span> np.isclose(x.std(), 0):
+    <span class="org-keyword">print</span>(<span class="org-string">'Skipping {}'</span>.<span class="org-builtin">format</span>(name))
+    <span class="org-keyword">continue</span>
+  beta, rss, *<span class="org-variable-name">_</span> = np.linalg.lstsq(x.values.reshape(-1, 1), y.values.ravel(), rcond=-1)
+  <span class="org-variable-name">sigma2</span> = rss / y.shape[0]
+  <span class="org-variable-name">se</span> = sigma2 / np.inner(x.values, x.values)
+  <span class="org-variable-name">pval</span> = _sf(np.square(beta / se))
+  result.append({<span class="org-string">'gene'</span>: name, <span class="org-string">'beta'</span>: beta[0], <span class="org-string">'p_sc'</span>: pval.ravel()[0]})
+<span class="org-variable-name">merged</span> = (bulk_qtls.merge(pd.DataFrame.from_dict(result), on=<span class="org-string">'gene'</span>, suffixes=[<span class="org-string">'_bulk'</span>, <span class="org-string">'_sc'</span>])
+          .set_index(<span class="org-string">'gene'</span>)
+          .sort_values(<span class="org-string">'p_bulk'</span>)
+          .reset_index()[[<span class="org-string">'gene'</span>, <span class="org-string">'id'</span>, <span class="org-string">'p_bulk'</span>, <span class="org-string">'beta_bulk'</span>, <span class="org-string">'p_sc'</span>, <span class="org-string">'beta_sc'</span>]])
+</pre>
+</div>
+
+<p>
+Skipping ENSG00000141867
+Skipping ENSG00000164823
+</p>
+
+<p>
+Estimate the replication rate.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython" id="org848d3e7"><span class="org-variable-name">bulk_fdr_pass</span> = bh(merged, <span class="org-string">'p_bulk'</span>)
 <span class="org-variable-name">sc_fdr_pass</span> = bh(merged, <span class="org-string">'p_sc'</span>)
 <span class="org-variable-name">replicated</span> = merged[np.logical_and(*bulk_fdr_pass.align(sc_fdr_pass))]
 replicated.shape[0], replicated.shape[0] / merged.shape[0]
@@ -423,110 +464,181 @@ replicated.shape[0], replicated.shape[0] / merged.shape[0]
 </div>
 
 <pre class="example">
-(621, 0.6336734693877552)
+(892, 0.9529914529914529)
 
 </pre>
 
 <p>
-Count how many bulk QTLs replicate in the single cell data at FDR 5% and have
-the same sign.
+Estimate the concordance.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">sign_pass</span> = (replicated[<span class="org-string">'beta_bulk'</span>] * replicated[<span class="org-string">'beta_sc'</span>]).values &gt; 0
-replicated[sign_pass].shape[0]
+<pre class="src src-ipython" id="org8bb546b"><span class="org-variable-name">sign_pass</span> = (replicated[<span class="org-string">'beta_bulk'</span>] * replicated[<span class="org-string">'beta_sc'</span>]).values &gt; 0
+replicated[sign_pass].shape[0], sign_pass.<span class="org-builtin">sum</span>() / replicated.shape[0]
 </pre>
 </div>
 
 <pre class="example">
-338
+(779, 0.8733183856502242)
 
 </pre>
-</div>
-</div>
 
-<div id="outline-container-org553273f" class="outline-2">
-<h2 id="org553273f">Call mean-QTLs in the single cell data</h2>
-<div class="outline-text-2" id="text-org553273f">
 <p>
-Read the estimated parameters (phenotypes) then center them.
+Write out tables for the interactive browser.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">mean</span> = (pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/zi2-mean.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
-        .transform(<span class="org-keyword">lambda</span> x: x - x.mean(), axis=1))
+<pre class="src src-ipython" id="org1d58682"><span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/browser.db'</span>) <span class="org-keyword">as</span> conn:
+  merged.to_sql(<span class="org-string">'qtls'</span>, con=conn, if_exists=<span class="org-string">'replace'</span>)
+  (X
+   .reset_index()
+   .melt(id_vars=<span class="org-string">'gene'</span>, var_name=<span class="org-string">'ind'</span>)
+   .to_sql(name=<span class="org-string">'genotype'</span>, con=conn, index=<span class="org-constant">False</span>, if_exists=<span class="org-string">'replace'</span>))
+
+  conn.execute(<span class="org-string">'create index ix_qtls on qtls(gene);'</span>)
+  conn.execute(<span class="org-string">'create index ix_genotype on genotype(gene, ind);'</span>)
 </pre>
 </div>
+</div>
+</div>
 
+<div id="outline-container-orga1d54a9" class="outline-3">
+<h3 id="orga1d54a9">ZINB model</h3>
+<div class="outline-text-3" id="text-orga1d54a9">
 <p>
-Write out the <a href="https://qtltools.github.io/qtltools/pages/input_files.html">phenotype file</a> for <code>qtltools</code>.
+For each individual, for each gene, take either the negative binomial or
+zero-inflated negative binomial estimate, depending on which minimized the
+negative log-likelihood of the data.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="orgc412e84"><span class="org-variable-name">gene_info</span> = (pd.read_table(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/scqtl-genes.txt.gz'</span>)
-             .set_index(<span class="org-string">'gene'</span>)
-             .query(<span class="org-string">'source == "H. sapiens"'</span>)
-             .query(<span class="org-string">'chr != "hsX"'</span>)
-             .query(<span class="org-string">'chr != "hsY"'</span>)
-             .query(<span class="org-string">'chr != "hsMT"'</span>))
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython" id="org0c97908"><span class="org-keyword">def</span> <span class="org-function-name">qtltools_format</span>(row):
-  <span class="org-variable-name">row</span>[<span class="org-string">'#Chr'</span>] = <span class="org-string">'chr{}'</span>.<span class="org-builtin">format</span>(row[<span class="org-string">'chr'</span>][2:])
-  <span class="org-variable-name">row</span>[<span class="org-string">'gid'</span>] = row.name
-  <span class="org-variable-name">row</span>[<span class="org-string">'pid'</span>] = row.name
-  <span class="org-keyword">return</span> row
-
-<span class="org-keyword">def</span> <span class="org-function-name">write_pheno_file</span>(pheno, gene_info, output_file, holdout=<span class="org-constant">True</span>):
-  <span class="org-keyword">if</span> holdout:
-    <span class="org-variable-name">genes</span> = gene_info.loc[gene_info[<span class="org-string">'chr'</span>].<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: <span class="org-builtin">bool</span>(<span class="org-builtin">int</span>(x[2:]) % 2)).values]
-  <span class="org-keyword">else</span>:
-    <span class="org-variable-name">genes</span> = gene_info
-  (genes
-   .<span class="org-builtin">apply</span>(qtltools_format, axis=1)
-   .merge(pheno, left_index=<span class="org-constant">True</span>, right_index=<span class="org-constant">True</span>)
-   .to_csv(output_file,
-           sep=<span class="org-string">'\t'</span>,
-           columns=[<span class="org-string">'#Chr'</span>, <span class="org-string">'start'</span>, <span class="org-string">'end'</span>, <span class="org-string">'pid'</span>, <span class="org-string">'gid'</span>, <span class="org-string">'strand'</span>] + <span class="org-builtin">list</span>(pheno.columns),
-           header=<span class="org-constant">True</span>,
-           index=<span class="org-constant">False</span>,
-           index_label=<span class="org-constant">False</span>)
-  )
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython">write_pheno_file(mean, gene_info, <span class="org-string">'/scratch/midway2/aksarkar/singlecell/mean.bed'</span>)
+<pre class="src src-ipython"><span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/browser.db'</span>) <span class="org-keyword">as</span> conn:
+  <span class="org-variable-name">mean</span> = (pd.read_sql(<span class="org-string">'select gene, ind, case when nb_nll &lt; zinb_nll then nb_log_mean else zinb2_log_mean end as log_mean from params;'</span>, conn)
+          .pivot(index=<span class="org-string">'gene'</span>, columns=<span class="org-string">'ind'</span>, values=<span class="org-string">'log_mean'</span>)
+          .transform(<span class="org-keyword">lambda</span> x: x - x.mean(), axis=1))
 </pre>
 </div>
 
 <p>
-Index the phenotype file.
+Skipping ENSG00000141867
+Skipping ENSG00000164823
+</p>
+
+<p>
+Estimate the replication rate.
+</p>
+
+<pre class="example">
+(894, 0.9551282051282052)
+
+</pre>
+
+<p>
+Estimate the concordance.
+</p>
+
+<pre class="example">
+(779, 0.8713646532438478)
+
+</pre>
+
+<p>
+Write out tables for the interactive browser.
+</p>
+</div>
+</div>
+</div>
+
+<div id="outline-container-org7540462" class="outline-2">
+<h2 id="org7540462">Test validity of approximate permutation test</h2>
+<div class="outline-text-2" id="text-org7540462">
+<p>
+<code>qtltools</code> tries to calibrate false discovery rates using the following
+procedure:
+</p>
+
+<ol class="org-ol">
+<li>For each hypothesis, permute the genotype data to estimate the null
+distribution of the p-values</li>
+<li>Fit a beta distribution to the permuted p-values via ML</li>
+<li>Compute the lower tail probability of the observed p-value, assuming it
+was generated from the fitted beta distribution</li>
+<li>Apply the Benjamini-Hochberg procedure on the set of lower tail
+probabilities (across all hypotheses)</li>
+</ol>
+
+<p>
+Test whether the beta approximation is appropriate for our sample size by
+subsetting GEUVADIS. Take all genes on chromosome 1.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sh" id="orgbf314d5"><span class="org-builtin">export</span> <span class="org-variable-name">input</span>=$<span class="org-variable-name">input</span>
+<pre class="src src-ipython"><span class="org-variable-name">geuvadis</span> = []
+<span class="org-keyword">for</span> chunk <span class="org-keyword">in</span> pd.read_table(<span class="org-string">'/project/compbio/geuvadis/analysis_results/GD462.GeneQuantRPKM.50FN.samplename.resk10.txt.gz'</span>, chunksize=100):
+  geuvadis.append(chunk.query(<span class="org-string">'Chr == "1"'</span>))
+<span class="org-variable-name">geuvadis</span> = pd.concat(geuvadis)
+</pre>
+</div>
+
+<p>
+Pick 54 random individuals from GEUVADIS.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">np.random.seed(0)
+<span class="org-variable-name">subset</span> = np.random.choice(geuvadis.columns[5:], size=54)
+</pre>
+</div>
+
+<p>
+Write out the phenotype file for <code>qtltools</code>. Important: GEUVADIS VCFs code
+chromosome without <code>chr</code>.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">write_pheno_file(geuvadis.set_index(geuvadis[<span class="org-string">'Gene_Symbol'</span>].<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: x.split(<span class="org-string">'.'</span>)[0]))[subset], gene_info, <span class="org-string">'/scratch/midway2/aksarkar/singlecell/test.bed'</span>)
+</pre>
+</div>
+
+<p>
+Index the phenotype file. Important: <code>#</code> sorts before <code>c</code>, but after <code>1</code>.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh" id="org9ba22bd"><span class="org-builtin">export</span> <span class="org-variable-name">input</span>=$<span class="org-variable-name">input</span>
 sbatch --partition=$<span class="org-variable-name">partition</span> --wait
 <span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
-sort -k1,1 -k2,2n -k3,3n $<span class="org-variable-name">input</span> | bgzip &gt;$<span class="org-variable-name">input</span>.gz
+sort -k1,1g -k2,2n -k3,3n $<span class="org-variable-name">input</span> | bgzip &gt;$<span class="org-variable-name">input</span>.gz
 tabix -p bed $<span class="org-variable-name">input</span>.gz
 </pre>
 </div>
 
 <p>
-Run the QTL mapping, using the approximate permutation test implemented in
-<code>QTLtools</code>.
+<code>qtltools</code> segfaults on the VCF file, so convert to <code>plink</code> format.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sh" id="orgcc5a2e3"><span class="org-builtin">export</span> <span class="org-variable-name">pheno</span>=$<span class="org-variable-name">pheno</span>
-sbatch --partition=$<span class="org-variable-name">partition</span> -N1 -c16 -J $<span class="org-variable-name">pheno</span>-qtl -o $<span class="org-variable-name">pheno</span>-qtl.log
+<pre class="src src-sh">sbatch --partition=broadwl --mem=2G
+<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
+plink --memory 2000 --geno 0.01 --maf 0.01 --vcf /project/compbio/geuvadis/genotypes/GEUVADIS.chr1.PH1PH2_465.IMPFRQFILT_BIALLELIC_PH.annotv2.genotypes.vcf.gz --recode vcf-iid --out geuvadis-chr1
+bgzip geuvadis-chr1.vcf
+tabix -f -p vcf geuvadis-chr1.vcf.gz
+</pre>
+</div>
+
+<p>
+Run <code>qtltools</code>.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh" id="org61bc797"><span class="org-builtin">export</span> <span class="org-variable-name">pheno</span>=$<span class="org-variable-name">pheno</span>
+<span class="org-builtin">export</span> <span class="org-variable-name">geno</span>=$<span class="org-variable-name">geno</span>
+<span class="org-builtin">export</span> <span class="org-variable-name">op</span>=$<span class="org-variable-name">op</span>
+sbatch --partition=$<span class="org-variable-name">partition</span> -n1 -c28 --exclusive -J $<span class="org-variable-name">pheno</span>-qtl -o $<span class="org-variable-name">pheno</span>-qtl.log
 <span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
 <span class="org-builtin">source</span> activate scqtl
 module load parallel
-parallel -j16 qtltools cis --vcf /project2/gilad/singlecell-qtl/bulk/genotypes.vcf.gz --bed $<span class="org-variable-name">pheno</span>.bed.gz --permute=100 --chunk {#} 100 --out $<span class="org-variable-name">pheno</span>-qtl.{#}.txt ::: $(<span class="org-sh-quoted-exec">seq</span> 1 100)
+parallel -j28 qtltools cis --vcf $<span class="org-variable-name">geno</span> --bed $<span class="org-variable-name">pheno</span>.bed.gz $<span class="org-variable-name">op</span> --chunk {#} 100 --out $<span class="org-variable-name">pheno</span>-qtl.{#}.txt ::: $(<span class="org-sh-quoted-exec">seq</span> 1 100)
 </pre>
 </div>
 
@@ -550,1620 +662,110 @@ Read the results.
 </div>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">mean_qtls</span> = read_qtltools_output(<span class="org-string">'mean'</span>)
+<pre class="src src-ipython"><span class="org-variable-name">geuvadis_qtls</span> = read_qtltools_output(<span class="org-string">'test'</span>)
 </pre>
 </div>
 
 <p>
-Apply the Benjamini-Hochberg procedure:
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">bh</span>(df):
-  <span class="org-keyword">return</span> df[<span class="org-string">'p_beta'</span>] &lt; .05 * np.arange(1, df.shape[0] + 1) / df.shape[0]
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">keep_mean_qtls</span> = bh(mean_qtls)
-</pre>
-</div>
-
-<pre class="example">
-189
-
-</pre>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">print</span>(mean_qtls[keep_mean_qtls].merge(gene_info, left_on=<span class="org-string">'gene'</span>, right_index=<span class="org-constant">True</span>)[[<span class="org-string">'gene'</span>, <span class="org-string">'name'</span>, <span class="org-string">'id'</span>, <span class="org-string">'beta'</span>, <span class="org-string">'p_beta'</span>]].reset_index(drop=<span class="org-constant">True</span>).to_html(classes=[<span class="org-string">'table'</span>]))
-</pre>
-</div>
-
-<table border="1" class="dataframe table">
-  <thead>
-    <tr style="text-align: right;">
-      <th></th>
-      <th>gene</th>
-      <th>name</th>
-      <th>id</th>
-      <th>beta</th>
-      <th>p_beta</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th>0</th>
-      <td>ENSG00000162517</td>
-      <td>PEF1</td>
-      <td>rs115438012</td>
-      <td>-0.614188</td>
-      <td>0.000000e+00</td>
-    </tr>
-    <tr>
-      <th>1</th>
-      <td>ENSG00000121486</td>
-      <td>TRMT1L</td>
-      <td>rs73059600</td>
-      <td>7.770620</td>
-      <td>0.000000e+00</td>
-    </tr>
-    <tr>
-      <th>2</th>
-      <td>ENSG00000151502</td>
-      <td>VPS26B</td>
-      <td>rs59014772</td>
-      <td>9.085280</td>
-      <td>0.000000e+00</td>
-    </tr>
-    <tr>
-      <th>3</th>
-      <td>ENSG00000088280</td>
-      <td>ASAP3</td>
-      <td>rs142168595</td>
-      <td>8.061380</td>
-      <td>2.311830e-311</td>
-    </tr>
-    <tr>
-      <th>4</th>
-      <td>ENSG00000154814</td>
-      <td>OXNAD1</td>
-      <td>rs186345075</td>
-      <td>6.056120</td>
-      <td>1.244260e-248</td>
-    </tr>
-    <tr>
-      <th>5</th>
-      <td>ENSG00000169515</td>
-      <td>CCDC8</td>
-      <td>rs115292552</td>
-      <td>8.416460</td>
-      <td>1.162980e-247</td>
-    </tr>
-    <tr>
-      <th>6</th>
-      <td>ENSG00000105732</td>
-      <td>ZNF574</td>
-      <td>rs138978828</td>
-      <td>6.917230</td>
-      <td>1.363250e-222</td>
-    </tr>
-    <tr>
-      <th>7</th>
-      <td>ENSG00000146067</td>
-      <td>FAM193B</td>
-      <td>rs191336763</td>
-      <td>6.666040</td>
-      <td>5.046890e-222</td>
-    </tr>
-    <tr>
-      <th>8</th>
-      <td>ENSG00000118197</td>
-      <td>DDX59</td>
-      <td>rs189972380</td>
-      <td>9.531930</td>
-      <td>5.553180e-201</td>
-    </tr>
-    <tr>
-      <th>9</th>
-      <td>ENSG00000086300</td>
-      <td>SNX10</td>
-      <td>rs193043296</td>
-      <td>5.148360</td>
-      <td>4.541970e-176</td>
-    </tr>
-    <tr>
-      <th>10</th>
-      <td>ENSG00000144909</td>
-      <td>OSBPL11</td>
-      <td>rs142359735</td>
-      <td>6.324380</td>
-      <td>4.300360e-166</td>
-    </tr>
-    <tr>
-      <th>11</th>
-      <td>ENSG00000198466</td>
-      <td>ZNF587</td>
-      <td>rs138158391</td>
-      <td>6.448550</td>
-      <td>1.089520e-163</td>
-    </tr>
-    <tr>
-      <th>12</th>
-      <td>ENSG00000142556</td>
-      <td>ZNF614</td>
-      <td>rs57469094</td>
-      <td>10.462400</td>
-      <td>2.407550e-157</td>
-    </tr>
-    <tr>
-      <th>13</th>
-      <td>ENSG00000116337</td>
-      <td>AMPD2</td>
-      <td>rs115795881</td>
-      <td>8.250020</td>
-      <td>1.059290e-152</td>
-    </tr>
-    <tr>
-      <th>14</th>
-      <td>ENSG00000152601</td>
-      <td>MBNL1</td>
-      <td>rs151091865</td>
-      <td>7.133200</td>
-      <td>1.156550e-150</td>
-    </tr>
-    <tr>
-      <th>15</th>
-      <td>ENSG00000028277</td>
-      <td>POU2F2</td>
-      <td>rs141805699</td>
-      <td>6.914220</td>
-      <td>2.546100e-134</td>
-    </tr>
-    <tr>
-      <th>16</th>
-      <td>ENSG00000105671</td>
-      <td>DDX49</td>
-      <td>rs56165767</td>
-      <td>3.878050</td>
-      <td>2.622660e-115</td>
-    </tr>
-    <tr>
-      <th>17</th>
-      <td>ENSG00000002822</td>
-      <td>MAD1L1</td>
-      <td>rs77575700</td>
-      <td>6.492050</td>
-      <td>8.173360e-83</td>
-    </tr>
-    <tr>
-      <th>18</th>
-      <td>ENSG00000116793</td>
-      <td>PHTF1</td>
-      <td>rs114564397</td>
-      <td>5.112960</td>
-      <td>9.314330e-79</td>
-    </tr>
-    <tr>
-      <th>19</th>
-      <td>ENSG00000162636</td>
-      <td>FAM102B</td>
-      <td>rs481848</td>
-      <td>-4.752180</td>
-      <td>8.336260e-78</td>
-    </tr>
-    <tr>
-      <th>20</th>
-      <td>ENSG00000171612</td>
-      <td>SLC25A33</td>
-      <td>rs2401422</td>
-      <td>4.831560</td>
-      <td>8.401550e-75</td>
-    </tr>
-    <tr>
-      <th>21</th>
-      <td>ENSG00000116667</td>
-      <td>C1orf21</td>
-      <td>rs190731151</td>
-      <td>5.134630</td>
-      <td>4.383330e-58</td>
-    </tr>
-    <tr>
-      <th>22</th>
-      <td>ENSG00000162623</td>
-      <td>TYW3</td>
-      <td>rs28602706</td>
-      <td>-0.440675</td>
-      <td>2.126720e-51</td>
-    </tr>
-    <tr>
-      <th>23</th>
-      <td>ENSG00000131503</td>
-      <td>ANKHD1</td>
-      <td>rs58190825</td>
-      <td>4.887060</td>
-      <td>1.848730e-48</td>
-    </tr>
-    <tr>
-      <th>24</th>
-      <td>ENSG00000137726</td>
-      <td>FXYD6</td>
-      <td>rs190517409</td>
-      <td>5.676260</td>
-      <td>5.540640e-47</td>
-    </tr>
-    <tr>
-      <th>25</th>
-      <td>ENSG00000175567</td>
-      <td>UCP2</td>
-      <td>rs80217992</td>
-      <td>-0.330121</td>
-      <td>7.408280e-47</td>
-    </tr>
-    <tr>
-      <th>26</th>
-      <td>ENSG00000156876</td>
-      <td>SASS6</td>
-      <td>rs149086207</td>
-      <td>0.771629</td>
-      <td>8.289340e-41</td>
-    </tr>
-    <tr>
-      <th>27</th>
-      <td>ENSG00000134086</td>
-      <td>VHL</td>
-      <td>rs115909610</td>
-      <td>3.021960</td>
-      <td>1.079410e-40</td>
-    </tr>
-    <tr>
-      <th>28</th>
-      <td>ENSG00000169136</td>
-      <td>ATF5</td>
-      <td>rs142916709</td>
-      <td>9.093010</td>
-      <td>1.342720e-38</td>
-    </tr>
-    <tr>
-      <th>29</th>
-      <td>ENSG00000169733</td>
-      <td>RFNG</td>
-      <td>rs116264601</td>
-      <td>7.291060</td>
-      <td>4.530920e-31</td>
-    </tr>
-    <tr>
-      <th>30</th>
-      <td>ENSG00000137522</td>
-      <td>RNF121</td>
-      <td>rs72966136</td>
-      <td>4.343430</td>
-      <td>1.253280e-28</td>
-    </tr>
-    <tr>
-      <th>31</th>
-      <td>ENSG00000146828</td>
-      <td>SLC12A9</td>
-      <td>rs144139615</td>
-      <td>0.799752</td>
-      <td>3.568220e-27</td>
-    </tr>
-    <tr>
-      <th>32</th>
-      <td>ENSG00000197043</td>
-      <td>ANXA6</td>
-      <td>rs139372973</td>
-      <td>4.712600</td>
-      <td>5.333020e-25</td>
-    </tr>
-    <tr>
-      <th>33</th>
-      <td>ENSG00000129158</td>
-      <td>SERGEF</td>
-      <td>rs76783895</td>
-      <td>0.693966</td>
-      <td>2.181830e-24</td>
-    </tr>
-    <tr>
-      <th>34</th>
-      <td>ENSG00000113812</td>
-      <td>ACTR8</td>
-      <td>rs646929</td>
-      <td>8.324260</td>
-      <td>5.757600e-24</td>
-    </tr>
-    <tr>
-      <th>35</th>
-      <td>ENSG00000177181</td>
-      <td>RIMKLA</td>
-      <td>rs188847290</td>
-      <td>-4.209570</td>
-      <td>1.090790e-22</td>
-    </tr>
-    <tr>
-      <th>36</th>
-      <td>ENSG00000256061</td>
-      <td>DYX1C1</td>
-      <td>rs116165766</td>
-      <td>4.793750</td>
-      <td>1.221000e-22</td>
-    </tr>
-    <tr>
-      <th>37</th>
-      <td>ENSG00000074410</td>
-      <td>CA12</td>
-      <td>rs7169210</td>
-      <td>2.038040</td>
-      <td>1.304430e-22</td>
-    </tr>
-    <tr>
-      <th>38</th>
-      <td>ENSG00000183742</td>
-      <td>MACC1</td>
-      <td>rs144227987</td>
-      <td>7.267490</td>
-      <td>6.511140e-19</td>
-    </tr>
-    <tr>
-      <th>39</th>
-      <td>ENSG00000103876</td>
-      <td>FAH</td>
-      <td>rs151184550</td>
-      <td>8.591860</td>
-      <td>8.633840e-19</td>
-    </tr>
-    <tr>
-      <th>40</th>
-      <td>ENSG00000121410</td>
-      <td>A1BG</td>
-      <td>rs60059043</td>
-      <td>5.442380</td>
-      <td>9.716590e-18</td>
-    </tr>
-    <tr>
-      <th>41</th>
-      <td>ENSG00000165283</td>
-      <td>STOML2</td>
-      <td>rs4395979</td>
-      <td>0.151179</td>
-      <td>2.305820e-17</td>
-    </tr>
-    <tr>
-      <th>42</th>
-      <td>ENSG00000137135</td>
-      <td>ARHGEF39</td>
-      <td>rs191603510</td>
-      <td>-0.358879</td>
-      <td>7.421790e-15</td>
-    </tr>
-    <tr>
-      <th>43</th>
-      <td>ENSG00000136925</td>
-      <td>TSTD2</td>
-      <td>rs140231473</td>
-      <td>7.672790</td>
-      <td>2.165750e-14</td>
-    </tr>
-    <tr>
-      <th>44</th>
-      <td>ENSG00000116954</td>
-      <td>RRAGC</td>
-      <td>rs116582994</td>
-      <td>0.270896</td>
-      <td>4.566880e-14</td>
-    </tr>
-    <tr>
-      <th>45</th>
-      <td>ENSG00000204084</td>
-      <td>INPP5B</td>
-      <td>rs184506261</td>
-      <td>7.292920</td>
-      <td>1.185390e-13</td>
-    </tr>
-    <tr>
-      <th>46</th>
-      <td>ENSG00000136261</td>
-      <td>BZW2</td>
-      <td>rs140111609</td>
-      <td>0.230960</td>
-      <td>1.268790e-13</td>
-    </tr>
-    <tr>
-      <th>47</th>
-      <td>ENSG00000196776</td>
-      <td>CD47</td>
-      <td>rs113855548</td>
-      <td>5.684920</td>
-      <td>1.446670e-13</td>
-    </tr>
-    <tr>
-      <th>48</th>
-      <td>ENSG00000169519</td>
-      <td>METTL15</td>
-      <td>rs138052469</td>
-      <td>1.073050</td>
-      <td>5.393280e-13</td>
-    </tr>
-    <tr>
-      <th>49</th>
-      <td>ENSG00000095203</td>
-      <td>EPB41L4B</td>
-      <td>rs116362499</td>
-      <td>0.597181</td>
-      <td>5.859000e-13</td>
-    </tr>
-    <tr>
-      <th>50</th>
-      <td>ENSG00000214941</td>
-      <td>ZSWIM7</td>
-      <td>rs61374610</td>
-      <td>0.365951</td>
-      <td>7.146990e-13</td>
-    </tr>
-    <tr>
-      <th>51</th>
-      <td>ENSG00000116731</td>
-      <td>PRDM2</td>
-      <td>rs71629854</td>
-      <td>6.748660</td>
-      <td>9.855300e-13</td>
-    </tr>
-    <tr>
-      <th>52</th>
-      <td>ENSG00000197345</td>
-      <td>MRPL21</td>
-      <td>rs2444765</td>
-      <td>-0.294895</td>
-      <td>1.391330e-12</td>
-    </tr>
-    <tr>
-      <th>53</th>
-      <td>ENSG00000138613</td>
-      <td>APH1B</td>
-      <td>rs60234464</td>
-      <td>0.418741</td>
-      <td>6.885750e-12</td>
-    </tr>
-    <tr>
-      <th>54</th>
-      <td>ENSG00000160606</td>
-      <td>TLCD1</td>
-      <td>rs115029974</td>
-      <td>7.797170</td>
-      <td>9.732080e-12</td>
-    </tr>
-    <tr>
-      <th>55</th>
-      <td>ENSG00000132507</td>
-      <td>EIF5A</td>
-      <td>rs28636077</td>
-      <td>-0.310541</td>
-      <td>1.807330e-11</td>
-    </tr>
-    <tr>
-      <th>56</th>
-      <td>ENSG00000197724</td>
-      <td>PHF2</td>
-      <td>rs113363990</td>
-      <td>-8.798270</td>
-      <td>2.327250e-11</td>
-    </tr>
-    <tr>
-      <th>57</th>
-      <td>ENSG00000159128</td>
-      <td>IFNGR2</td>
-      <td>rs73205061</td>
-      <td>8.531770</td>
-      <td>2.908290e-11</td>
-    </tr>
-    <tr>
-      <th>58</th>
-      <td>ENSG00000188846</td>
-      <td>RPL14</td>
-      <td>rs7617989</td>
-      <td>-0.293238</td>
-      <td>3.816830e-11</td>
-    </tr>
-    <tr>
-      <th>59</th>
-      <td>ENSG00000131469</td>
-      <td>RPL27</td>
-      <td>rs691997</td>
-      <td>-0.300351</td>
-      <td>3.874950e-11</td>
-    </tr>
-    <tr>
-      <th>60</th>
-      <td>ENSG00000176783</td>
-      <td>RUFY1</td>
-      <td>rs75942553</td>
-      <td>6.779670</td>
-      <td>4.523390e-11</td>
-    </tr>
-    <tr>
-      <th>61</th>
-      <td>ENSG00000170291</td>
-      <td>ELP5</td>
-      <td>rs2074219</td>
-      <td>-0.257737</td>
-      <td>5.866820e-11</td>
-    </tr>
-    <tr>
-      <th>62</th>
-      <td>ENSG00000142207</td>
-      <td>URB1</td>
-      <td>rs2833538</td>
-      <td>1.124520</td>
-      <td>6.679250e-11</td>
-    </tr>
-    <tr>
-      <th>63</th>
-      <td>ENSG00000175348</td>
-      <td>TMEM9B</td>
-      <td>rs4485102</td>
-      <td>-0.641606</td>
-      <td>1.219720e-10</td>
-    </tr>
-    <tr>
-      <th>64</th>
-      <td>ENSG00000116670</td>
-      <td>MAD2L2</td>
-      <td>rs77542981</td>
-      <td>0.187661</td>
-      <td>1.438030e-10</td>
-    </tr>
-    <tr>
-      <th>65</th>
-      <td>ENSG00000131188</td>
-      <td>PRR7</td>
-      <td>rs2963668</td>
-      <td>4.209080</td>
-      <td>1.655120e-10</td>
-    </tr>
-    <tr>
-      <th>66</th>
-      <td>ENSG00000113558</td>
-      <td>SKP1</td>
-      <td>rs2110585</td>
-      <td>-0.305947</td>
-      <td>1.851350e-10</td>
-    </tr>
-    <tr>
-      <th>67</th>
-      <td>ENSG00000064490</td>
-      <td>RFXANK</td>
-      <td>rs181951113</td>
-      <td>-0.314333</td>
-      <td>2.061090e-10</td>
-    </tr>
-    <tr>
-      <th>68</th>
-      <td>ENSG00000130818</td>
-      <td>ZNF426</td>
-      <td>rs138767476</td>
-      <td>4.985920</td>
-      <td>2.613100e-10</td>
-    </tr>
-    <tr>
-      <th>69</th>
-      <td>ENSG00000196182</td>
-      <td>STK40</td>
-      <td>rs139974445</td>
-      <td>5.385340</td>
-      <td>3.887530e-10</td>
-    </tr>
-    <tr>
-      <th>70</th>
-      <td>ENSG00000121570</td>
-      <td>DPPA4</td>
-      <td>rs192809071</td>
-      <td>-0.213585</td>
-      <td>4.021830e-10</td>
-    </tr>
-    <tr>
-      <th>71</th>
-      <td>ENSG00000153006</td>
-      <td>SREK1IP1</td>
-      <td>rs3756739</td>
-      <td>-0.220404</td>
-      <td>4.369600e-10</td>
-    </tr>
-    <tr>
-      <th>72</th>
-      <td>ENSG00000162627</td>
-      <td>SNX7</td>
-      <td>rs12402103</td>
-      <td>0.472377</td>
-      <td>5.347220e-10</td>
-    </tr>
-    <tr>
-      <th>73</th>
-      <td>ENSG00000142599</td>
-      <td>RERE</td>
-      <td>rs1801785</td>
-      <td>0.234860</td>
-      <td>6.058890e-10</td>
-    </tr>
-    <tr>
-      <th>74</th>
-      <td>ENSG00000162441</td>
-      <td>LZIC</td>
-      <td>rs142306389</td>
-      <td>0.512300</td>
-      <td>1.698080e-09</td>
-    </tr>
-    <tr>
-      <th>75</th>
-      <td>ENSG00000196814</td>
-      <td>MVB12B</td>
-      <td>rs184853634</td>
-      <td>-7.484540</td>
-      <td>3.575350e-09</td>
-    </tr>
-    <tr>
-      <th>76</th>
-      <td>ENSG00000137947</td>
-      <td>GTF2B</td>
-      <td>rs12086963</td>
-      <td>0.457815</td>
-      <td>3.861370e-09</td>
-    </tr>
-    <tr>
-      <th>77</th>
-      <td>ENSG00000078902</td>
-      <td>TOLLIP</td>
-      <td>rs55998849</td>
-      <td>7.592410</td>
-      <td>4.624240e-09</td>
-    </tr>
-    <tr>
-      <th>78</th>
-      <td>ENSG00000037749</td>
-      <td>MFAP3</td>
-      <td>rs79836345</td>
-      <td>0.572392</td>
-      <td>9.485320e-09</td>
-    </tr>
-    <tr>
-      <th>79</th>
-      <td>ENSG00000122033</td>
-      <td>MTIF3</td>
-      <td>rs7321650</td>
-      <td>-0.204723</td>
-      <td>1.336920e-08</td>
-    </tr>
-    <tr>
-      <th>80</th>
-      <td>ENSG00000137806</td>
-      <td>NDUFAF1</td>
-      <td>rs114076007</td>
-      <td>0.213845</td>
-      <td>1.581320e-08</td>
-    </tr>
-    <tr>
-      <th>81</th>
-      <td>ENSG00000180304</td>
-      <td>OAZ2</td>
-      <td>rs11071824</td>
-      <td>-0.116594</td>
-      <td>1.969350e-08</td>
-    </tr>
-    <tr>
-      <th>82</th>
-      <td>ENSG00000161671</td>
-      <td>EMC10</td>
-      <td>rs59720693</td>
-      <td>-0.468246</td>
-      <td>1.971310e-08</td>
-    </tr>
-    <tr>
-      <th>83</th>
-      <td>ENSG00000118939</td>
-      <td>UCHL3</td>
-      <td>rs975938</td>
-      <td>-0.192146</td>
-      <td>2.000650e-08</td>
-    </tr>
-    <tr>
-      <th>84</th>
-      <td>ENSG00000171202</td>
-      <td>TMEM126A</td>
-      <td>rs631375</td>
-      <td>0.164852</td>
-      <td>3.432760e-08</td>
-    </tr>
-    <tr>
-      <th>85</th>
-      <td>ENSG00000181873</td>
-      <td>IBA57</td>
-      <td>rs79393783</td>
-      <td>-8.823200</td>
-      <td>5.815530e-08</td>
-    </tr>
-    <tr>
-      <th>86</th>
-      <td>ENSG00000214756</td>
-      <td>METTL12</td>
-      <td>rs11231105</td>
-      <td>-0.409931</td>
-      <td>1.227570e-07</td>
-    </tr>
-    <tr>
-      <th>87</th>
-      <td>ENSG00000198162</td>
-      <td>MAN1A2</td>
-      <td>rs798001</td>
-      <td>0.278305</td>
-      <td>1.250760e-07</td>
-    </tr>
-    <tr>
-      <th>88</th>
-      <td>ENSG00000154511</td>
-      <td>FAM69A</td>
-      <td>rs146124737</td>
-      <td>-8.693020</td>
-      <td>1.260050e-07</td>
-    </tr>
-    <tr>
-      <th>89</th>
-      <td>ENSG00000105248</td>
-      <td>CCDC94</td>
-      <td>rs115318476</td>
-      <td>0.270244</td>
-      <td>1.380890e-07</td>
-    </tr>
-    <tr>
-      <th>90</th>
-      <td>ENSG00000233927</td>
-      <td>RPS28</td>
-      <td>rs2241590</td>
-      <td>-0.353524</td>
-      <td>2.080250e-07</td>
-    </tr>
-    <tr>
-      <th>91</th>
-      <td>ENSG00000186230</td>
-      <td>ZNF749</td>
-      <td>rs3746224</td>
-      <td>-5.500270</td>
-      <td>2.672400e-07</td>
-    </tr>
-    <tr>
-      <th>92</th>
-      <td>ENSG00000173801</td>
-      <td>JUP</td>
-      <td>rs147506674</td>
-      <td>0.194621</td>
-      <td>2.694940e-07</td>
-    </tr>
-    <tr>
-      <th>93</th>
-      <td>ENSG00000182362</td>
-      <td>YBEY</td>
-      <td>rs11909164</td>
-      <td>-0.212379</td>
-      <td>3.380210e-07</td>
-    </tr>
-    <tr>
-      <th>94</th>
-      <td>ENSG00000243317</td>
-      <td>C7orf73</td>
-      <td>rs3110823</td>
-      <td>-0.159879</td>
-      <td>3.672340e-07</td>
-    </tr>
-    <tr>
-      <th>95</th>
-      <td>ENSG00000138495</td>
-      <td>COX17</td>
-      <td>rs116466015</td>
-      <td>-0.387611</td>
-      <td>3.943330e-07</td>
-    </tr>
-    <tr>
-      <th>96</th>
-      <td>ENSG00000166478</td>
-      <td>ZNF143</td>
-      <td>rs78398524</td>
-      <td>-0.171862</td>
-      <td>4.571140e-07</td>
-    </tr>
-    <tr>
-      <th>97</th>
-      <td>ENSG00000172500</td>
-      <td>FIBP</td>
-      <td>rs585557</td>
-      <td>0.113810</td>
-      <td>5.817270e-07</td>
-    </tr>
-    <tr>
-      <th>98</th>
-      <td>ENSG00000116350</td>
-      <td>SRSF4</td>
-      <td>rs116090399</td>
-      <td>0.304039</td>
-      <td>6.580060e-07</td>
-    </tr>
-    <tr>
-      <th>99</th>
-      <td>ENSG00000213123</td>
-      <td>TCTEX1D2</td>
-      <td>rs78980298</td>
-      <td>8.213270</td>
-      <td>6.886630e-07</td>
-    </tr>
-    <tr>
-      <th>100</th>
-      <td>ENSG00000014138</td>
-      <td>POLA2</td>
-      <td>rs115093909</td>
-      <td>3.994680</td>
-      <td>9.458300e-07</td>
-    </tr>
-    <tr>
-      <th>101</th>
-      <td>ENSG00000110367</td>
-      <td>DDX6</td>
-      <td>rs138358758</td>
-      <td>0.502877</td>
-      <td>1.172760e-06</td>
-    </tr>
-    <tr>
-      <th>102</th>
-      <td>ENSG00000104129</td>
-      <td>DNAJC17</td>
-      <td>rs139171837</td>
-      <td>7.782140</td>
-      <td>1.394540e-06</td>
-    </tr>
-    <tr>
-      <th>103</th>
-      <td>ENSG00000183020</td>
-      <td>AP2A2</td>
-      <td>rs201878429</td>
-      <td>6.775400</td>
-      <td>2.362580e-06</td>
-    </tr>
-    <tr>
-      <th>104</th>
-      <td>ENSG00000181104</td>
-      <td>F2R</td>
-      <td>rs77552570</td>
-      <td>0.588019</td>
-      <td>2.555810e-06</td>
-    </tr>
-    <tr>
-      <th>105</th>
-      <td>ENSG00000162413</td>
-      <td>KLHL21</td>
-      <td>rs79014847</td>
-      <td>9.966460</td>
-      <td>3.565340e-06</td>
-    </tr>
-    <tr>
-      <th>106</th>
-      <td>ENSG00000140464</td>
-      <td>PML</td>
-      <td>rs79418157</td>
-      <td>4.944420</td>
-      <td>3.792480e-06</td>
-    </tr>
-    <tr>
-      <th>107</th>
-      <td>ENSG00000198874</td>
-      <td>TYW1</td>
-      <td>rs150635487</td>
-      <td>5.562890</td>
-      <td>4.693400e-06</td>
-    </tr>
-    <tr>
-      <th>108</th>
-      <td>ENSG00000122034</td>
-      <td>GTF3A</td>
-      <td>rs145441597</td>
-      <td>-0.291743</td>
-      <td>4.908690e-06</td>
-    </tr>
-    <tr>
-      <th>109</th>
-      <td>ENSG00000145725</td>
-      <td>PPIP5K2</td>
-      <td>rs32840</td>
-      <td>0.157580</td>
-      <td>5.540950e-06</td>
-    </tr>
-    <tr>
-      <th>110</th>
-      <td>ENSG00000142459</td>
-      <td>EVI5L</td>
-      <td>rs116240065</td>
-      <td>-7.908300</td>
-      <td>6.943580e-06</td>
-    </tr>
-    <tr>
-      <th>111</th>
-      <td>ENSG00000126217</td>
-      <td>MCF2L</td>
-      <td>rs193004743</td>
-      <td>-8.844480</td>
-      <td>1.350470e-05</td>
-    </tr>
-    <tr>
-      <th>112</th>
-      <td>ENSG00000146701</td>
-      <td>MDH2</td>
-      <td>rs3973188</td>
-      <td>-0.145699</td>
-      <td>1.434610e-05</td>
-    </tr>
-    <tr>
-      <th>113</th>
-      <td>ENSG00000121621</td>
-      <td>KIF18A</td>
-      <td>rs10835274</td>
-      <td>0.203743</td>
-      <td>1.578890e-05</td>
-    </tr>
-    <tr>
-      <th>114</th>
-      <td>ENSG00000142794</td>
-      <td>NBPF3</td>
-      <td>rs114523368</td>
-      <td>-4.125680</td>
-      <td>1.678470e-05</td>
-    </tr>
-    <tr>
-      <th>115</th>
-      <td>ENSG00000198843</td>
-      <td>SELT</td>
-      <td>rs78779254</td>
-      <td>-0.346021</td>
-      <td>1.738070e-05</td>
-    </tr>
-    <tr>
-      <th>116</th>
-      <td>ENSG00000169131</td>
-      <td>ZNF354A</td>
-      <td>rs78586018</td>
-      <td>7.299670</td>
-      <td>1.880990e-05</td>
-    </tr>
-    <tr>
-      <th>117</th>
-      <td>ENSG00000117410</td>
-      <td>ATP6V0B</td>
-      <td>rs115208426</td>
-      <td>-0.260339</td>
-      <td>2.119750e-05</td>
-    </tr>
-    <tr>
-      <th>118</th>
-      <td>ENSG00000164654</td>
-      <td>MIOS</td>
-      <td>rs7799645</td>
-      <td>7.586740</td>
-      <td>2.352920e-05</td>
-    </tr>
-    <tr>
-      <th>119</th>
-      <td>ENSG00000221829</td>
-      <td>FANCG</td>
-      <td>rs148349712</td>
-      <td>2.092610</td>
-      <td>2.365830e-05</td>
-    </tr>
-    <tr>
-      <th>120</th>
-      <td>ENSG00000121413</td>
-      <td>ZSCAN18</td>
-      <td>rs193080271</td>
-      <td>6.606120</td>
-      <td>2.435200e-05</td>
-    </tr>
-    <tr>
-      <th>121</th>
-      <td>ENSG00000121289</td>
-      <td>CEP89</td>
-      <td>rs34564291</td>
-      <td>7.394310</td>
-      <td>2.497730e-05</td>
-    </tr>
-    <tr>
-      <th>122</th>
-      <td>ENSG00000005075</td>
-      <td>POLR2J</td>
-      <td>rs77974347</td>
-      <td>-0.283879</td>
-      <td>2.766620e-05</td>
-    </tr>
-    <tr>
-      <th>123</th>
-      <td>ENSG00000164346</td>
-      <td>NSA2</td>
-      <td>rs62366458</td>
-      <td>0.126860</td>
-      <td>3.191640e-05</td>
-    </tr>
-    <tr>
-      <th>124</th>
-      <td>ENSG00000233276</td>
-      <td>GPX1</td>
-      <td>rs1800668</td>
-      <td>0.199491</td>
-      <td>3.554400e-05</td>
-    </tr>
-    <tr>
-      <th>125</th>
-      <td>ENSG00000167081</td>
-      <td>PBX3</td>
-      <td>rs113434592</td>
-      <td>0.362778</td>
-      <td>3.594830e-05</td>
-    </tr>
-    <tr>
-      <th>126</th>
-      <td>ENSG00000136908</td>
-      <td>DPM2</td>
-      <td>rs4837215</td>
-      <td>-0.134521</td>
-      <td>4.065690e-05</td>
-    </tr>
-    <tr>
-      <th>127</th>
-      <td>ENSG00000159199</td>
-      <td>ATP5G1</td>
-      <td>rs8075255</td>
-      <td>-0.181133</td>
-      <td>4.370140e-05</td>
-    </tr>
-    <tr>
-      <th>128</th>
-      <td>ENSG00000242110</td>
-      <td>AMACR</td>
-      <td>rs115750665</td>
-      <td>-7.361770</td>
-      <td>5.954660e-05</td>
-    </tr>
-    <tr>
-      <th>129</th>
-      <td>ENSG00000011422</td>
-      <td>PLAUR</td>
-      <td>rs75415913</td>
-      <td>7.757180</td>
-      <td>6.418640e-05</td>
-    </tr>
-    <tr>
-      <th>130</th>
-      <td>ENSG00000132005</td>
-      <td>RFX1</td>
-      <td>rs143333902</td>
-      <td>8.133100</td>
-      <td>8.322350e-05</td>
-    </tr>
-    <tr>
-      <th>131</th>
-      <td>ENSG00000186073</td>
-      <td>C15orf41</td>
-      <td>rs140347939</td>
-      <td>5.406380</td>
-      <td>8.502450e-05</td>
-    </tr>
-    <tr>
-      <th>132</th>
-      <td>ENSG00000107372</td>
-      <td>ZFAND5</td>
-      <td>rs180736405</td>
-      <td>0.480490</td>
-      <td>9.048110e-05</td>
-    </tr>
-    <tr>
-      <th>133</th>
-      <td>ENSG00000157184</td>
-      <td>CPT2</td>
-      <td>rs138187492</td>
-      <td>8.037230</td>
-      <td>1.127390e-04</td>
-    </tr>
-    <tr>
-      <th>134</th>
-      <td>ENSG00000133884</td>
-      <td>DPF2</td>
-      <td>rs116180923</td>
-      <td>-0.827008</td>
-      <td>1.207400e-04</td>
-    </tr>
-    <tr>
-      <th>135</th>
-      <td>ENSG00000162852</td>
-      <td>CNST</td>
-      <td>rs78594483</td>
-      <td>1.139320</td>
-      <td>1.308010e-04</td>
-    </tr>
-    <tr>
-      <th>136</th>
-      <td>ENSG00000162300</td>
-      <td>ZFPL1</td>
-      <td>rs150099266</td>
-      <td>8.817740</td>
-      <td>1.493320e-04</td>
-    </tr>
-    <tr>
-      <th>137</th>
-      <td>ENSG00000095209</td>
-      <td>TMEM38B</td>
-      <td>rs75155349</td>
-      <td>0.715246</td>
-      <td>1.586890e-04</td>
-    </tr>
-    <tr>
-      <th>138</th>
-      <td>ENSG00000137801</td>
-      <td>THBS1</td>
-      <td>rs74720782</td>
-      <td>5.115500</td>
-      <td>1.845040e-04</td>
-    </tr>
-    <tr>
-      <th>139</th>
-      <td>ENSG00000084070</td>
-      <td>SMAP2</td>
-      <td>rs116476671</td>
-      <td>-3.594770</td>
-      <td>2.007990e-04</td>
-    </tr>
-    <tr>
-      <th>140</th>
-      <td>ENSG00000162194</td>
-      <td>C11orf48</td>
-      <td>rs73502133</td>
-      <td>-0.203695</td>
-      <td>2.020100e-04</td>
-    </tr>
-    <tr>
-      <th>141</th>
-      <td>ENSG00000243444</td>
-      <td>PALM2</td>
-      <td>rs10980424</td>
-      <td>-5.337620</td>
-      <td>2.204050e-04</td>
-    </tr>
-    <tr>
-      <th>142</th>
-      <td>ENSG00000161036</td>
-      <td>LRWD1</td>
-      <td>rs181216015</td>
-      <td>7.835470</td>
-      <td>2.237740e-04</td>
-    </tr>
-    <tr>
-      <th>143</th>
-      <td>ENSG00000165323</td>
-      <td>FAT3</td>
-      <td>rs12294676</td>
-      <td>0.209672</td>
-      <td>2.686770e-04</td>
-    </tr>
-    <tr>
-      <th>144</th>
-      <td>ENSG00000154719</td>
-      <td>MRPL39</td>
-      <td>rs8130611</td>
-      <td>-0.130636</td>
-      <td>2.901800e-04</td>
-    </tr>
-    <tr>
-      <th>145</th>
-      <td>ENSG00000254901</td>
-      <td>MEF2BNB</td>
-      <td>rs17683509</td>
-      <td>4.850530</td>
-      <td>3.030270e-04</td>
-    </tr>
-    <tr>
-      <th>146</th>
-      <td>ENSG00000162734</td>
-      <td>PEA15</td>
-      <td>rs11265424</td>
-      <td>0.147112</td>
-      <td>3.048420e-04</td>
-    </tr>
-    <tr>
-      <th>147</th>
-      <td>ENSG00000165271</td>
-      <td>NOL6</td>
-      <td>rs12551976</td>
-      <td>-0.317672</td>
-      <td>3.262110e-04</td>
-    </tr>
-    <tr>
-      <th>148</th>
-      <td>ENSG00000078124</td>
-      <td>ACER3</td>
-      <td>rs114643069</td>
-      <td>-0.463298</td>
-      <td>3.370090e-04</td>
-    </tr>
-    <tr>
-      <th>149</th>
-      <td>ENSG00000113522</td>
-      <td>RAD50</td>
-      <td>rs138880373</td>
-      <td>-0.289701</td>
-      <td>3.971860e-04</td>
-    </tr>
-    <tr>
-      <th>150</th>
-      <td>ENSG00000188186</td>
-      <td>LAMTOR4</td>
-      <td>rs3736591</td>
-      <td>-0.148621</td>
-      <td>3.972570e-04</td>
-    </tr>
-    <tr>
-      <th>151</th>
-      <td>ENSG00000142684</td>
-      <td>ZNF593</td>
-      <td>1-26369927</td>
-      <td>-0.167434</td>
-      <td>4.092790e-04</td>
-    </tr>
-    <tr>
-      <th>152</th>
-      <td>ENSG00000179361</td>
-      <td>ARID3B</td>
-      <td>rs4887151</td>
-      <td>0.095080</td>
-      <td>4.425700e-04</td>
-    </tr>
-    <tr>
-      <th>153</th>
-      <td>ENSG00000078967</td>
-      <td>UBE2D4</td>
-      <td>rs7803525</td>
-      <td>7.765890</td>
-      <td>4.605880e-04</td>
-    </tr>
-    <tr>
-      <th>154</th>
-      <td>ENSG00000136783</td>
-      <td>NIPSNAP3A</td>
-      <td>rs146234114</td>
-      <td>7.400410</td>
-      <td>4.750710e-04</td>
-    </tr>
-    <tr>
-      <th>155</th>
-      <td>ENSG00000106290</td>
-      <td>TAF6</td>
-      <td>rs35649099</td>
-      <td>0.121440</td>
-      <td>4.940710e-04</td>
-    </tr>
-    <tr>
-      <th>156</th>
-      <td>ENSG00000145907</td>
-      <td>G3BP1</td>
-      <td>rs183164757</td>
-      <td>-0.224776</td>
-      <td>5.492650e-04</td>
-    </tr>
-    <tr>
-      <th>157</th>
-      <td>ENSG00000131475</td>
-      <td>VPS25</td>
-      <td>rs73320304</td>
-      <td>0.244143</td>
-      <td>5.905990e-04</td>
-    </tr>
-    <tr>
-      <th>158</th>
-      <td>ENSG00000027001</td>
-      <td>MIPEP</td>
-      <td>rs7328867</td>
-      <td>10.033100</td>
-      <td>6.014580e-04</td>
-    </tr>
-    <tr>
-      <th>159</th>
-      <td>ENSG00000162585</td>
-      <td>C1orf86</td>
-      <td>rs436543</td>
-      <td>0.117010</td>
-      <td>6.688970e-04</td>
-    </tr>
-    <tr>
-      <th>160</th>
-      <td>ENSG00000106853</td>
-      <td>PTGR1</td>
-      <td>rs7028222</td>
-      <td>-0.247891</td>
-      <td>6.997520e-04</td>
-    </tr>
-    <tr>
-      <th>161</th>
-      <td>ENSG00000160685</td>
-      <td>ZBTB7B</td>
-      <td>rs12134456</td>
-      <td>-7.110410</td>
-      <td>7.170970e-04</td>
-    </tr>
-    <tr>
-      <th>162</th>
-      <td>ENSG00000130770</td>
-      <td>ATPIF1</td>
-      <td>rs530426</td>
-      <td>-0.094513</td>
-      <td>7.544320e-04</td>
-    </tr>
-    <tr>
-      <th>163</th>
-      <td>ENSG00000166938</td>
-      <td>DIS3L</td>
-      <td>rs79824500</td>
-      <td>8.834890</td>
-      <td>8.095130e-04</td>
-    </tr>
-    <tr>
-      <th>164</th>
-      <td>ENSG00000253797</td>
-      <td>UTP14C</td>
-      <td>rs115432565</td>
-      <td>0.381140</td>
-      <td>8.122250e-04</td>
-    </tr>
-    <tr>
-      <th>165</th>
-      <td>ENSG00000136856</td>
-      <td>SLC2A8</td>
-      <td>rs149587918</td>
-      <td>5.056830</td>
-      <td>8.605430e-04</td>
-    </tr>
-    <tr>
-      <th>166</th>
-      <td>ENSG00000165140</td>
-      <td>FBP1</td>
-      <td>rs10989709</td>
-      <td>-8.628560</td>
-      <td>9.267410e-04</td>
-    </tr>
-    <tr>
-      <th>167</th>
-      <td>ENSG00000269343</td>
-      <td>ZNF587B</td>
-      <td>rs188747487</td>
-      <td>8.310020</td>
-      <td>9.522340e-04</td>
-    </tr>
-    <tr>
-      <th>168</th>
-      <td>ENSG00000085491</td>
-      <td>SLC25A24</td>
-      <td>rs607101</td>
-      <td>-0.146611</td>
-      <td>9.530610e-04</td>
-    </tr>
-    <tr>
-      <th>169</th>
-      <td>ENSG00000182973</td>
-      <td>CNOT10</td>
-      <td>rs6788735</td>
-      <td>-0.132575</td>
-      <td>9.827390e-04</td>
-    </tr>
-    <tr>
-      <th>170</th>
-      <td>ENSG00000150753</td>
-      <td>CCT5</td>
-      <td>rs2548546</td>
-      <td>-0.105278</td>
-      <td>9.926300e-04</td>
-    </tr>
-    <tr>
-      <th>171</th>
-      <td>ENSG00000169174</td>
-      <td>PCSK9</td>
-      <td>rs77965618</td>
-      <td>6.162400</td>
-      <td>1.024780e-03</td>
-    </tr>
-    <tr>
-      <th>172</th>
-      <td>ENSG00000127184</td>
-      <td>COX7C</td>
-      <td>rs12332473</td>
-      <td>0.074714</td>
-      <td>1.052670e-03</td>
-    </tr>
-    <tr>
-      <th>173</th>
-      <td>ENSG00000117118</td>
-      <td>SDHB</td>
-      <td>rs12066331</td>
-      <td>-0.221960</td>
-      <td>1.057660e-03</td>
-    </tr>
-    <tr>
-      <th>174</th>
-      <td>ENSG00000137880</td>
-      <td>GCHFR</td>
-      <td>rs190530286</td>
-      <td>4.580140</td>
-      <td>1.085450e-03</td>
-    </tr>
-    <tr>
-      <th>175</th>
-      <td>ENSG00000198799</td>
-      <td>LRIG2</td>
-      <td>rs144581772</td>
-      <td>0.748893</td>
-      <td>1.144320e-03</td>
-    </tr>
-    <tr>
-      <th>176</th>
-      <td>ENSG00000153885</td>
-      <td>KCTD15</td>
-      <td>rs146198944</td>
-      <td>2.407710</td>
-      <td>1.182870e-03</td>
-    </tr>
-    <tr>
-      <th>177</th>
-      <td>ENSG00000134809</td>
-      <td>TIMM10</td>
-      <td>rs2454664</td>
-      <td>-0.263685</td>
-      <td>1.202400e-03</td>
-    </tr>
-    <tr>
-      <th>178</th>
-      <td>ENSG00000086062</td>
-      <td>B4GALT1</td>
-      <td>rs1125479</td>
-      <td>0.229450</td>
-      <td>1.218740e-03</td>
-    </tr>
-    <tr>
-      <th>179</th>
-      <td>ENSG00000213523</td>
-      <td>SRA1</td>
-      <td>rs778591</td>
-      <td>-0.144387</td>
-      <td>1.301270e-03</td>
-    </tr>
-    <tr>
-      <th>180</th>
-      <td>ENSG00000267645</td>
-      <td>POLR2J2</td>
-      <td>rs183117024</td>
-      <td>-8.381680</td>
-      <td>1.314740e-03</td>
-    </tr>
-    <tr>
-      <th>181</th>
-      <td>ENSG00000116489</td>
-      <td>CAPZA1</td>
-      <td>rs1994604</td>
-      <td>0.099928</td>
-      <td>1.353860e-03</td>
-    </tr>
-    <tr>
-      <th>182</th>
-      <td>ENSG00000185787</td>
-      <td>MORF4L1</td>
-      <td>rs8039144</td>
-      <td>-0.083248</td>
-      <td>1.362930e-03</td>
-    </tr>
-    <tr>
-      <th>183</th>
-      <td>ENSG00000150401</td>
-      <td>DCUN1D2</td>
-      <td>rs74999777</td>
-      <td>6.601230</td>
-      <td>1.363650e-03</td>
-    </tr>
-    <tr>
-      <th>184</th>
-      <td>ENSG00000116791</td>
-      <td>CRYZ</td>
-      <td>rs28594379</td>
-      <td>-0.670421</td>
-      <td>1.408140e-03</td>
-    </tr>
-    <tr>
-      <th>185</th>
-      <td>ENSG00000134153</td>
-      <td>EMC7</td>
-      <td>rs17237191</td>
-      <td>-0.373564</td>
-      <td>1.419180e-03</td>
-    </tr>
-    <tr>
-      <th>186</th>
-      <td>ENSG00000166444</td>
-      <td>ST5</td>
-      <td>rs181100237</td>
-      <td>6.130040</td>
-      <td>1.477240e-03</td>
-    </tr>
-    <tr>
-      <th>187</th>
-      <td>ENSG00000121775</td>
-      <td>TMEM39B</td>
-      <td>rs111714251</td>
-      <td>7.927280</td>
-      <td>1.505640e-03</td>
-    </tr>
-    <tr>
-      <th>188</th>
-      <td>ENSG00000249992</td>
-      <td>TMEM158</td>
-      <td>rs73829696</td>
-      <td>9.665750</td>
-      <td>1.544280e-03</td>
-    </tr>
-  </tbody>
-</table>
-
-<p>
-Check the beta approximation to the permutation p-values:
+Check the beta approximation to the permutation p-values.
 </p>
 
 <div class="org-src-container">
 <pre class="src src-ipython">plt.clf()
-plt.scatter(mean_qtls[<span class="org-string">'p_empirical'</span>], mean_qtls[<span class="org-string">'p_beta'</span>], s=1, c=<span class="org-string">'k'</span>)
+plt.gcf().set_size_inches(6, 6)
+plt.scatter(geuvadis_qtls[<span class="org-string">'p_empirical'</span>], geuvadis_qtls[<span class="org-string">'p_beta'</span>], s=1, c=<span class="org-string">'k'</span>)
 plt.plot([0, 1], [0, 1], c=<span class="org-string">'r'</span>, ls=<span class="org-string">'--'</span>)
 plt.xlabel(<span class="org-string">'Empirical p-value'</span>)
-plt.ylabel(<span class="org-string">'Approximate p-value'</span>)
+<span class="org-variable-name">_</span> = plt.ylabel(<span class="org-string">'Approximate p-value'</span>)
 </pre>
 </div>
 
-<pre class="example">
-Text(0,0.5,'Approximate p-value')
-
-</pre>
 
 <div class="figure">
-<p><img src="figure/qtl-mapping.org/zi2-mean-qtl-beta.png" alt="zi2-mean-qtl-beta.png">
+<p><img src="figure/qtl-mapping.org/geuvadis-qtl-beta.png" alt="geuvadis-qtl-beta.png">
 </p>
+</div>
+</div>
+</div>
+
+<div id="outline-container-orgaa637e2" class="outline-2">
+<h2 id="orgaa637e2">Call mean-QTLs in the single cell data</h2>
+<div class="outline-text-2" id="text-orgaa637e2">
+<p>
+For each individual, for each gene, take either the negative binomial or
+zero-inflated negative binomial estimate, depending on which minimized the
+negative log-likelihood of the data.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/browser.db'</span>) <span class="org-keyword">as</span> conn:
+  <span class="org-variable-name">mean</span> = (pd.read_sql(<span class="org-string">'select gene, ind, case when nb_nll &lt; zinb_nll then nb_log_mean else zinb2_log_mean end as log_mean from params;'</span>, conn)
+          .pivot(index=<span class="org-string">'gene'</span>, columns=<span class="org-string">'ind'</span>, values=<span class="org-string">'log_mean'</span>))
+</pre>
 </div>
 
 <p>
-Plot the quantile-quantile plot of QTL test statistics:
+Write out the <a href="https://qtltools.github.io/qtltools/pages/input_files.html">phenotype file</a> for <code>qtltools</code>.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">qqplot</span>(x):
-  <span class="org-variable-name">y</span> = -np.log10(x[np.logical_and(np.isfinite(x), x &gt; 0)])
-  <span class="org-variable-name">y</span> = y[np.isfinite(y)]
-  <span class="org-variable-name">n</span> = y.shape[0]
-  plt.clf()
-  plt.scatter(np.flip(-np.log10(np.linspace(0, 1, n + 1)[1:]), -1), np.sort(y), s=1, c=<span class="org-string">'k'</span>)
-  plt.plot([0, np.log10(n)], [0, np.log10(n)], color=<span class="org-string">'r'</span>, ls=<span class="org-string">'dashed'</span>)
-  plt.xlabel(<span class="org-string">'Expected -$\log_{10}(p)$'</span>)
-  plt.ylabel(<span class="org-string">'Observed -$\log_{10}(p)$'</span>)
+<pre class="src src-ipython" id="org5b69fcd"><span class="org-variable-name">gene_info</span> = (pd.read_table(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/scqtl-genes.txt.gz'</span>)
+             .set_index(<span class="org-string">'gene'</span>)
+             .query(<span class="org-string">'source == "H. sapiens"'</span>)
+             .query(<span class="org-string">'chr != "hsX"'</span>)
+             .query(<span class="org-string">'chr != "hsY"'</span>)
+             .query(<span class="org-string">'chr != "hsMT"'</span>))
 </pre>
 </div>
 
 <div class="org-src-container">
-<pre class="src src-ipython">qqplot(mean_qtls[<span class="org-string">'p_beta'</span>])
+<pre class="src src-ipython" id="org38e255d"><span class="org-keyword">def</span> <span class="org-function-name">qtltools_format</span>(row):
+  <span class="org-variable-name">row</span>[<span class="org-string">'#Chr'</span>] = <span class="org-string">'{}'</span>.<span class="org-builtin">format</span>(row[<span class="org-string">'chr'</span>][2:])
+  <span class="org-variable-name">row</span>[<span class="org-string">'gid'</span>] = row.name
+  <span class="org-variable-name">row</span>[<span class="org-string">'pid'</span>] = row.name
+  <span class="org-keyword">return</span> row
+
+<span class="org-keyword">def</span> <span class="org-function-name">write_pheno_file</span>(pheno, gene_info, output_file, holdout=<span class="org-constant">True</span>, **kwargs):
+  <span class="org-keyword">if</span> holdout:
+    <span class="org-variable-name">genes</span> = gene_info.loc[gene_info[<span class="org-string">'chr'</span>].<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: <span class="org-builtin">bool</span>(<span class="org-builtin">int</span>(x[2:]) % 2)).values]
+  <span class="org-keyword">else</span>:
+    <span class="org-variable-name">genes</span> = gene_info
+  (genes
+   .<span class="org-builtin">apply</span>(qtltools_format, **kwargs, axis=1)
+   .merge(pheno, left_index=<span class="org-constant">True</span>, right_index=<span class="org-constant">True</span>)
+   .to_csv(output_file,
+           sep=<span class="org-string">'\t'</span>,
+           columns=[<span class="org-string">'#Chr'</span>, <span class="org-string">'start'</span>, <span class="org-string">'end'</span>, <span class="org-string">'pid'</span>, <span class="org-string">'gid'</span>, <span class="org-string">'strand'</span>] + <span class="org-builtin">list</span>(pheno.columns),
+           header=<span class="org-constant">True</span>,
+           index=<span class="org-constant">False</span>,
+           index_label=<span class="org-constant">False</span>))
 </pre>
 </div>
 
+<div class="org-src-container">
+<pre class="src src-ipython">write_pheno_file(mean, gene_info, <span class="org-string">'/scratch/midway2/aksarkar/singlecell/mean.bed'</span>)
+</pre>
+</div>
 
-<div class="figure">
-<p><img src="figure/qtl-mapping.org/zi2-mean-qtl-qq.png" alt="zi2-mean-qtl-qq.png">
+<p>
+Index the phenotype file.
 </p>
-</div>
+
+<pre class="example">
+Submitted batch job 44113019
+
+</pre>
+
+<pre class="example">
+Submitted batch job 44113021
+
+</pre>
 </div>
 </div>
 
-
-
-<div id="outline-container-org763d71a" class="outline-2">
-<h2 id="org763d71a">Dispersion-QTL calling</h2>
-<div class="outline-text-2" id="text-org763d71a">
+<div id="outline-container-orgf02711e" class="outline-2">
+<h2 id="orgf02711e">Dispersion-QTL calling</h2>
+<div class="outline-text-2" id="text-orgf02711e">
 <p>
 Read the estimated parameters and center them.
 </p>
@@ -3058,7 +1660,7 @@ Plot the quantile-quantile plot of QTL test statistics:
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-02-24 Sat 11:18</p>
+<p class="date">Created: 2018-03-05 Mon 14:04</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
