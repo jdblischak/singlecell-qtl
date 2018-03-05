@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-02-24 Sat 11:15 -->
+<!-- 2018-03-04 Sun 23:24 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mean/dispersion estimation</title>
@@ -258,7 +258,7 @@ for the JavaScript code in this tag.
 <h2 id="orgbddc3b7">Introduction</h2>
 <div class="outline-text-2" id="text-orgbddc3b7">
 <p>
-The simplest approach to call mean/variance QTLs is modular:
+We take a modular approach to call QTLs:
 </p>
 
 <ol class="org-ol">
@@ -267,16 +267,12 @@ The simplest approach to call mean/variance QTLs is modular:
 </ol>
 
 <p>
-Here, we solve (1), and <a href="qtl-mapping.html">use QTLtools</a> to solve (2). We perform the following
-analyses:
+Here, we solve (1).
 </p>
 
 <ol class="org-ol">
-<li><a href="#org269d03c">We implement GPU-based</a> maximum likelihood estimation of the parameters</li>
-<li><a href="#orge3a2968">We develop visual diagnostics</a> of the fitted models to check goodness of fit</li>
-<li><a href="#org1429fd2">We fit a model without dropout</a> and show it does not fit the data</li>
-<li><a href="#orga8ab6f4">We fit a model assuming dropout per gene</a></li>
-<li><a href="#org1986c5b">We fit a model assuming dropout per individual per gene</a></li>
+<li><a href="#org269d03c">We implement GPU-based ML estimation</a></li>
+<li><a href="#orgd9318d9">We implement CPU-based ML estimation</a></li>
 </ol>
 </div>
 </div>
@@ -337,63 +333,11 @@ Then, the log-likelihood of the data is:
 </p>
 
 <p>
-\[ \ln p(r_{ijk} \mid r_{ijk} = 0, \cdot) = -\ln(\pi_\cdot + (1 - \pi_{\cdot})
-  \exp(\ln p(r_{ijk} \mid R_{ij}, \mu_{ik}, \phi_{ik}))) \]
+\[ \ln p(r_{ijk} \mid \cdot) = \ln(\pi_\cdot + (1 -  \pi_{\cdot}) p(r_{ijk}
+    \mid R_{ij}, \mu_{ik}, \phi_{ik}))\ \text{if}\ r_{ijk} = 0 \]
+\[ \ln p(r_{ijk} \mid \cdot) = \ln(1 - \pi_{\cdot}) + \ln p(r_{ijk} \mid
+    R_{ij}, \mu_{ik}, \phi_{ik})\ \text{otherwise} \]
 </p>
-
-<p>
-\[ \ln p(r_{ijk} \mid r_{ijk} > 0, \cdot) = \ln(1 - \pi_{\cdot}) + \ln p(r_{ijk} \mid R_{ij}, \mu_{ik}, \phi_{ik})) \]
-</p>
-</div>
-</div>
-
-<div id="outline-container-orga83ce40" class="outline-2">
-<h2 id="orga83ce40">Read the data</h2>
-<div class="outline-text-2" id="text-orga83ce40">
-<p>
-Read the QC'ed data.
-</p>
-
-<p>
-Compute size factors.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">size</span> = umi.agg(np.<span class="org-builtin">sum</span>)
-</pre>
-</div>
-
-<p>
-Onehot-encode the samples.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython" id="org9e8be09"><span class="org-variable-name">individuals</span> = <span class="org-builtin">sorted</span>(annotations[<span class="org-string">'chip_id'</span>].unique())
-<span class="org-variable-name">onehot</span> = np.zeros((umi.shape[1], <span class="org-builtin">len</span>(individuals)), dtype=np.float32)
-onehot[np.arange(onehot.shape[0]),annotations[<span class="org-string">'chip_id'</span>].<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: individuals.index(x))] = 1
-<span class="org-variable-name">onehot</span> = pd.DataFrame(onehot, columns=individuals, index=umi.columns)
-onehot.shape
-</pre>
-</div>
-
-<pre class="example">
-(4985, 54)
-
-</pre>
-
-<p>
-Check that one-hot encoding is OK:
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">for</span> _ <span class="org-keyword">in</span> <span class="org-builtin">range</span>(100):
-  <span class="org-variable-name">gene</span> = np.random.choice(umi.index)
-  <span class="org-variable-name">ind</span> = np.random.choice(individuals)
-  <span class="org-variable-name">idx</span> = individuals.index(ind)
-  <span class="org-keyword">assert</span> (umi.loc[gene, (annotations[<span class="org-string">'chip_id'</span>] == ind).values] == 
-          umi.loc[gene, onehot.dot(np.eye(onehot.shape[1])[idx]).astype(<span class="org-builtin">bool</span>)]).<span class="org-builtin">all</span>()
-</pre>
-</div>
 </div>
 </div>
 
@@ -403,9 +347,7 @@ Check that one-hot encoding is OK:
 <p>
 We optimize all of the parameters together, using one-hot encoding to map
 parameters to data points. This makes inference more amenable to running on
-the GPU. Although this is slower for the NB estimation problem, it will be
-faster for the ZINB estimation problem when parameters are shared and we need
-to operate on the entire count matrix.
+the GPU.
 </p>
 
 <p>
@@ -448,7 +390,7 @@ perform gradient descent.
 <span class="org-doc">  logodds - dropout log odds</span>
 
 <span class="org-doc">  """</span>
-  <span class="org-variable-name">case_zero</span> = -log(sigmoid(-logodds) + sigmoid(logodds) * tf.exp(nb_llik(x, mean, inv_disp)))
+  <span class="org-variable-name">case_zero</span> = log(sigmoid(-logodds) + sigmoid(logodds) * tf.exp(nb_llik(x, mean, inv_disp)))
   <span class="org-variable-name">case_non_zero</span> = -tf.nn.softplus(logodds) + nb_llik(x, mean, inv_disp)
   <span class="org-keyword">return</span> tf.where(tf.less(x, 1e-8), case_zero, case_non_zero)
 
@@ -460,17 +402,25 @@ perform gradient descent.
 <span class="org-doc">  umi - count matrix (n x p; float32)</span>
 <span class="org-doc">  onehot - mapping of individuals to cells (m x n; float32)</span>
 <span class="org-doc">  size_factor - size factor vector (n x 1; float32)</span>
+<span class="org-doc">  gene_dropout - fit one dropout parameter per gene</span>
+<span class="org-doc">  ind_dropout - fit one dropout parameter per individual</span>
+<span class="org-doc">  init_log_mean - initial value for estimated log mean (m x p; float32)</span>
+<span class="org-doc">  init_log_disp - initial value for estimated log dispersion (m x p; float32)</span>
+
+<span class="org-doc">  If ind_dropout is True, gene_dropout must be True, otherwise raises</span>
+<span class="org-doc">  ArgumentError.</span>
 
 <span class="org-doc">  Returns:</span>
 
 <span class="org-doc">  log_mean - log mean parameter (m x p)</span>
 <span class="org-doc">  log_disp - log dispersion parameter (m x p)</span>
-<span class="org-doc">  dropout - if zero_inflation, dropout log odds (n x p)</span>
+<span class="org-doc">  dropout - dropout log odds (1 x p if gene_dropout, n x p if ind_dropout)</span>
 
 <span class="org-doc">  """</span>
   <span class="org-variable-name">n</span>, <span class="org-variable-name">p</span> = umi.shape
   <span class="org-variable-name">_</span>, <span class="org-variable-name">m</span> = onehot.shape
 
+  <span class="org-variable-name">params</span> = <span class="org-builtin">locals</span>()
   <span class="org-variable-name">graph</span> = tf.Graph()
   <span class="org-keyword">with</span> graph.as_default(), graph.device(<span class="org-string">'/gpu:*'</span>):
     <span class="org-variable-name">size_factor</span> = tf.Variable(size_factor, trainable=<span class="org-constant">False</span>)
@@ -493,7 +443,7 @@ perform gradient descent.
     <span class="org-keyword">elif</span> ind_dropout:
       <span class="org-keyword">raise</span> <span class="org-type">ValueError</span>(<span class="org-string">'Cannot specify individual-specific dropout without gene-specific dropout'</span>)
     <span class="org-keyword">else</span>:
-      <span class="org-variable-name">llik</span> = tf.reduce_sum(
+      <span class="org-variable-name">llik</span> = tf.reduce_mean(
         nb_llik(umi, size_factor * tf.matmul(onehot, mean),
                 tf.matmul(onehot, inv_disp)))
 
@@ -514,11 +464,10 @@ perform gradient descent.
 </pre>
 </div>
 </div>
-</div>
 
-<div id="outline-container-orge3a2968" class="outline-2">
-<h2 id="orge3a2968">Quantile-quantile diagnostic plot</h2>
-<div class="outline-text-2" id="text-orge3a2968">
+<div id="outline-container-orge3a2968" class="outline-3">
+<h3 id="orge3a2968">Quantile-quantile diagnostic plot</h3>
+<div class="outline-text-3" id="text-orge3a2968">
 <p>
 The challenge in visualizing the fitted distributions is that the
 observations \(r_{ijk}\) are not drawn iid. from a distribution
@@ -651,9 +600,50 @@ Look at the quantiles of the QQ plots over all genes:
 </div>
 </div>
 
-<div id="outline-container-org1429fd2" class="outline-2">
-<h2 id="org1429fd2">Fit NB</h2>
-<div class="outline-text-2" id="text-org1429fd2">
+<div id="outline-container-orga83ce40" class="outline-3">
+<h3 id="orga83ce40">Read the data</h3>
+<div class="outline-text-3" id="text-orga83ce40">
+<p>
+Read the QC'ed data.
+</p>
+
+<p>
+Onehot-encode the samples.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython" id="org9e8be09"><span class="org-variable-name">individuals</span> = <span class="org-builtin">sorted</span>(annotations[<span class="org-string">'chip_id'</span>].unique())
+<span class="org-variable-name">onehot</span> = np.zeros((umi.shape[1], <span class="org-builtin">len</span>(individuals)), dtype=np.float32)
+onehot[np.arange(onehot.shape[0]),annotations[<span class="org-string">'chip_id'</span>].<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: individuals.index(x))] = 1
+<span class="org-variable-name">onehot</span> = pd.DataFrame(onehot, columns=individuals, index=umi.columns)
+onehot.shape
+</pre>
+</div>
+
+<pre class="example">
+(4995, 54)
+
+</pre>
+
+<p>
+Check that one-hot encoding is OK:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">for</span> _ <span class="org-keyword">in</span> <span class="org-builtin">range</span>(100):
+  <span class="org-variable-name">gene</span> = np.random.choice(umi.index)
+  <span class="org-variable-name">ind</span> = np.random.choice(individuals)
+  <span class="org-variable-name">idx</span> = individuals.index(ind)
+  <span class="org-keyword">assert</span> (umi.loc[gene, (annotations[<span class="org-string">'chip_id'</span>] == ind).values] == 
+          umi.loc[gene, onehot.dot(np.eye(onehot.shape[1])[idx]).astype(<span class="org-builtin">bool</span>)]).<span class="org-builtin">all</span>()
+</pre>
+</div>
+</div>
+</div>
+
+<div id="outline-container-org1429fd2" class="outline-3">
+<h3 id="org1429fd2">Fit NB</h3>
+<div class="outline-text-3" id="text-org1429fd2">
 <p>
 Estimate means and dispersions assuming no dropout.
 </p>
@@ -717,9 +707,9 @@ to find some genes which depart even more from uniform quantiles.
 </div>
 </div>
 
-<div id="outline-container-orga8ab6f4" class="outline-2">
-<h2 id="orga8ab6f4">Fit ZINB</h2>
-<div class="outline-text-2" id="text-orga8ab6f4">
+<div id="outline-container-orga8ab6f4" class="outline-3">
+<h3 id="orga8ab6f4">Fit ZINB</h3>
+<div class="outline-text-3" id="text-orga8ab6f4">
 <p>
 Estimate the parameters of the zero-inflated model assuming dropout per gene.
 </p>
@@ -767,9 +757,9 @@ Plot the diagnostic for the model.
 </div>
 </div>
 
-<div id="outline-container-org1986c5b" class="outline-2">
-<h2 id="org1986c5b">Fit ZINB2</h2>
-<div class="outline-text-2" id="text-org1986c5b">
+<div id="outline-container-org1986c5b" class="outline-3">
+<h3 id="org1986c5b">Fit ZINB2</h3>
+<div class="outline-text-3" id="text-org1986c5b">
 <p>
 Estimate the parameters of the zero-inflated model assuming dropout per
 individual and gene.
@@ -819,9 +809,238 @@ Plot the data and fitted distribution.
 </div>
 </div>
 </div>
+<div id="outline-container-orgd9318d9" class="outline-2">
+<h2 id="orgd9318d9">numpy/scipy implementation</h2>
+<div class="outline-text-2" id="text-orgd9318d9">
+<p>
+Optimize the negative log-likelihood.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython" id="org9a58076"><span class="org-keyword">import</span> scipy.optimize <span class="org-keyword">as</span> so
+
+<span class="org-keyword">def</span> <span class="org-function-name">log</span>(x):
+  <span class="org-doc">"""Numerically safe log"""</span>
+  <span class="org-keyword">return</span> np.log(x + 1e-8)
+
+<span class="org-keyword">def</span> <span class="org-function-name">sigmoid</span>(x):
+  <span class="org-doc">"""Numerically safe sigmoid"""</span>
+  <span class="org-variable-name">lim</span> = np.log(np.finfo(np.float64).resolution)
+  <span class="org-keyword">return</span> np.clip(sp.expit(x), lim, -lim)
+
+<span class="org-keyword">def</span> <span class="org-function-name">zinb</span>(theta, x, size):
+  <span class="org-variable-name">theta</span>, <span class="org-variable-name">dropout</span> = theta[:2], sigmoid(theta[2])
+  <span class="org-variable-name">case_zero</span> = log(dropout + (1 - dropout) * np.exp(-nb(theta, x, size)))
+  <span class="org-variable-name">case_non_zero</span> = log(1 - dropout) - nb(theta, x, size)
+  <span class="org-keyword">return</span> -np.where(x &lt; 1e-8, case_zero, case_non_zero).mean()
+
+<span class="org-keyword">def</span> <span class="org-function-name">nb</span>(theta, x, size):
+  <span class="org-variable-name">mean</span>, <span class="org-variable-name">inv_disp</span> = np.exp(theta)
+  <span class="org-variable-name">mean</span> *= size
+  <span class="org-keyword">assert</span> mean.shape == x.shape
+  <span class="org-keyword">return</span> -(x * log(mean / inv_disp) -
+           x * log(1 + mean / inv_disp) -
+           inv_disp * log(1 + mean / inv_disp) +
+           sp.gammaln(x + inv_disp) -
+           sp.gammaln(inv_disp) -
+           sp.gammaln(x + 1)).mean()
+</pre>
+</div>
+
+<p>
+Use this to check the parameter estimation for a particular gene/individual.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">extract_data</span>(ind, gene):
+  <span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/browser.db'</span>) <span class="org-keyword">as</span> conn:
+    <span class="org-variable-name">umi</span> = pd.read_sql(<span class="org-string">"""select umi.value, annotation.size from umi, annotation </span>
+<span class="org-string">    where annotation.chip_id == ? and gene == ? and </span>
+<span class="org-string">    umi.sample == annotation.sample;"""</span>, con=conn, params=(ind, gene))
+    <span class="org-keyword">return</span> umi
+</pre>
+</div>
+
+<p>
+Shard the data to parallelize over nodes.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/browser/browser.db'</span>) <span class="org-keyword">as</span> conn:
+  <span class="org-variable-name">annotation</span> = pd.read_sql(<span class="org-string">'select * from annotation'</span>, con=conn).set_index(<span class="org-string">'sample'</span>)
+
+<span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
+<span class="org-variable-name">keep_genes</span> = pd.read_table(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
+<span class="org-variable-name">keep_genes</span> = keep_genes[keep_genes.values].index
+<span class="org-variable-name">i</span> = 0
+<span class="org-keyword">for</span> chunk <span class="org-keyword">in</span> pd.read_table(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>, index_col=0, chunksize=1000):
+  <span class="org-keyword">print</span>(<span class="org-string">'Processing chunk {}'</span>.<span class="org-builtin">format</span>(i))
+  <span class="org-variable-name">chunk</span> = (chunk
+           .loc[:,keep_samples.values.ravel()]
+           .<span class="org-builtin">filter</span>(items=keep_genes, axis=<span class="org-string">'index'</span>))
+  <span class="org-keyword">if</span> <span class="org-keyword">not</span> chunk.empty:
+    <span class="org-variable-name">chunk</span> = (chunk
+             .reset_index()
+             .melt(id_vars=<span class="org-string">'gene'</span>, var_name=<span class="org-string">'sample'</span>)
+             .merge(annotation, left_on=<span class="org-string">'sample'</span>, right_index=<span class="org-constant">True</span>)
+             .sort_values([<span class="org-string">'gene'</span>, <span class="org-string">'chip_id'</span>, <span class="org-string">'sample'</span>]))
+    chunk.to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/chunk-{}.txt.gz'</span>.<span class="org-builtin">format</span>(i), compression=<span class="org-string">'gzip'</span>, sep=<span class="org-string">'\t'</span>)
+    <span class="org-variable-name">i</span> += 1
+</pre>
+</div>
+
+<p>
+Process each chunk in parallel.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython" id="org14a4f03"><span class="org-keyword">def</span> <span class="org-function-name">fit_gene</span>(chunk):
+  <span class="org-variable-name">res0</span> = so.minimize(nb, x0=[0, 0], args=(chunk[:,0], chunk[:,1]))
+  <span class="org-variable-name">pi0</span> = (chunk[:,0] == 0).<span class="org-builtin">sum</span>() / chunk.shape[0] + 1e-8
+  <span class="org-variable-name">res</span> = so.minimize(zinb, x0=<span class="org-builtin">list</span>(res0.x) + [sp.logit(pi0 + 1e-8)], args=(chunk[:,0], chunk[:,1]))
+  <span class="org-keyword">return</span> <span class="org-builtin">list</span>(res0.x) + [res0.fun, res0.success] + <span class="org-builtin">list</span>(res.x) + [res.fun, res.success]
+
+<span class="org-keyword">def</span> <span class="org-function-name">compute_breaks</span>(chunk, by_ind=<span class="org-constant">False</span>):
+  <span class="org-comment-delimiter"># </span><span class="org-comment">Each subproblem has fixed size, so we can just split on integer indices</span>
+  <span class="org-comment-delimiter"># </span><span class="org-comment">(instead of grouping)</span>
+  <span class="org-variable-name">num_genes</span> = <span class="org-builtin">len</span>(<span class="org-builtin">set</span>(chunk[<span class="org-string">'gene'</span>]))
+  <span class="org-variable-name">num_samples</span> = <span class="org-builtin">len</span>(<span class="org-builtin">set</span>(chunk[<span class="org-string">'sample'</span>]))
+  <span class="org-variable-name">breaks</span> = num_samples * np.arange(num_genes).reshape(-1, 1)
+  <span class="org-keyword">if</span> by_ind:
+    <span class="org-variable-name">num_samples_per_ind</span> = chunk.iloc[:num_samples][<span class="org-string">'chip_id'</span>].value_counts().sort_index().values
+    <span class="org-variable-name">breaks</span> += np.cumsum(num_samples_per_ind).reshape(1, -1)
+  <span class="org-keyword">else</span>:
+    <span class="org-comment-delimiter"># </span><span class="org-comment">We need to get the right end point of each subproblem (exclusive)</span>
+    <span class="org-variable-name">breaks</span> += num_samples
+  <span class="org-keyword">return</span> breaks.ravel()
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">&lt;&lt;zinb-imports&gt;&gt;
+<span class="org-keyword">import</span> argparse
+<span class="org-keyword">import</span> gzip
+<span class="org-keyword">import</span> os
+<span class="org-keyword">import</span> multiprocessing <span class="org-keyword">as</span> mp
+<span class="org-keyword">import</span> sqlite3
+&lt;&lt;np-zinb-impl&gt;&gt;
+&lt;&lt;process-chunk-impl&gt;&gt;
+
+<span class="org-variable-name">parser</span> = argparse.ArgumentParser()
+parser.add_argument(<span class="org-string">'-g'</span>, <span class="org-string">'--by-gene'</span>, action=<span class="org-string">'store_true'</span>, <span class="org-builtin">help</span>=<span class="org-string">'Estimate one model per gene'</span>, default=<span class="org-constant">False</span>)
+<span class="org-variable-name">args</span> = parser.parse_args()
+
+<span class="org-keyword">with</span> mp.Pool() <span class="org-keyword">as</span> pool:
+  <span class="org-variable-name">chunk</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/chunk-{}.txt.gz'</span>.<span class="org-builtin">format</span>(os.getenv(<span class="org-string">'SLURM_ARRAY_TASK_ID'</span>)))
+  <span class="org-variable-name">breaks</span> = compute_breaks(chunk, <span class="org-keyword">not</span> args.by_gene)
+  <span class="org-variable-name">res</span> = pool.<span class="org-builtin">map</span>(fit_gene, np.split(chunk[[<span class="org-string">'value'</span>, <span class="org-string">'size'</span>]].values, breaks[:-1]))
+
+<span class="org-keyword">with</span> gzip.<span class="org-builtin">open</span>(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/result-{}.txt.gz'</span>.<span class="org-builtin">format</span>(os.getenv(<span class="org-string">'SLURM_ARRAY_TASK_ID'</span>)), <span class="org-string">'wt'</span>) <span class="org-keyword">as</span> f:
+  <span class="org-keyword">for</span> b <span class="org-keyword">in</span> breaks:
+    <span class="org-variable-name">gene</span>, <span class="org-variable-name">ind</span> = chunk.iloc[b - 1][[<span class="org-string">'gene'</span>, <span class="org-string">'chip_id'</span>]]
+    <span class="org-keyword">print</span>(gene, ind, *res.pop(0), <span class="org-builtin">file</span>=f)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-sh">sbatch --partition=broadwl --job-name=<span class="org-string">"np-zinb"</span> --mem=4G -a 0-20 -n1 -c28 --exclusive
+<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
+<span class="org-builtin">source</span> activate scqtl
+python /scratch/midway2/aksarkar/singlecell/np-zinb.py -g
+</pre>
+</div>
+
+<p>
+Populate the database.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/browser.db'</span>) <span class="org-keyword">as</span> conn:
+  conn.execute(<span class="org-string">'drop table if exists params;'</span>)
+  <span class="org-keyword">for</span> i <span class="org-keyword">in</span> <span class="org-builtin">range</span>(20):
+    <span class="org-keyword">for</span> chunk <span class="org-keyword">in</span> pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/result-{}.txt.gz'</span>.<span class="org-builtin">format</span>(i), sep=<span class="org-string">' '</span>, header=<span class="org-constant">None</span>, chunksize=1000):
+      <span class="org-variable-name">chunk.columns</span> = [<span class="org-string">'gene'</span>, <span class="org-string">'ind'</span>, <span class="org-string">'nb_log_mean'</span>, <span class="org-string">'nb_log_disp'</span>, <span class="org-string">'nb_nll'</span>, <span class="org-string">'nb_success'</span>, <span class="org-string">'zinb2_log_mean'</span>, <span class="org-string">'zinb2_log_disp'</span>, <span class="org-string">'zinb2_logodds'</span>, <span class="org-string">'zinb_nll'</span>, <span class="org-string">'zinb_success'</span>]
+      chunk.to_sql(name=<span class="org-string">'params'</span>, con=conn, index=<span class="org-constant">False</span>, if_exists=<span class="org-string">'append'</span>)
+  conn.execute(<span class="org-string">'create index ix_params on params(gene, ind);'</span>)
+</pre>
+</div>
+</div>
+</div>
+<div id="outline-container-org322904a" class="outline-2">
+<h2 id="org322904a">Noisy gene identification</h2>
+<div class="outline-text-2" id="text-org322904a">
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">params</span> = pd.read_table(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/params-by-gene.txt.gz'</span>, sep=<span class="org-string">' '</span>, header=<span class="org-constant">None</span>, index_col=0)
+<span class="org-variable-name">params.columns</span> = [<span class="org-string">'_'</span>, <span class="org-string">'nb_log_mean'</span>, <span class="org-string">'nb_log_disp'</span>, <span class="org-string">'nb_nll'</span>, <span class="org-string">'nb_success'</span>,
+                  <span class="org-string">'zinb2_log_mean'</span>, <span class="org-string">'zinb2_log_disp'</span>, <span class="org-string">'zinb2_logodds'</span>, <span class="org-string">'zinb_nll'</span>,
+                  <span class="org-string">'zinb_success'</span>]
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">mle</span> = pd.DataFrame({<span class="org-string">'log_mean'</span>: np.where(params[<span class="org-string">'nb_nll'</span>] &lt; params[<span class="org-string">'zinb_nll'</span>], params[<span class="org-string">'nb_log_mean'</span>], params[<span class="org-string">'zinb2_log_mean'</span>]),
+                    <span class="org-string">'log_disp'</span>: np.where(params[<span class="org-string">'nb_nll'</span>] &lt; params[<span class="org-string">'zinb_nll'</span>], params[<span class="org-string">'nb_log_disp'</span>], params[<span class="org-string">'zinb2_log_disp'</span>])},
+                   index=params.index)
+<span class="org-variable-name">mle</span>[<span class="org-string">'mean'</span>] = np.exp(mle[<span class="org-string">'log_mean'</span>])
+<span class="org-variable-name">mle</span>[<span class="org-string">'var'</span>] = np.exp(mle[<span class="org-string">'log_mean'</span>]) + np.exp(2 * mle[<span class="org-string">'log_mean'</span>] + mle[<span class="org-string">'log_disp'</span>])
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.hist(mle[<span class="org-string">'log_disp'</span>], bins=100)
+plt.xlabel(<span class="org-string">'Estimated log dispersion'</span>)
+plt.ylabel(<span class="org-string">'Number of genes'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0,0.5,'Number of genes')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/zinb.org/disp-dist.png" alt="disp-dist.png">
+</p>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.hist(mle[<span class="org-string">'var'</span>], bins=100)
+plt.xlabel(<span class="org-string">'Estimated variance'</span>)
+plt.ylabel(<span class="org-string">'Number of genes'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0,0.5,'Number of genes')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/zinb.org/var-dist.png" alt="var-dist.png">
+</p>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.scatter(x=mle[<span class="org-string">'log_mean'</span>], y=mle[<span class="org-string">'var'</span>] - mle[<span class="org-string">'mean'</span>], s=2, c=<span class="org-string">'k'</span>)
+plt.xlabel(<span class="org-string">'Estimated log mean expression'</span>)
+<span class="org-variable-name">_</span> = plt.ylabel(<span class="org-string">'variance - mean'</span>)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/zinb.org/noisy-genes.png" alt="noisy-genes.png">
+</p>
+</div>
+</div>
+</div>
+</div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-02-24 Sat 11:15</p>
+<p class="date">Created: 2018-03-04 Sun 23:24</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
