@@ -2,10 +2,13 @@
 
 # Submit comptutationally intensive SCDE/Pagoda steps to cluster.
 #
-# Creates the following two files:
+# Creates the following three files:
 #
-# * ../data/eset-sub-knn.rds - returned by knn.error.models
-# * ../data/pwpca-eset-dep.rds - returned by pagoda.pathway.wPCA
+# * ../data/eset-sub-knn{append}.rds - returned by knn.error.models
+# * ../data/pwpca-eset-dep{append}.rds - returned by pagoda.pathway.wPCA
+# * ../data/clpca-eset-dep{append}.rds - returned by pagoda.gene.clusters
+#
+# where {append} is set inside the script to designate the input data.
 #
 # Delete them first if you want to recreate them with this script.
 #
@@ -124,4 +127,21 @@ if (file.exists(fname_pagoda)) {
                                       n.cores = 8)
 
   saveRDS(pwpca_eset_dep, file = fname_pagoda)
+}
+
+# Pagoda gene clusters ---------------------------------------------------------
+cat(sprintf("\n\nPagoda gene clusters...\n\n"))
+
+fname_clusters <- paste0("../data/clpca-eset-dep", append, ".rds")
+
+if (file.exists(fname_clusters)) {
+  clpca_eset_dep <- readRDS(fname_clusters)
+} else {
+  clpca_eset_dep <- pagoda.gene.clusters(varinfo_dep,
+                                         trim = 7.1 / ncol(varinfo_dep$mat),
+                                         n.clusters = 50,
+                                         n.cores = 8,
+                                         plot = FALSE)
+
+  saveRDS(clpca_eset_dep, file = fname_clusters)
 }
