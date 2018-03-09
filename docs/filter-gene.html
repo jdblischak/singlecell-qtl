@@ -319,10 +319,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2018-02-27</p>
+<p><strong>Last updated:</strong> 2018-03-09</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> 2e9c578</p>
+<p><strong>Code version:</strong> 4305cc0</p>
 <section id="setup" class="level2">
 <h2>Setup</h2>
 <pre class="r"><code>library(&quot;cowplot&quot;)
@@ -349,7 +349,7 @@ colnames(quality) &lt;- c(&quot;sample&quot;, &quot;quality&quot;)
 eset &lt;- eset[, quality$quality]
 dim(eset)</code></pre>
 <pre><code>Features  Samples 
-   54792     4995 </code></pre>
+   54792     4978 </code></pre>
 </section>
 <section id="over-expressed-gene" class="level3">
 <h3>Over-expressed gene</h3>
@@ -358,7 +358,7 @@ dim(eset)</code></pre>
 eset_hs &lt;- eset[fData(eset)$source == &quot;H. sapiens&quot;, ]
 dim(eset_hs)</code></pre>
 <pre><code>Features  Samples 
-   20327     4995 </code></pre>
+   20327     4978 </code></pre>
 <pre class="r"><code>head(featureNames(eset_hs))</code></pre>
 <pre><code>[1] &quot;ENSG00000000003&quot; &quot;ENSG00000000005&quot; &quot;ENSG00000000419&quot; &quot;ENSG00000000457&quot;
 [5] &quot;ENSG00000000460&quot; &quot;ENSG00000000938&quot;</code></pre>
@@ -381,7 +381,7 @@ mol_hs_cpm &lt;- cpm(exprs(eset_hs), log = TRUE)
 mol_hs_cpm_means &lt;- rowMeans(mol_hs_cpm)
 summary(mol_hs_cpm_means)</code></pre>
 <pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-  2.432   2.478   3.046   3.800   4.646  12.972 </code></pre>
+  2.384   2.432   3.018   3.777   4.649  12.982 </code></pre>
 <pre class="r"><code>hist(mol_hs_cpm_means, xlab = &quot;Mean log2 molecule cpm in single cell samples&quot;,
      ylab = &quot;Number of genes&quot;, main = &quot;Identifying expression cutoff&quot;)
 
@@ -390,7 +390,7 @@ lower_exp_cutoff &lt;- 3
 abline(v = lower_exp_cutoff, col = &quot;red&quot;)</code></pre>
 <p><img src="figure/filter-gene.Rmd/cpm-1.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>genes_pass_filter &lt;- rownames(mol_hs_cpm)[mol_hs_cpm_means &gt; lower_exp_cutoff]</code></pre>
-<p>10347 genes have a mean log2 molecule cpm greater than 3</p>
+<p>10240 genes have a mean log2 molecule cpm greater than 3</p>
 <pre class="r"><code>mol_hs_cpm &lt;- data.frame(mol_hs_cpm)
 mol_hs_cpm$mean &lt;- apply(mol_hs_cpm, 1, mean)
 mol_hs_cpm$filter &lt;- mol_hs_cpm$mean &gt; lower_exp_cutoff
