@@ -185,7 +185,7 @@ clpca_eset_dep <- pagoda.gene.clusters(varinfo_dep, trim = 7.1/ncol(varinfo_dep$
 
 df_clpca_dep <- pagoda.top.aspects(pwpca_eset_dep, clpca_eset_dep, return.table = TRUE, plot = TRUE, z.score = 1.96)
 
-head(df_clpca_dep)
+df_clpca_dep[1:20,]
 ```
 
 Note:
@@ -217,7 +217,12 @@ col.cols <- rbind(groups = cutree(hc_eset_sub, 3))
 pagoda.view.aspects(tamr2_eset_sub, cell.clustering = hc_eset_sub, box = TRUE, labCol = NA, margins = c(0.5, 20), col.cols = col.cols)
 ```
 
-```{r cell-cycle}
+```{r view-gene}
+# get signature from the top GO and view the top genes
+cc.pattern_eset_sub <- pagoda.show.pathways("GO:0071294 cellular response to zinc ion", varinfo_dep, go.env, show.cell.dendrogram = TRUE, cell.clustering = hc_eset_sub, showRowLabels = TRUE)
+
+cc.pattern_eset_sub <- pagoda.show.pathways("GO:0045926 negative regulation of growth", varinfo_dep, go.env, show.cell.dendrogram = TRUE, cell.clustering = hc_eset_sub, showRowLabels = TRUE)
+
 # get cell cycle signature and view the top genes
 cc.pattern_eset_sub <- pagoda.show.pathways("GO:0010972 negative regulation of G2/M transition of mitotic cell cycle", varinfo_dep, go.env, show.cell.dendrogram = TRUE, cell.clustering = hc_eset_sub, showRowLabels = TRUE)
 
