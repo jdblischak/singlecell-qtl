@@ -1,0 +1,209 @@
+---
+title: "Gene set and pathway overdispersion analysis"
+author: "Po-Yuan Tung"
+date: 2018-03-06
+output: html_document
+---
+
+<!-- The file analysis/chunks.R contains chunks that define default settings
+shared across the workflowr files. -->
+```{r read-chunk, include=FALSE, cache=FALSE}
+knitr::read_chunk("chunks.R")
+```
+
+<!-- Update knitr chunk options -->
+```{r knitr-opts-chunk, include=FALSE}
+```
+
+<!-- Insert the date the file was last updated -->
+```{r last-updated, echo=FALSE, results='asis'}
+```
+
+<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
+ package git2r is installed -->
+```{r code-version, echo=FALSE, results='asis'}
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+The purpose of this analysis is to get an intial idea of what functions are related with (or potentially regulated by) gene expression noise in iPSCs. To do so, we use PAGODA (pathway and gene set overdispersion analysis). This package is part of the [SCDE](http://hms-dbmi.github.io/scde/pagoda.html)
+
+## Setup
+
+```{r packages, message=FALSE}
+library("biomaRt")
+library("GO.db")
+library("edgeR")
+library("ggplot2")
+library("knitr")
+library("scde")
+source("../code/functions.R")
+library("Biobase") # has to be loaded last to use `combine`
+```
+
+Import data.
+
+```{r import}
+eset <- readRDS("../data/eset.rds")
+dim(eset)
+```
+
+Keep human genes and ERCC
+
+```{r human-genes}
+eset <- eset[fData(eset)$source %in% c("H. sapiens", "ERCC") , ]
+dim(eset) 
+```
+
+Only keep high-quality single cells.
+
+```{r quality-cell}
+quality <- read.table("../data/quality-single-cells.txt", stringsAsFactors = FALSE)
+colnames(quality) <- c("sample", "quality")
+eset <- eset[, quality$quality]
+dim(eset)
+```
+
+Only keep genes that passed the filters
+
+```{r}
+genes <- read.table("../data/genes-pass-filter.txt", stringsAsFactors = FALSE)
+colnames(genes) <- c("gene", "passed")
+eset <- eset[genes$passed, ]
+```
+
+Limit cells to batches 2-5 (not all cells in batch 1 had ERCC spike-in added)
+
+```{r data-midway}
+eset_data <- exprs(eset)
+eset_data_sub <- eset_data[, pData(eset)$batch != "b1"]
+dim(eset_data_sub)
+```
+
+## SCDE
+
+Import data obtained from RCC using [sced.R](https://github.com/jdblischak/singlecell-qtl/blob/master/code/scde.R)
+
+```{r data}
+eset_sub_knn <- readRDS("../data/eset-sub-knn-filtered-b2-b5.rds")
+pwpca_eset_dep <-readRDS("../data/pwpca-eset-dep-filtered-b2-b5.rds")
+clpca_eset_dep <-readRDS("../data/clpca-eset-dep-filtered-b2-b5.rds")
+```
+
+### Compute normalized variance
+
+```{r varinfo}
+## Fitting error models
+#eset_sub_knn <- knn.error.models(eset_data_sub, k = ncol(eset_data_sub)/4, n.cores = 6, min.count.threshold = 1, min.nonfailed = 5, max.model.plots = 10)
+
+## Normalizing variance
+varinfo_eset_sub <- pagoda.varnorm(eset_sub_knn, counts = eset_data_sub, trim = 3, max.adj.var = 5, n.cores = 1, plot = TRUE)
+
+## list top overdispersed genes
+sort(varinfo_eset_sub$arv, decreasing = TRUE)[1:10]
+
+## Controlling for sequencing depth
+## control for the gene coverage (estimated as a number of genes with non-zero magnitude per cell) and normalize out that aspect of cell heterogeneity
+varinfo_dep <- pagoda.subtract.aspect(varinfo_eset_sub, colSums(eset_data_sub[, rownames(eset_sub_knn)]>0))
+```
+
+### Evaluate overdispersion of gene sets
+
+```{r create-go}
+# Initialize the connection to the Ensembl BioMart Service
+# Available datasets can be listed with 
+# listDatasets(useMart("ENSEMBL_MART_ENSEMBL", host="www.ensembl.org"))
+# Use mmusculus_gene_ensembl for mouse
+ensembl <- useMart("ENSEMBL_MART_ENSEMBL", dataset = "hsapiens_gene_ensembl", host="www.ensembl.org")
+
+# Constructs a dataframe with two columns: hgnc_symbol and go_id
+# If rownames are Ensembl IDs, use ensembl_gene_id as filter value
+go <- getBM(attributes = c("ensembl_gene_id", "go_id"), filters = "ensembl_gene_id", values = rownames(eset_data_sub), mart = ensembl)
+
+# Use the GO.db library to add a column with the GO-term to the dataframe
+go$term <- Term(go$go_id)
+
+# Create a named list of character vectors out of the df
+s = split(go$ensembl_gene_id, paste(go$go_id,go$term))
+
+# Saves the list as a R environment
+go.env <- list2env(s)
+
+# Test
+class(go.env)
+```
+
+```{r pwpca}
+## calculate weighted first principal component magnitudes
+# pwpca_eset_dep <- pagoda.pathway.wPCA(varinfo_dep, go.env, n.components=1, n.cores=1)
+
+## evaluate the statistical significance of the observed overdispersion for each GO gene set.
+df_pwpca_dep <- pagoda.top.aspects(pwpca_eset_dep, return.table = TRUE, plot = TRUE, z.score = 1.96)
+
+df_pwpca_dep[1:20,]
+
+## plot top 10
+ggplot(df_pwpca_dep[1:10, ], aes(x= reorder(name, z),y=z)) +
+  geom_bar(position="dodge",stat="identity") + 
+  coord_flip() +
+  xlab("GO Name") + 
+  ylab("Z Score") +
+  ggtitle("Top 10 overdispersion GO")
+```
+
+```{r denovo-dep}
+## 'de novo' gene clusters in the data, and build a background model for the expectation of the gene cluster weighted principal component magnitudes
+# clpca_eset_dep <- pagoda.gene.clusters(varinfo_dep, trim = 7.1/ncol(varinfo_dep$mat), n.clusters = 50, n.cores = 1, plot = TRUE)
+
+## the set of top aspects can be recalculated taking these de novo gene clusters into account
+df_clpca_dep <- pagoda.top.aspects(pwpca_eset_dep, clpca_eset_dep, return.table = TRUE, plot = TRUE, z.score = 1.96)
+
+df_clpca_dep[1:20,]
+
+## plot top 10
+ggplot(df_clpca_dep[1:10, ], aes(x= reorder(name, z),y=z)) +
+  geom_bar(position="dodge",stat="identity") + 
+  coord_flip() +
+  xlab("Cluster Name") + 
+  ylab("Z Score") +
+  ggtitle("Top 10 overdispersion 'de novo' gene cluster")
+```
+
+### Visualize significant aspects of heterogeneity
+
+```{r top}
+# get full info on the top aspects
+tam_eset_sub <- pagoda.top.aspects(pwpca_eset_dep, clpca_eset_dep, n.cells = NULL, z.score = qnorm(0.01/2, lower.tail = FALSE))
+
+# determine overall cell clustering
+hc_eset_sub <- pagoda.cluster.cells(tam_eset_sub, varinfo_dep)
+
+# Next, we will reduce redundant aspects in two steps. First we will combine pathways that are driven by the same sets of genes:
+tamr_eset_sub <- pagoda.reduce.loading.redundancy(tam_eset_sub, pwpca_eset_dep, clpca_eset_dep)
+
+# In the second step we will combine aspects that show similar patterns (i.e. separate the same sets of cells). Here we will plot the cells using the overall cell clustering determined above:
+tamr2_eset_sub <- pagoda.reduce.redundancy(tamr_eset_sub, distance.threshold = 0.9, plot = TRUE, cell.clustering = hc_eset_sub, labRow = NA, labCol = NA, box = TRUE, margins = c(0.5, 0.5), trim = 0)
+```
+
+```{r top-pattern}
+# We will view the top aspects, clustering them by pattern similarity (note, to view aspects in the order of increasing lambda1 magnitude, use row.clustering = NA).
+col.cols <- rbind(groups = cutree(hc_eset_sub, 5))
+pagoda.view.aspects(tamr2_eset_sub, cell.clustering = hc_eset_sub, box = TRUE, labCol = NA, margins = c(0.5, 20), col.cols = col.cols)
+```
+
+```{r view-gene}
+# get signature from the top GO and view the top genes
+pagoda.show.pathways("GO:0045926 negative regulation of growth", varinfo_dep, go.env, show.cell.dendrogram = TRUE, cell.clustering = hc_eset_sub,  margins = c(1,5), showRowLabels = TRUE, showPC = TRUE)
+
+pagoda.show.pathways("GO:0022904 respiratory electron transport chain", varinfo_dep, go.env, show.cell.dendrogram = TRUE, cell.clustering = hc_eset_sub, showRowLabels = TRUE)
+
+# get cell cycle signature and view the top genes
+pagoda.show.pathways("GO:0045736 negative regulation of cyclin-dependent protein serine/threonine kinase activity", varinfo_dep, go.env, show.cell.dendrogram = TRUE, cell.clustering = hc_eset_sub, showRowLabels = TRUE, showPC = TRUE)
+
+pagoda.show.pathways("GO:0007346 regulation of mitotic cell cycle", varinfo_dep, go.env, show.cell.dendrogram = TRUE, cell.clustering = hc_eset_sub,  margins = c(1,5), showRowLabels = TRUE, showPC = TRUE)
+
+# get oxidative stress signature and view the top genes
+pagoda.show.pathways(c("GO:0055093 response to hyperoxia", "GO:0006979 response to oxidative stress", "GO:0001666 response to hypoxia"), varinfo_dep, go.env, show.cell.dendrogram = TRUE, cell.clustering = hc_eset_sub, showRowLabels = TRUE)
+```
