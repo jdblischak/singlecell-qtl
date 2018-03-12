@@ -31,9 +31,11 @@ This is for qc of the samples. Based on obsevation under the scope and the seque
 ```{r packages, message=FALSE}
 library("cowplot")
 library("dplyr")
-library("ggplot2")
-library("tidyr")
 library("edgeR")
+library("ggplot2")
+library("MASS")
+library("tibble")
+library("tidyr")
 theme_set(theme_cowplot())
 source("../code/functions.R")
 library("Biobase")
@@ -222,6 +224,12 @@ data_lda_p <- predict(data_lda, newdata = data[,c("concentration", "molecules")]
 table(data_lda_p, data[, "group"])
 data$data_lda_p <- data_lda_p
 
+## identify the outlier
+outliers_lda <- data %>% rownames_to_column("sample_id") %>% filter(cell_number == 1, data_lda_p == "two")
+outliers_lda
+
+## create filter
+anno$molecule_outlier <- row.names(anno) %in% outliers_lda$sample_id
 
 ## plot before and after
 plot_before <- ggplot(data, aes(x = concentration, y = molecules / 10^3,
@@ -247,48 +255,50 @@ plot_grid(plot_before + theme(legend.position=c(.8,.85)),
 ### Reads to molecule conversion
 ```{r convertion, fig.width=12, fig.height=6}
 ## calculate convertion
-anno$dm_conversion <- anno$mol_dm / anno$reads_dm
+anno$ercc_conversion <- anno$mol_ercc / anno$reads_ercc
 
 anno$conversion <- anno$mol_hs / anno$reads_hs
 
-ggplot(anno, aes(x = dm_conversion, y = conversion,
+## remove batch1 because not all sample has
+anno_ercc <- anno[anno$batch != "b1", ]
+data_ercc <- data[data$batch != "b1", ] 
+
+## remove batch1 because not all sample has
+ggplot(anno_ercc, aes(x = ercc_conversion, y = conversion,
   color = as.factor(cell_number))) +
   geom_text(aes(label = cell_number)) +
-  labs(x = "Convertion of Fly spike-ins", y = "Conversion of genes") +
+  labs(x = "Convertion of ERCC spike-ins", y = "Conversion of genes") +
   scale_color_brewer(palette = "Dark2") +
   theme(legend.position = "none")
 
 ## try lda
-data$conversion <- anno$conversion
-data$dm_conversion <- anno$dm_conversion
+data_ercc$conversion <- anno_ercc$conversion
+data_ercc$ercc_conversion <- anno_ercc$ercc_conversion
 
-data_ercc_lda <- lda(group ~ dm_conversion + conversion, data = data)
+data_ercc_lda <- lda(group ~ ercc_conversion + conversion, data = data_ercc)
 
-data_ercc_lda_p <- predict(data_ercc_lda,  newdata = data[,c("dm_conversion", "conversion")])$class
+data_ercc_lda_p <- predict(data_ercc_lda,  newdata = data_ercc[,c("ercc_conversion", "conversion")])$class
 
 ## determine how well the model fix
-table(data_ercc_lda_p, data[, "group"])
+table(data_ercc_lda_p, data_ercc[, "group"])
 
-data$data_ercc_lda_p <- data_ercc_lda_p
+data_ercc$data_ercc_lda_p <- data_ercc_lda_p
 
-
-## cutoff
-out_ercc_con <- anno %>% filter(cell_number == "1", dm_conversion > .094)
-
-anno$conversion_outlier <- anno$cell_number == 1 & anno$dm_conversion > .094
+## create a cutoff for outliers 
+anno$conversion_outlier <- anno$cell_number == 1 & anno$conversion > .3
 
 ## plot before and after
-plot_ercc_before <- ggplot(data, aes(x = dm_conversion, y = conversion,
+plot_ercc_before <- ggplot(data_ercc, aes(x = ercc_conversion, y = conversion,
                color = as.factor(group))) +
                geom_text(aes(label = cell_number, alpha = 0.5)) +
-               labs(x = "Convertion of Fly spike-ins", y = "Conversion of genes", title = "Before") +
+               labs(x = "Convertion of ERCC spike-ins", y = "Conversion of genes", title = "Before") +
                scale_color_brewer(palette = "Dark2") +
                theme(legend.position = "none")
 
-plot_ercc_after <- ggplot(data, aes(x = dm_conversion, y = conversion,
+plot_ercc_after <- ggplot(data_ercc, aes(x = ercc_conversion, y = conversion,
                color = as.factor(data_ercc_lda_p))) +
                geom_text(aes(label = cell_number, alpha = 0.5)) +
-               labs(x = "Convertion of Fly spike-ins", y = "Conversion of genes", title = "After") +
+               labs(x = "Convertion of ERCC spike-ins", y = "Conversion of genes", title = "After") +
                scale_color_brewer(palette = "Dark2") +
                theme(legend.position = "none")
 
@@ -308,6 +318,8 @@ anno$filter_all <- anno$cell_number == 1 &
                    anno$cut_off_unmapped &
                 ##   anno$cut_off_ercc &
                    anno$cut_off_spike &
+                   anno$molecule_outlier != "TRUE" &
+                   anno$conversion_outlier != "TRUE" &
                    anno$cut_off_genes 
 sort(table(anno[anno$filter_all, "chip_id"]))
 ```
@@ -319,7 +331,7 @@ write.table(data.frame(row.names(anno), anno[,"filter_all"]),
 ```
 
 ### Plots
-```{r plots, fig.width=12, fig.heigh=12, dpi=300}
+```{r plots, fig.width=12, fig.heigh=6, dpi=300}
 
 genes_unmapped <-  ggplot(anno,
                    aes(x = detect_hs, y = unmapped_ratios * 100,
@@ -352,10 +364,10 @@ genes_spike <- ggplot(anno,
 
 reads_unmapped_num <-  ggplot(anno,
                        aes(x = mapped, y = unmapped_ratios * 100,
-                           col = as.factor(batch), 
+                           col = as.factor(chip_id), 
                            label = as.character(cell_number), 
                            height = 600, width = 2000)) +
-                       scale_colour_manual(values=cbPalette) +
+                      # scale_colour_manual(values=cbPalette) +
                        geom_text(fontface = 3, alpha = 0.3) + 
                        geom_vline(xintercept = cut_off_reads, 
                                   colour="grey", linetype = "longdash") +
@@ -369,7 +381,7 @@ reads_spike_num <- ggplot(anno,
                        col = as.factor(batch), 
                        label = as.character(cell_number), 
                        height = 600, width = 2000)) +
-                   scale_colour_manual(values=cbPalette) +
+                   # scale_colour_manual(values=cbPalette) +
                    geom_text(fontface = 3, alpha = 0.3) + 
                    geom_vline(xintercept = cut_off_reads, 
                               colour="grey", linetype = "longdash") +
@@ -378,13 +390,29 @@ reads_spike_num <- ggplot(anno,
                    labs(x = "Total mapped reads / sample",
                         y = "Percentage of spike-in reads (%)") 
 
-plot_grid(genes_unmapped + theme(legend.position=c(.7,.9)), 
+plot_grid(genes_unmapped + theme(legend.position=c(.7,.9)) + labs(col = "Batch"), 
           genes_spike + theme(legend.position = "none"),
           labels = letters[1:2])
 plot_grid(reads_unmapped_num + theme(legend.position = "none"), 
           reads_spike_num + theme(legend.position = "none"),
           labels = letters[3:4])
 ```
+
+```{r read-molecule plot, fig.width=12, fig.heigh=4, dpi=300}
+
+ggplot(data.frame(anno[anno$filter_all,]),
+       aes(x = factor(chip_id), y = conversion,
+           fill = factor(batch)), height = 600, width = 2000) +
+  geom_boxplot() +
+  scale_fill_manual(values = cbPalette) +
+  labs(x = "Individual", y = "Read-to-molecule conversion efficiency") +
+  theme(legend.position=c(.9,.9)) +
+  labs(fill = "Batch") +
+  theme(axis.text.x = element_text(hjust=1, angle = 90))
+
+```
+
+
 
 ## PCA
 
