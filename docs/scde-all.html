@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+
+
+<meta name="author" content="Po-Yuan Tung" />
+
+<meta name="date" content="2018-03-06" />
+
+<title>Gene set and pathway overdispersion analysis</title>
+
+<script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<script src="site_libs/jqueryui-1.11.4/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-1.1/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-1.1/highlight.js"></script>
+<link href="site_libs/font-awesome-4.5.0/css/font-awesome.min.css" rel="stylesheet" />
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+  pre:not([class]) {
+    background-color: white;
+  }
+</style>
+<script type="text/javascript">
+if (window.hljs && document.readyState && document.readyState === "complete") {
+   window.setTimeout(function() {
+      hljs.initHighlighting();
+   }, 0);
+}
+</script>
+
+
+
+<style type="text/css">
+h1 {
+  font-size: 34px;
+}
+h1.title {
+  font-size: 38px;
+}
+h2 {
+  font-size: 30px;
+}
+h3 {
+  font-size: 24px;
+}
+h4 {
+  font-size: 18px;
+}
+h5 {
+  font-size: 16px;
+}
+h6 {
+  font-size: 12px;
+}
+.table th:not([align]) {
+  text-align: left;
+}
+</style>
+
+
+</head>
+
+<body>
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+code {
+  color: inherit;
+  background-color: rgba(0, 0, 0, 0.04);
+}
+img {
+  max-width:100%;
+  height: auto;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+</style>
+
+
+<style type="text/css">
+/* padding for bootstrap navbar */
+body {
+  padding-top: 51px;
+  padding-bottom: 40px;
+}
+/* offset scroll position for anchor links (for fixed navbar)  */
+.section h1 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+
+.section h2 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h3 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h4 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h5 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h6 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+</style>
+
+<script>
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark it active
+  menuAnchor.parent().addClass('active');
+
+  // if it's got a parent navbar menu mark it active as well
+  menuAnchor.closest('li.dropdown').addClass('active');
+});
+</script>
+
+
+<div class="container-fluid main-container">
+
+<!-- tabsets -->
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+</script>
+
+<!-- code folding -->
+
+
+
+
+<script>
+$(document).ready(function ()  {
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_').toLowerCase();
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+  padding-left: 25px;
+  text-indent: 0;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row-fluid">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">singlecell-qtl</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Overview</a>
+</li>
+<li>
+  <a href="data-collection.html">Data</a>
+</li>
+<li>
+  <a href="analysis.html">Analysis</a>
+</li>
+<li>
+  <a href="contributing.html">Contributing</a>
+</li>
+<li>
+  <a href="license.html">License</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/jdblischak/singlecell-qtl">
+    <span class="fa fa-github"></span>
+     
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div class="fluid-row" id="header">
+
+
+
+<h1 class="title toc-ignore">Gene set and pathway overdispersion analysis</h1>
+<h4 class="author"><em>Po-Yuan Tung</em></h4>
+<h4 class="date"><em>2018-03-06</em></h4>
+
+</div>
+
+
+<!-- The file analysis/chunks.R contains chunks that define default settings
+shared across the workflowr files. -->
+<!-- Update knitr chunk options -->
+<!-- Insert the date the file was last updated -->
+<p><strong>Last updated:</strong> 2018-03-13</p>
+<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
+ package git2r is installed -->
+<p><strong>Code version:</strong> 238828a</p>
+<p>The purpose of this analysis is to get an intial idea of what functions are related with (or potentially regulated by) gene expression noise in iPSCs. To do so, we use PAGODA (pathway and gene set overdispersion analysis). This package is part of the <a href="http://hms-dbmi.github.io/scde/pagoda.html">SCDE</a></p>
+<section id="setup" class="level2">
+<h2>Setup</h2>
+<pre class="r"><code>library(&quot;biomaRt&quot;)
+library(&quot;GO.db&quot;)
+library(&quot;edgeR&quot;)
+library(&quot;ggplot2&quot;)
+library(&quot;knitr&quot;)
+library(&quot;scde&quot;)
+source(&quot;../code/functions.R&quot;)
+library(&quot;Biobase&quot;) # has to be loaded last to use `combine`</code></pre>
+<p>Import data.</p>
+<pre class="r"><code>eset &lt;- readRDS(&quot;../data/eset.rds&quot;)
+dim(eset)</code></pre>
+<pre><code>Features  Samples 
+   54792     6432 </code></pre>
+<p>Keep human genes and ERCC</p>
+<pre class="r"><code>eset &lt;- eset[fData(eset)$source %in% c(&quot;H. sapiens&quot;, &quot;ERCC&quot;) , ]
+dim(eset) </code></pre>
+<pre><code>Features  Samples 
+   20419     6432 </code></pre>
+<p>Only keep high-quality single cells.</p>
+<pre class="r"><code>quality &lt;- read.table(&quot;../data/quality-single-cells.txt&quot;, stringsAsFactors = FALSE)
+colnames(quality) &lt;- c(&quot;sample&quot;, &quot;quality&quot;)
+eset &lt;- eset[, quality$quality]
+dim(eset)</code></pre>
+<pre><code>Features  Samples 
+   20419     4978 </code></pre>
+<p>Only keep genes that passed the filters</p>
+<pre class="r"><code>genes &lt;- read.table(&quot;../data/genes-pass-filter.txt&quot;, stringsAsFactors = FALSE)
+colnames(genes) &lt;- c(&quot;gene&quot;, &quot;passed&quot;)
+eset &lt;- eset[genes$passed, ]</code></pre>
+<p>Limit cells to batches 2-5 (not all cells in batch 1 had ERCC spike-in added)</p>
+<pre class="r"><code>eset_data &lt;- exprs(eset)
+eset_data_sub &lt;- eset_data[, pData(eset)$batch != &quot;b1&quot;]
+dim(eset_data_sub)</code></pre>
+<pre><code>[1] 10299  4244</code></pre>
+</section>
+<section id="scde" class="level2">
+<h2>SCDE</h2>
+<p>Import data obtained from RCC using <a href="https://github.com/jdblischak/singlecell-qtl/blob/master/code/scde.R">sced.R</a></p>
+<pre class="r"><code>eset_sub_knn &lt;- readRDS(&quot;../data/eset-sub-knn-filtered-b2-b5.rds&quot;)
+pwpca_eset_dep &lt;-readRDS(&quot;../data/pwpca-eset-dep-filtered-b2-b5.rds&quot;)
+clpca_eset_dep &lt;-readRDS(&quot;../data/clpca-eset-dep-filtered-b2-b5.rds&quot;)</code></pre>
+<section id="compute-normalized-variance" class="level3">
+<h3>Compute normalized variance</h3>
+<pre class="r"><code>## Fitting error models
+#eset_sub_knn &lt;- knn.error.models(eset_data_sub, k = ncol(eset_data_sub)/4, n.cores = 6, min.count.threshold = 1, min.nonfailed = 5, max.model.plots = 10)
+
+## Normalizing variance
+varinfo_eset_sub &lt;- pagoda.varnorm(eset_sub_knn, counts = eset_data_sub, trim = 3, max.adj.var = 5, n.cores = 1, plot = TRUE)</code></pre>
+<p><img src="figure/scde-all.Rmd/varinfo-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>## list top overdispersed genes
+sort(varinfo_eset_sub$arv, decreasing = TRUE)[1:10]</code></pre>
+<pre><code>ENSG00000110713 ENSG00000124762 ENSG00000125144 ENSG00000149591 
+              5               5               5               5 
+ENSG00000158470 ENSG00000176597 ENSG00000177105 ENSG00000187193 
+              5               5               5               5 
+ENSG00000198518 ENSG00000198840 
+              5               5 </code></pre>
+<pre class="r"><code>## Controlling for sequencing depth
+## control for the gene coverage (estimated as a number of genes with non-zero magnitude per cell) and normalize out that aspect of cell heterogeneity
+varinfo_dep &lt;- pagoda.subtract.aspect(varinfo_eset_sub, colSums(eset_data_sub[, rownames(eset_sub_knn)]&gt;0))</code></pre>
+</section>
+<section id="evaluate-overdispersion-of-gene-sets" class="level3">
+<h3>Evaluate overdispersion of gene sets</h3>
+<pre class="r"><code># Initialize the connection to the Ensembl BioMart Service
+# Available datasets can be listed with 
+# listDatasets(useMart(&quot;ENSEMBL_MART_ENSEMBL&quot;, host = &quot;feb2014.archive.ensembl.org&quot;))
+# Use mmusculus_gene_ensembl for mouse
+ensembl &lt;- useMart(&quot;ENSEMBL_MART_ENSEMBL&quot;, dataset = &quot;hsapiens_gene_ensembl&quot;, host = &quot;feb2014.archive.ensembl.org&quot;)
+
+# Constructs a dataframe with two columns: hgnc_symbol and go_id
+# If rownames are Ensembl IDs, use ensembl_gene_id as filter value
+go &lt;- getBM(attributes = c(&quot;ensembl_gene_id&quot;, &quot;go_id&quot;), filters = &quot;ensembl_gene_id&quot;, values = rownames(eset_data_sub), mart = ensembl)
+
+# Use the GO.db library to add a column with the GO-term to the dataframe
+go$term &lt;- Term(go$go_id)
+
+# Create a named list of character vectors out of the df
+s = split(go$ensembl_gene_id, paste(go$go_id,go$term))
+
+# Saves the list as a R environment
+go.env &lt;- list2env(s)
+
+# Test
+class(go.env)</code></pre>
+<pre><code>[1] &quot;environment&quot;</code></pre>
+<pre class="r"><code>## calculate weighted first principal component magnitudes
+# pwpca_eset_dep &lt;- pagoda.pathway.wPCA(varinfo_dep, go.env, n.components=1, n.cores=1)
+
+## evaluate the statistical significance of the observed overdispersion for each GO gene set.
+df_pwpca_dep &lt;- pagoda.top.aspects(pwpca_eset_dep, return.table = TRUE, plot = TRUE, z.score = 1.96)</code></pre>
+<p><img src="figure/scde-all.Rmd/pwpca-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>df_pwpca_dep[1:20,]</code></pre>
+<pre><code>                                                                                            name
+1505                                                    GO:0045926 negative regulation of growth
+1009                                             GO:0022904 respiratory electron transport chain
+687                                          GO:0008137 NADH dehydrogenase (ubiquinone) activity
+396                              GO:0006120 mitochondrial electron transport, NADH to ubiquinone
+321                                         GO:0005747 mitochondrial respiratory chain complex I
+1444                                                       GO:0044237 cellular metabolic process
+320                                                      GO:0005743 mitochondrial inner membrane
+964                                                               GO:0019083 viral transcription
+1485 GO:0045736 negative regulation of cyclin-dependent protein serine/threonine kinase activity
+1171                                      GO:0031668 cellular response to extracellular stimulus
+449                                                          GO:0006414 translational elongation
+1331                                           GO:0042326 negative regulation of phosphorylation
+1063                                                         GO:0030224 monocyte differentiation
+961                                                                  GO:0019058 viral life cycle
+450                                                         GO:0006415 translational termination
+855                                            GO:0015986 ATP synthesis coupled proton transport
+1118                                      GO:0030890 positive regulation of B cell proliferation
+905                                                   GO:0016601 Rac protein signal transduction
+1818                 GO:2000379 positive regulation of reactive oxygen species metabolic process
+322                            GO:0005753 mitochondrial proton-transporting ATP synthase complex
+     npc   n    score        z    adj.z sh.z adj.sh.z
+1505   1  11 8.497493 35.41170 35.23033   NA       NA
+1009   1  65 5.944014 40.30862 40.12199   NA       NA
+687    1  27 4.972492 27.07838 26.85990   NA       NA
+396    1  28 4.853444 26.69766 26.48873   NA       NA
+321    1  30 4.759920 26.66292 26.45875   NA       NA
+1444   1 120 4.453994 36.45623 36.26891   NA       NA
+320    1 238 3.063954 30.20399 30.00079   NA       NA
+964    1  34 2.830959 15.73906 15.43222   NA       NA
+1485   1  10 2.825438 11.48650 11.13704   NA       NA
+1171   1  10 2.813554 11.42562 11.07686   NA       NA
+449    1  42 2.785005 16.32676 16.02219   NA       NA
+1331   1  11 2.724791 11.23091 10.88226   NA       NA
+1063   1  11 2.724565 11.22971 10.88226   NA       NA
+961    1  42 2.719590 15.85300 15.54397   NA       NA
+450    1  38 2.691514 15.23006 14.92501   NA       NA
+855    1  10 2.644829 10.54857 10.20498   NA       NA
+1118   1  12 2.641310 11.02281 10.68022   NA       NA
+905    1  12 2.580423 10.68677 10.33970   NA       NA
+1818   1  13 2.578021 10.89178 10.54716   NA       NA
+322    1  11 2.564225 10.36649 10.02620   NA       NA</code></pre>
+<pre class="r"><code>## plot top 10
+ggplot(df_pwpca_dep[1:10, ], aes(x= reorder(name, z),y=z)) +
+  geom_bar(position=&quot;dodge&quot;,stat=&quot;identity&quot;) + 
+  coord_flip() +
+  xlab(&quot;GO Name&quot;) + 
+  ylab(&quot;Z Score&quot;) +
+  ggtitle(&quot;Top 10 overdispersion GO&quot;)</code></pre>
+<p><img src="figure/scde-all.Rmd/pwpca-2.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>## &#39;de novo&#39; gene clusters in the data, and build a background model for the expectation of the gene cluster weighted principal component magnitudes
+# clpca_eset_dep &lt;- pagoda.gene.clusters(varinfo_dep, trim = 7.1/ncol(varinfo_dep$mat), n.clusters = 50, n.cores = 1, plot = TRUE)
+
+## the set of top aspects can be recalculated taking these de novo gene clusters into account
+df_clpca_dep &lt;- pagoda.top.aspects(pwpca_eset_dep, clpca_eset_dep, return.table = TRUE, plot = TRUE, z.score = 1.96)</code></pre>
+<p><img src="figure/scde-all.Rmd/denovo-dep-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>df_clpca_dep[1:20,]</code></pre>
+<pre><code>                                                                name npc
+1876                                                  geneCluster.50   1
+1874                                                  geneCluster.48   1
+1873                                                  geneCluster.47   1
+1505                        GO:0045926 negative regulation of growth   1
+1875                                                  geneCluster.49   1
+1009                 GO:0022904 respiratory electron transport chain   1
+687              GO:0008137 NADH dehydrogenase (ubiquinone) activity   1
+396  GO:0006120 mitochondrial electron transport, NADH to ubiquinone   1
+321             GO:0005747 mitochondrial respiratory chain complex I   1
+1444                           GO:0044237 cellular metabolic process   1
+1859                                                  geneCluster.33   1
+1872                                                  geneCluster.46   1
+1856                                                  geneCluster.30   1
+1871                                                  geneCluster.45   1
+1868                                                  geneCluster.42   1
+1857                                                  geneCluster.31   1
+1864                                                  geneCluster.38   1
+320                          GO:0005743 mitochondrial inner membrane   1
+1863                                                  geneCluster.37   1
+964                                   GO:0019083 viral transcription   1
+       n     score        z    adj.z sh.z adj.sh.z
+1876  14 12.170319 27.42671 27.28389   NA       NA
+1874  12 10.282151 24.33318 24.20075   NA       NA
+1873   6  9.165185 20.43175 20.29392   NA       NA
+1505  11  8.497493 35.41170 35.23033   NA       NA
+1875  13  6.924161 19.63879 19.52150   NA       NA
+1009  65  5.944014 40.30862 40.12199   NA       NA
+687   27  4.972492 27.07838 26.85990   NA       NA
+396   28  4.853444 26.69766 26.48873   NA       NA
+321   30  4.759920 26.66292 26.45875   NA       NA
+1444 120  4.453994 36.45623 36.26891   NA       NA
+1859   7  4.055927 12.64059 12.55069   NA       NA
+1872   4  3.874390 11.24475 11.15424   NA       NA
+1856 103  3.678629 20.09890 19.97315   NA       NA
+1871  17  3.614813 13.54062 13.42188   NA       NA
+1868  18  3.539894 13.47859 13.36640   NA       NA
+1857  44  3.140894 14.74160 14.61734   NA       NA
+1864  44  3.105536 14.61586 14.49862   NA       NA
+320  238  3.063954 30.20399 30.00079   NA       NA
+1863  15  2.871085 11.12576 11.03915   NA       NA
+964   34  2.830959 15.73906 15.43222   NA       NA</code></pre>
+<pre class="r"><code>## plot top 10
+ggplot(df_clpca_dep[1:10, ], aes(x= reorder(name, z),y=z)) +
+  geom_bar(position=&quot;dodge&quot;,stat=&quot;identity&quot;) + 
+  coord_flip() +
+  xlab(&quot;Cluster Name&quot;) + 
+  ylab(&quot;Z Score&quot;) +
+  ggtitle(&quot;Top 10 overdispersion &#39;de novo&#39; gene cluster&quot;)</code></pre>
+<p><img src="figure/scde-all.Rmd/denovo-dep-2.png" width="768" style="display: block; margin: auto;" /></p>
+</section>
+<section id="visualize-significant-aspects-of-heterogeneity" class="level3">
+<h3>Visualize significant aspects of heterogeneity</h3>
+<pre class="r"><code># get full info on the top aspects
+tam_eset_sub &lt;- pagoda.top.aspects(pwpca_eset_dep, clpca_eset_dep, n.cells = NULL, z.score = qnorm(0.01/2, lower.tail = FALSE))
+
+# determine overall cell clustering
+hc_eset_sub &lt;- pagoda.cluster.cells(tam_eset_sub, varinfo_dep)
+
+# Next, we will reduce redundant aspects in two steps. First we will combine pathways that are driven by the same sets of genes:
+tamr_eset_sub &lt;- pagoda.reduce.loading.redundancy(tam_eset_sub, pwpca_eset_dep, clpca_eset_dep)
+
+# In the second step we will combine aspects that show similar patterns (i.e. separate the same sets of cells). Here we will plot the cells using the overall cell clustering determined above:
+tamr2_eset_sub &lt;- pagoda.reduce.redundancy(tamr_eset_sub, distance.threshold = 0.9, plot = TRUE, cell.clustering = hc_eset_sub, labRow = NA, labCol = NA, box = TRUE, margins = c(0.5, 0.5), trim = 0)</code></pre>
+<p><img src="figure/scde-all.Rmd/top-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code># We will view the top aspects, clustering them by pattern similarity (note, to view aspects in the order of increasing lambda1 magnitude, use row.clustering = NA).
+col.cols &lt;- rbind(groups = cutree(hc_eset_sub, 5))
+pagoda.view.aspects(tamr2_eset_sub, cell.clustering = hc_eset_sub, box = TRUE, labCol = NA, margins = c(0.5, 20), col.cols = col.cols)</code></pre>
+<p><img src="figure/scde-all.Rmd/top-pattern-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code># get signature from the top GO and view the top genes
+pagoda.show.pathways(&quot;GO:0045926 negative regulation of growth&quot;, varinfo_dep, go.env, show.cell.dendrogram = TRUE, cell.clustering = hc_eset_sub,  margins = c(1,5), showRowLabels = TRUE, showPC = TRUE)</code></pre>
+<pre><code>Warning in bwpca(mat[, lab, drop = FALSE], matw[, lab, drop = FALSE], npcs
+= n.components, : When called from R, the RNG seed has to be set at the R
+level via set.seed()</code></pre>
+<p><img src="figure/scde-all.Rmd/view-gene-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>pagoda.show.pathways(&quot;GO:0022904 respiratory electron transport chain&quot;, varinfo_dep, go.env, show.cell.dendrogram = TRUE, cell.clustering = hc_eset_sub, showRowLabels = TRUE)</code></pre>
+<p><img src="figure/scde-all.Rmd/view-gene-2.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code># get cell cycle signature and view the top genes
+pagoda.show.pathways(&quot;GO:0045736 negative regulation of cyclin-dependent protein serine/threonine kinase activity&quot;, varinfo_dep, go.env, show.cell.dendrogram = TRUE, cell.clustering = hc_eset_sub, showRowLabels = TRUE, showPC = TRUE)</code></pre>
+<p><img src="figure/scde-all.Rmd/view-gene-3.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>pagoda.show.pathways(&quot;GO:0007346 regulation of mitotic cell cycle&quot;, varinfo_dep, go.env, show.cell.dendrogram = TRUE, cell.clustering = hc_eset_sub,  margins = c(1,5), showRowLabels = TRUE, showPC = TRUE)</code></pre>
+<p><img src="figure/scde-all.Rmd/view-gene-4.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code># get oxidative stress signature and view the top genes
+pagoda.show.pathways(c(&quot;GO:0055093 response to hyperoxia&quot;, &quot;GO:0006979 response to oxidative stress&quot;, &quot;GO:0001666 response to hypoxia&quot;), varinfo_dep, go.env, show.cell.dendrogram = TRUE, cell.clustering = hc_eset_sub, showRowLabels = TRUE)</code></pre>
+<p><img src="figure/scde-all.Rmd/view-gene-5.png" width="768" style="display: block; margin: auto;" /></p>
+</section>
+</section>
+
+<hr>
+<p>
+    This <a href="http://rmarkdown.rstudio.com">R Markdown</a> site was created with <a href="https://github.com/jdblischak/workflowr">workflowr</a>
+</p>
+<hr>
+
+<!-- To enable disqus, uncomment the section below and provide your disqus_shortname -->
+
+<!-- disqus
+  <div id="disqus_thread"></div>
+    <script type="text/javascript">
+        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+        var disqus_shortname = 'rmarkdown'; // required: replace example with your forum shortname
+
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+    <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+    <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+-->
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.header').parent('thead').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
