@@ -89,7 +89,7 @@ cat(sprintf("\n\nPrepare GO terms...\n\n"))
 
 # Initialize the connection to the Ensembl BioMart Service
 # Available datasets can be listed with
-# listDatasets(useMart("ENSEMBL_MART_ENSEMBL", host="www.ensembl.org"))
+# listDatasets(useMart("ENSEMBL_MART_ENSEMBL", host = "feb2014.archive.ensembl.org"))
 # Use mmusculus_gene_ensembl for mouse
 ensembl <- useMart("ENSEMBL_MART_ENSEMBL",
                    dataset = "hsapiens_gene_ensembl",

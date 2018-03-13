@@ -118,9 +118,9 @@ library(GO.db)
 
 # Initialize the connection to the Ensembl BioMart Service
 # Available datasets can be listed with 
-# listDatasets(useMart("ENSEMBL_MART_ENSEMBL", host="www.ensembl.org"))
+# listDatasets(useMart("ENSEMBL_MART_ENSEMBL", host = "feb2014.archive.ensembl.org"))
 # Use mmusculus_gene_ensembl for mouse
-ensembl <- useMart("ENSEMBL_MART_ENSEMBL", dataset = "hsapiens_gene_ensembl", host="www.ensembl.org")
+ensembl <- useMart("ENSEMBL_MART_ENSEMBL", dataset = "hsapiens_gene_ensembl", host = "feb2014.archive.ensembl.org")
 
 # Constructs a dataframe with two columns: hgnc_symbol and go_id
 # If rownames are Ensembl IDs, use ensembl_gene_id as filter value
