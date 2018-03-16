@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-02-12 Mon 18:52 -->
+<!-- 2018-03-16 Fri 12:51 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Estimating transcript count from UMI count</title>
@@ -254,9 +254,9 @@ for the JavaScript code in this tag.
 <div id="content">
 <h1 class="title">Estimating transcript count from UMI count</h1>
 
-<div id="outline-container-org171e1ad" class="outline-2">
-<h2 id="org171e1ad">Introduction</h2>
-<div class="outline-text-2" id="text-org171e1ad">
+<div id="outline-container-orgcaf92d3" class="outline-2">
+<h2 id="orgcaf92d3">Introduction</h2>
+<div class="outline-text-2" id="text-orgcaf92d3">
 <p>
 The labelling of molecules by UMIs is stochastic, such that it is not
 guaranteed that every molecule present in a sample will be labelled by a
@@ -268,17 +268,17 @@ Here, we perform the following analyses:
 </p>
 
 <ol class="org-ol">
-<li><a href="#org9def765">We show that the maximum likelihood estimator of the number of transcripts
+<li><a href="#org316a654">We show that the maximum likelihood estimator of the number of transcripts
 does not agree</a> with previously published estimators</li>
-<li><a href="#orge40e991">We show that applying the correction</a> on our data will change the majority
+<li><a href="#org02737be">We show that applying the correction</a> on our data will change the majority
 of observations by less than 1%</li>
 </ol>
 </div>
 </div>
 
-<div id="outline-container-org007b4ad" class="outline-2">
-<h2 id="org007b4ad">Moment estimators</h2>
-<div class="outline-text-2" id="text-org007b4ad">
+<div id="outline-container-org5c5c45f" class="outline-2">
+<h2 id="org5c5c45f">Moment estimators</h2>
+<div class="outline-text-2" id="text-org5c5c45f">
 <p>
 Consider a single gene, and let \(x\) be the observed number of unique UMIs,
 \(K\) be the maximum possible number of UMIs (which depends only on the
@@ -375,9 +375,9 @@ Text(0,0.5,'Magnitude of correction')
 </div>
 </div>
 
-<div id="outline-container-org9def765" class="outline-2">
-<h2 id="org9def765">Maximum likelihood estimator</h2>
-<div class="outline-text-2" id="text-org9def765">
+<div id="outline-container-org316a654" class="outline-2">
+<h2 id="org316a654">Maximum likelihood estimator</h2>
+<div class="outline-text-2" id="text-org316a654">
 <p>
 We also estimate \(n\) via maximum likelihood assuming (<a href="https://www.pnas.org/cgi/doi/10.1073/pnas.1017621108">Fu et al 2011</a>):
 </p>
@@ -387,7 +387,7 @@ We also estimate \(n\) via maximum likelihood assuming (<a href="https://www.pna
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="orgc9c456c"><span class="org-keyword">def</span> <span class="org-function-name">ml_binom</span>(x, K, **kwargs):
+<pre class="src src-ipython" id="org55666c3"><span class="org-keyword">def</span> <span class="org-function-name">ml_binom</span>(x, K, **kwargs):
   <span class="org-doc">"""Maximum likelihood estimator of n"""</span>
   <span class="org-variable-name">x</span> = np.atleast_1d(x)
   <span class="org-keyword">def</span> <span class="org-function-name">neg_llik</span>(n):
@@ -467,22 +467,22 @@ Text(0,0.5,'Magnitude of correction')
 </div>
 </div>
 
-<div id="outline-container-orge40e991" class="outline-2">
-<h2 id="orge40e991">Impact on real data analysis</h2>
-<div class="outline-text-2" id="text-orge40e991">
+<div id="outline-container-org02737be" class="outline-2">
+<h2 id="org02737be">Impact on real data analysis</h2>
+<div class="outline-text-2" id="text-org02737be">
 <p>
 Look at the density of observed UMI counts:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
-<span class="org-variable-name">keep_genes</span> = pd.read_table(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
+<pre class="src src-ipython"><span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
+<span class="org-variable-name">keep_genes</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
 </pre>
 </div>
 
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-variable-name">bins</span> = np.zeros(K)
-<span class="org-keyword">for</span> chunk <span class="org-keyword">in</span> pd.read_table(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>, index_col=0, chunksize=100):
+<span class="org-keyword">for</span> chunk <span class="org-keyword">in</span> pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>, index_col=0, chunksize=100):
   <span class="org-variable-name">chunk</span> = chunk.<span class="org-builtin">filter</span>(items=keep_genes[keep_genes.values.ravel()].index, axis=<span class="org-string">'index'</span>).loc[:,keep_samples.values.ravel()]
   <span class="org-variable-name">value</span>, <span class="org-variable-name">count</span> = np.unique(chunk, return_counts=<span class="org-constant">True</span>)
   <span class="org-variable-name">bins</span>[value] += count
@@ -534,7 +534,7 @@ Text(0,0.5,'Correction factor')
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-02-12 Mon 18:52</p>
+<p class="date">Created: 2018-03-16 Fri 12:51</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
