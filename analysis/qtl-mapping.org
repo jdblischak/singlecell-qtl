@@ -673,49 +673,141 @@
   : 1279
   :END:
 
-  #+BEGIN_SRC ipython
-    def qtltools_format(row):
-      row['#Chr'] = '{}'.format(row['chr'][2:])
-      row['gid'] = row.name
-      row['pid'] = row.name
-      return row
+* Call eQTLs from pooled scRNA-Seq
 
-    def write_pheno_file(pheno, gene_info, output_file, holdout=True, **kwargs):
-      if holdout:
-        genes = gene_info.loc[gene_info['chr'].apply(lambda x: bool(int(x[2:]) % 2)).values]
-      else:
-        genes = gene_info
-      (genes
-       .apply(qtltools_format, **kwargs, axis=1)
-       .merge(pheno, left_index=True, right_index=True)
-       .to_csv(output_file,
-               sep='\t',
-               columns=['#Chr', 'start', 'end', 'pid', 'gid', 'strand'] + list(pheno.columns),
-               header=True,
-               index=False,
-               index_label=False))
-  #+END_SRC
-
-  #+RESULTS: write-pheno-def
-  :RESULTS:
-  # Out[67]:
-  :END:
+  Read and pool the UMI data.
 
   #+BEGIN_SRC ipython
-    write_pheno_file(mean, gene_info, '/scratch/midway2/aksarkar/singlecell/mean.bed')
+    annotation = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
+    keep_samples = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
+    keep_genes = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt', index_col=0, header=None)
+    pooled_counts = pd.concat(
+      [(chunk
+        .filter(items=keep_genes[keep_genes.values].index, axis='index')
+        # Important: this can't be done by filter because sample names are
+        # different in the QC file
+        .loc[:,keep_samples.values.ravel()]
+        .groupby(annotation[keep_samples.values.ravel()]['chip_id'].values, axis=1)
+        .agg(np.sum))
+       for chunk in
+       pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz',
+                     chunksize=1000, index_col=0)])
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[71]:
+  # Out[28]:
+  :END:
+
+  Normalize the pooled counts.
+
+  #+BEGIN_SRC ipython :noweb no-export
+    <<r-wrappers>>
+    pooled_cpm = (cpm(pooled_counts)
+                  .transform(lambda x: (x - x.mean()) / x.std(), axis=1)
+                  .apply(qqnorm, axis=0))
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[62]:
+  :END:
+
+  Compute principal components and write out the covariate file.
+
+  #+BEGIN_SRC ipython
+    covars = pd.DataFrame(skd.PCA(n_components=10).fit(pooled_cpm).components_, columns=pooled_cpm.columns)
+    covars.index.name = 'id'
+    covars.to_csv('/scratch/midway2/aksarkar/singlecell/scqtl-mapping/pooled-covars.txt', sep='\t')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[65]:
+  :END:
+
+  Write out the phenotype file.
+
+  #+BEGIN_SRC ipython :noweb no-export
+    <<get-gene-info>>
+    <<write-pheno-def>>
+    write_pheno_file(pooled_cpm, gene_info, holdout=True, output_file='/scratch/midway2/aksarkar/singlecell/scqtl-mapping/pooled.bed')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[64]:
   :END:
 
   Index the phenotype file.
 
-  #+CALL: tabix(input="mean.bed")
+  #+CALL: tabix(input="pooled.bed") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
 
   #+RESULTS:
-  : Submitted batch job 44113019
+  : Submitted batch job 44351005
+
+  Run ~qtltools~
+
+  #+CALL: qtltools(pheno="pooled", geno="/scratch/midway2/aksarkar/singlecell/reproduce-yang/yri-dosages.vcf.gz", op="--cov pooled-covars.txt  --window 100000 --permute 10000") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
+
+  #+RESULTS:
+  : Submitted batch job 44351008
+
+  Read the output. *Important: this loses 200 genes (is this a bug in
+  ~qtltools~)?*
+
+  #+BEGIN_SRC ipython :noweb no-export
+    <<read-qtltools-def>>
+    pooled_qtls = read_qtltools_output('scqtl-mapping/pooled')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[66]:
+  :END:
+
+  #+BEGIN_SRC ipython :noweb no-export :ipyfile figure/qtl-mapping.org/pooled-cpm-beta-approx.png
+    <<plot-approx-perm-def>>
+    plot_approx_permutation(pooled_qtls)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[68]:
+  [[file:figure/qtl-mapping.org/pooled-cpm-beta-approx.png]]
+  :END:
+
+  Plot a QQ plot of the permutation p-values.
+
+  #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/pooled-qtl-qq.png
+    plt.clf()
+    plt.gcf().set_size_inches(6, 6)
+    plt.scatter(-np.log10(np.arange(1, 1 + pooled_qtls.shape[0]) / pooled_qtls.shape[0]), -np.log10(pooled_qtls['p_beta']), s=1, c='k')
+    plt.plot([0, np.log10(pooled_qtls.shape[0])], [0, np.log10(pooled_qtls.shape[0])], c='r', ls='--')
+    plt.xlabel('Expected $-\log_{10}(p)$')
+    _ = plt.ylabel('Observed $-\log_{10}(p)$')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[70]:
+  [[file:figure/qtl-mapping.org/pooled-qtl-qq.png]]
+  :END:
+
+  Take QTLs with \(\mathrm{FDR} < 0.1\).
+
+  #+BEGIN_SRC ipython :noweb no-export
+    <<r-wrappers>>
+    pooled_qtls['fdr_pass'] = bh(pooled_qtls['p_beta']) < .1
+    pooled_qtls['fdr_pass'].sum()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[67]:
+  : 123
+  :END:
+
 
   #+CALL: qtltools(pheno="mean", geno="/project2/gilad/singlecell-qtl/bulk/genotypes-qc.vcf.gz", op="--nominal 1")
 
