@@ -379,70 +379,151 @@
   [[file:figure/qtl-mapping.org/geuvadis-54-beta-approx.png]]
   :END:
 
+* Reproduce bulk eQTL calls
+
+  The iPSC bulk eQTLs were called in [[https://genome.cshlp.org/content/28/1/122.long][Banovich et al 2018]].
+
+  #+BEGIN_EXAMPLE
+    eQTLs in iPSCs and LCLs: We transformed expression levels to a standard normal
+    within each individual. We next accounted for unknown confounders by removing
+    principal components from the LCL (15 PCs) and iPSC (10 PCs) data. Genotypes
+    were obtained using impute2 as described previously (Li et al. 2016). We only
+    considered variants within 50 kb of genes. To identify association between
+    genotype and gene expression, we used FastQTL (Ongen et al. 2016). After the
+    initial regression, a variable number of permutations were performed to obtain
+    a gene-wise adjusted P-value (Ongen et al. 2016). To identify significant
+    eQTLs, we used Storey's q-value (Storey and Tibshirani 2003) on the adjusted
+    P-values. Genes with a q-value less than 0.1 are considered significant.
+  #+END_EXAMPLE
+
+  *Important notes:*
+
+  1. The text doesn't state how expression level was quantified (it was the
+     ratio of mapped reads to total reads after correction by
+     ~WASP~).
+
+     ~WASP~ ([[https://www.nature.com/articles/nmeth.3582][de Geijin et al 2015]]) fits quartic polynomials \(f, g\) which
+     predict the total read count per region \(T^*_{ij}\) from the observed
+     read count \(x_{ij}\) and GC content \(w_j\) by maximizing the likelihood
+     of the observed read counts:
+
+     \[ x_{ij} \sim \mathrm{Pois}(T^*_{ij}) \]
+
+     \[ T^*_{ij} = \exp\left(f\left(\sum_i x_{ij}\right)\right) g(w_j) \]
+
+     [[*Recall bulk eQTLs][Using log CPM]] (under the assumption that we never compare genes to each
+     other) yields 1279 eQTLs (89%).
+
+  2. ~fastqtl~ expects gene start/end, and only takes /cis/-SNPs around the
+     start ignoring strand. The code uses GENCODE v19 exons to define the
+     start/end.
+
+     ~qtltools~ expects TSS and strand, but doesn't use strand information in
+     /cis/-eQTL mapping. Using the start coordinate of the provided expression
+     matrix as TSS yields 1265 eQTLs (87%).
+
+  3. The methods section of [[https://www.nature.com/articles/nature10808][Degner et al 2012]] states data is standardized
+     across individuals, and quantile normalized within individuals. The
+     equation contradicts the text, but the code follows the text.
+
+  4. The code analyzes 100kb windows, contradicting the text.
+
+  5. Not every gene in the input appears in the output, and changing the number
+     of chunks changes the number of genes lost.
+
+  6. QTL-gene pairs passed the Benjamini-Hochberg procedure, not Storey's
+     procedure.
+
+  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/reproduce-yang
+    sbatch --partition=broadwl -a 1-25
     #!/bin/bash
     source activate scqtl
-    module load parallel
-    parallel -j28 qtltools cis --vcf $geno --bed $pheno.bed.gz $op --chunk {#} 100 --out $pheno-qtl.{#}.txt ::: $(seq 1 100)
-  #+END_SRC
-
-  #+RESULTS: qtltools
-  : Submitted batch job 44112079
-
-  #+BEGIN_SRC sh :exports none
-    sacct -j 44112079 -o Elapsed,ExitCode
+    fastqtl -V YRI_SNPs_2_IPSC.txt.gen.gz -B fastqtl_qqnorm_RNAseq_run.fixed.txt.gz -C fasteqtl_PC_RNAseq_run.fixed.txt -O bulk-qtl.$SLURM_ARRAY_TASK_ID.txt --exclude-samples file_IPSC.excl --window 1e5 --permute 1000 10000 --chunk $SLURM_ARRAY_TASK_ID 25 --seed 1475098497
   #+END_SRC
 
   #+RESULTS:
-  |    Elapsed | ExitCode |
-  | ---------- | -------- |
-  |   00:41:31 |      0:0 |
-  |   00:41:31 |      0:0 |
+  : Submitted batch job 44327333
 
-  Read the results.
+  Read ~fastqtl~ output.
 
-  #+BEGIN_SRC ipython
-    def read_qtltools_output(pheno):
-      file_names = ['{}-qtl.{}.txt'.format(pheno, i) for i in range(1, 101)]
-      return (pd.concat([pd.read_table(f, header=None, sep=' ')
-                         for f in file_names if os.path.exists(f) and
-                         os.path.getsize(f) > 0])
-              .rename(columns={i: x for i, x in enumerate(
-                ['gene', 'chr', 'start', 'end', 'strand', 'num_vars',
-                 'distance', 'id', 'var_chr', 'var_start', 'var_end', 'df',
-                 'dummy', 'a', 'b', 'p_nominal', 'beta', 'p_empirical', 'p_beta']
-              )})
-              .sort_values('p_beta'))
+  #+BEGIN_SRC ipython :noweb no-export
+    <<read-qtltools-def>>
+    bulk_qtls = read_fastqtl_output('reproduce-yang/bulk')
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[56]:
+  # Out[35]:
+  :END:
+
+  Compare ~qtltools~ to ~fastqtl~. The input files need to be modified.
+
+  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/reproduce-yang/
+    sbatch --partition=broadwl
+    #!/bin/bash
+    zcat fastqtl_qqnorm_RNAseq_run.fixed.txt.gz | awk -vOFS='\t' 'NR == 1 {$4 = "pid gid strand"; for (i = 5; i <= NF; i++) {$i = "NA"$i} print} NR > 1 {$4 = $4" "$4" +"; $3 = $2; print}' | bgzip >test.bed.gz
+    tabix -p bed -f test.bed.gz
+    awk 'NR == 1 {for (i = 2; i <= NF; i++) {$i = "NA"$i}} {print}' fasteqtl_PC_RNAseq_run.fixed.txt >covars.txt
+  #+END_SRC
+
+  #+RESULTS:
+  : Submitted batch job 44332798
+
+  Run ~qtltools~.
+
+  #+CALL: qtltools(pheno="test", geno="/scratch/midway2/aksarkar/singlecell/reproduce-yang/yri-dosages.vcf.gz", op="--cov covars.txt --window 100000 --permute 10000") :dir /scratch/midway2/aksarkar/singlecell/reproduce-yang/
+
+  #+RESULTS:
+  : Submitted batch job 44332903
+
+  #+BEGIN_SRC ipython :noweb no-export
+    <<read-qtltools-def>>
+    bulk_qtls = read_qtltools_output('reproduce-yang/test')  
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[2]:
+  :END:
+
+  Take QTLs with \(\mathrm{FDR} < 0.1\).
+
+  #+BEGIN_SRC ipython
+    bulk_qtls['fdr_pass'] = bh(bulk_qtls['p_beta']) < 0.1
+    bulk_qtls['fdr_pass'].sum()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[139]:
+  : 1441
   :END:
 
   #+BEGIN_SRC ipython
-    geuvadis_qtls = read_qtltools_output('test')
+    bulk_qtls.to_csv('/scratch/midway2/aksarkar/singlecell/reproduce-yang/bulk-qtls.txt.gz', compression='gzip', sep='\t', index=None)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[61]:
+  # Out[83]:
   :END:
 
-  Check the beta approximation to the permutation p-values.
+  Write the expression data to the database.
 
-  #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/geuvadis-qtl-beta.png
-    plt.clf()
-    plt.gcf().set_size_inches(6, 6)
-    plt.scatter(geuvadis_qtls['p_empirical'], geuvadis_qtls['p_beta'], s=1, c='k')
-    plt.plot([0, 1], [0, 1], c='r', ls='--')
-    plt.xlabel('Empirical p-value')
-    _ = plt.ylabel('Approximate p-value')
+  #+BEGIN_SRC ipython
+    with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
+      conn.execute('drop table if exists bulk;')
+      for chunk in pd.read_table('/scratch/midway2/aksarkar/singlecell/reproduce-yang/fastqtl_qqnorm_RNAseq_run.fixed.txt.gz', header=0, chunksize=1000):
+        chunk['gene'] = chunk['ID'].apply(lambda x: x.split('.')[0])
+        del chunk['#Chr'], chunk['start'], chunk['end'], chunk['ID']
+        chunk = chunk.rename(columns=lambda x: 'NA{}'.format(x) if x != 'gene' else x)
+        chunk.melt(id_vars='gene', var_name='ind').to_sql('bulk', con=conn, index=False, if_exists='append')
+      conn.execute('create index ix_bulk on bulk(gene, ind);')
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[65]:
-  [[file:figure/qtl-mapping.org/geuvadis-qtl-beta.png]]
+  # Out[168]:
   :END:
 
 * Call mean-QTLs in the single cell data
