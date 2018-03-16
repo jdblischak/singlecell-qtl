@@ -1029,28 +1029,127 @@
   #+END_SRC
 
 * Call dispersion-QTLs
-    plt.clf()
-    plt.scatter(disp_qtls['p_empirical'], disp_qtls['p_beta'], s=1, c='k')
-    plt.plot([0, 1], [0, 1], c='r', ls='--')
-    plt.xlabel('Empirical p-value')
-    plt.ylabel('Approximate p-value')
+
+  Read the estimated parameters. Exclude individuals with fewer than 50 cells.
+
+  #+BEGIN_SRC ipython
+    with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
+      keep = pd.read_sql('select chip_id, count(distinct sample) >= 50 as keep from annotation group by chip_id;', conn)
+      log_mean = (pd.read_sql(
+        """select gene, ind, case when llr < 1 then nb_log_mean else zinb2_log_mean end
+               as log_mean from params;""", conn)
+                  .pivot(index='gene', columns='ind', values='log_mean'))[keep[keep['keep'].astype(bool)]['chip_id']]
+      log_disp = (pd.read_sql(
+        """select gene, ind, case when llr < 1 then nb_log_disp else zinb2_log_disp end
+           as log_disp from params;""", conn)
+                  .pivot(index='gene', columns='ind', values='log_disp'))[keep[keep['keep'].astype(bool)]['chip_id']]
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[137]:
-  : Text(0,0.5,'Approximate p-value')
-  [[file:figure/qtl-mapping.org/zi2-disp-qtl-beta.png]]
+  # Out[188]:
   :END:
 
-  Plot the quantile-quantile plot of QTL test statistics:
+  Compute the index of dispersion.
 
-  #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/zi2-disp-qtl-qq.png
-    qqplot(disp_qtls['p_beta'])
+  #+BEGIN_SRC ipython
+    disp = (np.exp(log_mean) + np.exp(2 * log_mean - log_disp)) / np.exp(log_mean)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[138]:
-  [[file:figure/qtl-mapping.org/zi2-disp-qtl-qq.png]]
+  # Out[200]:
+  :END:
+
+  Normalize the dispersion matrix.
+
+  #+BEGIN_SRC ipython :noweb no-export
+    <<r-wrappers>>
+    disp = disp.transform(lambda x: (x - x.mean()) / x.std(), axis=1).apply(qqnorm, axis=0)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[201]:
+  :END:
+
+  Write out the phenotype file.
+
+  #+BEGIN_SRC ipython
+    write_pheno_file(disp, gene_info, holdout=True, output_file='/scratch/midway2/aksarkar/singlecell/scqtl-mapping/disp.bed')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[203]:
+  :END:
+
+  Index the phenotype file.
+
+  #+CALL: tabix(input="disp.bed") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
+
+  #+RESULTS:
+  : Submitted batch job 44347580
+
+  Run ~qtltools~.
+
+  #+CALL: qtltools(pheno="disp", geno="/scratch/midway2/aksarkar/singlecell/reproduce-yang/yri-dosages.vcf.gz", op="--window 100000 --permute 10000") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
+
+  #+RESULTS:
+  : Submitted batch job 44347582
+
+  Read the output.
+
+  #+BEGIN_SRC ipython :noweb no-export
+    <<read-qtltools-def>>
+    disp_qtls = read_qtltools_output('scqtl-mapping/disp')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[204]:
+  :END:
+
+  Check the beta approximation to the permutation p-values.
+
+  #+BEGIN_SRC ipython :noweb no-export :ipyfile figure/qtl-mapping.org/disp-qtl-beta-approx.png
+    <<plot-approx-perm-def>>
+    plot_approx_permutation(log_disp_qtls)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[183]:
+  [[file:figure/qtl-mapping.org/disp-qtl-beta-approx.png]]
+  :END:
+
+  Plot a QQ plot of the permutation p-values.
+
+  #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/disp-qtl-qq.png
+    plt.clf()
+    plt.gcf().set_size_inches(6, 6)
+    plt.scatter(-np.log10(np.arange(1, 1 + log_disp_qtls.shape[0]) / log_disp_qtls.shape[0]), -np.log10(log_disp_qtls['p_beta']), s=1, c='k')
+    plt.plot([0, np.log10(log_disp_qtls.shape[0])], [0, np.log10(log_disp_qtls.shape[0])], c='r', ls='--')
+    plt.xlabel('Expected $-\log_{10}(p)$')
+    _ = plt.ylabel('Observed $-\log_{10}(p)$')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[184]:
+  [[file:figure/qtl-mapping.org/disp-qtl-qq.png]]
+  :END:
+
+  Take QTLs at FDR 10%.
+
+  #+BEGIN_SRC ipython :noweb no-export
+    <<r-wrappers>>
+    disp_qtls['fdr_pass'] = bh(log_disp_qtls['p_beta']) < 0.1
+    disp_qtls['fdr_pass'].sum()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[205]:
+  : 0
   :END:
