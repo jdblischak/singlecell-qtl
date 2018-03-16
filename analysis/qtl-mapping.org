@@ -16,10 +16,10 @@
 
   Here, we present the following analyses:
 
-  1. [[*Replicate bulk eQTLs in the single cell data][We replicate bulk eQTLs]] in the scRNA-Seq data
-  2. [[*Test validity of approximate permutation test][We show that approximating a permutation test]] is not appropriate
+  1. [[*Reproduce bulk eQTL calls][We reproduce eQTLs]] called on the bulk RNA-Seq
+  2. [[*Replicate bulk eQTLs in the single cell data][We replicate bulk eQTLs]] in the scRNA-Seq data
   3. [[*Call mean-QTLs in the single cell data][We call mean QTLs]] in the scRNA-Seq data
-  4. [[*Dispersion-QTL calling][We call robustness QTLs]] in the scRNA-Seq data
+  4. [[*Call dispersion-QTLs][We call dispersion QTLs]] in the scRNA-Seq data
 
 * Setup                                                            :noexport:
 
