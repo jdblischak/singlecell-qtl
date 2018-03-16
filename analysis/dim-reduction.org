@@ -86,10 +86,10 @@
 
   #+NAME: read-data-qc
   #+BEGIN_SRC ipython
-    umi = pd.read_table('/home/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', index_col=0)
-    annotations = pd.read_table('/home/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
-    keep_samples = pd.read_table('/home/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
-    keep_genes = pd.read_table('/home/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt', index_col=0, header=None)
+    umi = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', index_col=0)
+    annotations = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
+    keep_samples = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
+    keep_genes = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt', index_col=0, header=None)
     umi = umi.loc[keep_genes.values.ravel(),keep_samples.values.ravel()]
     annotations = annotations.loc[keep_samples.values.ravel()]
   #+END_SRC
@@ -411,42 +411,42 @@
 
   #+BEGIN_SRC ipython :eval never :tangle zifa.py :noweb tangle
     <<dim-reduction-imports>>
+    import ZIFA.block_ZIFA as zifa
     <<read-data-qc>>
     <<normalize>>
     latent, params = zifa.fitModel(Y=np.log(umi.values.T + 1), K=10, p0_thresh=.7)
-    np.save('/home/aksarkar/projects/singlecell-qtl/data/zifa-loadings.npy', latent)
+    np.save('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/zifa-loadings.npy', latent)
   #+END_SRC
 
-  Run on 16 cores to complete in a reasonable amount of time.
+  Run on 28 cores to complete in a reasonable amount of time.
 
   #+BEGIN_SRC sh :eval never-export :exports both
-    sbatch --partition=broadwl --time=400 --mem=32G -c16 --out=zifa.out --err zifa.err
+    sbatch --partition=broadwl --time=400 --mem=32G -n1 -c28 --exclusive --out=zifa.out --err zifa.err
     #!/bin/bash
     source activate scqtl
     python zifa.py
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 42700513
+  : Submitted batch job 44152013
 
-  #+ATTR_HTML: :class table
-  #+BEGIN_SRC sh :eval never-export :exports both
-    sacct -j 42700513 -o Elapsed,MaxRSS,MaxVMSize
+  #+BEGIN_SRC sh :eval never-export :exports both :results output example
+    sacct -j 44152013 -o Elapsed,MaxRSS,MaxVMSize
   #+END_SRC
 
   #+RESULTS:
-  |    Elapsed | MaxRSS     | MaxVMSize  |
-  | ---------- | ---------- | ---------- |
-  |   03:15:28 |            |            |
-  |   03:15:28 | 19195312K  | 23219728K  |
+  :    Elapsed     MaxRSS  MaxVMSize 
+  : ---------- ---------- ---------- 
+  :   02:54:50                       
+  :   02:54:50  23391824K  27240528K 
 
   #+BEGIN_SRC ipython
-    latent = np.load('/home/aksarkar/projects/singlecell-qtl/data/zifa-loadings.npy')
+    latent = np.load('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/zifa-loadings.npy')
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[59]:
+  # Out[75]:
   :END:
 
   #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/zifa-covars.png

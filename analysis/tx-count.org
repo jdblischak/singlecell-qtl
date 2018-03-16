@@ -213,8 +213,8 @@
   Look at the density of observed UMI counts:
 
   #+BEGIN_SRC ipython
-    keep_samples = pd.read_table('/home/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
-    keep_genes = pd.read_table('/home/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt', index_col=0, header=None)
+    keep_samples = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
+    keep_genes = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt', index_col=0, header=None)
   #+END_SRC
 
   #+RESULTS:
@@ -223,7 +223,7 @@
 
   #+BEGIN_SRC ipython :async t
     bins = np.zeros(K)
-    for chunk in pd.read_table('/home/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', index_col=0, chunksize=100):
+    for chunk in pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', index_col=0, chunksize=100):
       chunk = chunk.filter(items=keep_genes[keep_genes.values.ravel()].index, axis='index').loc[:,keep_samples.values.ravel()]
       value, count = np.unique(chunk, return_counts=True)
       bins[value] += count

@@ -47,8 +47,8 @@
   #+NAME: load-data-defs
   #+BEGIN_SRC ipython
     def load_umi_data(min_cell_count=5):
-      annotations = pd.read_table('/home/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
-      counts = pd.read_table('/home/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', index_col=0)
+      annotations = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
+      counts = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', index_col=0)
       keep_individuals = annotations['chip_id'].value_counts() > min_cell_count
       keep_cells = annotations.apply(lambda x: keep_individuals.loc[x['chip_id']], axis=1)
       annotations = annotations.loc[keep_cells.values]
@@ -146,7 +146,7 @@
       umi,
       annotations,
       bulk,
-      '/home/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/normed')
+      '/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/normed')
   #+END_SRC
 
   file:figure/sc-vs-bulk.org/normed/NA18498.png
@@ -186,7 +186,7 @@
       umi,
       annotations,
       bulk,
-      '/home/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/vs-cells/'
+      '/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/vs-cells/'
     )
   #+END_SRC
 
@@ -226,7 +226,7 @@
       'NA18507',
       umi,
       annotations,
-      '/home/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/subsets/'
+      '/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/subsets/'
     )
   #+END_SRC
 

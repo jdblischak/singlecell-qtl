@@ -55,7 +55,7 @@
 * Setup                                                            :noexport:
 
   #+BEGIN_SRC emacs-lisp
-    (org-babel-lob-ingest "/home/aksarkar/projects/singlecell-qtl/analysis/dim-reduction.org")
+    (org-babel-lob-ingest "/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/dim-reduction.org")
     (org-babel-lob-ingest "/home/aksarkar/.emacs.d/org-templates/library.org")
   #+END_SRC
 
