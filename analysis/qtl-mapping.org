@@ -33,7 +33,7 @@
   #+CALL: ipython3(memory="4G", venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 44108620
+  : Submitted batch job 44350818
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -526,28 +526,71 @@
   # Out[168]:
   :END:
 
-* Call mean-QTLs in the single cell data
+* Recall bulk eQTLs
 
-  For each individual, for each gene, take either the negative binomial or
-  zero-inflated negative binomial estimate, depending on which minimized the
-  negative log-likelihood of the data.
+  Read the counts matrix.
 
   #+BEGIN_SRC ipython
-    with sqlite3.connect('/scratch/midway2/aksarkar/singlecell/browser.db') as conn:
-      mean = (pd.read_sql('select gene, ind, case when nb_nll < zinb_nll then nb_log_mean else zinb2_log_mean end as log_mean from params;', conn)
-              .pivot(index='gene', columns='ind', values='log_mean'))
+    bulk_counts = (pd.read_table('/project2/gilad/singlecell-qtl/bulk/counts_RNAseq_iPSC.txt', sep=' ', index_col=0)
+                   .rename(columns=lambda x: 'NA{}'.format(x))
+                   .rename(index=lambda x: x.split('.')[0]))
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[69]:
+  # Out[48]:
   :END:
 
-  Write out the [[https://qtltools.github.io/qtltools/pages/input_files.html][phenotype file]] for ~qtltools~.
+  Throw out individuals.
+
+  #+BEGIN_SRC ipython
+    with open('/scratch/midway2/aksarkar/singlecell/reproduce-yang/file_IPSC.excl') as f:
+      for line in f:
+        k = 'NA{}'.format(line.strip())
+        if k in bulk_counts:
+          del bulk_counts[k]
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[112]:
+  :END:
+
+  Normalize the counts matrix by computing log CPM. Normalizing by length is
+  unnecessary because we only ever compare counts for the same gene across
+  individuals.
+
+  #+BEGIN_SRC ipython :noweb no-export
+    <<r-wrappers>>
+    bulk_log_cpm = (cpm(bulk_counts)
+                    .transform(lambda x: (x - x.mean()) / x.std(), axis=1)
+                    .apply(qqnorm, axis=0))
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[114]:
+  :END:
+
+  Compute expression PCs.
+
+  #+BEGIN_SRC ipython
+    covars = pd.DataFrame(skd.PCA(n_components=10).fit(bulk_log_cpm).components_, columns=bulk_log_cpm.columns)
+    covars.index.name = 'id'
+    covars.to_csv('/scratch/midway2/aksarkar/singlecell/recall-bulk/covars.txt', sep='\t')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[128]:
+  :END:
+
+  Get the TSS information. Use the annotation data (ENSEMBL 75) in this
+  repository to be consistent with the single cell data.
 
   #+NAME: get-gene-info
   #+BEGIN_SRC ipython
-    gene_info = (pd.read_table('/home/aksarkar/projects/singlecell-qtl/data/scqtl-genes.txt.gz')
+    gene_info = (pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-genes.txt.gz')
                  .set_index('gene')
                  .query('source == "H. sapiens"')
                  .query('chr != "hsX"')
@@ -555,12 +598,81 @@
                  .query('chr != "hsMT"'))
   #+END_SRC
 
-  #+RESULTS: get-gene-info
+  #+RESULTS:
   :RESULTS:
-  # Out[70]:
+  # Out[40]:
   :END:
 
-  #+NAME: write-pheno-def
+  Write the phenotype matrix in ~qtltools~ format. *Important: this loses 1716
+  genes (are they pseudogenes?)*
+
+  #+BEGIN_SRC ipython :noweb no-export
+    <<write-pheno-def>>
+    write_pheno_file(
+      bulk_log_cpm,
+      gene_info,
+      holdout=False,
+      output_file='/scratch/midway2/aksarkar/singlecell/recall-bulk/bulk.bed')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[115]:
+  :END:
+
+  Index the phenotype file.
+
+  #+CALL: tabix(input="bulk.bed") :dir /scratch/midway2/aksarkar/singlecell/recall-bulk
+
+  #+RESULTS:
+  : Submitted batch job 44346471
+
+  Ensure the dosage file follows the VCF standard. Add the prefix ~NA~ to sample IDs.
+
+  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/reproduce-yang
+    sbatch --partition=broadwl
+    #!/bin/bash
+    zcat YRI_SNPs_2_IPSC.txt.gen.gz | awk -vOFS='\t' 'BEGIN {print "##fileformat=VCFv4.2"; print "##FORMAT=<ID=DS,Number=1,Type=Float>"} NR == 1 {for (i = 10; i <= NF; i++) {$i = "NA"$i}} {print}' | bgzip >yri-dosages.vcf.gz
+    tabix yri-dosages.vcf.gz
+  #+END_SRC
+
+  #+RESULTS:
+  : Submitted batch job 44318523
+
+  Run ~qtltools~
+
+  #+CALL: qtltools(pheno="bulk", geno="/scratch/midway2/aksarkar/singlecell/reproduce-yang/yri-dosages.vcf.gz", op="--cov covars.txt  --window 100000 --permute 10000") :dir /scratch/midway2/aksarkar/singlecell/recall-bulk
+
+  #+RESULTS:
+  : Submitted batch job 44346795
+
+  Read the output. *Important: this loses 201 genes (is this a bug in
+  ~qtltools~)?*
+
+  #+BEGIN_SRC ipython :noweb no-export
+    <<read-qtltools-def>>
+    bulk_qtls = read_qtltools_output('recall-bulk/bulk')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[129]:
+  :END:
+
+  Take QTLs with \(\mathrm{FDR} < 0.1\).
+
+  #+BEGIN_SRC ipython :noweb no-export
+    <<r-wrappers>>
+    bulk_qtls['fdr_pass'] = bh(my_bulk_qtls['p_beta']) < .1
+    bulk_qtls['fdr_pass'].sum()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[132]:
+  : 1279
+  :END:
+
   #+BEGIN_SRC ipython
     def qtltools_format(row):
       row['#Chr'] = '{}'.format(row['chr'][2:])
