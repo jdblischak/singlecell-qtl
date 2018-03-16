@@ -808,21 +808,82 @@
   : 123
   :END:
 
+* Replicate bulk eQTLs in the single cell data
 
-  #+CALL: qtltools(pheno="mean", geno="/project2/gilad/singlecell-qtl/bulk/genotypes-qc.vcf.gz", op="--nominal 1")
+  Read the reported bulk eQTLs.
 
-  #+RESULTS:
-  : Submitted batch job 44113021
-
-  #+BEGIN_SRC sh :exports none
-    sacct -j 44093227 -o Elapsed,ExitCode
+  #+BEGIN_SRC ipython
+    bulk_qtls = pd.read_table('/scratch/midway2/aksarkar/singlecell/reproduce-yang/bulk-qtls.txt.gz')
   #+END_SRC
 
   #+RESULTS:
-  |    Elapsed | ExitCode |
-  | ---------- | -------- |
-  |   06:30:26 |      0:0 |
-  |   06:30:26 |      0:0 |
+  :RESULTS:
+  # Out[138]:
+  :END:
+
+  Read the estimated means. Exclude individuals with fewer than 50 cells.
+
+  #+NAME: read-log-mean
+  #+BEGIN_SRC ipython :async t
+    with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
+      log_mean = (pd.read_sql(
+        """select gene, ind, case when llr < 1 then nb_log_mean else zinb2_log_mean end
+        as log_mean from params where (select count(distinct sample) from
+        annotation where annotation.chip_id == ind) >= 50;""", conn)
+                  .pivot(index='gene', columns='ind', values='log_mean'))
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  :END:
+
+  Test each bulk QTL-gene pair in the single cell data. *Important: use imputed
+  dosage data.*
+
+  #+BEGIN_SRC ipython :noweb no-export
+    <<replication-tests-def>>
+    X, Y = extract_qtl_gene_pair(bulk_qtls[bulk_qtls['fdr_pass']], log_mean, dosages='/scratch/midway2/aksarkar/singlecell/reproduce-yang/YRI_SNPs_2_IPSC.txt.gen.gz')
+    bulk_sc_replication = replication_tests(X, Y)
+    bulk_sc_replication = bulk_qtls.merge(
+      bulk_sc_replication,
+      on='gene',
+      suffixes=['_bulk', '_sc'])[['gene', 'id', 'beta_bulk', 'p_bulk', 'beta_sc', 'p_sc']]
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[218]:
+  :END:
+
+  Define replication to be nominally significant (\(p < 0.05\)) and having the
+  same effect direction.
+
+  #+BEGIN_SRC ipython
+    bulk_sc_replication['replicated'] = bulk_sc_replication.apply(lambda x: x['p_sc'] < 0.05 and x['beta_bulk'] * x['beta_sc'] > 0, axis=1)
+    bulk_sc_replication['replicated'].sum() / bulk_sc_replication.shape[0]
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[220]:
+  : 0.8557588805166846
+  :END:
+
+  Write the data to the database.
+
+  #+BEGIN_SRC ipython
+    with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
+      X.reset_index().melt(id_vars='gene', var_name='ind').to_sql('genotype', con=conn, index=False, if_exists='replace')
+      conn.execute('create index ix_genotype on genotype(gene, ind);')
+      (bulk_sc_replication[['gene', 'id', 'beta_bulk', 'p_bulk', 'beta_sc', 'p_sc', 'replicated']]
+       .to_sql('qtls', con=conn, index=False, if_exists='replace'))
+      conn.execute('create index ix_qtls on qtls(gene);')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[223]:
+  :END:
 
 * Dispersion-QTL calling
 
