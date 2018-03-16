@@ -42,9 +42,17 @@
     import numpy as np
     import os.path
     import pandas as pd
+    import rpy2.robjects.packages
+    import rpy2.robjects.pandas2ri
+    import rpy2.robjects.numpy2ri
     import scipy.stats as st
+    import sklearn.decomposition as skd
     import sqlite3
     import tabix
+
+    pandas2ri = rpy2.robjects.pandas2ri
+    numpy2ri = rpy2.robjects.numpy2ri.numpy2ri
+    edger = rpy2.robjects.packages.importr('edgeR')
   #+END_SRC
 
   #+RESULTS:
@@ -52,281 +60,179 @@
   # Out[1]:
   :END:
 
-* Genotype processing
-  
-  ~QTLtools~ reported 0 variants in cis for an unexpected number of genes when
-  using the provided genotype file, so reprocess the genotypes to fix it.
+* Implementation
 
-  #+BEGIN_SRC sh :dir /project2/gilad/singlecell-qtl/bulk
-    sbatch --partition=broadwl --job-name process-geno
-    #!/bin/bash
-    set -e
-    source activate scqtl
-    zcat /project/compbio/jointLCLs/genotype/hg19/YRI/vcf/chr{?,??}.hg19.vcf.gz | awk 'BEGIN {print "##fileformat=VCFv4.1"} NR == 1 || ! /CHROM/ {print}' | bgzip >genotypes.vcf.gz
-    tabix genotypes.vcf.gz
-  #+END_SRC
-
-  #+RESULTS:
-  : Submitted batch job 42223832
-
-  #+BEGIN_SRC sh :dir /project2/gilad/singlecell-qtl/bulk
-    sbatch --partition=broadwl
-    #!/bin/bash
-    source activate scqtl
-    plink --memory 2000 --vcf genotypes.vcf.gz --geno 0.01 --maf 0.01 --recode vcf-iid --out genotypes-qc
-    bgzip genotypes-qc.vcf
-    tabix -f -p vcf genotypes-qc.vcf.gz
-  #+END_SRC
-
-* Replicate bulk eQTLs in the single cell data
-
-  Read the bulk eQTLs (nominally significant).
-
+  #+NAME: r-wrappers
   #+BEGIN_SRC ipython
-    def parse_bulk_qtl_record(row):
-      gene, _ = row[0].split('.')
-      id_, *_ = row[5].split('.')
-      return pd.Series({'gene': gene, 'id': id_, 'beta': row.iloc[-3], 'p_bulk': row.iloc[-1]})
-    bulk_qtls = (pd.read_table('/project2/gilad/singlecell-qtl/bulk/permutations.all.RNAseq_run.fixed.txt.gz', sep=' ', header=None)
-                 .fillna('')
-                 .apply(parse_bulk_qtl_record, axis=1))
+    def cpm(x):
+      return pd.DataFrame(pandas2ri.ri2py(edger.cpm(numpy2ri(x.values), log=True)),
+                          columns=x.columns,
+                          index=x.index)
+
+    def qqnorm(x):
+      """Wrap around R qqnorm"""
+      return np.asarray(rpy2.robjects.r['qqnorm'](numpy2ri(x))[0])
+
+    def bh(x):
+      """Wrap around p.adjust(..., method='fdr')"""
+      return np.asarray(rpy2.robjects.r['p.adjust'](numpy2ri(x), method='fdr'))
+  #+END_SRC
+
+  #+NAME: write-pheno-def
+  #+BEGIN_SRC ipython
+    def qtltools_format(row):
+      row['#Chr'] = 'chr{}'.format(row['chr'][2:])
+      row['gid'] = row.name
+      row['pid'] = row.name
+      # Important: qtltools expects TSS start/end
+      if row['strand'] == '+':
+        row['end'] = row['start']
+      else:
+        row['start'] = row['end']
+      return row.loc[['#Chr', 'start', 'end', 'pid', 'gid', 'strand']]
+
+    def write_pheno_file(pheno, gene_info, output_file, holdout=True, **kwargs):
+      if holdout:
+        genes = gene_info.loc[gene_info.apply(lambda x: bool(int(x['chr'][2:]) % 2), axis=1)]
+      else:
+        genes = gene_info
+      (genes
+       .apply(qtltools_format, **kwargs, axis=1)
+       .merge(pheno, left_index=True, right_index=True)
+       .to_csv(output_file,
+               sep='\t',
+               header=True,
+               index=False,
+               index_label=False))
+  #+END_SRC
+
+  #+NAME: tabix
+  #+BEGIN_SRC sh :var input="test.bed" :var partition="broadwl" :dir /scratch/midway2/aksarkar/singlecell :eval never-export
+    export input=$input
+    sbatch --partition=$partition
+    #!/bin/bash
+    module load bedtools
+    bedtools sort -header -i $input | bgzip >$input.gz
+    tabix -f -p bed $input.gz
+  #+END_SRC
+
+  #+NAME: qtltools
+  #+BEGIN_SRC sh :var pheno="test" :var geno="geuvadis-chr1.vcf.gz" :var partition="broadwl" :var op="--permute 100000" :dir /scratch/midway2/aksarkar/singlecell :eval never-export 
+    export pheno=$pheno
+    export geno=$geno
+    export op=$op
+    sbatch --partition=$partition -a 1-100 -J $pheno-qtl
+    #!/bin/bash
+    source activate scqtl
+    qtltools cis --vcf $geno --bed $pheno.bed.gz $op --chunk $SLURM_ARRAY_TASK_ID 100 --out $pheno-qtl.$SLURM_ARRAY_TASK_ID.txt --seed 0
+  #+END_SRC
+
+  #+NAME: read-qtltools-def
+  #+BEGIN_SRC ipython
+    def _read_helper(pheno, columns):
+      file_names = ['{}-qtl.{}.txt'.format(pheno, i) for i in range(1, 101)]
+      return (pd.concat([pd.read_table(f, header=None, sep=' ')
+                         for f in file_names if os.path.exists(f) and
+                         os.path.getsize(f) > 0])
+              .rename(columns={i: x for i, x in enumerate(columns)})
+              .dropna()
+              .sort_values('p_beta'))
+
+
+    def read_fastqtl_output(pheno):
+      columns = ['gene', 'num_snps', 'a', 'b', 'dummy', 'id',
+                 'distance', 'p', 'beta', 'p_empirical', 'p_beta']
+      res = _read_helper(pheno, columns)
+      # Drop the gene version number
+      res['gene'] = res['gene'].apply(lambda x: x.split('.')[0])
+      res['chr'] = res['id'].apply(lambda x: x.split('.')[1])
+      res['pos'] = res['id'].apply(lambda x: x.split('.')[2])
+      res['id'] = res['id'].apply(lambda x: x.split('.')[0])
+      return res
+
+    def read_qtltools_output(pheno):
+      columns = ['gene', 'chr', 'start', 'end', 'strand', 'num_vars',
+                 'distance', 'id', 'var_chr', 'var_start', 'var_end', 'df',
+                 'dummy', 'a', 'b', 'p_nominal', 'beta', 'p_empirical', 'p_beta']
+      return _read_helper(pheno, columns)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[2]:
+  # Out[79]:
   :END:
 
-  Read the bulk eQTLs (significant by permutation test).
-
+  #+NAME: plot-approx-perm-def
   #+BEGIN_SRC ipython
-    def parse_perm_bulk_qtl_record(row):
-      gene, *_ = row[0].split('.')
-      id_, chr_, pos = row[1].split('.')
-      return pd.Series({'gene': gene, 'id': id_, 'chr': chr_, 'pos': pos, 'p_bulk': row.iloc[-1]})
-    perm_bulk_qtls = (pd.read_table('/project2/gilad/singlecell-qtl/bulk/permutations.all.RNAseq_run.fixed.txt.gz.bh.txt', sep=' ', header=0)
-                      .apply(parse_perm_bulk_qtl_record, axis=1))
+    def plot_approx_permutation(df):
+      plt.clf()
+      plt.gcf().set_size_inches(6, 6)
+      plt.scatter(df['p_empirical'], df['p_beta'], s=1, c='k')
+      plt.plot([0, 1], [0, 1], c='r', ls='--')
+      plt.xlabel('Empirical p-value')
+      plt.ylabel('Approximate p-value')
   #+END_SRC
 
-  #+RESULTS:
-  :RESULTS:
-  # Out[3]:
-  :END:
-
-  Test each bulk QTL-gene pair in the single cell data. Mean-impute and
-  center genotypes.
-
+  #+NAME: replication-tests-def
   #+BEGIN_SRC ipython
-    def parse_vcf(record):
-      geno = [sum(float(h) for h in g.split('/')) if '.' not in g else -1 for g in record[9:]]
+    def parse_vcf_dosage(record):
+      geno = [float(g) for g in record[9:]]
       return pd.Series(geno)
 
-    def standardize(geno):
-      # Important: this has to be done after filtering to common individuals
-      orig_geno = geno.copy()
-      # Important: match the qtltools implementation
-      geno = np.ma.masked_less(geno.values, 0)
-      geno = geno.filled(geno.mean())
-      geno -= geno.mean()
-      return geno
-
-    def extract_qtl_gene_pair(bulk_qtls, means):
-      common_means, common_qtls = means.align(bulk_qtls.set_index('gene'), join='inner', axis=0)
-      header = pd.read_table('/project2/gilad/singlecell-qtl/bulk/genotypes.vcf.gz', skiprows=1, nrows=1, header=0)[9:]
-      genotypes = tabix.open('/project2/gilad/singlecell-qtl/bulk/genotypes.vcf.gz')
+    def extract_qtl_gene_pair(qtl_gene_df, pheno_df, dosages):
+      """Return aligned genotype and phenotype matrix for each QTL-gene pair in qtl_gene_df"""
+      common_phenos, common_qtls = pheno_df.align(qtl_gene_df.set_index('gene'), join='inner', axis=0)
+      # Important: individual IDs do not have the NA prefix in the VCF
+      header = ['NA{}'.format(x) for x in pd.read_table(dosages, nrows=1, header=0).columns[9:]]
+      genotypes = tabix.open(dosages)
       X, Y = (common_qtls
-              .apply(lambda x: parse_vcf(next(genotypes.query(x['chr'], int(x['pos']) - 1, int(x['pos'])))), axis=1)
-              .rename(columns={i: ind for i, ind in enumerate(header.columns[9:])})
-              .align(common_means, join='inner', axis=None))
-      X = X.apply(standardize, axis=1)
+              .apply(lambda x: parse_vcf_dosage(next(genotypes.query(x['chr'], int(x['pos']) - 1, int(x['pos'])))), axis=1)
+              .rename(columns={i: ind for i, ind in enumerate(header)})
+              .align(common_phenos, join='inner', axis=None))
       return X, Y
+
+    def replication_tests(X, Y):
+      """Return a DataFrame containing replication p-values
+
+      X - centered dosage matrix (num_genes, num_individuals)
+      Y - phenotype matrix (num_genes, num_individuals)
+
+      """
+      result = []
+      _sf = st.chi2(1).sf
+      for (_, x), (name, y) in zip(X.iterrows(), Y.iterrows()):
+        if np.isclose(x.std(), 0):
+          print('Skipping {}'.format(name))
+          continue
+        x = x.values.copy().reshape(-1, 1)
+        y = y.values.copy().ravel()
+        x -= x.mean()
+        y -= y.mean()
+        beta, rss, *_ = np.linalg.lstsq(x, y, rcond=-1)
+        sigma2 = rss / y.shape[0]
+        se = sigma2 / x.T.dot(x).ravel()
+        pval = _sf(np.square(beta / se))
+        result.append({'gene': name, 'beta': beta[0], 'p': pval.ravel()[0]})
+      return pd.DataFrame.from_dict(result)
   #+END_SRC
 
-  #+RESULTS:
+  #+RESULTS: replication-tests-def
   :RESULTS:
-  # Out[4]:
+  # Out[140]:
   :END:
-
-  Define replication as significant at FDR 5% in both bulk and single cell.
-
-  #+BEGIN_SRC ipython
-    def bh(df, column, fdr=0.05):
-      num_tests = df.shape[0]
-      return np.logical_and.accumulate(df.sort_values(column)[column] < fdr * np.arange(1, num_tests + 1) / num_tests)
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[11]:
-  :END:
-
-** NB model
-
-   Estimate a lower bound on the replication rate using the following procedure:
-
-   1. For each individual, for each gene, [[file:zinb.org::*Fit%20NB][estimate a mean and dispersion in the
-      single cell data ignoring zero inflation]] (i.e., just fit a negative
-      binomial model)
-   2. For each bulk RNA-Seq eQTL-gene pair, test the SNP against the estimated
-      means
-
-   Read the estimated parameters (phenotypes) then center them.
-
-   #+BEGIN_SRC ipython
-     with sqlite3.connect('/scratch/midway2/aksarkar/singlecell/browser.db') as conn:
-       mean = (pd.read_sql('select gene, ind, nb_log_mean from params', conn)
-               .pivot(index='gene', columns='ind', values='nb_log_mean')
-               .transform(lambda x: x - x.mean(), axis=1))
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[21]:
-   :END:
-
-   Perform the eQTL tests.
-
-   #+NAME: replication-tests
-   #+BEGIN_SRC ipython :results example output
-     X, Y = extract_qtl_gene_pair(perm_bulk_qtls, mean)
-     result = []
-     _sf = st.chi2(1).sf
-     for (_, x), (name, y) in zip(X.iterrows(), Y.iterrows()):
-       if np.isclose(x.std(), 0):
-         print('Skipping {}'.format(name))
-         continue
-       beta, rss, *_ = np.linalg.lstsq(x.values.reshape(-1, 1), y.values.ravel(), rcond=-1)
-       sigma2 = rss / y.shape[0]
-       se = sigma2 / np.inner(x.values, x.values)
-       pval = _sf(np.square(beta / se))
-       result.append({'gene': name, 'beta': beta[0], 'p_sc': pval.ravel()[0]})
-     merged = (bulk_qtls.merge(pd.DataFrame.from_dict(result), on='gene', suffixes=['_bulk', '_sc'])
-               .set_index('gene')
-               .sort_values('p_bulk')
-               .reset_index()[['gene', 'id', 'p_bulk', 'beta_bulk', 'p_sc', 'beta_sc']])
-   #+END_SRC
-
-   #+RESULTS: replication-tests
-   :RESULTS:
-   Skipping ENSG00000141867
-   Skipping ENSG00000164823
-   :END:
-
-   Estimate the replication rate.
-
-   #+NAME: replication-rate
-   #+BEGIN_SRC ipython
-     bulk_fdr_pass = bh(merged, 'p_bulk')
-     sc_fdr_pass = bh(merged, 'p_sc')
-     replicated = merged[np.logical_and(*bulk_fdr_pass.align(sc_fdr_pass))]
-     replicated.shape[0], replicated.shape[0] / merged.shape[0]
-   #+END_SRC
-
-   #+RESULTS: replication-rate
-   :RESULTS:
-   # Out[29]:
-   : (892, 0.9529914529914529)
-   :END:
-
-   Estimate the concordance.
-
-   #+NAME: effect-concordance
-   #+BEGIN_SRC ipython
-     sign_pass = (replicated['beta_bulk'] * replicated['beta_sc']).values > 0
-     replicated[sign_pass].shape[0], sign_pass.sum() / replicated.shape[0]
-   #+END_SRC
-
-   #+RESULTS: effect-concordance
-   :RESULTS:
-   # Out[30]:
-   : (779, 0.8733183856502242)
-   :END:
-
-   Write out tables for the interactive browser.
-
-   #+NAME: populate-qtl-table
-   #+BEGIN_SRC ipython :async t
-     with sqlite3.connect('/scratch/midway2/aksarkar/singlecell/browser.db') as conn:
-       merged.to_sql('qtls', con=conn, if_exists='replace')
-       (X
-        .reset_index()
-        .melt(id_vars='gene', var_name='ind')
-        .to_sql(name='genotype', con=conn, index=False, if_exists='replace'))
-
-       conn.execute('create index ix_qtls on qtls(gene);')
-       conn.execute('create index ix_genotype on genotype(gene, ind);')
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   :END:
-
-** ZINB model
-
-   For each individual, for each gene, take either the negative binomial or
-   zero-inflated negative binomial estimate, depending on which minimized the
-   negative log-likelihood of the data.
-
-   #+BEGIN_SRC ipython
-    with sqlite3.connect('/scratch/midway2/aksarkar/singlecell/browser.db') as conn:
-      mean = (pd.read_sql('select gene, ind, case when nb_nll < zinb_nll then nb_log_mean else zinb2_log_mean end as log_mean from params;', conn)
-              .pivot(index='gene', columns='ind', values='log_mean')
-              .transform(lambda x: x - x.mean(), axis=1))
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[32]:
-   :END:
-
-   #+CALL: replication-tests()
-
-   #+RESULTS:
-   :RESULTS:
-   Skipping ENSG00000141867
-   Skipping ENSG00000164823
-   :END:
-
-   Estimate the replication rate.
-
-   #+CALL: replication-rate()
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[34]:
-   : (894, 0.9551282051282052)
-   :END:
-
-   Estimate the concordance.
-
-   #+CALL: effect-concordance()
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[35]:
-   : (779, 0.8713646532438478)
-   :END:
-
-   Write out tables for the interactive browser.
-
-   #+CALL: populate-qtl-table()
-
-   #+RESULTS:
-   :RESULTS:
-   :END:
 
 * Test validity of approximate permutation test
 
   ~qtltools~ tries to calibrate false discovery rates using the following
   procedure:
 
-  1. For each hypothesis, permute the genotype data to estimate the null
-     distribution of the p-values
+  1. For each gene, permute the genotype data to estimate the null distribution
+     of the p-values
   2. Fit a beta distribution to the permuted p-values via ML
   3. Compute the lower tail probability of the observed p-value, assuming it
      was generated from the fitted beta distribution
-  4. Apply the Benjamini-Hochberg procedure on the set of lower tail
-     probabilities (across all hypotheses)
+  4. Apply FDR correction on the set of lower tail probabilities (across all
+     genes)
 
   Test whether the beta approximation is appropriate for our sample size by
   subsetting GEUVADIS. Take all genes on chromosome 1.
@@ -336,72 +242,143 @@
     for chunk in pd.read_table('/project/compbio/geuvadis/analysis_results/GD462.GeneQuantRPKM.50FN.samplename.resk10.txt.gz', chunksize=100):
       geuvadis.append(chunk.query('Chr == "1"'))
     geuvadis = pd.concat(geuvadis)
+    geuvadis = geuvadis.set_index(geuvadis['Gene_Symbol'].apply(lambda x: x.split('.')[0]))
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[34]:
+  # Out[20]:
   :END:
 
-  Pick 54 random individuals from GEUVADIS.
+  First, replicate the result in [[https://www.nature.com/articles/ncomms15452][Delaneau et al 2017]] by using all 462
+  individuals from GEUVADIS.
 
   #+BEGIN_SRC ipython
-    np.random.seed(0)
-    subset = np.random.choice(geuvadis.columns[5:], size=54)
+    pd.Series(geuvadis.columns).sort_values().to_csv('/scratch/midway2/aksarkar/singlecell/geuvadis-subset.txt', header=None, index=None)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[38]:
+  # Out[113]:
   :END:
 
   Write out the phenotype file for ~qtltools~. Important: GEUVADIS VCFs code
   chromosome without ~chr~.
 
-  #+BEGIN_SRC ipython
-    write_pheno_file(geuvadis.set_index(geuvadis['Gene_Symbol'].apply(lambda x: x.split('.')[0]))[subset], gene_info, '/scratch/midway2/aksarkar/singlecell/test.bed')
+  #+BEGIN_SRC ipython :noweb no-export
+    <<write-pheno-def>>
+    write_pheno_file(geuvadis, gene_info, '/scratch/midway2/aksarkar/singlecell/test.bed')
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[55]:
+  # Out[110]:
   :END:
 
   Index the phenotype file. Important: ~#~ sorts before ~c~, but after ~1~.
 
-  #+NAME: tabix
-  #+BEGIN_SRC sh :var input="mean.bed" :var partition="broadwl" :dir /scratch/midway2/aksarkar/singlecell :eval never-export
-    export input=$input
-    sbatch --partition=$partition --wait
-    #!/bin/bash
-    sort -k1,1g -k2,2n -k3,3n $input | bgzip >$input.gz
-    tabix -p bed $input.gz
-  #+END_SRC
+  #+CALL: tabix()
 
   #+RESULTS: tabix
-  : Submitted batch job 44110009
+  : Submitted batch job 44138052
 
-  ~qtltools~ segfaults on the VCF file, so convert to ~plink~ format.
+  Perform SNP QC in ~plink~.
 
+  #+NAME: geuvadis-qc
   #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/
     sbatch --partition=broadwl --mem=2G
     #!/bin/bash
-    plink --memory 2000 --geno 0.01 --maf 0.01 --vcf /project/compbio/geuvadis/genotypes/GEUVADIS.chr1.PH1PH2_465.IMPFRQFILT_BIALLELIC_PH.annotv2.genotypes.vcf.gz --recode vcf-iid --out geuvadis-chr1
-    bgzip geuvadis-chr1.vcf
+    plink --memory 2000 --geno 0.01 --maf 0.05 --keep-fam /scratch/midway2/aksarkar/singlecell/geuvadis-subset.txt --vcf /project/compbio/geuvadis/genotypes/GEUVADIS.chr1.PH1PH2_465.IMPFRQFILT_BIALLELIC_PH.annotv2.genotypes.vcf.gz --recode vcf-iid --out geuvadis-chr1
+    bgzip -f geuvadis-chr1.vcf
     tabix -f -p vcf geuvadis-chr1.vcf.gz
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 44111976
+  : Submitted batch job 44138103
 
   Run ~qtltools~.
 
-  #+NAME: qtltools
-  #+BEGIN_SRC sh :var pheno="test" :var geno="geuvadis-chr1.vcf.gz" :var partition="broadwl" :var op="--permute 100000" :dir /scratch/midway2/aksarkar/singlecell :eval never-export 
-    export pheno=$pheno
-    export geno=$geno
-    export op=$op
-    sbatch --partition=$partition -n1 -c28 --exclusive -J $pheno-qtl -o $pheno-qtl.log
+  #+CALL: qtltools()
+
+  #+RESULTS: qtltools
+  : Submitted batch job 44138141
+
+  Read the results.
+
+  #+BEGIN_SRC ipython :noweb no-export
+    <<read-qtltools-def>>
+    geuvadis_qtls = read_qtltools_output('test')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[11]:
+  :END:
+
+  Check the beta approximation to the permutation p-values.
+
+  #+BEGIN_SRC ipython :noweb no-export :ipyfile figure/qtl-mapping.org/geuvadis-beta-approx.png
+    <<plot-approx-perm-def>>
+    plot_approx_permutation(geuvadis_qtls)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[14]:
+  [[file:figure/qtl-mapping.org/geuvadis-beta-approx.png]]
+  :END:
+
+  Repeat the analysis after subsetting to 54 individuals.
+
+  #+BEGIN_SRC ipython
+    np.random.seed(0)
+    subset = np.random.choice([x for x in geuvadis.columns], size=54, replace=False)
+    pd.Series(subset).sort_values().to_csv('/scratch/midway2/aksarkar/singlecell/geuvadis-subset.txt', header=None, index=None)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[17]:
+  :END:
+
+  #+BEGIN_SRC ipython :noweb no-export
+    <<write-pheno-def>>
+    write_pheno_file(geuvadis[subset], gene_info, '/scratch/midway2/aksarkar/singlecell/test.bed')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[28]:
+  :END:
+
+  #+CALL: tabix()
+
+  #+RESULTS:
+  : Submitted batch job 44139679
+
+  #+CALL: geuvadis-qc()
+
+  #+RESULTS:
+  : Submitted batch job 44139583
+
+  #+CALL: qtltools()
+
+  #+RESULTS:
+  : Submitted batch job 44139682
+
+  #+BEGIN_SRC ipython :noweb no-export :ipyfile figure/qtl-mapping.org/geuvadis-54-beta-approx.png
+    <<read-qtltools-def>>
+    <<plot-approx-perm-def>>
+    geuvadis_54_qtls = read_qtltools_output('test')
+    plot_approx_permutation(geuvadis_54_qtls)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[30]:
+  [[file:figure/qtl-mapping.org/geuvadis-54-beta-approx.png]]
+  :END:
+
     #!/bin/bash
     source activate scqtl
     module load parallel
