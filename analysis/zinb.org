@@ -36,20 +36,15 @@
   simply minimizing the negative log likelihood should give reasonable
   estimates.
 
-  We can additionally account for zero-inflation, by letting \(\pi_{\cdot}\)
-  denote the probability of a "technical zero" (i.e., not arising from the
+  We additionally account for zero-inflation, by letting \(\pi_{ik}\) denote
+  the probability of observing an excess zero (not arising from the
   negative-binomial).
-
-  As a first pass, estimate dropout assuming parameters \(\pi_k\) are shared
-  across cells (and individuals) for each gene. This assumption allows us to
-  directly estimate the parameter from the data without requiring
-  shrinkage/regularization to avoid overfitting.
 
   Then, the log-likelihood of the data is:
 
-  \[ \ln p(r_{ijk} \mid \cdot) = \ln(\pi_\cdot + (1 -  \pi_{\cdot}) p(r_{ijk}
+  \[ \ln p(r_{ijk} \mid \cdot) = \ln(\pi_{ik} + (1 -  \pi_{ik}) p(r_{ijk}
     \mid R_{ij}, \mu_{ik}, \phi_{ik}))\ \text{if}\ r_{ijk} = 0 \]
-  \[ \ln p(r_{ijk} \mid \cdot) = \ln(1 - \pi_{\cdot}) + \ln p(r_{ijk} \mid
+  \[ \ln p(r_{ijk} \mid \cdot) = \ln(1 - \pi_{ik}) + \ln p(r_{ijk} \mid
     R_{ij}, \mu_{ik}, \phi_{ik})\ \text{otherwise} \]
 
 * Setup                                                            :noexport:
@@ -65,7 +60,7 @@
   #+CALL: ipython3(memory="4G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 44101193
+  : Submitted batch job 44315879
 
   #+NAME: zinb-imports
   #+BEGIN_SRC ipython
@@ -244,136 +239,6 @@
   :RESULTS:
   :END:
 
-** Quantile-quantile diagnostic plot
-
-  The challenge in visualizing the fitted distributions is that the
-  observations \(r_{ijk}\) are not drawn iid. from a distribution
-  \(g_{ik}(\cdot)\). 
-
-  Instead, we have \(r_{ijk} \sim g_{ijk}(\cdot)\), and we have used maximum
-  likelihood to estimate distributions \(\hat{g}_{ijk}\).
-
-  We can use the probability integral transform to develop a diagnostic (as in
-  ~ashr~): Let \(\hat{G}_{ijk}\) denote the CDF of \(\hat{g}_{ijk}\). Then, the
-  distribution of values \(\hat{G}_{ijk}(r_{ijk})\) should be uniform.
-
-  In the case of modeling dropout, the CDF is discontinuous due to the point
-  mass on zero, which we can observe using a point-normal mixture:
-
-  \[ x \sim \pi \delta(x) + (1 - \pi) N(0, 1) \]
-
-  \[ \Pr(X < x) = \pi 1_{x > 0} + (1 - \pi) \Phi(x) \]
-
-  #+BEGIN_SRC ipython
-    N = 1000
-    G = st.norm()
-    observations = G.rvs(size=N) * (np.random.uniform(size=N) < 0.5)
-    quantiles = .5 * (observations > 0) + .5 * G.cdf(observations)
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[3]:
-  :END:
-
-  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/point-normal-cdf.png
-    plt.clf()
-    plt.hist(quantiles, bins=50, color='k')
-    plt.xlabel('Estimated quantile')
-    _ = plt.ylabel('Number of observations')
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[6]:
-  [[file:figure/zinb.org/point-normal-cdf.png]]
-  :END:
-
-  In this case, we can instead compute a randomized quantile, which will be
-  uniform in expectation.
-
-  #+BEGIN_SRC ipython
-    rand_quantiles = G.cdf(observations) + np.random.uniform(size=N) * np.isclose(observations, 0)
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[7]:
-  :END:
-
-  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/point-normal-diagnostic.png
-    plt.clf()
-    plt.hist(rand_quantiles, color='k', bins=50)
-    plt.xlabel('Estimated quantile')
-    _ = plt.ylabel('Number of observations')
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[12]:
-  [[file:figure/zinb.org/point-normal-diagnostic.png]]
-  :END:
-
-  #+BEGIN_SRC ipython
-    def estimated_cdf(x, mean, disp, size, onehot, gene_dropout=None, ind_dropout=None):
-      n = onehot.dot(np.exp(-disp.values.T) + 1e-8)
-      p = 1 / (1 + size.to_frame().values * onehot.dot(np.exp(mean.values + disp.values).T))
-      assert (n.values > 0).all()
-      assert (p.values >= 0).all()
-      assert (p.values <= 1).all()
-      G = st.nbinom(n=n, p=p).cdf(x)
-      if gene_dropout is not None:
-        G *= sp.expit(-gene_dropout.values.T)
-        G += sp.expit(gene_dropout.values.T)
-      elif ind_dropout is not None:
-        G *= onehot.dot(sp.expit(-ind_dropout.values.T))
-        G += onehot.dot(sp.expit(ind_dropout.values.T))
-      assert (G <= 1).all()
-      return G
-
-    def diagnostic(umi, mean, disp, size, onehot, **kwargs):
-      q = estimated_cdf(umi.values.T, mean, disp, size, onehot, **kwargs)
-      plt.clf()
-      plt.scatter(x=np.linspace(0, 1, q.shape[0]),
-                  y=sorted(q.ravel()),
-                  s=0.5)
-      plt.plot([[0, 0], [1, 1]], c='black')
-      plt.title(umi.index[0])
-      plt.xlabel('Expected quantile')
-      plt.ylabel('Estimated quantile')
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[16]:
-  :END:
-
-  Look at the quantiles of the QQ plots over all genes:
-
-  #+BEGIN_SRC ipython
-    def diagnostic_quantiles(umi, mean, disp, size, onehot, quantiles=None, **kwargs):
-      if quantiles is None:
-        quantiles = np.array([.05, .25, .5, .75, .95])
-      else:
-        quantiles = np.array(quantiles)
-        assert (0 <= quantiles <= 1).all()
-      cdf = np.sort(estimated_cdf(umi.values.T, mean, disp, size, onehot, **kwargs).T)
-      cdf_quantiles = np.percentile(cdf, 100 * quantiles, interpolation='higher', axis=0)
-
-      plt.clf()
-      for q, row in zip(quantiles, cdf_quantiles):
-        plt.scatter(x=np.linspace(0, 1, row.shape[0]), y=row, c=colorcet.cm['kbc'](q), s=.5, label=q)
-      plt.plot([0, 1], [0, 1], c='r', ls='dashed')
-      plt.legend()
-      plt.xlabel('Expected quantile')
-      plt.ylabel('Estimated quantile')
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[12]:
-  :END:
-
 ** Read the data
 
   Read the QC'ed data.
@@ -452,54 +317,6 @@
   #+RESULTS:
   : Submitted batch job 43884214
 
-  #+BEGIN_SRC sh :exports none
-    sacct -j 43884214 -o Elapsed
-  #+END_SRC
-
-  #+RESULTS:
-  |    Elapsed |
-  | ---------- |
-  |   00:36:49 |
-  |   00:36:49 |
-
-  Check the goodness of fit.
-
-  #+BEGIN_SRC ipython
-    mean = pd.read_table('/scratch/midway2/aksarkar/singlecell/mean2.txt.gz', sep=' ', index_col=0)
-    disp = pd.read_table('/scratch/midway2/aksarkar/singlecell/dispersion2.txt.gz', sep=' ', index_col=0)
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[59]:
-  :END:
-
-  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/nb-quantiles.png
-    diagnostic(umi.iloc[:1], mean.iloc[:1], disp.iloc[:1], size, onehot)
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[60]:
-  [[file:figure/zinb.org/nb-quantiles.png]]
-  :END:
-
-  The estimated quantiles are higher than the expected quantiles, suggesting
-  that the estimated distributions have too much density at lower values. This
-  result is explained by the fact that means are biased downwards and
-  dispersions are biased upwards due to zero-inflation. Accordingly, we expect
-  to find some genes which depart even more from uniform quantiles.
-
-  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/nb-quantiles-dist.png
-    diagnostic_quantiles(umi, mean, disp, size, onehot)
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[61]:
-  [[file:figure/zinb.org/nb-quantiles-dist.png]]
-  :END:
-
 ** Fit ZINB
 
   Estimate the parameters of the zero-inflated model assuming dropout per gene.
@@ -531,39 +348,6 @@
 
   #+RESULTS:
   : Submitted batch job 43966390
-
-  #+BEGIN_SRC sh :exports none
-    sacct -j 43907781 -o Elapsed,MaxRSS,MaxVMSize
-  #+END_SRC
-
-  #+RESULTS:
-  |    Elapsed | MaxRSS     | MaxVMSize  |
-  | ---------- | ---------- | ---------- |
-  |   01:00:50 |            |            |
-  |   01:00:50 | 4095240K   | 162503328K |
-
-  Plot the diagnostic for the model.
-
-  #+BEGIN_SRC ipython
-    zi_mean = pd.read_table('/scratch/midway2/aksarkar/singlecell/zi-mean.txt.gz', sep=' ', index_col=0)
-    zi_disp = pd.read_table('/scratch/midway2/aksarkar/singlecell/zi-dispersion.txt.gz', sep=' ', index_col=0)
-    zi_dropout = pd.read_table('/scratch/midway2/aksarkar/singlecell/zi-dropout.txt.gz', sep=' ', index_col=0)
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[9]:
-  :END:
-
-  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/zinb-diagnostic.png
-    diagnostic_quantiles(umi, zi_mean, zi_disp, size, onehot, gene_dropout=zi_dropout)
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[20]:
-  [[file:figure/zinb.org/zinb-diagnostic.png]]
-  :END:
 
 ** Fit ZINB2
 
@@ -599,38 +383,6 @@
   #+RESULTS:
   : Submitted batch job 43910744
 
-  #+BEGIN_SRC sh :exports none
-    sacct -j 43910744 -o Elapsed,MaxRSS
-  #+END_SRC
-
-  #+RESULTS:
-  |    Elapsed | MaxRSS     |
-  | ---------- | ---------- |
-  |   01:16:47 |            |
-  |   01:16:47 | 4296324K   |
-
-  Plot the data and fitted distribution.
-
-  #+BEGIN_SRC ipython
-    zi2_mean = pd.read_table('/scratch/midway2/aksarkar/singlecell/zi2-mean.txt.gz', sep=' ', index_col=0)
-    zi2_disp = pd.read_table('/scratch/midway2/aksarkar/singlecell/zi2-dispersion.txt.gz', sep=' ', index_col=0)
-    zi2_dropout = pd.read_table('/scratch/midway2/aksarkar/singlecell/zi2-dropout.txt.gz', sep=' ', index_col=0)
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[21]:
-  :END:
-
-  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/zinb2-diagnostic.png
-    diagnostic_quantiles(umi, zi2_mean, zi2_disp, size, onehot, ind_dropout=zi2_dropout)
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[22]:
-  [[file:figure/zinb.org/zinb2-diagnostic.png]]
-  :END:
 * numpy/scipy implementation
 
   Optimize the negative log-likelihood.
@@ -676,11 +428,40 @@
    # Out[4]:
    :END:
 
+   Write the data to the database. Use the pass through the count matrix to
+   compute and write out size factors for each cell.
+
+   #+BEGIN_SRC ipython :async t
+     annotations = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
+     keep_genes = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt', index_col=0, header=None)
+     keep_samples = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
+     annotations = annotations.loc[keep_samples.values.ravel()]
+     annotations['sample'] = annotation.apply(lambda x: '{chip_id}.{experiment:08d}.{well}'.format(**dict(x)), axis=1)
+     annotations = annotations.set_index('sample')
+     annotations['size'] = np.zeros(annotations.shape[0])
+     with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
+       conn.execute('drop table if exists umi;')
+       for chunk in pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', index_col=0, chunksize=100):
+         chunk = (chunk
+                  .filter(items=keep_genes[keep_genes.values.ravel()].index, axis='index')
+                  .loc[:,keep_samples.values.ravel()])
+         if not chunk.empty:
+           annotations['size'] += chunk.sum(axis=0)
+           chunk.reset_index().melt(id_vars='gene', var_name='sample').to_sql(name='umi', con=conn, index=False, if_exists='append')
+       annotations[['chip_id', 'size']].to_sql(name='annotation', con=conn, if_exists='replace')
+       conn.execute('create index ix_umi on umi(gene, sample);')
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[99]:
+   :END:
+
    Use this to check the parameter estimation for a particular gene/individual.
 
    #+BEGIN_SRC ipython
      def extract_data(ind, gene):
-       with sqlite3.connect('/scratch/midway2/aksarkar/singlecell/browser.db') as conn:
+       with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
          umi = pd.read_sql("""select umi.value, annotation.size from umi, annotation 
          where annotation.chip_id == ? and gene == ? and 
          umi.sample == annotation.sample;""", con=conn, params=(ind, gene))
@@ -692,17 +473,20 @@
    # Out[7]:
    :END:
 
-   Shard the data to parallelize over nodes.
+   Shard the data to parallelize over nodes. Doing this in one pass over the
+   count matrix is easier than doing this in one pass over the database table
+   because we don't have to worry about accidentally splitting up data for an
+   individual/gene pair across chunks.
 
    #+BEGIN_SRC ipython :async t
-     with sqlite3.connect('/home/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
-       annotation = pd.read_sql('select * from annotation', con=conn).set_index('sample')
+     with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
+       annotation = pd.read_sql('select * from annotation', con=conn)
 
-     keep_samples = pd.read_table('/home/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
-     keep_genes = pd.read_table('/home/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt', index_col=0, header=None)
+     keep_samples = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
+     keep_genes = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt', index_col=0, header=None)
      keep_genes = keep_genes[keep_genes.values].index
      i = 0
-     for chunk in pd.read_table('/home/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', index_col=0, chunksize=1000):
+     for chunk in pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', index_col=0, chunksize=1000):
        print('Processing chunk {}'.format(i))
        chunk = (chunk
                 .loc[:,keep_samples.values.ravel()]
@@ -711,14 +495,15 @@
          chunk = (chunk
                   .reset_index()
                   .melt(id_vars='gene', var_name='sample')
-                  .merge(annotation, left_on='sample', right_index=True)
+                  .merge(annotation[['chip_id', 'sample', 'size']], on='sample')
                   .sort_values(['gene', 'chip_id', 'sample']))
-         chunk.to_csv('/scratch/midway2/aksarkar/singlecell/chunk-{}.txt.gz'.format(i), compression='gzip', sep='\t')
+         chunk.to_csv('/scratch/midway2/aksarkar/singlecell/density-estimation/chunk-{}.txt.gz'.format(i), columns=['gene', 'chip_id', 'sample', 'value', 'size'], compression='gzip', sep='\t')
          i += 1
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
+   # Out[105]:
    :END:
 
    Process each chunk in parallel.
@@ -729,7 +514,9 @@
        res0 = so.minimize(nb, x0=[0, 0], args=(chunk[:,0], chunk[:,1]))
        pi0 = (chunk[:,0] == 0).sum() / chunk.shape[0] + 1e-8
        res = so.minimize(zinb, x0=list(res0.x) + [sp.logit(pi0 + 1e-8)], args=(chunk[:,0], chunk[:,1]))
-       return list(res0.x) + [res0.fun, res0.success] + list(res.x) + [res.fun, res.success]
+       # Log likelihood of ZINB vs. NB. We need to flip signs again
+       llr = chunk.shape[0] * (res0.fun - res.fun)
+       return list(res0.x) + [res0.success] + list(res.x) + [res.success, llr]
 
      def compute_breaks(chunk, by_ind=False):
        # Each subproblem has fixed size, so we can just split on integer indices
@@ -739,7 +526,8 @@
        breaks = num_samples * np.arange(num_genes).reshape(-1, 1)
        if by_ind:
          num_samples_per_ind = chunk.iloc[:num_samples]['chip_id'].value_counts().sort_index().values
-         breaks += np.cumsum(num_samples_per_ind).reshape(1, -1)
+         # This can't be written += because of broadcasting
+         breaks = breaks + np.cumsum(num_samples_per_ind).reshape(1, -1)
        else:
          # We need to get the right end point of each subproblem (exclusive)
          breaks += num_samples
@@ -756,110 +544,112 @@
      <<np-zinb-impl>>
      <<process-chunk-impl>>
 
-     parser = argparse.ArgumentParser()
-     parser.add_argument('-g', '--by-gene', action='store_true', help='Estimate one model per gene', default=False)
-     args = parser.parse_args()
-
      with mp.Pool() as pool:
-       chunk = pd.read_table('/scratch/midway2/aksarkar/singlecell/chunk-{}.txt.gz'.format(os.getenv('SLURM_ARRAY_TASK_ID')))
-       breaks = compute_breaks(chunk, not args.by_gene)
+       chunk = pd.read_table('/scratch/midway2/aksarkar/singlecell/density-estimation/chunk-{}.txt.gz'.format(os.getenv('SLURM_ARRAY_TASK_ID')))
+       breaks = compute_breaks(chunk, by_ind=True)
        res = pool.map(fit_gene, np.split(chunk[['value', 'size']].values, breaks[:-1]))
 
-     with gzip.open('/scratch/midway2/aksarkar/singlecell/result-{}.txt.gz'.format(os.getenv('SLURM_ARRAY_TASK_ID')), 'wt') as f:
+     with gzip.open('/scratch/midway2/aksarkar/singlecell/density-estimation/result-{}.txt.gz'.format(os.getenv('SLURM_ARRAY_TASK_ID')), 'wt') as f:
        for b in breaks:
          gene, ind = chunk.iloc[b - 1][['gene', 'chip_id']]
          print(gene, ind, *res.pop(0), file=f)
    #+END_SRC
 
-   #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell
+   #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation
      sbatch --partition=broadwl --job-name="np-zinb" --mem=4G -a 0-20 -n1 -c28 --exclusive
      #!/bin/bash
      source activate scqtl
-     python /scratch/midway2/aksarkar/singlecell/np-zinb.py -g
+     python /scratch/midway2/aksarkar/singlecell/np-zinb.py
    #+END_SRC
 
    #+RESULTS:
-   : Submitted batch job 44100884
+   : Submitted batch job 44315588
 
    Populate the database.
 
    #+BEGIN_SRC ipython :async t
-     with sqlite3.connect('/scratch/midway2/aksarkar/singlecell/browser.db') as conn:
+     with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
        conn.execute('drop table if exists params;')
        for i in range(20):
-         for chunk in pd.read_table('/scratch/midway2/aksarkar/singlecell/result-{}.txt.gz'.format(i), sep=' ', header=None, chunksize=1000):
-           chunk.columns = ['gene', 'ind', 'nb_log_mean', 'nb_log_disp', 'nb_nll', 'nb_success', 'zinb2_log_mean', 'zinb2_log_disp', 'zinb2_logodds', 'zinb_nll', 'zinb_success']
+         for chunk in pd.read_table('/scratch/midway2/aksarkar/singlecell/density-estimation/result-{}.txt.gz'.format(i), sep=' ', header=None, chunksize=1000):
+           chunk.columns = ['gene', 'ind', 'nb_log_mean', 'nb_log_disp', 'nb_success', 'zinb2_log_mean', 'zinb2_log_disp', 'zinb2_logodds', 'zinb_success', 'llr']
            chunk.to_sql(name='params', con=conn, index=False, if_exists='append')
        conn.execute('create index ix_params on params(gene, ind);')
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
+   # Out[4]:
    :END:
-* Noisy gene identification
+
+* Genome-wide distribution of dispersion
+
+  The index of dispersion for observed data \(r_{ijk}\) at gene \(k\) is:
+
+  \[ D_k = \frac{V[r_{ijk}]}{E[r_{ijk}]} \]
+
+  The numerator can be decomposed according to the law of total variance:
+
+  \[ V[r_{ijk}] = V_i[E_j[r_{ijk}]] + E_i[V_j[r_{ijk}]] \]
+
+  \[ = V_i[\mu_{ik}] + E_i[\mu_{ik} + \mu_{ik}^2 \phi_{ik}] \]
+
+  The first term is the variation between individual means, and the second term
+  is variation within each individual.
+
+  Similarly, the denominator can be decomposed according to the law of total
+  expectation:
+
+  \[ E[r_{ijk}] = E_i[E_j[r_{ijk}]] = E_i[\mu_{ik}] \]
 
   #+BEGIN_SRC ipython
-    params = pd.read_table('/home/aksarkar/projects/singlecell-qtl/data/params-by-gene.txt.gz', sep=' ', header=None, index_col=0)
-    params.columns = ['_', 'nb_log_mean', 'nb_log_disp', 'nb_nll', 'nb_success',
-                      'zinb2_log_mean', 'zinb2_log_disp', 'zinb2_logodds', 'zinb_nll',
-                      'zinb_success']
+    with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
+      params = (pd.read_sql(
+        """select gene, ind, case when llr < 1 then nb_log_mean else zinb2_log_mean end
+        as log_mean, case when llr < 1 then nb_log_disp else zinb2_log_disp end as
+        log_disp, case when llr < 1 then null else zinb2_logodds end as logodds from
+        params where ind != "NA18498";""", conn))
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[4]:
+  # Out[71]:
   :END:
 
   #+BEGIN_SRC ipython
-    mle = pd.DataFrame({'log_mean': np.where(params['nb_nll'] < params['zinb_nll'], params['nb_log_mean'], params['zinb2_log_mean']),
-                        'log_disp': np.where(params['nb_nll'] < params['zinb_nll'], params['nb_log_disp'], params['zinb2_log_disp'])},
-                       index=params.index)
-    mle['mean'] = np.exp(mle['log_mean'])
-    mle['var'] = np.exp(mle['log_mean']) + np.exp(2 * mle['log_mean'] + mle['log_disp'])
+    params['var'] = np.exp(params['log_mean']) + np.exp(2 * params['log_mean'] + params['log_disp'])
+    total_var = params.groupby('gene').apply(lambda x: np.exp(x['log_mean']).var() + x['var'].mean())
+    total_exp = params.groupby('gene').apply(lambda x: np.exp(x['log_mean']).mean())
+    dispersion = total_var / total_exp
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[34]:
+  # Out[72]:
   :END:
 
-  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/disp-dist.png
+  Plot the distribution of dispersions.
+
+  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/global-dispersion-hist.png
     plt.clf()
-    plt.hist(mle['log_disp'], bins=100)
-    plt.xlabel('Estimated log dispersion')
-    plt.ylabel('Number of genes')
+    plt.hist(np.log(dispersion[np.isfinite(dispersion)]), bins=100, color='k')
+    plt.xlabel('Log-transformed index of dispersion')
+    _ = plt.ylabel('Number of genes')
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[44]:
-  : Text(0,0.5,'Number of genes')
-  [[file:figure/zinb.org/disp-dist.png]]
+  # Out[75]:
+  [[file:figure/zinb.org/global-dispersion-hist.png]]
   :END:
 
-  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/var-dist.png
-    plt.clf()
-    plt.hist(mle['var'], bins=100)
-    plt.xlabel('Estimated variance')
-    plt.ylabel('Number of genes')
+  Write out the computed dispersions.
+
+  #+BEGIN_SRC ipython
+    dispersion[np.isfinite(dispersion)].to_frame().to_csv('/scratch/midway2/aksarkar/singlecell/index-dispersion-by-gene.txt.gz', compression='gzip', header=False, sep='\t')
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[45]:
-  : Text(0,0.5,'Number of genes')
-  [[file:figure/zinb.org/var-dist.png]]
-  :END:
-
-  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/noisy-genes.png
-    plt.clf()
-    plt.scatter(x=mle['log_mean'], y=mle['var'] - mle['mean'], s=2, c='k')
-    plt.xlabel('Estimated log mean expression')
-    _ = plt.ylabel('variance - mean')
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[42]:
-  [[file:figure/zinb.org/noisy-genes.png]]
+  # Out[83]:
   :END:
