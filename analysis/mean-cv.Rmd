@@ -1,0 +1,157 @@
+---
+title: "Mean and CV"
+author: "Po-Yuan Tung"
+date: 2018-03-17
+output: html_document
+---
+
+<!-- The file analysis/chunks.R contains chunks that define default settings
+shared across the workflowr files. -->
+```{r read-chunk, include=FALSE, cache=FALSE}
+knitr::read_chunk("chunks.R")
+```
+
+<!-- Update knitr chunk options -->
+```{r knitr-opts-chunk, include=FALSE}
+```
+
+<!-- Insert the date the file was last updated -->
+```{r last-updated, echo=FALSE, results='asis'}
+```
+
+<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
+ package git2r is installed -->
+```{r code-version, echo=FALSE, results='asis'}
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+The goal of this analysis is to identify examples where mean across individuals are small but cv across individuals are large.
+
+## Setup
+
+```{r packages, message=FALSE}
+library("cowplot")
+library("dplyr")
+library("edgeR")
+library("ggplot2")
+library("knitr")
+theme_set(theme_cowplot())
+source("../code/functions.R")
+library("Biobase") # has to be loaded last to use `combine`
+```
+
+Import data.
+
+```{r import}
+eset <- readRDS("../data/eset.rds")
+dim(eset)
+```
+
+Keep only human genes
+```{r human-genes}
+eset <- eset[fData(eset)$source == "H. sapiens" , ]
+dim(eset) 
+```
+
+Only keep high-quality single cells.
+
+```{r quality-cell}
+quality <- read.table("../data/quality-single-cells.txt", stringsAsFactors = FALSE)
+colnames(quality) <- c("sample", "quality")
+eset <- eset[, quality$quality]
+dim(eset)
+```
+
+Only keep genes that passed the filters
+
+```{r gene}
+genes <- read.table("../data/genes-pass-filter.txt", stringsAsFactors = FALSE)
+colnames(genes) <- c("gene", "passed")
+eset <- eset[genes$passed, ]
+
+eset_data <- exprs(eset)
+anno <- anno <- pData(eset)
+```
+
+## Mean and CV
+
+First, we need to correct for collision probability and cpm standarization.
+```{r collision}
+eset_data_cr <- as.data.frame(-4^6*log(1-eset_data/4^6))
+eset_data_cpm <- as.data.frame(cpm(eset_data_cr, log = TRUE))
+dim(eset_data_cpm)
+stopifnot(rownames(anno) == colnames(eset_data_cpm))
+```
+
+### Examples from SCDE
+Look at the molecule counts of top overdispersion genes from [SCDE analysis](scde-all.html)
+
+```{r scde}
+## look at molecule count per individaul
+anno$CDKN1A <- t(eset_data_cpm[row.names(eset_data_cpm) == "ENSG00000124762",])
+plot_cv_CDKN1A <- ggplot(anno, 
+       aes(x = factor(chip_id), y = CDKN1A)) +
+       geom_boxplot() +
+  labs(x = "Individual", y = "CDKN1A molecule count") +
+  theme(axis.text.x = element_text(hjust=1, angle = 90))
+
+plot_cv_CDKN1A
+
+## look at mean and cv per individaul 
+
+## create function CV 
+cv <- function(x) {
+  sd(x)/mean(x)
+}
+
+CDKN1A_in <- anno %>% 
+  group_by(chip_id) %>% 
+  summarise(individaul_cv = cv(CDKN1A),
+            individaul_mean = mean.default(CDKN1A))
+
+head(CDKN1A_in)
+                            
+ggplot(data.frame(CDKN1A_in), 
+       aes(x = factor(chip_id), y = individaul_mean)) +
+       geom_bar(stat = "identity") +
+  labs(x = "Individual", y = "Mean") +
+  theme(axis.text.x = element_text(hjust=1, angle = 90))
+
+ggplot(data.frame(CDKN1A_in), 
+       aes(x = factor(chip_id), y = individaul_cv)) +
+       geom_bar(stat = "identity") +
+  labs(x = "Individual", y = "CV") +
+  theme(axis.text.x = element_text(hjust=1, angle = 90))
+```
+
+### Compute mean and cv per gene per individual
+```{r mean-cv}
+## create mean and cv matrix per individaul per gene
+mean_matrix <- c()  
+cv_matrix <- c()
+  
+for (ii in unique(anno$chip_id)) {
+  ### extract index of current chip id
+  index <- which(anno$chip_id == ii)
+  ### restrict x1 to index column
+  data_temp <- eset_data_cpm[, index]
+  ### compute mean and var
+  mean_matrix <- cbind(mean_matrix, apply(data_temp, 1, mean))
+  cv_matrix <- cbind(cv_matrix, apply(data_temp, 1, cv))
+}
+
+## create funtion mean sruqe error
+mse <- function(x) {
+  sum((x - mean(x)) ^2)
+} 
+
+gene_mean <- apply(mean_matrix, 1, mse)
+gene_cv <- apply(cv_matrix, 1, mse)
+
+plot(log(gene_mean),
+     log(gene_cv))
+```
+

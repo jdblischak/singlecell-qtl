@@ -81,27 +81,6 @@ eset_data_cr <- as.data.frame(-4^6*log(1-eset_data/4^6))
 dim(eset_data_cr)
 stopifnot(nrow(anno) == ncol(eset_data_cr))
 ```
-Look at the molecule counts of top overdispersion genes from [SCDE analysis](scde-all.html)
-```{r scde}
-anno$CDKN1A <- t(eset_data_cr[row.names(eset_data_cr) == "ENSG00000124762",])
-plot_cv_CDKN1A <- ggplot(anno, 
-       aes(x = factor(chip_id), y = CDKN1A)) +
-       geom_boxplot() +
-  labs(x = "Individual", y = "CDKN1A molecule count") +
-  theme(axis.text.x = element_text(hjust=1, angle = 90))
-
-plot_cv_CDKN1A
-
-anno$RHOG <- t(eset_data_cr[row.names(eset_data_cr) == "ENSG00000177105",])
-plot_cv_RHOG <- ggplot(anno, 
-       aes(x = factor(chip_id), y = RHOG)) +
-       geom_boxplot() +
-  labs(x = "Individual", y = "RHOG molecule count") +
-  theme(axis.text.x = element_text(hjust=1, angle = 90))
-
-plot_cv_RHOG
-
-```
 
 Calculate mean for each gene
 
