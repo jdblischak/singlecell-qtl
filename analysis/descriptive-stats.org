@@ -43,8 +43,8 @@
 
   #+NAME: read-data
   #+BEGIN_SRC ipython
-    annotations = pd.read_table('/home/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
-    keep_samples = pd.read_table('/home/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
+    annotations = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
+    keep_samples = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
   #+END_SRC
 
   #+RESULTS: read-data
@@ -419,7 +419,7 @@
   bound on how many genes could be affected by this problem.
 
   #+BEGIN_SRC ipython
-    gene_info = pd.read_table('/home/aksarkar/projects/singlecell-qtl/data/scqtl-genes.txt.gz', index_col=0)
+    gene_info = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-genes.txt.gz', index_col=0)
     gene_info.head()
   #+END_SRC
 

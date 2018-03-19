@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2017-12-15 Fri 19:20 -->
+<!-- 2018-03-16 Fri 12:51 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Power to detect QTLs in single cell data</title>
@@ -231,22 +231,10 @@ for the JavaScript code in this tag.
 <body>
 <div id="content">
 <h1 class="title">Power to detect QTLs in single cell data</h1>
-<div id="table-of-contents">
-<h2>Table of Contents</h2>
-<div id="text-table-of-contents">
-<ul>
-<li><a href="#orgf9fdb5e">Introduction</a></li>
-<li><a href="#org2a3b9fe">Resample scRNA-Seq</a></li>
-<li><a href="#org0b73441">Plot concordance between simulated and real data</a></li>
-<li><a href="#orgab2a8e9">Simulate at a bulk RNA-Seq QTL</a></li>
-<li><a href="#org7eb4bf1">Open problems</a></li>
-</ul>
-</div>
-</div>
 
-<div id="outline-container-orgf9fdb5e" class="outline-2">
-<h2 id="orgf9fdb5e">Introduction</h2>
-<div class="outline-text-2" id="text-orgf9fdb5e">
+<div id="outline-container-orgb40523f" class="outline-2">
+<h2 id="orgb40523f">Introduction</h2>
+<div class="outline-text-2" id="text-orgb40523f">
 <p>
 Our goal here is estimate power to detect mean and variance-effect QTLs. The
 strategy is to resample the single cell RNA-Seq data to generate datasets
@@ -256,9 +244,9 @@ dependence, etc.
 </div>
 </div>
 
-<div id="outline-container-org2a3b9fe" class="outline-2">
-<h2 id="org2a3b9fe">Resample scRNA-Seq</h2>
-<div class="outline-text-2" id="text-org2a3b9fe">
+<div id="outline-container-orgd964d3d" class="outline-2">
+<h2 id="orgd964d3d">Resample scRNA-Seq</h2>
+<div class="outline-text-2" id="text-orgd964d3d">
 <p>
 Assuming the true single cells all came from one individual, generate new
 single cells by sampling counts for each gene iid. with replacement. This
@@ -273,7 +261,7 @@ sampled individual.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="orgf37f61e"><span class="org-keyword">def</span> <span class="org-function-name">sample_cells</span>(umi, n=1):
+<pre class="src src-ipython" id="orge69d093"><span class="org-keyword">def</span> <span class="org-function-name">sample_cells</span>(umi, n=1):
   <span class="org-doc">"""Return a sampled matrix of UMI counts</span>
 
 <span class="org-doc">  Assume the input matrix is UMI for a single individal. Sample gene counts</span>
@@ -312,9 +300,9 @@ sampled individual.
 </div>
 </div>
 
-<div id="outline-container-org0b73441" class="outline-2">
-<h2 id="org0b73441">Plot concordance between simulated and real data</h2>
-<div class="outline-text-2" id="text-org0b73441">
+<div id="outline-container-org45f1010" class="outline-2">
+<h2 id="org45f1010">Plot concordance between simulated and real data</h2>
+<div class="outline-text-2" id="text-org45f1010">
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-variable-name">pools</span> = [cpm(sample_cells(umi.loc[:,(annotations[<span class="org-string">'chip_id'</span>] == <span class="org-string">'NA18507'</span>).values], n=100).agg(np.<span class="org-builtin">sum</span>, axis=1), log2=<span class="org-constant">True</span>).to_frame()
          <span class="org-keyword">for</span> _ <span class="org-keyword">in</span> <span class="org-builtin">range</span>(2)]
@@ -325,20 +313,20 @@ plot_concordance(
   y=bulk[<span class="org-string">'NA18507'</span>].to_frame(),
   ylabel=<span class="org-string">'Bulk $\log_2(TPM + 1)$'</span>,
   title=<span class="org-string">'NA18507'</span>,
-  filename=<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/sim/sc-vs-bulk.png'</span>)
+  filename=<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/sim/sc-vs-bulk.png'</span>)
 plot_concordance(
   x=pools[0],
   xlabel=<span class="org-string">'Simulated single cell $\log_2(CPM + 1)$'</span>,
   y=pools[1],
   ylabel=<span class="org-string">'Simulated single cell $\log_2(CPM + 1)$'</span>,
   title=<span class="org-string">'NA18507'</span>,
-  filename=<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/sim/sc-vs-sc.png'</span>,
+  filename=<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/sim/sc-vs-sc.png'</span>,
   gridsize=15)
 </pre>
 </div>
 
 <p>
-The true concordance, <a href="sc-vs-bulk.html#orgf1f819a">as previously computed</a>:
+The true concordance, <a href="sc-vs-bulk.html#orgea96e63">as previously computed</a>:
 </p>
 
 <p>
@@ -357,9 +345,9 @@ Generated single cell. vs bulk and single cell vs. single cell concordance:
 </div>
 </div>
 
-<div id="outline-container-orgab2a8e9" class="outline-2">
-<h2 id="orgab2a8e9">Simulate at a bulk RNA-Seq QTL</h2>
-<div class="outline-text-2" id="text-orgab2a8e9">
+<div id="outline-container-org6c86703" class="outline-2">
+<h2 id="org6c86703">Simulate at a bulk RNA-Seq QTL</h2>
+<div class="outline-text-2" id="text-org6c86703">
 <p>
 Consider the gene <i>ZWIM7</i>, for which the strongest mean eQTL is
 <code>rs73276049</code>. We previously plotted the distribution of UMI counts stratified
@@ -417,7 +405,7 @@ Simulate new cohorts varying the sample size, stratify on genotype, and plot:
   plt.ylabel(<span class="org-string">'Number of cells'</span>)
   plt.xlabel(<span class="org-string">'UMI count'</span>)
   plt.gca().legend()
-  plt.savefig(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/sim/ZWIM7-{}.png'</span>.<span class="org-builtin">format</span>(n))
+  plt.savefig(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/sim/ZWIM7-{}.png'</span>.<span class="org-builtin">format</span>(n))
 </pre>
 </div>
 
@@ -430,9 +418,9 @@ Simulate new cohorts varying the sample size, stratify on genotype, and plot:
 </div>
 </div>
 
-<div id="outline-container-org7eb4bf1" class="outline-2">
-<h2 id="org7eb4bf1">Open problems</h2>
-<div class="outline-text-2" id="text-org7eb4bf1">
+<div id="outline-container-org59478ab" class="outline-2">
+<h2 id="org59478ab">Open problems</h2>
+<div class="outline-text-2" id="text-org59478ab">
 <ol class="org-ol">
 <li>If we estimate the effect size distribution from real data, and use the
 estimated effect sizes to perform the power calculation, we need to
@@ -445,7 +433,7 @@ account for winner's curse</li>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2017-12-15 Fri 19:20</p>
+<p class="date">Created: 2018-03-16 Fri 12:51</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>

@@ -34,7 +34,7 @@
 * Read the data
 
   #+BEGIN_SRC ipython
-    counts = pd.read_table('/home/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', index_col=0)
+    counts = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', index_col=0)
     counts.shape
   #+END_SRC
 
@@ -44,7 +44,7 @@
   :END:
 
   #+BEGIN_SRC ipython
-    annotations = pd.read_table('/home/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
+    annotations = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
     annotations['chip_id'].value_counts()
   #+END_SRC
 

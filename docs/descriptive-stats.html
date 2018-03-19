@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-02-07 Wed 13:34 -->
+<!-- 2018-03-16 Fri 12:51 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Descriptive statistics</title>
@@ -232,12 +232,12 @@ for the JavaScript code in this tag.
 <div id="content">
 <h1 class="title">Descriptive statistics</h1>
 
-<div id="outline-container-org198073c" class="outline-2">
-<h2 id="org198073c">Read the data</h2>
-<div class="outline-text-2" id="text-org198073c">
+<div id="outline-container-org0cf8933" class="outline-2">
+<h2 id="org0cf8933">Read the data</h2>
+<div class="outline-text-2" id="text-org0cf8933">
 <div class="org-src-container">
-<pre class="src src-ipython" id="org169c4c5"><span class="org-variable-name">annotations</span> = pd.read_table(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
-<span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
+<pre class="src src-ipython" id="orgff1054a"><span class="org-variable-name">annotations</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
+<span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
 </pre>
 </div>
 
@@ -258,13 +258,13 @@ annotations.shape
 </div>
 </div>
 
-<div id="outline-container-org350f1ed" class="outline-2">
-<h2 id="org350f1ed">Distributions of read counts</h2>
-<div class="outline-text-2" id="text-org350f1ed">
+<div id="outline-container-org317b5b8" class="outline-2">
+<h2 id="org317b5b8">Distributions of read counts</h2>
+<div class="outline-text-2" id="text-org317b5b8">
 </div>
-<div id="outline-container-orga342802" class="outline-3">
-<h3 id="orga342802">H. sapiens</h3>
-<div class="outline-text-3" id="text-orga342802">
+<div id="outline-container-org1d08659" class="outline-3">
+<h3 id="org1d08659">H. sapiens</h3>
+<div class="outline-text-3" id="text-org1d08659">
 <div class="org-src-container">
 <pre class="src src-ipython">plt.clf()
 plt.gcf().set_size_inches(12, 4)
@@ -377,9 +377,9 @@ Text(0.5,0.98,'Read count by individual/batch')
 </div>
 </div>
 
-<div id="outline-container-orgb661825" class="outline-3">
-<h3 id="orgb661825">ERCC</h3>
-<div class="outline-text-3" id="text-orgb661825">
+<div id="outline-container-orgbadd9fe" class="outline-3">
+<h3 id="orgbadd9fe">ERCC</h3>
+<div class="outline-text-3" id="text-orgbadd9fe">
 <div class="org-src-container">
 <pre class="src src-ipython">plt.clf()
 <span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(3, 1)
@@ -407,9 +407,9 @@ Text(0.5,0.98,'ERCC read count by individual')
 </div>
 </div>
 </div>
-<div id="outline-container-orge894353" class="outline-3">
-<h3 id="orge894353">D. melanogaster</h3>
-<div class="outline-text-3" id="text-orge894353">
+<div id="outline-container-org0fdb6e1" class="outline-3">
+<h3 id="org0fdb6e1">D. melanogaster</h3>
+<div class="outline-text-3" id="text-org0fdb6e1">
 <div class="org-src-container">
 <pre class="src src-ipython">plt.clf()
 <span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(<span class="org-builtin">len</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'fly'</span>])), 1)
@@ -438,9 +438,9 @@ Text(0.5,0.98,'D. mel. read count by individual')
 </div>
 </div>
 
-<div id="outline-container-org04f3cad" class="outline-3">
-<h3 id="org04f3cad">C. elegans</h3>
-<div class="outline-text-3" id="text-org04f3cad">
+<div id="outline-container-orga4b3654" class="outline-3">
+<h3 id="orga4b3654">C. elegans</h3>
+<div class="outline-text-3" id="text-orga4b3654">
 <div class="org-src-container">
 <pre class="src src-ipython">plt.clf()
 <span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(3, 1)
@@ -470,13 +470,13 @@ Text(0.5,0.98,'C. elegans read count by individual')
 </div>
 </div>
 
-<div id="outline-container-org94e78e2" class="outline-2">
-<h2 id="org94e78e2">Distributions of molecules</h2>
-<div class="outline-text-2" id="text-org94e78e2">
+<div id="outline-container-orgdcc90fa" class="outline-2">
+<h2 id="orgdcc90fa">Distributions of molecules</h2>
+<div class="outline-text-2" id="text-orgdcc90fa">
 </div>
-<div id="outline-container-orgb754d93" class="outline-3">
-<h3 id="orgb754d93">H. sapiens</h3>
-<div class="outline-text-3" id="text-orgb754d93">
+<div id="outline-container-org7f46b24" class="outline-3">
+<h3 id="org7f46b24">H. sapiens</h3>
+<div class="outline-text-3" id="text-org7f46b24">
 <div class="org-src-container">
 <pre class="src src-ipython">plt.clf()
 plt.hist(annotations[<span class="org-string">'mol_hs'</span>], bins=100)
@@ -536,9 +536,9 @@ Text(0.5,0.98,'Molecule count by individual')
 </div>
 </div>
 
-<div id="outline-container-org3eb6bc3" class="outline-3">
-<h3 id="org3eb6bc3">ERCC</h3>
-<div class="outline-text-3" id="text-org3eb6bc3">
+<div id="outline-container-org8a7fd78" class="outline-3">
+<h3 id="org8a7fd78">ERCC</h3>
+<div class="outline-text-3" id="text-org8a7fd78">
 <div class="org-src-container">
 <pre class="src src-ipython">plt.clf()
 <span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(3, 1)
@@ -568,9 +568,9 @@ Text(0.5,0.98,'ERCC molecule count by individual')
 </div>
 </div>
 
-<div id="outline-container-org89ca05c" class="outline-3">
-<h3 id="org89ca05c">D. melanogaster</h3>
-<div class="outline-text-3" id="text-org89ca05c">
+<div id="outline-container-org3f57f26" class="outline-3">
+<h3 id="org3f57f26">D. melanogaster</h3>
+<div class="outline-text-3" id="text-org3f57f26">
 <div class="org-src-container">
 <pre class="src src-ipython">plt.clf()
 <span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(<span class="org-builtin">len</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'fly'</span>])), 1)
@@ -600,9 +600,9 @@ Text(0.5,0.98,'D. mel. molecule count by individual')
 </div>
 </div>
 
-<div id="outline-container-orgee1ad4e" class="outline-3">
-<h3 id="orgee1ad4e">C. elegans</h3>
-<div class="outline-text-3" id="text-orgee1ad4e">
+<div id="outline-container-org5cf1282" class="outline-3">
+<h3 id="org5cf1282">C. elegans</h3>
+<div class="outline-text-3" id="text-org5cf1282">
 <div class="org-src-container">
 <pre class="src src-ipython">plt.clf()
 <span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(3, 1)
@@ -633,11 +633,11 @@ Text(0.5,0.98,'C. elegans molecule count by individual')
 </div>
 </div>
 
-<div id="outline-container-orga3bd6de" class="outline-2">
-<h2 id="orga3bd6de">Distributions of cells</h2>
-<div class="outline-text-2" id="text-orga3bd6de">
+<div id="outline-container-org9a57c2e" class="outline-2">
+<h2 id="org9a57c2e">Distributions of cells</h2>
+<div class="outline-text-2" id="text-org9a57c2e">
 <p>
-Our previous results on <a href="sc-vs-bulk.html#org1ee076a">concordance between pools of single cells</a> suggest
+Our previous results on <a href="sc-vs-bulk.html#org7928e0c">concordance between pools of single cells</a> suggest
 that at least 50 cells are needed to consistently estimate mean expression.
 </p>
 
@@ -687,9 +687,9 @@ Text(0.5,0.98,'Number of cells by individual')
 </div>
 </div>
 
-<div id="outline-container-org047a40b" class="outline-2">
-<h2 id="org047a40b">Distribution of SNPs near TSS</h2>
-<div class="outline-text-2" id="text-org047a40b">
+<div id="outline-container-org245a3a3" class="outline-2">
+<h2 id="org245a3a3">Distribution of SNPs near TSS</h2>
+<div class="outline-text-2" id="text-org245a3a3">
 <p>
 Because we are only sequencing 5' ends to capture the UMI (rather than
 sequencing over the entire transcript), mapping errors due to polymorphisms
@@ -704,7 +704,7 @@ bound on how many genes could be affected by this problem.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">gene_info</span> = pd.read_table(<span class="org-string">'/home/aksarkar/projects/singlecell-qtl/data/scqtl-genes.txt.gz'</span>, index_col=0)
+<pre class="src src-ipython"><span class="org-variable-name">gene_info</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-genes.txt.gz'</span>, index_col=0)
 gene_info.head()
 </pre>
 </div>
@@ -791,7 +791,7 @@ Text(0,0.5,'Number of genes')
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-02-07 Wed 13:34</p>
+<p class="date">Created: 2018-03-16 Fri 12:51</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>

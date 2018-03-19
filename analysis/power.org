@@ -11,7 +11,7 @@
 * Setup                                                            :noexport:
 
   #+BEGIN_SRC emacs-lisp
-    (org-babel-lob-ingest "/home/aksarkar/projects/singlecell-qtl/analysis/sc-vs-bulk.org")
+    (org-babel-lob-ingest "/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/sc-vs-bulk.org")
   #+END_SRC
 
   #+RESULTS:
@@ -126,14 +126,14 @@
       y=bulk['NA18507'].to_frame(),
       ylabel='Bulk $\log_2(TPM + 1)$',
       title='NA18507',
-      filename='/home/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/sim/sc-vs-bulk.png')
+      filename='/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/sim/sc-vs-bulk.png')
     plot_concordance(
       x=pools[0],
       xlabel='Simulated single cell $\log_2(CPM + 1)$',
       y=pools[1],
       ylabel='Simulated single cell $\log_2(CPM + 1)$',
       title='NA18507',
-      filename='/home/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/sim/sc-vs-sc.png',
+      filename='/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/sim/sc-vs-sc.png',
       gridsize=15)
   #+END_SRC
 
@@ -200,7 +200,7 @@
       plt.ylabel('Number of cells')
       plt.xlabel('UMI count')
       plt.gca().legend()
-      plt.savefig('/home/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/sim/ZWIM7-{}.png'.format(n))
+      plt.savefig('/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/sim/ZWIM7-{}.png'.format(n))
   #+END_SRC
 
   file:figure/power.org/sim/ZWIM7-20.png

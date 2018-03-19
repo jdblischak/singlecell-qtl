@@ -51,7 +51,7 @@
   #+CALL: ipython3(memory="16G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 43009166
+  : Submitted batch job 44151241
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -59,7 +59,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[17]:
+  # Out[1]:
   :END:
 
   #+NAME: dim-reduction-imports
@@ -72,7 +72,6 @@
     import scipy.stats as st
     import sklearn.decomposition as skd
     import sklearn.linear_model as sklm
-    import ZIFA.block_ZIFA as zifa
   #+END_SRC
 
   #+RESULTS: dim-reduction-imports
@@ -86,10 +85,10 @@
 
   #+NAME: read-data-qc
   #+BEGIN_SRC ipython
-    umi = pd.read_table('/home/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', index_col=0)
-    annotations = pd.read_table('/home/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
-    keep_samples = pd.read_table('/home/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
-    keep_genes = pd.read_table('/home/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt', index_col=0, header=None)
+    umi = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', index_col=0)
+    annotations = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
+    keep_samples = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
+    keep_genes = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt', index_col=0, header=None)
     umi = umi.loc[keep_genes.values.ravel(),keep_samples.values.ravel()]
     annotations = annotations.loc[keep_samples.values.ravel()]
   #+END_SRC
@@ -106,7 +105,7 @@
   #+RESULTS:
   :RESULTS:
   # Out[4]:
-  : (10978, 4865)
+  : (10347, 4995)
   :END:
 
   The expected ERCC spike-in molecule counts were previously tabulated for
@@ -151,7 +150,7 @@
 
   #+RESULTS: normalize
   :RESULTS:
-  # Out[6]:
+  # Out[7]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -242,9 +241,9 @@
           'corr': 1 - np.square(loadings - m.predict(onehot)).sum(axis=0) / np.square(loadings - loadings.mean(axis=0)).sum(axis=0)})
   #+END_SRC
 
-  #+RESULTS:
+  #+RESULTS: corr-def
   :RESULTS:
-  # Out[11]:
+  # Out[9]:
   :END:
 
   #+NAME: extract-covars
@@ -253,9 +252,9 @@
     cat_covars = annotations[['chip_id', 'well']]
   #+END_SRC
 
-  #+RESULTS:
+  #+RESULTS: extract-covars
   :RESULTS:
-  # Out[15]:
+  # Out[10]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -267,7 +266,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[14]:
+  # Out[11]:
   :END:
 
   #+NAME: plot-covars-def
@@ -275,7 +274,7 @@
     def plot_pca_covar_corr(pca, corr):
       plt.clf()
       fig, ax = plt.subplots(2, 1, gridspec_kw={'height_ratios': [.25, .75]}, sharex=True)
-      fig.set_size_inches(8, 12)
+      fig.set_size_inches(6, 9)
       ax[0].bar(np.arange(len(pca.components_)), pca.explained_variance_ratio_)
       ax[0].set_xticks(np.arange(len(pca.components_)))
       ax[0].set_xticklabels([str(x) for x in np.arange(1, len(pca.components_) + 1)])
@@ -289,11 +288,13 @@
       ax[1].set_yticks(np.arange(corr.shape[0]))
       ax[1].set_yticklabels(corr.index)
       ax[1].set_ylabel('Covariate')
+
+      plt.gcf().tight_layout()
   #+END_SRC
 
-  #+RESULTS:
+  #+RESULTS: plot-covars-def
   :RESULTS:
-  # Out[28]:
+  # Out[12]:
   :END:
 
   #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/pca-vs-covars.png
@@ -302,8 +303,20 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[16]:
+  # Out[48]:
   [[file:figure/dim-reduction.org/pca-vs-covars.png]]
+  :END:
+
+  #+BEGIN_SRC ipython :exports none
+    %matplotlib agg
+    plot_pca_covar_corr(ppca, corr)
+    plt.savefig('/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/dim-reduction.org/pca-vs-covars-hires.png', dpi=300)
+    %matplotlib inline
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[51]:
   :END:
 
   The top 10 PCs define a low-rank approximation to the original data, so we
@@ -316,7 +329,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[17]:
+  # Out[20]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -331,7 +344,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[18]:
+  # Out[21]:
   :END:
 
   For genes with high proportion of zero counts, the low-rank approximation is
@@ -346,7 +359,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[19]:
+  # Out[22]:
   [[file:figure/dim-reduction.org/reconstruction-error-max-zero.png]]
   :END:
 
@@ -359,7 +372,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[20]:
+  # Out[23]:
   [[file:figure/dim-reduction.org/reconstruction-error-min-zero.png]]
   :END:
 
@@ -375,7 +388,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[21]:
+  # Out[24]:
   :END:
 
   #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/reconstruction-pred-score.png
@@ -411,42 +424,42 @@
 
   #+BEGIN_SRC ipython :eval never :tangle zifa.py :noweb tangle
     <<dim-reduction-imports>>
+    import ZIFA.block_ZIFA as zifa
     <<read-data-qc>>
     <<normalize>>
     latent, params = zifa.fitModel(Y=np.log(umi.values.T + 1), K=10, p0_thresh=.7)
-    np.save('/home/aksarkar/projects/singlecell-qtl/data/zifa-loadings.npy', latent)
+    np.save('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/zifa-loadings.npy', latent)
   #+END_SRC
 
-  Run on 16 cores to complete in a reasonable amount of time.
+  Run on 28 cores to complete in a reasonable amount of time.
 
   #+BEGIN_SRC sh :eval never-export :exports both
-    sbatch --partition=broadwl --time=400 --mem=32G -c16 --out=zifa.out --err zifa.err
+    sbatch --partition=broadwl --time=400 --mem=32G -n1 -c28 --exclusive --out=zifa.out --err zifa.err
     #!/bin/bash
     source activate scqtl
     python zifa.py
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 42700513
+  : Submitted batch job 44152013
 
-  #+ATTR_HTML: :class table
-  #+BEGIN_SRC sh :eval never-export :exports both
-    sacct -j 42700513 -o Elapsed,MaxRSS,MaxVMSize
+  #+BEGIN_SRC sh :eval never-export :exports both :results output example
+    sacct -j 44152013 -o Elapsed,MaxRSS,MaxVMSize
   #+END_SRC
 
   #+RESULTS:
-  |    Elapsed | MaxRSS     | MaxVMSize  |
-  | ---------- | ---------- | ---------- |
-  |   03:15:28 |            |            |
-  |   03:15:28 | 19195312K  | 23219728K  |
+  :    Elapsed     MaxRSS  MaxVMSize 
+  : ---------- ---------- ---------- 
+  :   02:54:50                       
+  :   02:54:50  23391824K  27240528K 
 
   #+BEGIN_SRC ipython
-    latent = np.load('/home/aksarkar/projects/singlecell-qtl/data/zifa-loadings.npy')
+    latent = np.load('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/zifa-loadings.npy')
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[59]:
+  # Out[75]:
   :END:
 
   #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/zifa-covars.png
@@ -468,7 +481,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[58]:
+  # Out[76]:
   [[file:figure/dim-reduction.org/zifa-covars.png]]
   :END:
 
@@ -490,7 +503,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[97]:
+  # Out[77]:
   [[file:figure/dim-reduction.org/pca-vs-zifa-corr.png]]
   :END:
 
@@ -730,11 +743,11 @@
         vals = np.log(vals + pseudocount.values.reshape(1, -1)) - np.log(total_counts + 2 * pseudocount).values.reshape(1, -1) + 6 * np.log(10)
       else:
         vals = np.log(vals + pseudocount)
-        label = '$\log(\mathrm{UMI} + {:.3g})$'.format(pseudocount)
+        label = '$\log({} + {:.3g})$'.format('\mathrm{UMI}', pseudocount)
 
       plt.clf()
       for q, v in zip(quantiles, vals):
-        plt.scatter(annotations['detect_hs'] / umi.shape[0], v, c=colorcet.cm['inferno'](q), label='{:.3f}'.format(q))
+        plt.scatter(annotations['detect_hs'] / umi.shape[0], v, c=colorcet.cm['inferno'](q), label='{:.3f}'.format(q), s=2)
       plt.legend(bbox_to_anchor=(1.04, .5), loc='center left')
       plt.xlabel('Detection rate')
       plt.ylabel(label)
@@ -742,7 +755,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[55]:
+  # Out[54]:
   :END:
 
   We recapitulate the main result of Hicks et al in our data.
@@ -753,7 +766,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[56]:
+  # Out[55]:
   [[file:figure/dim-reduction.org/umi-quantiles-vs-detection.png]]
   :END:
 
@@ -788,7 +801,7 @@
 * PCA on bicentered data
 
   Bi-center the data, by fitting a model where observations depend on a
-  row-mean and a column-mean.
+  row-mean and a column-mean and then subtracting the means from each entry.
 
   \[ x_{ij} \sim N(u_i + v_j, \sigma^2) \]
 
@@ -829,7 +842,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[8]:
+  # Out[59]:
   :END:
 
   #+CALL: normalize()
@@ -874,7 +887,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[13]:
+  # Out[60]:
   :END:
 
   #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/pca-bicentered-covars.png
@@ -883,54 +896,20 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[43]:
+  # Out[61]:
   [[file:figure/dim-reduction.org/pca-bicentered-covars.png]]
   :END:
 
-  After bicentering the data, the subsequent top PC is still correlated with
-  detection rate.
-
-  #+BEGIN_SRC ipython
-    corr_bicentered.loc['detect_hs', ('corr', 0)]
+  #+BEGIN_SRC ipython :exports none
+    %matplotlib agg
+    plot_bicentered_pca(log_cpm, annotations, cont_covars, cat_covars)
+    plt.savefig('/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/dim-reduction.org/pca-bicentered-covars-hires.png', dpi=300)
+    %matplotlib inline
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[49]:
-  : 0.26792105510441244
-  :END:
-
-  The top PC is more strongly correlated with the percentiles of non-zero gene
-  expression, suggesting that it is capturing the fact that the higher moments
-  (shape) of the distribution of non-zero gene expression depends on gene
-  detection rate.
-
-  #+BEGIN_SRC ipython
-    percentiles = np.nanpercentile(np.ma.masked_equal(umi.values, 0).astype(float).filled(np.nan), 100 * np.linspace(0, 1, 5), axis=0, interpolation='higher')
-    normalized_percentiles = (np.log(percentiles + pseudocount.values.reshape(1, -1)) - np.log(libsize + 2 * pseudocount).values.reshape(1, -1) + 6 * np.log(10)) / np.log(2)
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[38]:
-  :END:
-
-  #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/pca-expr-percentile-corr.png
-    plt.clf()
-    im = plt.imshow(np.square(np.corrcoef(loadings_bicentered.T, normalized_percentiles)[10:,:10]), cmap=colorcet.cm['fire'], vmin=0, vmax=1)
-    cb = plt.colorbar(im, orientation='horizontal')
-    cb.set_label('Squared correlation')
-    plt.xlabel('Principal component')
-    plt.ylabel('Percentile of non-zero log CPM')
-    _ = plt.xticks(np.arange(10), np.arange(1, 11))
-    _ = plt.yticks(np.arange(5), ['{:.2f}'.format(x) for x in np.linspace(0, 1, 5)])
-    plt.gcf().tight_layout()
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[84]:
-  [[file:figure/dim-reduction.org/pca-expr-percentile-corr.png]]
+  # Out[62]:
   :END:
 
 * Kernel PCA
@@ -961,9 +940,10 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[15]:
+  # Out[66]:
   :END:
 
+  #+NAME: plot-kpca-covars
   #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/kpca-covars.png
     plt.clf()
     plt.gcf().set_size_inches(8, 12)
@@ -974,13 +954,26 @@
     plt.gca().set_yticks(np.arange(corr_kpca.shape[0]))
     plt.gca().set_yticklabels(corr_kpca.index)
     plt.gca().set_ylabel('Covariate')
+    plt.gcf().tight_layout()
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[20]:
+  # Out[67]:
   : Text(0,0.5,'Covariate')
   [[file:figure/dim-reduction.org/kpca-covars.png]]
+  :END:
+
+  #+BEGIN_SRC ipython :noweb yes :exports none
+    %matplotlib agg
+    <<plot-kpca-covars>>
+    plt.savefig('/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/dim-reduction.org/kpca-covars-hires.png', dpi=300)
+    %matplotlib inline
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[70]:
   :END:
 
 * PCA on gene expression residuals
@@ -999,7 +992,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[43]:
+  # Out[71]:
   :END:
 
   #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/pca-expr-residual-covars.png
@@ -1008,6 +1001,18 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[48]:
+  # Out[73]:
   [[file:figure/dim-reduction.org/pca-expr-residual-covars.png]]
+  :END:
+
+  #+BEGIN_SRC ipython :exports none
+    %matplotlib agg
+    plot_bicentered_pca(log_cpm_residuals, annotations, cont_covars, cat_covars)
+    plt.savefig('/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/dim-reduction.org/pca-expr-residual-covars-hires.png', dpi=300)
+    %matplotlib inline
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[74]:
   :END:
