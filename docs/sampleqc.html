@@ -319,18 +319,20 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2018-03-08</p>
+<p><strong>Last updated:</strong> 2018-03-20</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> 4305cc0</p>
+<p><strong>Code version:</strong> 888f7e2</p>
 <p>This is for qc of the samples. Based on obsevation under the scope and the sequencing results, samples with bad quality will be removed.</p>
 <section id="setup" class="level2">
 <h2>Setup</h2>
 <pre class="r"><code>library(&quot;cowplot&quot;)
 library(&quot;dplyr&quot;)
-library(&quot;ggplot2&quot;)
-library(&quot;tidyr&quot;)
 library(&quot;edgeR&quot;)
+library(&quot;ggplot2&quot;)
+library(&quot;MASS&quot;)
+library(&quot;tibble&quot;)
+library(&quot;tidyr&quot;)
 theme_set(theme_cowplot())
 source(&quot;../code/functions.R&quot;)
 library(&quot;Biobase&quot;)</code></pre>
@@ -348,15 +350,15 @@ anno &lt;- pData(eset)</code></pre>
 cut_off_reads &lt;- quantile(anno[anno$cell_number == 0,&quot;mapped&quot;], 0.95)
 
 cut_off_reads</code></pre>
-<pre><code>     95% 
-810984.6 </code></pre>
+<pre><code>   95% 
+946631 </code></pre>
 <pre class="r"><code>anno$cut_off_reads &lt;- anno$mapped &gt; cut_off_reads
 
 ## numbers of cells 
 sum(anno[anno$cell_number == 1, &quot;mapped&quot;] &gt; cut_off_reads)</code></pre>
-<pre><code>[1] 5080</code></pre>
+<pre><code>[1] 4971</code></pre>
 <pre class="r"><code>sum(anno[anno$cell_number == 1, &quot;mapped&quot;] &lt;= cut_off_reads)</code></pre>
-<pre><code>[1] 839</code></pre>
+<pre><code>[1] 948</code></pre>
 <pre class="r"><code>## density plots
 plot_reads &lt;- ggplot(anno[anno$cell_number == 0 |
                           anno$cell_number == 1 , ],
@@ -379,14 +381,14 @@ cut_off_unmapped &lt;- quantile(anno[anno$cell_number == 0,&quot;unmapped_ratios
 
 cut_off_unmapped</code></pre>
 <pre><code>      75% 
-0.4579987 </code></pre>
+0.4577504 </code></pre>
 <pre class="r"><code>anno$cut_off_unmapped &lt;- anno$unmapped_ratios &lt; cut_off_unmapped
 
 ## numbers of cells 
 sum(anno[anno$cell_number == 1, &quot;unmapped_ratios&quot;] &gt;= cut_off_unmapped)</code></pre>
-<pre><code>[1] 196</code></pre>
+<pre><code>[1] 197</code></pre>
 <pre class="r"><code>sum(anno[anno$cell_number == 1, &quot;unmapped_ratios&quot;] &lt; cut_off_unmapped)</code></pre>
-<pre><code>[1] 5723</code></pre>
+<pre><code>[1] 5722</code></pre>
 <pre class="r"><code>## density plots
 plot_unmapped &lt;- ggplot(anno[anno$cell_number == 0 |
                              anno$cell_number == 1 , ],
@@ -414,9 +416,9 @@ cut_off_ercc</code></pre>
 
 ## numbers of cells 
 sum(anno[anno$cell_number == 1, &quot;ercc_percentage&quot;] &gt;= cut_off_ercc)</code></pre>
-<pre><code>[1] 807</code></pre>
+<pre><code>[1] 808</code></pre>
 <pre class="r"><code>sum(anno[anno$cell_number == 1, &quot;ercc_percentage&quot;] &lt; cut_off_ercc)</code></pre>
-<pre><code>[1] 5112</code></pre>
+<pre><code>[1] 5111</code></pre>
 <pre class="r"><code>## density plots
 plot_ercc &lt;- ggplot(anno[anno$cell_number == 0 |
                                 anno$cell_number == 1 , ],
@@ -444,9 +446,9 @@ cut_off_spike</code></pre>
 
 ## numbers of cells 
 sum(anno[anno$cell_number == 1, &quot;spike_percentage&quot;] &gt;= cut_off_spike)</code></pre>
-<pre><code>[1] 469</code></pre>
+<pre><code>[1] 470</code></pre>
 <pre class="r"><code>sum(anno[anno$cell_number == 1, &quot;spike_percentage&quot;] &lt; cut_off_spike)</code></pre>
-<pre><code>[1] 5450</code></pre>
+<pre><code>[1] 5449</code></pre>
 <pre class="r"><code>## density plots
 plot_spike &lt;- ggplot(anno[anno$cell_number == 0 |
                           anno$cell_number == 1 , ],
@@ -464,15 +466,15 @@ plot_spike</code></pre>
 cut_off_genes &lt;- quantile(anno[anno$cell_number == 0,&quot;detect_hs&quot;], 0.90)
 
 cut_off_genes</code></pre>
-<pre><code>   90% 
-4580.2 </code></pre>
+<pre><code> 90% 
+4710 </code></pre>
 <pre class="r"><code>anno$cut_off_genes &lt;- anno$detect_hs &gt; cut_off_genes
 
 ## numbers of cells 
 sum(anno[anno$cell_number == 1, &quot;detect_hs&quot;] &gt; cut_off_genes)</code></pre>
-<pre><code>[1] 5224</code></pre>
+<pre><code>[1] 5211</code></pre>
 <pre class="r"><code>sum(anno[anno$cell_number == 1, &quot;detect_hs&quot;] &lt;= cut_off_genes)</code></pre>
-<pre><code>[1] 695</code></pre>
+<pre><code>[1] 708</code></pre>
 <pre class="r"><code>## density plots
 plot_gene &lt;- ggplot(anno[anno$cell_number == 0 |
                          anno$cell_number == 1 , ],
@@ -494,13 +496,8 @@ plot_gene</code></pre>
 <h2>Linear Discriminat Analysis</h2>
 <section id="total-molecule-vs-concentration" class="level3">
 <h3>Total molecule vs concentration</h3>
-<pre class="r"><code>library(MASS)</code></pre>
-<pre><code>
-Attaching package: &#39;MASS&#39;</code></pre>
-<pre><code>The following object is masked from &#39;package:dplyr&#39;:
-
-    select</code></pre>
-<pre class="r"><code>## create 3 groups according to cell number
+<pre class="r"><code>library(MASS)
+## create 3 groups according to cell number
 group_3 &lt;- rep(&quot;two&quot;,dim(anno)[1])
          group_3[grep(&quot;0&quot;, anno$cell_number)] &lt;- &quot;no&quot;
          group_3[grep(&quot;1&quot;, anno$cell_number)] &lt;- &quot;one&quot;
@@ -518,10 +515,129 @@ table(data_lda_p, data[, &quot;group&quot;])</code></pre>
 <pre><code>          
 data_lda_p   no  one  two
        no     0    0    0
-       one  234 5867  204
-       two    0   52   75</code></pre>
+       one  233 5863  202
+       two    1   56   77</code></pre>
 <pre class="r"><code>data$data_lda_p &lt;- data_lda_p
 
+## identify the outlier
+outliers_lda &lt;- data %&gt;% rownames_to_column(&quot;sample_id&quot;) %&gt;% filter(cell_number == 1, data_lda_p == &quot;two&quot;)
+outliers_lda</code></pre>
+<pre><code>      sample_id experiment well batch cell_number concentration  mapped
+1  03232017-C09   03232017  C09    b1           1     0.8257428 2973588
+2  04052017-F03   04052017  F03    b1           1     0.1168340 1269561
+3  08182017-G05   08182017  G05    b2           1     2.8030007 6133739
+4  08182017-G10   08182017  G10    b2           1     1.6778928 5551708
+5  08212017-B08   08212017  B08    b2           1     0.9928595 3974029
+6  08212017-E02   08212017  E02    b2           1     2.0478414 4904929
+7  08232017-C01   08232017  C01    b2           1     0.7138795 3386096
+8  08232017-C05   08232017  C05    b2           1     1.0386415 3456184
+9  08232017-E12   08232017  E12    b2           1     1.0380230 3414477
+10 08232017-F01   08232017  F01    b2           1     1.7140052 4878269
+11 08232017-G11   08232017  G11    b2           1     1.8179815 5005975
+12 08232017-G12   08232017  G12    b2           1     1.6131800 5661160
+13 08232017-H02   08232017  H02    b2           1     0.5255853 3892407
+14 08242017-D06   08242017  D06    b2           1     1.6715697 4065086
+15 08292017-E06   08292017  E06    b2           1     1.8983801 4757861
+16 08302017-B09   08302017  B09    b2           1     1.1814211 3405197
+17 08302017-C09   08302017  C09    b2           1     0.6499613 2745495
+18 08302017-D09   08302017  D09    b2           1     1.1915693 3138433
+19 08302017-G05   08302017  G05    b2           1     1.6844109 4806186
+20 08312017-B11   08312017  B11    b2           1     0.8779793 2706349
+21 08312017-D01   08312017  D01    b2           1     0.3565580 2521219
+22 08312017-G10   08312017  G10    b2           1     1.5046401 3648699
+23 09252017-E10   09252017  E10    b3           1     2.4073958 3998547
+24 09262017-D03   09262017  D03    b3           1     1.8386027 3246704
+25 10112017-A05   10112017  A05    b3           1     2.0361340 2417215
+26 10112017-D05   10112017  D05    b3           1     1.4777928 1743010
+27 10112017-E05   10112017  E05    b3           1     0.4153881  957736
+28 10112017-F05   10112017  F05    b3           1     2.0907968 2337734
+29 10112017-H05   10112017  H05    b3           1     2.5150583 2331443
+30 10122017-D05   10122017  D05    b3           1     1.7121228 4257557
+31 10162017-C08   10162017  C08    b3           1     1.9654983 4330386
+32 10162017-E02   10162017  E02    b3           1     2.2002305 4648097
+33 10162017-E05   10162017  E05    b3           1     2.7322329 5107489
+34 10162017-F05   10162017  F05    b3           1     2.7496106 5095364
+35 10162017-G09   10162017  G09    b3           1     2.4496919 6050854
+36 10162017-G12   10162017  G12    b3           1     2.1943500 4662881
+37 10162017-H08   10162017  H08    b3           1     2.2897779 4915278
+38 10162017-H11   10162017  H11    b3           1     2.6873520 5448556
+39 10302017-E07   10302017  E07    b4           1     1.1431150 4449357
+40 10302017-F03   10302017  F03    b4           1     1.3932924 4576721
+41 10302017-F05   10302017  F05    b4           1     1.1279243 4723648
+42 11072017-C05   11072017  C05    b4           1     2.4462219 5555567
+43 11072017-F05   11072017  F05    b4           1     1.9977614 5388259
+44 11092017-E04   11092017  E04    b4           1     2.5461048 4028995
+45 11132017-D06   11132017  D06    b4           1     1.4905986 2920517
+46 11212017-C08   11212017  C08    b4           1     1.0897800 3035924
+47 11292017-C03   11292017  C03    b5           1     0.7288834 2299046
+48 12052017-B12   12052017  B12    b5           1     1.2406718 3332945
+49 12052017-D06   12052017  D06    b5           1     1.4539893 3041236
+50 12072017-D01   12072017  D01    b5           1     0.6185866 5162611
+51 12072017-D05   12072017  D05    b5           1     0.5239694 4493960
+52 12072017-D06   12072017  D06    b5           1     1.5493517 6508274
+53 12072017-D08   12072017  D08    b5           1     1.7749502 7900719
+54 12072017-D09   12072017  D09    b5           1     2.5319505 5988340
+55 12072017-D10   12072017  D10    b5           1     2.3218666 8180072
+56 12072017-G11   12072017  G11    b5           1     1.2518756 4180188
+   molecules group data_lda_p
+1     220914   one        two
+2     226423   one        two
+3     294206   one        two
+4     263658   one        two
+5     317905   one        two
+6     275159   one        two
+7     302296   one        two
+8     275188   one        two
+9     303952   one        two
+10    246552   one        two
+11    250950   one        two
+12    295622   one        two
+13    368903   one        two
+14    248966   one        two
+15    251939   one        two
+16    224950   one        two
+17    245208   one        two
+18    243178   one        two
+19    278500   one        two
+20    273096   one        two
+21    418731   one        two
+22    270603   one        two
+23    256090   one        two
+24    249735   one        two
+25    298935   one        two
+26    273655   one        two
+27    308025   one        two
+28    345797   one        two
+29    318066   one        two
+30    256558   one        two
+31    282929   one        two
+32    261361   one        two
+33    265542   one        two
+34    285487   one        two
+35    265230   one        two
+36    271810   one        two
+37    278148   one        two
+38    278988   one        two
+39    223152   one        two
+40    231619   one        two
+41    238854   one        two
+42    274113   one        two
+43    284304   one        two
+44    254939   one        two
+45    293984   one        two
+46    255066   one        two
+47    233171   one        two
+48    241212   one        two
+49    232479   one        two
+50    234332   one        two
+51    222125   one        two
+52    289249   one        two
+53    382545   one        two
+54    281521   one        two
+55    359559   one        two
+56    228998   one        two</code></pre>
+<pre class="r"><code>## create filter
+anno$molecule_outlier &lt;- row.names(anno) %in% outliers_lda$sample_id
 
 ## plot before and after
 plot_before &lt;- ggplot(data, aes(x = concentration, y = molecules / 10^3,
@@ -547,52 +663,54 @@ plot_grid(plot_before + theme(legend.position=c(.8,.85)),
 <section id="reads-to-molecule-conversion" class="level3">
 <h3>Reads to molecule conversion</h3>
 <pre class="r"><code>## calculate convertion
-anno$dm_conversion &lt;- anno$mol_dm / anno$reads_dm
+anno$ercc_conversion &lt;- anno$mol_ercc / anno$reads_ercc
 
 anno$conversion &lt;- anno$mol_hs / anno$reads_hs
 
-ggplot(anno, aes(x = dm_conversion, y = conversion,
+## remove batch1 because not all sample has
+anno_ercc &lt;- anno[anno$batch != &quot;b1&quot;, ]
+data_ercc &lt;- data[data$batch != &quot;b1&quot;, ] 
+
+## remove batch1 because not all sample has
+ggplot(anno_ercc, aes(x = ercc_conversion, y = conversion,
   color = as.factor(cell_number))) +
   geom_text(aes(label = cell_number)) +
-  labs(x = &quot;Convertion of Fly spike-ins&quot;, y = &quot;Conversion of genes&quot;) +
+  labs(x = &quot;Convertion of ERCC spike-ins&quot;, y = &quot;Conversion of genes&quot;) +
   scale_color_brewer(palette = &quot;Dark2&quot;) +
   theme(legend.position = &quot;none&quot;)</code></pre>
 <p><img src="figure/sampleqc.Rmd/convertion-1.png" width="1152" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>## try lda
-data$conversion &lt;- anno$conversion
-data$dm_conversion &lt;- anno$dm_conversion
+data_ercc$conversion &lt;- anno_ercc$conversion
+data_ercc$ercc_conversion &lt;- anno_ercc$ercc_conversion
 
-data_ercc_lda &lt;- lda(group ~ dm_conversion + conversion, data = data)
+data_ercc_lda &lt;- lda(group ~ ercc_conversion + conversion, data = data_ercc)
 
-data_ercc_lda_p &lt;- predict(data_ercc_lda,  newdata = data[,c(&quot;dm_conversion&quot;, &quot;conversion&quot;)])$class
+data_ercc_lda_p &lt;- predict(data_ercc_lda,  newdata = data_ercc[,c(&quot;ercc_conversion&quot;, &quot;conversion&quot;)])$class
 
 ## determine how well the model fix
-table(data_ercc_lda_p, data[, &quot;group&quot;])</code></pre>
+table(data_ercc_lda_p, data_ercc[, &quot;group&quot;])</code></pre>
 <pre><code>               
 data_ercc_lda_p   no  one  two
-            no   136   96    4
-            one   98 5823  275
-            two    0    0    0</code></pre>
-<pre class="r"><code>data$data_ercc_lda_p &lt;- data_ercc_lda_p
+            no   129  107    2
+            one   37 4920  265
+            two    0   12    0</code></pre>
+<pre class="r"><code>data_ercc$data_ercc_lda_p &lt;- data_ercc_lda_p
 
-
-## cutoff
-out_ercc_con &lt;- anno %&gt;% filter(cell_number == &quot;1&quot;, dm_conversion &gt; .094)
-
-anno$conversion_outlier &lt;- anno$cell_number == 1 &amp; anno$dm_conversion &gt; .094
+## create a cutoff for outliers 
+anno$conversion_outlier &lt;- anno$cell_number == 1 &amp; anno$conversion &gt; .3
 
 ## plot before and after
-plot_ercc_before &lt;- ggplot(data, aes(x = dm_conversion, y = conversion,
+plot_ercc_before &lt;- ggplot(data_ercc, aes(x = ercc_conversion, y = conversion,
                color = as.factor(group))) +
                geom_text(aes(label = cell_number, alpha = 0.5)) +
-               labs(x = &quot;Convertion of Fly spike-ins&quot;, y = &quot;Conversion of genes&quot;, title = &quot;Before&quot;) +
+               labs(x = &quot;Convertion of ERCC spike-ins&quot;, y = &quot;Conversion of genes&quot;, title = &quot;Before&quot;) +
                scale_color_brewer(palette = &quot;Dark2&quot;) +
                theme(legend.position = &quot;none&quot;)
 
-plot_ercc_after &lt;- ggplot(data, aes(x = dm_conversion, y = conversion,
+plot_ercc_after &lt;- ggplot(data_ercc, aes(x = ercc_conversion, y = conversion,
                color = as.factor(data_ercc_lda_p))) +
                geom_text(aes(label = cell_number, alpha = 0.5)) +
-               labs(x = &quot;Convertion of Fly spike-ins&quot;, y = &quot;Conversion of genes&quot;, title = &quot;After&quot;) +
+               labs(x = &quot;Convertion of ERCC spike-ins&quot;, y = &quot;Conversion of genes&quot;, title = &quot;After&quot;) +
                scale_color_brewer(palette = &quot;Dark2&quot;) +
                theme(legend.position = &quot;none&quot;)
 
@@ -613,21 +731,23 @@ anno$filter_all &lt;- anno$cell_number == 1 &amp;
                    anno$cut_off_unmapped &amp;
                 ##   anno$cut_off_ercc &amp;
                    anno$cut_off_spike &amp;
+                   anno$molecule_outlier != &quot;TRUE&quot; &amp;
+                   anno$conversion_outlier != &quot;TRUE&quot; &amp;
                    anno$cut_off_genes 
 sort(table(anno[anno$filter_all, &quot;chip_id&quot;]))</code></pre>
 <pre><code>
-NA18498 NA19203 NA19159 NA18913 NA19204 NA19092 NA18505 NA19193 NA19098 
-     18      23      27      48      49      51      52      53      60 
-NA18519 NA19130 NA18522 NA18859 NA19143 NA18517 NA18856 NA19206 NA19210 
-     62      64      65      66      66      68      69      69      69 
-NA18862 NA18870 NA18853 NA19127 NA19102 NA19114 NA18907 NA18852 NA19209 
-     72      72      75      75      76      79      82      83      84 
-NA18912 NA19257 NA18855 NA19140 NA18489 NA19190 NA18516 NA19101 NA19225 
-     85      85      88      88      89      90      91      94      94 
-NA19093 NA19160 NA19108 NA19099 NA19128 NA19153 NA19116 NA18511 NA19144 
-     95      98      99     103     103     106     112     115     115 
-NA19152 NA18520 NA18499 NA18858 NA19207 NA18508 NA18502 NA18501 NA18507 
-    118     131     135     152     156     157     188     221     293 </code></pre>
+NA18498 NA19203 NA19159 NA18913 NA19204 NA19092 NA18505 NA19193 NA18519 
+     18      23      27      48      49      50      51      52      57 
+NA19098 NA18859 NA19130 NA19143 NA18522 NA19210 NA18517 NA18856 NA18870 
+     59      64      64      65      66      66      67      67      68 
+NA19206 NA18862 NA19127 NA18853 NA19102 NA18907 NA19114 NA18852 NA18912 
+     69      70      73      74      76      78      79      81      82 
+NA19209 NA19140 NA19257 NA18855 NA18489 NA19190 NA18516 NA19225 NA19108 
+     83      84      85      86      89      89      91      93      94 
+NA19160 NA19128 NA19101 NA19093 NA19099 NA19153 NA19144 NA19116 NA18511 
+     94      95      97     100     101     108     110     112     115 
+NA19152 NA18520 NA18499 NA18858 NA18508 NA19207 NA18502 NA18501 NA18507 
+    117     127     134     150     151     155     188     218     292 </code></pre>
 <pre class="r"><code>write.table(data.frame(row.names(anno), anno[,&quot;filter_all&quot;]),
             file = &quot;../data/quality-single-cells.txt&quot;, quote = FALSE,
             sep = &quot;\t&quot;, row.names = FALSE, col.names = FALSE)</code></pre>
@@ -665,10 +785,10 @@ genes_spike &lt;- ggplot(anno,
 
 reads_unmapped_num &lt;-  ggplot(anno,
                        aes(x = mapped, y = unmapped_ratios * 100,
-                           col = as.factor(batch), 
+                           col = as.factor(chip_id), 
                            label = as.character(cell_number), 
                            height = 600, width = 2000)) +
-                       scale_colour_manual(values=cbPalette) +
+                      # scale_colour_manual(values=cbPalette) +
                        geom_text(fontface = 3, alpha = 0.3) + 
                        geom_vline(xintercept = cut_off_reads, 
                                   colour=&quot;grey&quot;, linetype = &quot;longdash&quot;) +
@@ -682,7 +802,7 @@ reads_spike_num &lt;- ggplot(anno,
                        col = as.factor(batch), 
                        label = as.character(cell_number), 
                        height = 600, width = 2000)) +
-                   scale_colour_manual(values=cbPalette) +
+                   # scale_colour_manual(values=cbPalette) +
                    geom_text(fontface = 3, alpha = 0.3) + 
                    geom_vline(xintercept = cut_off_reads, 
                               colour=&quot;grey&quot;, linetype = &quot;longdash&quot;) +
@@ -691,7 +811,7 @@ reads_spike_num &lt;- ggplot(anno,
                    labs(x = &quot;Total mapped reads / sample&quot;,
                         y = &quot;Percentage of spike-in reads (%)&quot;) 
 
-plot_grid(genes_unmapped + theme(legend.position=c(.7,.9)), 
+plot_grid(genes_unmapped + theme(legend.position=c(.7,.9)) + labs(col = &quot;Batch&quot;), 
           genes_spike + theme(legend.position = &quot;none&quot;),
           labels = letters[1:2])</code></pre>
 <p><img src="figure/sampleqc.Rmd/plots-1.png" width="3600" style="display: block; margin: auto;" /></p>
@@ -699,6 +819,16 @@ plot_grid(genes_unmapped + theme(legend.position=c(.7,.9)),
           reads_spike_num + theme(legend.position = &quot;none&quot;),
           labels = letters[3:4])</code></pre>
 <p><img src="figure/sampleqc.Rmd/plots-2.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>ggplot(data.frame(anno[anno$filter_all,]),
+       aes(x = factor(chip_id), y = conversion,
+           fill = factor(batch)), height = 600, width = 2000) +
+  geom_boxplot() +
+  scale_fill_manual(values = cbPalette) +
+  labs(x = &quot;Individual&quot;, y = &quot;Read-to-molecule conversion efficiency&quot;) +
+  theme(legend.position=c(.9,.9)) +
+  labs(fill = &quot;Batch&quot;) +
+  theme(axis.text.x = element_text(hjust=1, angle = 90))</code></pre>
+<p><img src="figure/sampleqc.Rmd/read-molecule%20plot-1.png" width="3600" style="display: block; margin: auto;" /></p>
 </section>
 </section>
 <section id="pca" class="level2">
@@ -715,19 +845,19 @@ head(featureNames(eset_hs))</code></pre>
 eset_hs_clean &lt;- eset_hs[rowSums(exprs(eset_hs)) != 0, ]
 dim(eset_hs_clean)</code></pre>
 <pre><code>Features  Samples 
-   19786     6432 </code></pre>
+   19799     6432 </code></pre>
 <pre class="r"><code>## convert to log2 cpm
 mol_hs_cpm &lt;- cpm(exprs(eset_hs_clean), log = TRUE)
 mol_hs_cpm_means &lt;- rowMeans(mol_hs_cpm)
 summary(mol_hs_cpm_means)</code></pre>
 <pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-  2.552   2.603   3.158   3.853   4.608  13.089 </code></pre>
+  2.504   2.556   3.128   3.828   4.607  13.091 </code></pre>
 <pre class="r"><code>hist(mol_hs_cpm_means)
 abline(v = median(mol_hs_cpm_means), col = &quot;red&quot;)</code></pre>
 <p><img src="figure/sampleqc.Rmd/select-gene-before-1.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>mol_hs_cpm &lt;- mol_hs_cpm[mol_hs_cpm_means &gt; median(mol_hs_cpm_means), ]
 dim(mol_hs_cpm)</code></pre>
-<pre><code>[1] 9893 6432</code></pre>
+<pre><code>[1] 9899 6432</code></pre>
 <p>Using the genes with reasonable expression levels to perform PCA</p>
 <pre class="r"><code>## pca of genes with reasonable expression levels
 pca_hs &lt;- run_pca(mol_hs_cpm)
@@ -790,20 +920,20 @@ plot_grid(pc1_reads + theme(legend.position=c(.7,.5)),
 eset_hs_clean_filter &lt;- eset_hs_clean[,anno$filter_all]
 dim(eset_hs_clean_filter)</code></pre>
 <pre><code>Features  Samples 
-   19786     4978 </code></pre>
+   19799     4901 </code></pre>
 <pre class="r"><code>## convert to log2 cpm
 mol_hs_cpm_filter &lt;- cpm(exprs(eset_hs_clean_filter), log = TRUE)
 stopifnot(rownames(anno[anno$filter_all,]) == colnames(mol_hs_cpm_filter))
 mol_hs_cpm_filter_means &lt;- rowMeans(mol_hs_cpm_filter)
 summary(mol_hs_cpm_filter_means)</code></pre>
 <pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-  2.384   2.444   3.082   3.815   4.700  12.982 </code></pre>
+  2.355   2.416   3.067   3.803   4.706  12.983 </code></pre>
 <pre class="r"><code>hist(mol_hs_cpm_filter_means)
 abline(v = median(mol_hs_cpm_filter_means), col = &quot;red&quot;)</code></pre>
 <p><img src="figure/sampleqc.Rmd/pca-after-1.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>mol_hs_cpm_filter &lt;- mol_hs_cpm_filter[mol_hs_cpm_filter_means &gt; median(mol_hs_cpm_filter_means), ]
 dim(mol_hs_cpm_filter)</code></pre>
-<pre><code>[1] 9893 4978</code></pre>
+<pre><code>[1] 9899 4901</code></pre>
 <pre class="r"><code>## pca of genes with reasonable expression levels
 pca_hs_filter &lt;- run_pca(mol_hs_cpm_filter)
 
@@ -879,25 +1009,24 @@ attached base packages:
 [8] base     
 
 other attached packages:
- [1] testit_0.6          bindrcpp_0.2        MASS_7.3-45        
- [4] Biobase_2.38.0      BiocGenerics_0.24.0 edgeR_3.20.1       
- [7] limma_3.34.1        tidyr_0.7.1         dplyr_0.7.4        
-[10] cowplot_0.9.1       ggplot2_2.2.1      
+ [1] testit_0.6          bindrcpp_0.2        Biobase_2.38.0     
+ [4] BiocGenerics_0.24.0 tidyr_0.7.1         tibble_1.3.3       
+ [7] MASS_7.3-45         edgeR_3.20.1        limma_3.34.1       
+[10] dplyr_0.7.4         cowplot_0.9.1       ggplot2_2.2.1      
 
 loaded via a namespace (and not attached):
  [1] Rcpp_0.12.13       RColorBrewer_1.1-2 compiler_3.4.1    
  [4] git2r_0.19.0       plyr_1.8.4         bindr_0.1         
  [7] tools_3.4.1        digest_0.6.12      nlme_3.1-131      
-[10] evaluate_0.10.1    tibble_1.3.3       gtable_0.2.0      
-[13] lattice_0.20-34    mgcv_1.8-17        pkgconfig_2.0.1   
-[16] rlang_0.1.2        Matrix_1.2-7.1     yaml_2.1.14       
-[19] stringr_1.2.0      knitr_1.16         locfit_1.5-9.1    
-[22] rprojroot_1.2      grid_3.4.1         glue_1.1.1        
-[25] R6_2.2.0           rmarkdown_1.6      purrr_0.2.2       
-[28] magrittr_1.5       backports_1.0.5    scales_0.5.0      
-[31] htmltools_0.3.6    assertthat_0.1     colorspace_1.3-2  
-[34] labeling_0.3       stringi_1.1.2      lazyeval_0.2.0    
-[37] munsell_0.4.3     </code></pre>
+[10] evaluate_0.10.1    gtable_0.2.0       lattice_0.20-34   
+[13] mgcv_1.8-17        pkgconfig_2.0.1    rlang_0.1.2       
+[16] Matrix_1.2-7.1     yaml_2.1.14        stringr_1.2.0     
+[19] knitr_1.16         locfit_1.5-9.1     rprojroot_1.2     
+[22] grid_3.4.1         glue_1.1.1         R6_2.2.0          
+[25] rmarkdown_1.6      purrr_0.2.2        magrittr_1.5      
+[28] backports_1.0.5    scales_0.5.0       htmltools_0.3.6   
+[31] assertthat_0.1     colorspace_1.3-2   labeling_0.3      
+[34] stringi_1.1.2      lazyeval_0.2.0     munsell_0.4.3     </code></pre>
 </section>
 
 <hr>

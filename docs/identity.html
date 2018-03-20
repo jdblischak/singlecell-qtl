@@ -319,10 +319,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2018-03-08</p>
+<p><strong>Last updated:</strong> 2018-03-20</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> 4305cc0</p>
+<p><strong>Code version:</strong> 888f7e2</p>
 <p><a href="https://catalog.coriell.org/0/Sections/Collections/NHGRI/1000IndSamples.aspx?PgId=665&amp;did=MGENOME27">Link to Yoruba samples on Coriell</a></p>
 <section id="setup" class="level2">
 <h2>Setup</h2>
@@ -371,9 +371,9 @@ Annotation:  </code></pre>
 <pre class="r"><code>table(eset$valid_id)</code></pre>
 <pre><code>
 FALSE  TRUE 
-  124  6308 </code></pre>
+  123  6309 </code></pre>
 <pre class="r"><code>mean(eset$valid_id)</code></pre>
-<pre><code>[1] 0.9807214</code></pre>
+<pre><code>[1] 0.9808769</code></pre>
 </section>
 <section id="plot-per-c1-chip" class="level2">
 <h2>Plot per C1 chip</h2>
@@ -426,25 +426,25 @@ df_obs &lt;- merge(expected, observed, by = &quot;ind&quot;, suffixes = c(&quot;
 df_obs$count.obs[is.na(df_obs$count.obs)] &lt;- 0
 df_obs</code></pre>
 <pre><code>       ind count.exp count.obs
-1  NA18489       120       114
+1  NA18489       120       110
 2  NA18498        72        21
-3  NA18499       216       168
+3  NA18499       216       167
 4  NA18501       216       281
 5  NA18502       144       228
 6  NA18505        96        64
 7  NA18507       360       418
 8  NA18508       144       206
-9  NA18511       120       151
+9  NA18511       120       150
 10 NA18516        96       123
 11 NA18517       120        78
-12 NA18519        96        75
+12 NA18519        96        68
 13 NA18520       168       164
-14 NA18522        96        79
+14 NA18522        96        81
 15 NA18852       144       106
 16 NA18853        96        90
 17 NA18855       120       108
 18 NA18856        72        93
-19 NA18858       192       190
+19 NA18858       192       189
 20 NA18859        96        75
 21 NA18862        96       135
 22 NA18870        96        96
@@ -452,14 +452,14 @@ df_obs</code></pre>
 24 NA18912        96       120
 25 NA18913        96        71
 26 NA19092        48        54
-27 NA19093       120       125
-28 NA19098        96        75
+27 NA19093       120       123
+28 NA19098        96        78
 29 NA19099       120       123
 30 NA19101        96       115
 31 NA19102        96        99
 32 NA19108        96       125
-33 NA19114       120        99
-34 NA19116       120       151
+33 NA19114       120       100
+34 NA19116       120       159
 35 NA19127        96        86
 36 NA19128        96       143
 37 NA19130        96        74
@@ -467,15 +467,15 @@ df_obs</code></pre>
 39 NA19143        96        80
 40 NA19144       144       180
 41 NA19152       192       155
-42 NA19153        96       134
+42 NA19153        96       137
 43 NA19159        48        41
 44 NA19160       120       124
 45 NA19190       120       118
-46 NA19193        96        72
+46 NA19193        96        69
 47 NA19203        48        27
 48 NA19204        96        56
 49 NA19206       120        85
-50 NA19207       192       189
+50 NA19207       192       194
 51 NA19209        96       102
 52 NA19210        96        73
 53 NA19225        96       112
@@ -762,7 +762,7 @@ knitr::kable(top, col.names = c(&quot;C1 chip&quot;, &quot;Expected 1&quot;, &qu
 <td style="text-align: left;">NA19207</td>
 <td style="text-align: left;">NA19193</td>
 <td style="text-align: left;">NA18499</td>
-<td style="text-align: left;">NA19093 - 41; NA19207 - 25; NA19193 - 21; NA18499 - 9</td>
+<td style="text-align: left;">NA19093 - 42; NA19207 - 28; NA19193 - 18; NA18499 - 8</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">10062017</td>
@@ -770,7 +770,7 @@ knitr::kable(top, col.names = c(&quot;C1 chip&quot;, &quot;Expected 1&quot;, &qu
 <td style="text-align: left;">NA19093</td>
 <td style="text-align: left;">NA19114</td>
 <td style="text-align: left;">NA19116</td>
-<td style="text-align: left;">NA19114 - 33; NA18489 - 28; NA19116 - 23; NA19093 - 12</td>
+<td style="text-align: left;">NA19114 - 34; NA18489 - 26; NA19116 - 26; NA19093 - 10</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">10092017</td>
@@ -794,7 +794,7 @@ knitr::kable(top, col.names = c(&quot;C1 chip&quot;, &quot;Expected 1&quot;, &qu
 <td style="text-align: left;">NA18858</td>
 <td style="text-align: left;">NA19116</td>
 <td style="text-align: left;">NA19207</td>
-<td style="text-align: left;">NA19116 - 31; NA18519 - 23; NA19207 - 22; NA18858 - 19</td>
+<td style="text-align: left;">NA19116 - 36; NA19207 - 24; NA18519 - 18; NA18858 - 18</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">10122017</td>
@@ -802,7 +802,7 @@ knitr::kable(top, col.names = c(&quot;C1 chip&quot;, &quot;Expected 1&quot;, &qu
 <td style="text-align: left;">NA18519</td>
 <td style="text-align: left;">NA18522</td>
 <td style="text-align: left;">NA18499</td>
-<td style="text-align: left;">NA18499 - 29; NA18519 - 29; NA18489 - 20; NA18522 - 18</td>
+<td style="text-align: left;">NA18499 - 29; NA18519 - 27; NA18489 - 20; NA18522 - 20</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">10132017</td>
@@ -810,7 +810,7 @@ knitr::kable(top, col.names = c(&quot;C1 chip&quot;, &quot;Expected 1&quot;, &qu
 <td style="text-align: left;">NA18858</td>
 <td style="text-align: left;">NA19101</td>
 <td style="text-align: left;">NA19207</td>
-<td style="text-align: left;">NA18489 - 32; NA19207 - 27; NA19101 - 19; NA18858 - 18</td>
+<td style="text-align: left;">NA18489 - 30; NA19207 - 27; NA18858 - 20; NA19101 - 19</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">10162017</td>
@@ -818,7 +818,7 @@ knitr::kable(top, col.names = c(&quot;C1 chip&quot;, &quot;Expected 1&quot;, &qu
 <td style="text-align: left;">NA18858</td>
 <td style="text-align: left;">NA19093</td>
 <td style="text-align: left;">NA19153</td>
-<td style="text-align: left;">NA19153 - 57; NA19093 - 15; NA18858 - 14; NA18519 - 10</td>
+<td style="text-align: left;">NA19153 - 60; NA19093 - 15; NA18858 - 11; NA18519 - 10</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">10172017</td>
@@ -826,7 +826,7 @@ knitr::kable(top, col.names = c(&quot;C1 chip&quot;, &quot;Expected 1&quot;, &qu
 <td style="text-align: left;">NA18858</td>
 <td style="text-align: left;">NA19093</td>
 <td style="text-align: left;">NA19101</td>
-<td style="text-align: left;">NA18858 - 27; NA19101 - 26; NA19093 - 25; NA18522 - 14</td>
+<td style="text-align: left;">NA18858 - 28; NA19101 - 26; NA19093 - 24; NA18522 - 14</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">10302017</td>
