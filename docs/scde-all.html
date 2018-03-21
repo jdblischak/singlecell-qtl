@@ -319,10 +319,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2018-03-13</p>
+<p><strong>Last updated:</strong> 2018-03-21</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> 238828a</p>
+<p><strong>Code version:</strong> f11e8f3</p>
 <p>The purpose of this analysis is to get an intial idea of what functions are related with (or potentially regulated by) gene expression noise in iPSCs. To do so, we use PAGODA (pathway and gene set overdispersion analysis). This package is part of the <a href="http://hms-dbmi.github.io/scde/pagoda.html">SCDE</a></p>
 <section id="setup" class="level2">
 <h2>Setup</h2>
@@ -350,7 +350,7 @@ colnames(quality) &lt;- c(&quot;sample&quot;, &quot;quality&quot;)
 eset &lt;- eset[, quality$quality]
 dim(eset)</code></pre>
 <pre><code>Features  Samples 
-   20419     4978 </code></pre>
+   20419     4901 </code></pre>
 <p>Only keep genes that passed the filters</p>
 <pre class="r"><code>genes &lt;- read.table(&quot;../data/genes-pass-filter.txt&quot;, stringsAsFactors = FALSE)
 colnames(genes) &lt;- c(&quot;gene&quot;, &quot;passed&quot;)
@@ -359,7 +359,7 @@ eset &lt;- eset[genes$passed, ]</code></pre>
 <pre class="r"><code>eset_data &lt;- exprs(eset)
 eset_data_sub &lt;- eset_data[, pData(eset)$batch != &quot;b1&quot;]
 dim(eset_data_sub)</code></pre>
-<pre><code>[1] 10299  4244</code></pre>
+<pre><code>[1] 10232  4178</code></pre>
 </section>
 <section id="scde" class="level2">
 <h2>SCDE</h2>
@@ -381,7 +381,7 @@ sort(varinfo_eset_sub$arv, decreasing = TRUE)[1:10]</code></pre>
               5               5               5               5 
 ENSG00000158470 ENSG00000176597 ENSG00000177105 ENSG00000187193 
               5               5               5               5 
-ENSG00000198518 ENSG00000198840 
+ENSG00000198518 ENSG00000198727 
               5               5 </code></pre>
 <pre class="r"><code>## Controlling for sequencing depth
 ## control for the gene coverage (estimated as a number of genes with non-zero magnitude per cell) and normalize out that aspect of cell heterogeneity
@@ -419,47 +419,47 @@ df_pwpca_dep &lt;- pagoda.top.aspects(pwpca_eset_dep, return.table = TRUE, plot 
 <p><img src="figure/scde-all.Rmd/pwpca-1.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>df_pwpca_dep[1:20,]</code></pre>
 <pre><code>                                                                                            name
-1505                                                    GO:0045926 negative regulation of growth
-1009                                             GO:0022904 respiratory electron transport chain
-687                                          GO:0008137 NADH dehydrogenase (ubiquinone) activity
+1495                                                    GO:0045926 negative regulation of growth
+1003                                             GO:0022904 respiratory electron transport chain
+684                                          GO:0008137 NADH dehydrogenase (ubiquinone) activity
 396                              GO:0006120 mitochondrial electron transport, NADH to ubiquinone
+1436                                                       GO:0044237 cellular metabolic process
 321                                         GO:0005747 mitochondrial respiratory chain complex I
-1444                                                       GO:0044237 cellular metabolic process
 320                                                      GO:0005743 mitochondrial inner membrane
-964                                                               GO:0019083 viral transcription
-1485 GO:0045736 negative regulation of cyclin-dependent protein serine/threonine kinase activity
-1171                                      GO:0031668 cellular response to extracellular stimulus
+1476 GO:0045736 negative regulation of cyclin-dependent protein serine/threonine kinase activity
+959                                                               GO:0019083 viral transcription
 449                                                          GO:0006414 translational elongation
-1331                                           GO:0042326 negative regulation of phosphorylation
-1063                                                         GO:0030224 monocyte differentiation
-961                                                                  GO:0019058 viral life cycle
+1323                                           GO:0042326 negative regulation of phosphorylation
+1058                                                         GO:0030224 monocyte differentiation
+956                                                                  GO:0019058 viral life cycle
 450                                                         GO:0006415 translational termination
-855                                            GO:0015986 ATP synthesis coupled proton transport
-1118                                      GO:0030890 positive regulation of B cell proliferation
-905                                                   GO:0016601 Rac protein signal transduction
-1818                 GO:2000379 positive regulation of reactive oxygen species metabolic process
-322                            GO:0005753 mitochondrial proton-transporting ATP synthase complex
+1112                                      GO:0030890 positive regulation of B cell proliferation
+1237                                            GO:0034080 CENP-A containing nucleosome assembly
+1804                 GO:2000379 positive regulation of reactive oxygen species metabolic process
+1072                                                                   GO:0030332 cyclin binding
+419                                                            GO:0006325 chromatin organization
+900                                                   GO:0016601 Rac protein signal transduction
      npc   n    score        z    adj.z sh.z adj.sh.z
-1505   1  11 8.497493 35.41170 35.23033   NA       NA
-1009   1  65 5.944014 40.30862 40.12199   NA       NA
-687    1  27 4.972492 27.07838 26.85990   NA       NA
-396    1  28 4.853444 26.69766 26.48873   NA       NA
-321    1  30 4.759920 26.66292 26.45875   NA       NA
-1444   1 120 4.453994 36.45623 36.26891   NA       NA
-320    1 238 3.063954 30.20399 30.00079   NA       NA
-964    1  34 2.830959 15.73906 15.43222   NA       NA
-1485   1  10 2.825438 11.48650 11.13704   NA       NA
-1171   1  10 2.813554 11.42562 11.07686   NA       NA
-449    1  42 2.785005 16.32676 16.02219   NA       NA
-1331   1  11 2.724791 11.23091 10.88226   NA       NA
-1063   1  11 2.724565 11.22971 10.88226   NA       NA
-961    1  42 2.719590 15.85300 15.54397   NA       NA
-450    1  38 2.691514 15.23006 14.92501   NA       NA
-855    1  10 2.644829 10.54857 10.20498   NA       NA
-1118   1  12 2.641310 11.02281 10.68022   NA       NA
-905    1  12 2.580423 10.68677 10.33970   NA       NA
-1818   1  13 2.578021 10.89178 10.54716   NA       NA
-322    1  11 2.564225 10.36649 10.02620   NA       NA</code></pre>
+1495   1  11 8.554115 35.98440 35.80614   NA       NA
+1003   1  65 6.089846 41.54495 41.36408   NA       NA
+684    1  29 4.727083 26.49809 26.28202   NA       NA
+396    1  30 4.607438 26.06513 25.85656   NA       NA
+1436   1 121 4.538861 37.50313 37.32126   NA       NA
+321    1  32 4.536280 26.09540 25.88192   NA       NA
+320    1 240 3.128271 31.21106 31.01469   NA       NA
+1476   1  10 2.849014 11.73658 11.39787   NA       NA
+959    1  32 2.819721 15.55722 15.25542   NA       NA
+449    1  40 2.799921 16.36587 16.06251   NA       NA
+1323   1  11 2.751098 11.49617 11.15278   NA       NA
+1058   1  11 2.731662 11.39222 11.05050   NA       NA
+956    1  40 2.703864 15.67281 15.36516   NA       NA
+450    1  36 2.676827 15.04464 14.73996   NA       NA
+1112   1  12 2.671985 11.31359 10.97180   NA       NA
+1237   1  21 2.647748 12.88199 12.55026   NA       NA
+1804   1  13 2.605994 11.16973 10.82580   NA       NA
+1072   1  13 2.592904 11.09534 10.75134   NA       NA
+419    1  23 2.580320 12.75283 12.42362   NA       NA
+900    1  12 2.578653 10.79480 10.45403   NA       NA</code></pre>
 <pre class="r"><code>## plot top 10
 ggplot(df_pwpca_dep[1:10, ], aes(x= reorder(name, z),y=z)) +
   geom_bar(position=&quot;dodge&quot;,stat=&quot;identity&quot;) + 
@@ -475,48 +475,48 @@ ggplot(df_pwpca_dep[1:10, ], aes(x= reorder(name, z),y=z)) +
 df_clpca_dep &lt;- pagoda.top.aspects(pwpca_eset_dep, clpca_eset_dep, return.table = TRUE, plot = TRUE, z.score = 1.96)</code></pre>
 <p><img src="figure/scde-all.Rmd/denovo-dep-1.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>df_clpca_dep[1:20,]</code></pre>
-<pre><code>                                                                name npc
-1876                                                  geneCluster.50   1
-1874                                                  geneCluster.48   1
-1873                                                  geneCluster.47   1
-1505                        GO:0045926 negative regulation of growth   1
-1875                                                  geneCluster.49   1
-1009                 GO:0022904 respiratory electron transport chain   1
-687              GO:0008137 NADH dehydrogenase (ubiquinone) activity   1
-396  GO:0006120 mitochondrial electron transport, NADH to ubiquinone   1
-321             GO:0005747 mitochondrial respiratory chain complex I   1
-1444                           GO:0044237 cellular metabolic process   1
-1859                                                  geneCluster.33   1
-1872                                                  geneCluster.46   1
-1856                                                  geneCluster.30   1
-1871                                                  geneCluster.45   1
-1868                                                  geneCluster.42   1
-1857                                                  geneCluster.31   1
-1864                                                  geneCluster.38   1
-320                          GO:0005743 mitochondrial inner membrane   1
-1863                                                  geneCluster.37   1
-964                                   GO:0019083 viral transcription   1
-       n     score        z    adj.z sh.z adj.sh.z
-1876  14 12.170319 27.42671 27.28389   NA       NA
-1874  12 10.282151 24.33318 24.20075   NA       NA
-1873   6  9.165185 20.43175 20.29392   NA       NA
-1505  11  8.497493 35.41170 35.23033   NA       NA
-1875  13  6.924161 19.63879 19.52150   NA       NA
-1009  65  5.944014 40.30862 40.12199   NA       NA
-687   27  4.972492 27.07838 26.85990   NA       NA
-396   28  4.853444 26.69766 26.48873   NA       NA
-321   30  4.759920 26.66292 26.45875   NA       NA
-1444 120  4.453994 36.45623 36.26891   NA       NA
-1859   7  4.055927 12.64059 12.55069   NA       NA
-1872   4  3.874390 11.24475 11.15424   NA       NA
-1856 103  3.678629 20.09890 19.97315   NA       NA
-1871  17  3.614813 13.54062 13.42188   NA       NA
-1868  18  3.539894 13.47859 13.36640   NA       NA
-1857  44  3.140894 14.74160 14.61734   NA       NA
-1864  44  3.105536 14.61586 14.49862   NA       NA
-320  238  3.063954 30.20399 30.00079   NA       NA
-1863  15  2.871085 11.12576 11.03915   NA       NA
-964   34  2.830959 15.73906 15.43222   NA       NA</code></pre>
+<pre><code>                                                                                            name
+1859                                                                              geneCluster.47
+1862                                                                              geneCluster.50
+1861                                                                              geneCluster.49
+1495                                                    GO:0045926 negative regulation of growth
+1858                                                                              geneCluster.46
+1003                                             GO:0022904 respiratory electron transport chain
+684                                          GO:0008137 NADH dehydrogenase (ubiquinone) activity
+396                              GO:0006120 mitochondrial electron transport, NADH to ubiquinone
+1436                                                       GO:0044237 cellular metabolic process
+321                                         GO:0005747 mitochondrial respiratory chain complex I
+1845                                                                              geneCluster.33
+1860                                                                              geneCluster.48
+1841                                                                              geneCluster.29
+1840                                                                              geneCluster.28
+320                                                      GO:0005743 mitochondrial inner membrane
+1837                                                                              geneCluster.25
+1848                                                                              geneCluster.36
+1854                                                                              geneCluster.42
+1476 GO:0045736 negative regulation of cyclin-dependent protein serine/threonine kinase activity
+959                                                               GO:0019083 viral transcription
+     npc   n     score        z    adj.z sh.z adj.sh.z
+1859   1  31 11.858036 30.77986 30.65264   NA       NA
+1862   1  12 10.512942 24.26009 24.12727   NA       NA
+1861   1   6  9.207857 20.18886 20.04937   NA       NA
+1495   1  11  8.554115 35.98440 35.80614   NA       NA
+1858   1  15  6.589024 19.23505 19.10364   NA       NA
+1003   1  65  6.089846 41.54495 41.36408   NA       NA
+684    1  29  4.727083 26.49809 26.28202   NA       NA
+396    1  30  4.607438 26.06513 25.85656   NA       NA
+1436   1 121  4.538861 37.50313 37.32126   NA       NA
+321    1  32  4.536280 26.09540 25.88192   NA       NA
+1845   1   7  4.041455 12.42046 12.32377   NA       NA
+1860   1   4  3.977198 11.28816 11.18756   NA       NA
+1841   1  74  3.437283 17.38078 17.24823   NA       NA
+1840   1  33  3.261123 14.03228 13.90173   NA       NA
+320    1 240  3.128271 31.21106 31.01469   NA       NA
+1837   1  33  3.005244 13.18856 13.06666   NA       NA
+1848   1  34  2.929020 13.00583 12.89628   NA       NA
+1854   1  38  2.872543 13.10568 12.99031   NA       NA
+1476   1  10  2.849014 11.73658 11.39787   NA       NA
+959    1  32  2.819721 15.55722 15.25542   NA       NA</code></pre>
 <pre class="r"><code>## plot top 10
 ggplot(df_clpca_dep[1:10, ], aes(x= reorder(name, z),y=z)) +
   geom_bar(position=&quot;dodge&quot;,stat=&quot;identity&quot;) + 
