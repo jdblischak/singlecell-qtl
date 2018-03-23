@@ -28,9 +28,9 @@ knitr::read_chunk("chunks.R")
 The Yoruba (YRI) iPSCs[@Banovich] were cultured in feeder-free conditions for at least ten passages in E8 medium (Life Technologies)[@Chen2011] before being colleted using the C1 Single-Cell Auto Prep IFC microfluidic chip (Fluidigm).
 A mixture of cell suspensions from four different individuals were prepared freshly each time for C1 collection.
 Additionally, cell viability was measured by the trypan blue staining (ThermoFisher) using the Automated Cell Counter (Bio-Rad) to obtain eqaul cell numbers across individuals in each cell mixture.
-Single cell capture and library preparation were performed the same as described before [@Tung2017], except that 6-bp random sequence UMIs were included instead of 5-bp.
+Single cell capture and library preparation were performed as described in [@Tung2017], except that 6-bp random sequence UMIs were included instead of 5-bp.
 The 96 single cell samples from one C1 chip were pooled and sequenced on an Illumina HiSeq 2500 instrument using the TruSeq SBS Kit v3-HS (FC-401-3002).
-Each of the pooled sample were sequenced in more than two lanes to obtain two million good quality mapped reads from each single cell sample. 
+Each of the pooled sample were sequenced in more than two lanes to obtain two million mapped reads of each single cell sample. 
 
 We collected total X,XXX cells from total 54 different YRI [invididuals](data-collection.html).
 We obtained an average of XX million [sequencing reads](totals.html) per single cell sample.

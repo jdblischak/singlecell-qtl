@@ -24,18 +24,18 @@ knitr::read_chunk("chunks.R")
 ```{r code-version, echo=FALSE, results='asis'}
 ```
 
-The importance of robustness and the regulation of noise as mechanisms that maintain high evolutionary fitness is evident[@Kirschner1998;@Kitano2004;@Masel2009].
+The importance of robustness and the regulation of noise as mechanisms that maintain high evolutionary fitness is evident[@Kirschner1998;@Kitano2004;@Masel2009;@Wolf2015].
 Yet, we still have a relatively poor understanding of how robustness is achieved and how expression noise is being regulated at the molecular level.
 In model organisms, robustness and evolvability can be studied using experimental evolution approaches.
 Relative robustness is typically quantified with respect to the change in variation of a specific trait when the experimental perturbation is applied [@Barrick2013; @deVisser2003].
 In such experiments, the phenotypic outcomes rather than the underlying mechanisms of robustness are measured.
 To take first steps towards understanding how robustness is regulated in humans, we proposed to focus on a molecular phenotype, namely gene expression levels.
 
-With few exceptions [@Deng2014;@Marinov2014], experimental evolution studies have always considered population-average measurements of phenotypes using entire organisms, tissues, or cell cultures.
-However, as was often suggested in the literature, to truly understand how robustness is established and encoded in the genome, one needs to consider variation in phenotypes across individual cells[@Raser2004;@Kaern2005;@Balazsi2011].
+With few exceptions [@Deng2014;@Marinov2014;@Gasch2017], experimental evolution studies have always considered population-average measurements of phenotypes using entire organisms, tissues, or cell cultures.
+However, as was often suggested in the literature, to truly understand how robustness is established and encoded in the genome, one needs to consider variation in phenotypes across individual cells[@Raser2004;@Kaern2005;@Balazsi2011;@Holmes2017].
 The motivation to learn more about the property of robustness has led to the advent of new approaches to study ‘noise genetics’ – essentially using existing paradigms to characterize naturally occurring cell-to-cell variation instead of the population-average response to an artificial perturbation[@Farkash-Amar2014].
 The idea of using the probability of gene expression at the single cell level as a genetic phenotype, termed ‘particle genetics’, has also been introduced to study complex traits [@Yvert2014].
-While a large number of studies have focused on the robustness of particular cellular functions or individual genes in humans [@Wills2013;@Shaffer2014;@Halpern2015;@Hendy2017], genome-wide analysis and mapping of the genetic loci underlying robustness has yet to be performed.
+While a large number of studies have focused on the robustness of particular cellular functions or individual genes in humans [@Wills2013;@Shaffer2014;@Halpern2015;@Faure2017;@Hendy2017], genome-wide analysis and mapping of the genetic loci underlying robustness has yet to be performed.
 
 Recent advances in single-cell and single-molecule techniques have revealed that gene expression noise caused by stochastic fluctuations is a complex genetic trait in yeasts[@Ansel2008].
 As a result, research is also aimed at understanding how expression noise is controlled and interpreted within gene regulatory networks [@Eldar2010;@Chalancon2012].
