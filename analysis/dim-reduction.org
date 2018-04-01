@@ -51,7 +51,7 @@
   #+CALL: ipython3(memory="16G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 44151241
+  : Submitted batch job 44478793
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -105,7 +105,7 @@
   #+RESULTS:
   :RESULTS:
   # Out[4]:
-  : (10347, 4995)
+  : (10173, 4901)
   :END:
 
   The expected ERCC spike-in molecule counts were previously tabulated for
@@ -150,7 +150,7 @@
 
   #+RESULTS: normalize
   :RESULTS:
-  # Out[7]:
+  # Out[9]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -160,7 +160,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[8]:
+  # Out[10]:
   :END:
 
   #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/pca.png
@@ -243,7 +243,7 @@
 
   #+RESULTS: corr-def
   :RESULTS:
-  # Out[9]:
+  # Out[11]:
   :END:
 
   #+NAME: extract-covars
@@ -254,7 +254,7 @@
 
   #+RESULTS: extract-covars
   :RESULTS:
-  # Out[10]:
+  # Out[12]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -266,7 +266,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[11]:
+  # Out[13]:
   :END:
 
   #+NAME: plot-covars-def
@@ -294,29 +294,18 @@
 
   #+RESULTS: plot-covars-def
   :RESULTS:
-  # Out[12]:
+  # Out[14]:
   :END:
 
-  #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/pca-vs-covars.png
+  #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/pca-vs-covars.svg
+    %config InlineBackend.figure_formats = set(['svg'])
     plot_pca_covar_corr(ppca, corr)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[48]:
-  [[file:figure/dim-reduction.org/pca-vs-covars.png]]
-  :END:
-
-  #+BEGIN_SRC ipython :exports none
-    %matplotlib agg
-    plot_pca_covar_corr(ppca, corr)
-    plt.savefig('/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/dim-reduction.org/pca-vs-covars-hires.png', dpi=300)
-    %matplotlib inline
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[51]:
+  # Out[27]:
+  [[file:figure/dim-reduction.org/pca-vs-covars.svg]]
   :END:
 
   The top 10 PCs define a low-rank approximation to the original data, so we
@@ -459,10 +448,11 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[75]:
+  # Out[30]:
   :END:
 
   #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/zifa-covars.png
+    %config InlineBackend.figure_formats = set(['svg'])
     corr_zifa = pd.concat(
       [correlation(pd.DataFrame(latent), cont_covars)] +
       [categorical_r2(latent, annotations, k) for k in cat_covars])
@@ -747,7 +737,7 @@
 
       plt.clf()
       for q, v in zip(quantiles, vals):
-        plt.scatter(annotations['detect_hs'] / umi.shape[0], v, c=colorcet.cm['inferno'](q), label='{:.3f}'.format(q), s=2)
+        plt.scatter(annotations['detect_hs'] / keep_genes.shape[0], v, c=colorcet.cm['inferno'](q), label='{:.3f}'.format(q), s=2)
       plt.legend(bbox_to_anchor=(1.04, .5), loc='center left')
       plt.xlabel('Detection rate')
       plt.ylabel(label)
@@ -755,18 +745,19 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[54]:
+  # Out[11]:
   :END:
 
   We recapitulate the main result of Hicks et al in our data.
 
   #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/umi-quantiles-vs-detection.png
+    %config InlineBackend.figure_formats = set(['retina'])
     plot_quantiles_vs_detection(umi, annotations)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[55]:
+  # Out[12]:
   [[file:figure/dim-reduction.org/umi-quantiles-vs-detection.png]]
   :END:
 
@@ -842,7 +833,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[59]:
+  # Out[35]:
   :END:
 
   #+CALL: normalize()
@@ -887,29 +878,18 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[60]:
+  # Out[36]:
   :END:
 
-  #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/pca-bicentered-covars.png
+  #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/pca-bicentered-covars.svg
+    %config InlineBackend.figure_formats = set(['svg'])
     plot_bicentered_pca(log_cpm, annotations, cont_covars, cat_covars)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[61]:
-  [[file:figure/dim-reduction.org/pca-bicentered-covars.png]]
-  :END:
-
-  #+BEGIN_SRC ipython :exports none
-    %matplotlib agg
-    plot_bicentered_pca(log_cpm, annotations, cont_covars, cat_covars)
-    plt.savefig('/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/dim-reduction.org/pca-bicentered-covars-hires.png', dpi=300)
-    %matplotlib inline
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[62]:
+  # Out[37]:
+  [[file:figure/dim-reduction.org/pca-bicentered-covars.svg]]
   :END:
 
 * Kernel PCA
@@ -929,7 +909,7 @@
   radial basis function kernel, which projects the data into infinite
   dimensional space, making it impossible to compute the projections.
 
-  #+BEGIN_SRC ipython :async t
+  #+BEGIN_SRC ipython
     kpca = skd.KernelPCA(kernel='rbf', n_components=10)
     loadings_kpca = kpca.fit_transform(log_cpm.values.T)
     corr_kpca = pd.concat(
@@ -940,11 +920,12 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[66]:
+  # Out[39]:
   :END:
 
   #+NAME: plot-kpca-covars
-  #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/kpca-covars.png
+  #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/kpca-covars.svg
+    %config InlineBackend.figure_formats = set(['svg'])
     plt.clf()
     plt.gcf().set_size_inches(8, 12)
     im = plt.imshow(corr_kpca.values, cmap=colorcet.cm['fire'], vmin=0, vmax=1, aspect='auto')
@@ -957,6 +938,12 @@
     plt.gcf().tight_layout()
   #+END_SRC
 
+  #+RESULTS: plot-kpca-covars
+  :RESULTS:
+  # Out[40]:
+  [[file:figure/dim-reduction.org/kpca-covars.svg]]
+  :END:
+
   #+RESULTS:
   :RESULTS:
   # Out[67]:
@@ -964,27 +951,25 @@
   [[file:figure/dim-reduction.org/kpca-covars.png]]
   :END:
 
-  #+BEGIN_SRC ipython :noweb yes :exports none
-    %matplotlib agg
-    <<plot-kpca-covars>>
-    plt.savefig('/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/dim-reduction.org/kpca-covars-hires.png', dpi=300)
-    %matplotlib inline
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[70]:
-  :END:
-
 * PCA on gene expression residuals
 
-  Although the dependency of the percentiles of non-zero gene expression
-  appears to be nonlinear, we can partially correct for it by regressing out
-  the percentiles of expression from the expression values for each gene.
+  Although the dependency of the percentiles of non-zero gene expression on
+  detection rate appears to be nonlinear, we can partially correct for it by
+  regressing out the percentiles of expression from the expression values for
+  each gene.
 
   \[ y_{ij} = p_i \beta + \mu_j + \epsilon_{ij} \]
 
   \[ \tilde{y}_{ij} = y_{ij} - p_i \hat\beta - \hat\mu_j \]
+
+  #+BEGIN_SRC ipython
+    normalized_percentiles = np.percentile(log_cpm, 100 * np.linspace(0, 1, 5), axis=0)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[81]:
+  :END:
 
   #+BEGIN_SRC ipython :async t
     log_cpm_residuals = log_cpm.apply(lambda y: y - sklm.LinearRegression(fit_intercept=True).fit(normalized_percentiles.T, y).predict(normalized_percentiles.T), axis=1)
@@ -992,27 +977,52 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[71]:
   :END:
 
-  #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/pca-expr-residual-covars.png
+  #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/pca-expr-residual-covars.svg
+    %config InlineBackend.figure_formats = set(['svg'])
     plot_bicentered_pca(log_cpm_residuals, annotations, cont_covars, cat_covars)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[73]:
-  [[file:figure/dim-reduction.org/pca-expr-residual-covars.png]]
+  # Out[90]:
+  [[file:figure/dim-reduction.org/pca-expr-residual-covars.svg]]
   :END:
 
-  #+BEGIN_SRC ipython :exports none
-    %matplotlib agg
-    plot_bicentered_pca(log_cpm_residuals, annotations, cont_covars, cat_covars)
-    plt.savefig('/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/dim-reduction.org/pca-expr-residual-covars-hires.png', dpi=300)
-    %matplotlib inline
+* PCA on quantile-normalized log CPM
+
+  Regression against the percentiles of gene expression seems like an inelegant
+  way of performing quantile normalization. However, quantile normalizing
+  doesn't work.
+
+  #+BEGIN_SRC ipython
+    import rpy2.robjects
+    import rpy2.robjects.numpy2ri
+
+    numpy2ri = rpy2.robjects.numpy2ri.numpy2ri
+
+    def qqnorm(x):
+      """Wrap around R qqnorm"""
+      return np.asarray(rpy2.robjects.r['qqnorm'](numpy2ri(x))[0])
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[74]:
+  # Out[43]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    normed = log_cpm.apply(qqnorm, axis=0)
+  #+END_SRC
+
+  #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/pca-qqnorm-covars.svg
+    %config InlineBackend.figure_formats = set(['svg'])
+    plot_bicentered_pca(normed, annotations, cont_covars, cat_covars)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[54]:
+  [[file:figure/dim-reduction.org/pca-qqnorm-covars.svg]]
   :END:
