@@ -1,24 +1,28 @@
 #+TITLE: Single cell/bulk RNA-Seq concordance
 #+SETUPFILE: setup.org
+#+OPTION: toc:t
 
-* Setup
+* Introduction
 
-  #+NAME: ipython3
-  #+BEGIN_SRC shell :dir /scratch/midway2/aksarkar/singlecell/ :var memory="16G" :var runtime="6:00:00" :var partition="broadwl"
-    sbatch ${memory/#/--mem=} ${runtime/#/--time=} ${partition/#/--partition=} --job-name=ipython3 --output=ipython3.out
-    #!/bin/bash
-    source activate scqtl
-    rm -f $HOME/.local/share/jupyter/runtime/kernel-aksarkar.json
-    ipython3 kernel --ip=$(hostname -i) -f kernel-aksarkar.json
+  Here, we investigate the correlation between single cell RNA-Seq and bulk
+  RNA-Seq on samples from the same cell type in the same individuals. Our goal
+  is to qualitatively assess our ability to call QTLs from scRNA-Seq.
+
+* Setup                                                            :noexport:
+
+  #+BEGIN_SRC emacs-lisp
+    (org-babel-lob-ingest "/home/aksarkar/.emacs.d/org-templates/library.org")
   #+END_SRC
 
-  #+RESULTS: ipython3
-  : Submitted batch job 40644776
+  #+RESULTS:
+  : 1
 
-  #+NAME: imports
+  #+CALL: ipython3(memory="16G", venv="scqtl")
+
+  #+RESULTS:
+  : Submitted batch job 44628582
+
   #+BEGIN_SRC ipython
-    %matplotlib inline
-
     import colorcet
     import gzip
     import io
@@ -29,60 +33,45 @@
     import re
     import requests
     import scipy.stats as sst
+    import sklearn.linear_model as sklm
   #+END_SRC
 
-  #+RESULTS: imports
+  #+RESULTS:
   :RESULTS:
+  # Out[1]:
   :END:
 
 * Read the data
 
-  Use ~kallisto~ TPM for the bulk RNA-Seq data on the iPSCs.
+  Read and QC the single cell counts.
 
-  Our preliminary experiments normalizing gene-level counts after the fact did
-  not give reasonable results.
-
-  Importantly, on the bulk side we filter out genes with gene-level TPM < 1.
-
-  #+NAME: load-data-defs
   #+BEGIN_SRC ipython
-    def load_umi_data(min_cell_count=5):
-      annotations = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
-      counts = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', index_col=0)
-      keep_individuals = annotations['chip_id'].value_counts() > min_cell_count
-      keep_cells = annotations.apply(lambda x: keep_individuals.loc[x['chip_id']], axis=1)
-      annotations = annotations.loc[keep_cells.values]
-      counts = counts.loc[:,keep_cells.values]
-      return counts, annotations
-
-    def load_bulk_data():
-      return (pd.read_table('/project2/gilad/singlecell-qtl/bulk/kallisto_cardio.txt.gz', sep=' ', index_col='gene').
-              # ID goes "transcript|gene|..."
-              groupby(lambda x: x.split('|')[1].split('.')[0]).
-              # Gene level TPM is sum of transcript level TPM
-              agg(np.sum).
-              # IMPORTANT: Filter out TPM < 1
-              mask(lambda x: x < 1).
-              applymap(lambda x: np.log(x + 1) / np.log(2)).
-              rename(columns=lambda x: 'NA{}'.format(x[1:]) if x[0] == 'H' else x)
-              .filter(regex='^NA'))
+    umi = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', index_col=0)
+    annotations = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
+    keep_samples = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
+    keep_genes = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt', index_col=0, header=None)
+    umi = umi.loc[keep_genes.values.ravel(),keep_samples.values.ravel()]
+    annotations = annotations.loc[keep_samples.values.ravel()]
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
+  # Out[50]:
   :END:
 
-  #+NAME: load-data
-  #+BEGIN_SRC ipython
-    umi, annotations = load_umi_data()
-    bulk = load_bulk_data()
+  Our preliminary investigation into concordance between single cell log CPM
+  and bulk log RPKM did not give good results. Therefore, we [[file:kallisto.org][re-processed the
+  iPSC bulk RNA-Seq]] using ~kallisto~. Read the TPM matrix.
 
-    umi.shape, bulk.shape
+  #+BEGIN_SRC ipython
+    bulk_log_tpm = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/kallisto/bulk-ipsc-tpm.txt.gz', header=None, sep=' ')
+    bulk_log_tpm = np.log(bulk_log_tpm.pivot(columns=0, index=1, values=2) + 1) / np.log(2)
+    bulk_log_tpm.index = [x.split('.')[0] for x in bulk_log_tpm.index]
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  : ((20327, 2261), (34608, 15))
+  # Out[3]:
   :END:
 
   #+NAME: concordance-def
@@ -111,12 +100,19 @@
       plt.ylabel(ylabel)
       plt.savefig(filename)
 
-    def cpm(counts, log2=False):
-      cpm = counts / counts.sum(axis=0) * 1e6
+    def cpm(counts, size=None, log2=False):
+      if size is None:
+        size = counts.sum(axis=0)
+      cpm = counts / size * 1e6
       if log2:
         cpm = np.log(cpm + 1) / np.log(2)
       return cpm
   #+END_SRC
+
+  #+RESULTS: concordance-def
+  :RESULTS:
+  # Out[36]:
+  :END:
 
   #+RESULTS:
   :RESULTS:
@@ -127,35 +123,126 @@
   #+BEGIN_SRC ipython
     def plot_concordance_by_individual(umi, annotations, bulk, output_dir):
       bulk, pooled_cpm = bulk.align(
-        cpm(umi.groupby(by=annotations['chip_id'].values, axis=1).agg(np.sum), log2=True),
+        cpm(umi.groupby(by=annotations['chip_id'].values, axis=1).agg(np.sum),
+            size=annotations.groupby('chip_id')['mol_hs'].agg(np.sum), log2=True),
         axis=1, join='inner')
       for k in bulk:
         plot_concordance(
           x=pooled_cpm[k].to_frame(),
           y=bulk[k].to_frame(),
           title=k,
-          filename='{}/{}.png'.format(output_dir, k))
+          filename='{}/{}.svg'.format(output_dir, k))
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
+  # Out[52]:
   :END:
 
   #+BEGIN_SRC ipython :exports code :results none
     plot_concordance_by_individual(
       umi,
       annotations,
-      bulk,
+      bulk_log_tpm,
       '/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/normed')
   #+END_SRC
 
-  file:figure/sc-vs-bulk.org/normed/NA18498.png
-  file:figure/sc-vs-bulk.org/normed/NA18501.png
-  file:figure/sc-vs-bulk.org/normed/NA18502.png
-  file:figure/sc-vs-bulk.org/normed/NA18505.png
-  file:figure/sc-vs-bulk.org/normed/NA18507.png
-  file:figure/sc-vs-bulk.org/normed/NA18508.png
-  file:figure/sc-vs-bulk.org/normed/NA18520.png
+  Plot several examples.
+
+  #+BEGIN_SRC ipython :results raw output
+    np.random.seed(0)
+    for k in np.random.choice(annotations['chip_id'].unique(), 4):
+      print('file:figure/sc-vs-bulk.org/normed/{}.svg'.format(k))
+  #+END_SRC
+
+  #+RESULTS:
+  file:figure/sc-vs-bulk.org/normed/NA19130.svg
+  file:figure/sc-vs-bulk.org/normed/NA19102.svg
+  file:figure/sc-vs-bulk.org/normed/NA19143.svg
+  file:figure/sc-vs-bulk.org/normed/NA19098.svg
+
+  Regress log CPM on log TPM per individual.
+
+  #+BEGIN_SRC ipython
+    log_cpm = cpm(umi.groupby(by=annotations['chip_id'].values, axis=1).agg(np.sum),
+                  size=annotations.groupby('chip_id')['mol_hs'].agg(np.sum), log2=True)
+
+    models = []
+    for k in log_cpm:
+      if k in bulk_log_tpm:
+        y, x = log_cpm[k].align(bulk_log_tpm[k], join='inner')
+        m = sklm.LinearRegression(fit_intercept=True).fit(x.values.reshape(-1, 1), y)
+        models.append({'ind': k, 'coef_': m.coef_[0], 'intercept_': m.intercept_, 'score': m.score(x.values.reshape(-1, 1), y)})
+    models = pd.DataFrame.from_dict(models).set_index('ind')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[20]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    models.sort_values('score', ascending=False)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[55]:
+  #+BEGIN_EXAMPLE
+    coef_  intercept_     score
+    ind
+    NA19209  0.732135    0.621440  0.708942
+    NA18870  0.723933    0.639626  0.702726
+    NA19101  0.729250    0.821881  0.694528
+    NA18511  0.707770    0.595565  0.693847
+    NA18912  0.688394    0.829654  0.692485
+    NA18520  0.731075    0.540232  0.685123
+    NA18502  0.712065    0.709610  0.681293
+    NA19127  0.713962    0.681134  0.680976
+    NA18856  0.734898    0.524328  0.680601
+    NA19225  0.679871    0.987852  0.680592
+    NA19116  0.713121    0.788535  0.679035
+    NA18505  0.684536    0.776815  0.677933
+    NA18862  0.696277    0.826739  0.677919
+    NA19190  0.712649    0.631736  0.677498
+    NA18859  0.701953    0.727513  0.677474
+    NA18858  0.725889    0.689016  0.674898
+    NA19204  0.713031    0.618002  0.673072
+    NA19128  0.713168    0.659729  0.672981
+    NA19210  0.705317    0.620322  0.671795
+    NA18852  0.725955    0.547926  0.671536
+    NA18489  0.698290    0.886555  0.670849
+    NA19160  0.717357    0.639725  0.670532
+    NA18853  0.679031    0.844840  0.668854
+    NA19207  0.724029    0.594377  0.667087
+    NA19102  0.720588    0.552334  0.665105
+    NA18501  0.686617    0.784491  0.664648
+    NA19140  0.685028    0.794710  0.664363
+    NA19257  0.668304    0.932599  0.664279
+    NA19143  0.711429    0.596842  0.661830
+    NA19152  0.696553    0.801533  0.659410
+    NA19099  0.721284    0.652934  0.658266
+    NA19153  0.708352    0.790061  0.657488
+    NA19108  0.691788    0.722956  0.654361
+    NA18913  0.713234    0.619717  0.652851
+    NA18517  0.671620    0.830685  0.649466
+    NA19093  0.720266    0.673872  0.646884
+    NA18519  0.715715    0.727332  0.645861
+    NA19206  0.701227    0.721929  0.644383
+    NA19114  0.671593    1.001002  0.643536
+    NA18855  0.708293    0.735871  0.642197
+    NA19130  0.699075    0.643755  0.641843
+    NA19098  0.696567    0.798366  0.641485
+    NA19193  0.704863    0.794734  0.640733
+    NA18907  0.715533    0.630487  0.639015
+    NA18508  0.659032    0.924178  0.631646
+    NA18522  0.686510    0.881811  0.631580
+    NA19144  0.663290    1.017565  0.631238
+    NA18507  0.641305    1.306322  0.630363
+    NA19159  0.712498    0.504794  0.628940
+    NA18498  0.695710    0.710972  0.624978
+  #+END_EXAMPLE
+  :END:
 
 * Plot bulk vs. pooled subsets
 
@@ -172,12 +259,13 @@
           x=pooled_cpm,
           y=bulk_tpm,
           title='{}, {} cell{}'.format(individual, num_cells, 's' if num_cells > 1 else ''),
-          filename='{}/{}-{}.png'.format(output_dir, individual, num_cells),
+          filename='{}/{}-{}.svg'.format(output_dir, individual, num_cells),
           gridsize=20)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
+  # Out[7]:
   :END:
 
   #+BEGIN_SRC ipython :results none
@@ -185,16 +273,16 @@
       'NA18507',
       umi,
       annotations,
-      bulk,
+      bulk_log_tpm,
       '/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/vs-cells/'
     )
   #+END_SRC
 
-  file:figure/sc-vs-bulk.org/vs-cells/NA18507-1.png
-  file:figure/sc-vs-bulk.org/vs-cells/NA18507-10.png
-  file:figure/sc-vs-bulk.org/vs-cells/NA18507-50.png
-  file:figure/sc-vs-bulk.org/vs-cells/NA18507-100.png
-  file:figure/sc-vs-bulk.org/vs-cells/NA18507-200.png
+  file:figure/sc-vs-bulk.org/vs-cells/NA18507-1.svg
+  file:figure/sc-vs-bulk.org/vs-cells/NA18507-10.svg
+  file:figure/sc-vs-bulk.org/vs-cells/NA18507-50.svg
+  file:figure/sc-vs-bulk.org/vs-cells/NA18507-100.svg
+  file:figure/sc-vs-bulk.org/vs-cells/NA18507-200.svg
 
 * Plot pooled subsets vs. pooled subsets
 
@@ -212,13 +300,14 @@
           x=pool1,
           y=pool2,
           title='{}, {} cell{}'.format(individual, num_cells, 's' if num_cells > 1 else ''),
-          filename='{}/{}-{}.png'.format(output_dir, individual, num_cells),
+          filename='{}/{}-{}.svg'.format(output_dir, individual, num_cells),
           ylabel='scRNA-Seq $\log_2(\mathrm{CPM} + 1)$',
           gridsize=15)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
+  # Out[10]:
   :END:
 
   #+BEGIN_SRC ipython :results none
@@ -230,7 +319,72 @@
     )
   #+END_SRC
 
-  file:figure/sc-vs-bulk.org/subsets/NA18507-1.png
-  file:figure/sc-vs-bulk.org/subsets/NA18507-10.png
-  file:figure/sc-vs-bulk.org/subsets/NA18507-50.png
-  file:figure/sc-vs-bulk.org/subsets/NA18507-100.png
+  file:figure/sc-vs-bulk.org/subsets/NA18507-1.svg
+  file:figure/sc-vs-bulk.org/subsets/NA18507-10.svg
+  file:figure/sc-vs-bulk.org/subsets/NA18507-50.svg
+  file:figure/sc-vs-bulk.org/subsets/NA18507-100.svg
+
+* Plot bulk vs. single cell relative abundance
+
+  TPM is proportional to relative abundance.
+
+  #+BEGIN_SRC ipython
+    bulk_tpm = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/kallisto/bulk-ipsc-tpm.txt.gz', header=None, sep=' ')
+    bulk_rho = bulk_tpm.pivot(columns=0, index=1, values=2)
+    bulk_rho.index = [x.split('.')[0] for x in bulk_rho.index]
+    bulk_rho = bulk_rho.filter(items=keep_genes.index, axis='index')
+    bulk_log_rho = np.ma.masked_invalid(np.log(bulk_rho.values)) - np.log(bulk_rho.values.sum(axis=0))
+    bulk_log_rho = pd.DataFrame(bulk_log_rho, index=bulk_rho.index, columns=bulk_rho.columns)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[72]:
+  :END:
+
+  Under [[file:zinb.org][our assumed model]], the parameter \(\mu\) is relative abundance.
+
+  #+BEGIN_SRC ipython
+    import sqlite3
+
+    with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
+      log_mu = (pd.read_sql(
+        """select gene, ind, log_mu from params where ind in 
+        (select chip_id from annotation group by chip_id 
+        having count(distinct sample) >= 50);""", conn)
+                  .pivot(index='gene', columns='ind', values='log_mu'))
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[58]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    def plot_concordance_rho(bulk, sc, output_dir):
+      bulk, sc = bulk.align(sc, axis=1, join='inner')
+      for k in bulk:
+        plot_concordance(
+          x=sc[k].to_frame(),
+          y=bulk[k].to_frame(),
+          title=k,
+          xlabel='Single cell log relative abundance',
+          ylabel='Bulk log relative abundance',
+          filename='{}/{}.svg'.format(output_dir, k))
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[73]:
+  :END:
+
+  #+BEGIN_SRC ipython :results none
+    plot_concordance_rho(
+      bulk_log_rho,
+      log_mu,
+      '/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/vs-sc-mean')
+  #+END_SRC
+
+  file:figure/sc-vs-bulk.org/vs-sc-mean/NA18501.svg
+  file:figure/sc-vs-bulk.org/vs-sc-mean/NA18502.svg
+  file:figure/sc-vs-bulk.org/vs-sc-mean/NA18505.svg
