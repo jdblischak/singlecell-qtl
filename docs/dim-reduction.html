@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-03-16 Fri 12:51 -->
+<!-- 2018-03-26 Mon 10:54 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Dimensionality reduction</title>
@@ -329,7 +329,7 @@ Read the full data matrix and apply the QC filters.
 </div>
 
 <pre class="example">
-(10347, 4995)
+(10173, 4901)
 
 </pre>
 
@@ -505,13 +505,15 @@ From the regression fit, we can compute the coefficient of determination
 </div>
 
 <div class="org-src-container">
-<pre class="src src-ipython">plot_pca_covar_corr(ppca, corr)
+<pre class="src src-ipython">%config <span class="org-variable-name">InlineBackend.figure_formats</span> = <span class="org-builtin">set</span>([<span class="org-string">'svg'</span>])
+plot_pca_covar_corr(ppca, corr)
 </pre>
 </div>
 
 
 <div class="figure">
-<p><img src="figure/dim-reduction.org/pca-vs-covars.png" alt="pca-vs-covars.png">
+<p><object type="image/svg+xml" data="figure/dim-reduction.org/pca-vs-covars.svg" class="org-svg">
+Sorry, your browser does not support SVG.</object>
 </p>
 </div>
 
@@ -675,7 +677,8 @@ Submitted batch job 44152013
 </div>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">corr_zifa</span> = pd.concat(
+<pre class="src src-ipython">%config <span class="org-variable-name">InlineBackend.figure_formats</span> = <span class="org-builtin">set</span>([<span class="org-string">'svg'</span>])
+<span class="org-variable-name">corr_zifa</span> = pd.concat(
   [correlation(pd.DataFrame(latent), cont_covars)] +
   [categorical_r2(latent, annotations, k) <span class="org-keyword">for</span> k <span class="org-keyword">in</span> cat_covars])
 <span class="org-variable-name">corr_zifa</span> = corr_zifa.pivot(index=<span class="org-string">'covar'</span>, columns=<span class="org-string">'pc'</span>)
@@ -1016,7 +1019,7 @@ non-zero expressed genes in each cell versus detection rate in that cell.
 
   plt.clf()
   <span class="org-keyword">for</span> q, v <span class="org-keyword">in</span> <span class="org-builtin">zip</span>(quantiles, vals):
-    plt.scatter(annotations[<span class="org-string">'detect_hs'</span>] / umi.shape[0], v, c=colorcet.cm[<span class="org-string">'inferno'</span>](q), label=<span class="org-string">'{:.3f}'</span>.<span class="org-builtin">format</span>(q), s=2)
+    plt.scatter(annotations[<span class="org-string">'detect_hs'</span>] / keep_genes.shape[0], v, c=colorcet.cm[<span class="org-string">'inferno'</span>](q), label=<span class="org-string">'{:.3f}'</span>.<span class="org-builtin">format</span>(q), s=2)
   plt.legend(bbox_to_anchor=(1.04, .5), loc=<span class="org-string">'center left'</span>)
   plt.xlabel(<span class="org-string">'Detection rate'</span>)
   plt.ylabel(label)
@@ -1028,7 +1031,8 @@ We recapitulate the main result of Hicks et al in our data.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython">plot_quantiles_vs_detection(umi, annotations)
+<pre class="src src-ipython">%config <span class="org-variable-name">InlineBackend.figure_formats</span> = <span class="org-builtin">set</span>([<span class="org-string">'retina'</span>])
+plot_quantiles_vs_detection(umi, annotations)
 </pre>
 </div>
 
@@ -1136,13 +1140,15 @@ row-mean and a column-mean and then subtracting the means from each entry.
 </div>
 
 <div class="org-src-container">
-<pre class="src src-ipython">plot_bicentered_pca(log_cpm, annotations, cont_covars, cat_covars)
+<pre class="src src-ipython">%config <span class="org-variable-name">InlineBackend.figure_formats</span> = <span class="org-builtin">set</span>([<span class="org-string">'svg'</span>])
+plot_bicentered_pca(log_cpm, annotations, cont_covars, cat_covars)
 </pre>
 </div>
 
 
 <div class="figure">
-<p><img src="figure/dim-reduction.org/pca-bicentered-covars.png" alt="pca-bicentered-covars.png">
+<p><object type="image/svg+xml" data="figure/dim-reduction.org/pca-bicentered-covars.svg" class="org-svg">
+Sorry, your browser does not support SVG.</object>
 </p>
 </div>
 </div>
@@ -1183,7 +1189,8 @@ dimensional space, making it impossible to compute the projections.
 </div>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org1573704">plt.clf()
+<pre class="src src-ipython" id="org1573704">%config <span class="org-variable-name">InlineBackend.figure_formats</span> = <span class="org-builtin">set</span>([<span class="org-string">'svg'</span>])
+plt.clf()
 plt.gcf().set_size_inches(8, 12)
 <span class="org-variable-name">im</span> = plt.imshow(corr_kpca.values, cmap=colorcet.cm[<span class="org-string">'fire'</span>], vmin=0, vmax=1, aspect=<span class="org-string">'auto'</span>)
 <span class="org-variable-name">cb</span> = plt.colorbar(im, orientation=<span class="org-string">'horizontal'</span>)
@@ -1194,6 +1201,13 @@ plt.gca().set_yticklabels(corr_kpca.index)
 plt.gca().set_ylabel(<span class="org-string">'Covariate'</span>)
 plt.gcf().tight_layout()
 </pre>
+</div>
+
+
+<div class="figure">
+<p><object type="image/svg+xml" data="figure/dim-reduction.org/kpca-covars.svg" class="org-svg">
+Sorry, your browser does not support SVG.</object>
+</p>
 </div>
 
 <pre class="example">
@@ -1212,9 +1226,10 @@ Text(0,0.5,'Covariate')
 <h2 id="orgbdbc407">PCA on gene expression residuals</h2>
 <div class="outline-text-2" id="text-orgbdbc407">
 <p>
-Although the dependency of the percentiles of non-zero gene expression
-appears to be nonlinear, we can partially correct for it by regressing out
-the percentiles of expression from the expression values for each gene.
+Although the dependency of the percentiles of non-zero gene expression on
+detection rate appears to be nonlinear, we can partially correct for it by
+regressing out the percentiles of expression from the expression values for
+each gene.
 </p>
 
 <p>
@@ -1226,18 +1241,66 @@ the percentiles of expression from the expression values for each gene.
 </p>
 
 <div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">normalized_percentiles</span> = np.percentile(log_cpm, 100 * np.linspace(0, 1, 5), axis=0)
+</pre>
+</div>
+
+<div class="org-src-container">
 <pre class="src src-ipython"><span class="org-variable-name">log_cpm_residuals</span> = log_cpm.<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> y: y - sklm.LinearRegression(fit_intercept=<span class="org-constant">True</span>).fit(normalized_percentiles.T, y).predict(normalized_percentiles.T), axis=1)
 </pre>
 </div>
 
 <div class="org-src-container">
-<pre class="src src-ipython">plot_bicentered_pca(log_cpm_residuals, annotations, cont_covars, cat_covars)
+<pre class="src src-ipython">%config <span class="org-variable-name">InlineBackend.figure_formats</span> = <span class="org-builtin">set</span>([<span class="org-string">'svg'</span>])
+plot_bicentered_pca(log_cpm_residuals, annotations, cont_covars, cat_covars)
 </pre>
 </div>
 
 
 <div class="figure">
-<p><img src="figure/dim-reduction.org/pca-expr-residual-covars.png" alt="pca-expr-residual-covars.png">
+<p><object type="image/svg+xml" data="figure/dim-reduction.org/pca-expr-residual-covars.svg" class="org-svg">
+Sorry, your browser does not support SVG.</object>
+</p>
+</div>
+</div>
+</div>
+
+<div id="outline-container-org6812f43" class="outline-2">
+<h2 id="org6812f43">PCA on quantile-normalized log CPM</h2>
+<div class="outline-text-2" id="text-org6812f43">
+<p>
+Regression against the percentiles of gene expression seems like an inelegant
+way of performing quantile normalization. However, quantile normalizing
+doesn't work.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">import</span> rpy2.robjects
+<span class="org-keyword">import</span> rpy2.robjects.numpy2ri
+
+<span class="org-variable-name">numpy2ri</span> = rpy2.robjects.numpy2ri.numpy2ri
+
+<span class="org-keyword">def</span> <span class="org-function-name">qqnorm</span>(x):
+  <span class="org-doc">"""Wrap around R qqnorm"""</span>
+  <span class="org-keyword">return</span> np.asarray(rpy2.robjects.r[<span class="org-string">'qqnorm'</span>](numpy2ri(x))[0])
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">normed</span> = log_cpm.<span class="org-builtin">apply</span>(qqnorm, axis=0)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">%config <span class="org-variable-name">InlineBackend.figure_formats</span> = <span class="org-builtin">set</span>([<span class="org-string">'svg'</span>])
+plot_bicentered_pca(normed, annotations, cont_covars, cat_covars)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><object type="image/svg+xml" data="figure/dim-reduction.org/pca-qqnorm-covars.svg" class="org-svg">
+Sorry, your browser does not support SVG.</object>
 </p>
 </div>
 </div>
@@ -1245,7 +1308,7 @@ the percentiles of expression from the expression values for each gene.
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-03-16 Fri 12:51</p>
+<p class="date">Created: 2018-03-26 Mon 10:54</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>

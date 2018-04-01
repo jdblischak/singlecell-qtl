@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-03-16 Fri 12:51 -->
+<!-- 2018-03-28 Wed 20:24 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Single cell/bulk RNA-Seq concordance</title>
@@ -227,38 +227,41 @@ for the JavaScript code in this tag.
  }
 /*]]>*///-->
 </script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+        displayAlign: "center",
+        displayIndent: "0em",
+
+        "HTML-CSS": { scale: 100,
+                        linebreaks: { automatic: "false" },
+                        webFont: "TeX"
+                       },
+        SVG: {scale: 100,
+              linebreaks: { automatic: "false" },
+              font: "TeX"},
+        NativeMML: {scale: 100},
+        TeX: { equationNumbers: {autoNumber: "AMS"},
+               MultLineWidth: "85%",
+               TagSide: "right",
+               TagIndent: ".8em"
+             }
+});
+</script>
+<script type="text/javascript"
+        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS_HTML"></script>
 </head>
 <body>
 <div id="content">
 <h1 class="title">Single cell/bulk RNA-Seq concordance</h1>
 
-<div id="outline-container-org52a4766" class="outline-2">
-<h2 id="org52a4766">Setup</h2>
-<div class="outline-text-2" id="text-org52a4766">
-<div class="org-src-container">
-<pre class="src src-shell" id="org29ee016">sbatch ${<span class="org-variable-name">memory</span>/#/--mem=} ${<span class="org-variable-name">runtime</span>/#/--time=} ${<span class="org-variable-name">partition</span>/#/--partition=} --job-name=ipython3 --output=ipython3.out
-<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
-<span class="org-builtin">source</span> activate scqtl
-rm -f $<span class="org-variable-name">HOME</span>/.local/share/jupyter/runtime/kernel-aksarkar.json
-ipython3 kernel --ip=$(<span class="org-sh-quoted-exec">hostname</span> -i) -f kernel-aksarkar.json
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython" id="orgb7a93be">%matplotlib inline
-
-<span class="org-keyword">import</span> colorcet
-<span class="org-keyword">import</span> gzip
-<span class="org-keyword">import</span> io
-<span class="org-keyword">import</span> matplotlib.pyplot <span class="org-keyword">as</span> plt
-<span class="org-keyword">import</span> numpy <span class="org-keyword">as</span> np
-<span class="org-keyword">import</span> os
-<span class="org-keyword">import</span> pandas <span class="org-keyword">as</span> pd
-<span class="org-keyword">import</span> re
-<span class="org-keyword">import</span> requests
-<span class="org-keyword">import</span> scipy.stats <span class="org-keyword">as</span> sst
-</pre>
-</div>
+<div id="outline-container-org7e47893" class="outline-2">
+<h2 id="org7e47893">Introduction</h2>
+<div class="outline-text-2" id="text-org7e47893">
+<p>
+Here, we investigate the correlation between single cell RNA-Seq and bulk
+RNA-Seq on samples from the same cell type in the same individuals. Our goal
+is to qualitatively assess our ability to call QTLs from scRNA-Seq.
+</p>
 </div>
 </div>
 
@@ -266,54 +269,31 @@ ipython3 kernel --ip=$(<span class="org-sh-quoted-exec">hostname</span> -i) -f k
 <h2 id="orge2dd258">Read the data</h2>
 <div class="outline-text-2" id="text-orge2dd258">
 <p>
-Use <code>kallisto</code> TPM for the bulk RNA-Seq data on the iPSCs.
-</p>
-
-<p>
-Our preliminary experiments normalizing gene-level counts after the fact did
-not give reasonable results.
-</p>
-
-<p>
-Importantly, on the bulk side we filter out genes with gene-level TPM &lt; 1.
+Read and QC the single cell counts.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="orgfee619f"><span class="org-keyword">def</span> <span class="org-function-name">load_umi_data</span>(min_cell_count=5):
-  <span class="org-variable-name">annotations</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
-  <span class="org-variable-name">counts</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>, index_col=0)
-  <span class="org-variable-name">keep_individuals</span> = annotations[<span class="org-string">'chip_id'</span>].value_counts() &gt; min_cell_count
-  <span class="org-variable-name">keep_cells</span> = annotations.<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: keep_individuals.loc[x[<span class="org-string">'chip_id'</span>]], axis=1)
-  <span class="org-variable-name">annotations</span> = annotations.loc[keep_cells.values]
-  <span class="org-variable-name">counts</span> = counts.loc[:,keep_cells.values]
-  <span class="org-keyword">return</span> counts, annotations
-
-<span class="org-keyword">def</span> <span class="org-function-name">load_bulk_data</span>():
-  <span class="org-keyword">return</span> (pd.read_table(<span class="org-string">'/project2/gilad/singlecell-qtl/bulk/kallisto_cardio.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=<span class="org-string">'gene'</span>).
-          <span class="org-comment-delimiter"># </span><span class="org-comment">ID goes "transcript|gene|..."</span>
-          groupby(<span class="org-keyword">lambda</span> x: x.split(<span class="org-string">'|'</span>)[1].split(<span class="org-string">'.'</span>)[0]).
-          <span class="org-comment-delimiter"># </span><span class="org-comment">Gene level TPM is sum of transcript level TPM</span>
-          agg(np.<span class="org-builtin">sum</span>).
-          <span class="org-comment-delimiter"># </span><span class="org-comment">IMPORTANT: Filter out TPM &lt; 1</span>
-          mask(<span class="org-keyword">lambda</span> x: x &lt; 1).
-          applymap(<span class="org-keyword">lambda</span> x: np.log(x + 1) / np.log(2)).
-          rename(columns=<span class="org-keyword">lambda</span> x: <span class="org-string">'NA{}'</span>.<span class="org-builtin">format</span>(x[1:]) <span class="org-keyword">if</span> x[0] == <span class="org-string">'H'</span> <span class="org-keyword">else</span> x)
-          .<span class="org-builtin">filter</span>(regex=<span class="org-string">'^NA'</span>))
+<pre class="src src-ipython"><span class="org-variable-name">umi</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>, index_col=0)
+<span class="org-variable-name">annotations</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
+<span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
+<span class="org-variable-name">keep_genes</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
+<span class="org-variable-name">umi</span> = umi.loc[keep_genes.values.ravel(),keep_samples.values.ravel()]
+<span class="org-variable-name">annotations</span> = annotations.loc[keep_samples.values.ravel()]
 </pre>
 </div>
+
+<p>
+Our preliminary investigation into concordance between single cell log CPM
+and bulk log RPKM did not give good results. Therefore, we <a href="kallisto.html">re-processed the
+iPSC bulk RNA-Seq</a> using <code>kallisto</code>. Read the TPM matrix.
+</p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org1c4a4dc"><span class="org-variable-name">umi</span>, <span class="org-variable-name">annotations</span> = load_umi_data()
-<span class="org-variable-name">bulk</span> = load_bulk_data()
-
-umi.shape, bulk.shape
+<pre class="src src-ipython"><span class="org-variable-name">bulk_log_tpm</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/kallisto/bulk-ipsc-tpm.txt.gz'</span>, header=<span class="org-constant">None</span>, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">bulk_log_tpm</span> = np.log(bulk_log_tpm.pivot(columns=0, index=1, values=2) + 1) / np.log(2)
+<span class="org-variable-name">bulk_log_tpm.index</span> = [x.split(<span class="org-string">'.'</span>)[0] <span class="org-keyword">for</span> x <span class="org-keyword">in</span> bulk_log_tpm.index]
 </pre>
 </div>
-
-<pre class="example">
-((20327, 2261), (34608, 15))
-
-</pre>
 
 <div class="org-src-container">
 <pre class="src src-ipython" id="org80f2327"><span class="org-keyword">def</span> <span class="org-function-name">plot_concordance</span>(x, y, title, filename, xlabel=<span class="org-constant">None</span>, ylabel=<span class="org-constant">None</span>, **kwargs):
@@ -340,8 +320,10 @@ umi.shape, bulk.shape
   plt.ylabel(ylabel)
   plt.savefig(filename)
 
-<span class="org-keyword">def</span> <span class="org-function-name">cpm</span>(counts, log2=<span class="org-constant">False</span>):
-  <span class="org-variable-name">cpm</span> = counts / counts.<span class="org-builtin">sum</span>(axis=0) * 1e6
+<span class="org-keyword">def</span> <span class="org-function-name">cpm</span>(counts, size=<span class="org-constant">None</span>, log2=<span class="org-constant">False</span>):
+  <span class="org-keyword">if</span> size <span class="org-keyword">is</span> <span class="org-constant">None</span>:
+    <span class="org-variable-name">size</span> = counts.<span class="org-builtin">sum</span>(axis=0)
+  <span class="org-variable-name">cpm</span> = counts / size * 1e6
   <span class="org-keyword">if</span> log2:
     <span class="org-variable-name">cpm</span> = np.log(cpm + 1) / np.log(2)
   <span class="org-keyword">return</span> cpm
@@ -356,14 +338,15 @@ umi.shape, bulk.shape
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">plot_concordance_by_individual</span>(umi, annotations, bulk, output_dir):
   <span class="org-variable-name">bulk</span>, <span class="org-variable-name">pooled_cpm</span> = bulk.align(
-    cpm(umi.groupby(by=annotations[<span class="org-string">'chip_id'</span>].values, axis=1).agg(np.<span class="org-builtin">sum</span>), log2=<span class="org-constant">True</span>),
+    cpm(umi.groupby(by=annotations[<span class="org-string">'chip_id'</span>].values, axis=1).agg(np.<span class="org-builtin">sum</span>),
+        size=annotations.groupby(<span class="org-string">'chip_id'</span>)[<span class="org-string">'mol_hs'</span>].agg(np.<span class="org-builtin">sum</span>), log2=<span class="org-constant">True</span>),
     axis=1, join=<span class="org-string">'inner'</span>)
   <span class="org-keyword">for</span> k <span class="org-keyword">in</span> bulk:
     plot_concordance(
       x=pooled_cpm[k].to_frame(),
       y=bulk[k].to_frame(),
       title=k,
-      filename=<span class="org-string">'{}/{}.png'</span>.<span class="org-builtin">format</span>(output_dir, k))
+      filename=<span class="org-string">'{}/{}.svg'</span>.<span class="org-builtin">format</span>(output_dir, k))
 </pre>
 </div>
 
@@ -371,20 +354,110 @@ umi.shape, bulk.shape
 <pre class="src src-ipython">plot_concordance_by_individual(
   umi,
   annotations,
-  bulk,
+  bulk_log_tpm,
   <span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/normed'</span>)
 </pre>
 </div>
 
 <p>
-<img src="figure/sc-vs-bulk.org/normed/NA18498.png" alt="NA18498.png">
-<img src="figure/sc-vs-bulk.org/normed/NA18501.png" alt="NA18501.png">
-<img src="figure/sc-vs-bulk.org/normed/NA18502.png" alt="NA18502.png">
-<img src="figure/sc-vs-bulk.org/normed/NA18505.png" alt="NA18505.png">
-<img src="figure/sc-vs-bulk.org/normed/NA18507.png" alt="NA18507.png">
-<img src="figure/sc-vs-bulk.org/normed/NA18508.png" alt="NA18508.png">
-<img src="figure/sc-vs-bulk.org/normed/NA18520.png" alt="NA18520.png">
+Plot several examples.
 </p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">np.random.seed(0)
+<span class="org-keyword">for</span> k <span class="org-keyword">in</span> np.random.choice(annotations[<span class="org-string">'chip_id'</span>].unique(), 4):
+  <span class="org-keyword">print</span>(<span class="org-string">'file:figure/sc-vs-bulk.org/normed/{}.svg'</span>.<span class="org-builtin">format</span>(k))
+</pre>
+</div>
+
+<p>
+<object type="image/svg+xml" data="figure/sc-vs-bulk.org/normed/NA19130.svg" class="org-svg">
+Sorry, your browser does not support SVG.</object>
+<object type="image/svg+xml" data="figure/sc-vs-bulk.org/normed/NA19102.svg" class="org-svg">
+Sorry, your browser does not support SVG.</object>
+<object type="image/svg+xml" data="figure/sc-vs-bulk.org/normed/NA19143.svg" class="org-svg">
+Sorry, your browser does not support SVG.</object>
+<object type="image/svg+xml" data="figure/sc-vs-bulk.org/normed/NA19098.svg" class="org-svg">
+Sorry, your browser does not support SVG.</object>
+</p>
+
+<p>
+Regress log CPM on log TPM per individual.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">log_cpm</span> = cpm(umi.groupby(by=annotations[<span class="org-string">'chip_id'</span>].values, axis=1).agg(np.<span class="org-builtin">sum</span>),
+              size=annotations.groupby(<span class="org-string">'chip_id'</span>)[<span class="org-string">'mol_hs'</span>].agg(np.<span class="org-builtin">sum</span>), log2=<span class="org-constant">True</span>)
+
+<span class="org-variable-name">models</span> = []
+<span class="org-keyword">for</span> k <span class="org-keyword">in</span> log_cpm:
+  <span class="org-keyword">if</span> k <span class="org-keyword">in</span> bulk_log_tpm:
+    <span class="org-variable-name">y</span>, <span class="org-variable-name">x</span> = log_cpm[k].align(bulk_log_tpm[k], join=<span class="org-string">'inner'</span>)
+    <span class="org-variable-name">m</span> = sklm.LinearRegression(fit_intercept=<span class="org-constant">True</span>).fit(x.values.reshape(-1, 1), y)
+    models.append({<span class="org-string">'ind'</span>: k, <span class="org-string">'coef_'</span>: m.coef_[0], <span class="org-string">'intercept_'</span>: m.intercept_, <span class="org-string">'score'</span>: m.score(x.values.reshape(-1, 1), y)})
+<span class="org-variable-name">models</span> = pd.DataFrame.from_dict(models).set_index(<span class="org-string">'ind'</span>)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">models.sort_values(<span class="org-string">'score'</span>, ascending=<span class="org-constant">False</span>)
+</pre>
+</div>
+
+<pre class="example">
+coef_  intercept_     score
+ind
+NA19209  0.732135    0.621440  0.708942
+NA18870  0.723933    0.639626  0.702726
+NA19101  0.729250    0.821881  0.694528
+NA18511  0.707770    0.595565  0.693847
+NA18912  0.688394    0.829654  0.692485
+NA18520  0.731075    0.540232  0.685123
+NA18502  0.712065    0.709610  0.681293
+NA19127  0.713962    0.681134  0.680976
+NA18856  0.734898    0.524328  0.680601
+NA19225  0.679871    0.987852  0.680592
+NA19116  0.713121    0.788535  0.679035
+NA18505  0.684536    0.776815  0.677933
+NA18862  0.696277    0.826739  0.677919
+NA19190  0.712649    0.631736  0.677498
+NA18859  0.701953    0.727513  0.677474
+NA18858  0.725889    0.689016  0.674898
+NA19204  0.713031    0.618002  0.673072
+NA19128  0.713168    0.659729  0.672981
+NA19210  0.705317    0.620322  0.671795
+NA18852  0.725955    0.547926  0.671536
+NA18489  0.698290    0.886555  0.670849
+NA19160  0.717357    0.639725  0.670532
+NA18853  0.679031    0.844840  0.668854
+NA19207  0.724029    0.594377  0.667087
+NA19102  0.720588    0.552334  0.665105
+NA18501  0.686617    0.784491  0.664648
+NA19140  0.685028    0.794710  0.664363
+NA19257  0.668304    0.932599  0.664279
+NA19143  0.711429    0.596842  0.661830
+NA19152  0.696553    0.801533  0.659410
+NA19099  0.721284    0.652934  0.658266
+NA19153  0.708352    0.790061  0.657488
+NA19108  0.691788    0.722956  0.654361
+NA18913  0.713234    0.619717  0.652851
+NA18517  0.671620    0.830685  0.649466
+NA19093  0.720266    0.673872  0.646884
+NA18519  0.715715    0.727332  0.645861
+NA19206  0.701227    0.721929  0.644383
+NA19114  0.671593    1.001002  0.643536
+NA18855  0.708293    0.735871  0.642197
+NA19130  0.699075    0.643755  0.641843
+NA19098  0.696567    0.798366  0.641485
+NA19193  0.704863    0.794734  0.640733
+NA18907  0.715533    0.630487  0.639015
+NA18508  0.659032    0.924178  0.631646
+NA18522  0.686510    0.881811  0.631580
+NA19144  0.663290    1.017565  0.631238
+NA18507  0.641305    1.306322  0.630363
+NA19159  0.712498    0.504794  0.628940
+NA18498  0.695710    0.710972  0.624978
+</pre>
 </div>
 </div>
 
@@ -406,7 +479,7 @@ which have log-transformed expression at least 1 in both assays.
       x=pooled_cpm,
       y=bulk_tpm,
       title=<span class="org-string">'{}, {} cell{}'</span>.<span class="org-builtin">format</span>(individual, num_cells, <span class="org-string">'s'</span> <span class="org-keyword">if</span> num_cells &gt; 1 <span class="org-keyword">else</span> <span class="org-string">''</span>),
-      filename=<span class="org-string">'{}/{}-{}.png'</span>.<span class="org-builtin">format</span>(output_dir, individual, num_cells),
+      filename=<span class="org-string">'{}/{}-{}.svg'</span>.<span class="org-builtin">format</span>(output_dir, individual, num_cells),
       gridsize=20)
 </pre>
 </div>
@@ -416,18 +489,23 @@ which have log-transformed expression at least 1 in both assays.
   <span class="org-string">'NA18507'</span>,
   umi,
   annotations,
-  bulk,
+  bulk_log_tpm,
   <span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/vs-cells/'</span>
 )
 </pre>
 </div>
 
 <p>
-<img src="figure/sc-vs-bulk.org/vs-cells/NA18507-1.png" alt="NA18507-1.png">
-<img src="figure/sc-vs-bulk.org/vs-cells/NA18507-10.png" alt="NA18507-10.png">
-<img src="figure/sc-vs-bulk.org/vs-cells/NA18507-50.png" alt="NA18507-50.png">
-<img src="figure/sc-vs-bulk.org/vs-cells/NA18507-100.png" alt="NA18507-100.png">
-<img src="figure/sc-vs-bulk.org/vs-cells/NA18507-200.png" alt="NA18507-200.png">
+<object type="image/svg+xml" data="figure/sc-vs-bulk.org/vs-cells/NA18507-1.svg" class="org-svg">
+Sorry, your browser does not support SVG.</object>
+<object type="image/svg+xml" data="figure/sc-vs-bulk.org/vs-cells/NA18507-10.svg" class="org-svg">
+Sorry, your browser does not support SVG.</object>
+<object type="image/svg+xml" data="figure/sc-vs-bulk.org/vs-cells/NA18507-50.svg" class="org-svg">
+Sorry, your browser does not support SVG.</object>
+<object type="image/svg+xml" data="figure/sc-vs-bulk.org/vs-cells/NA18507-100.svg" class="org-svg">
+Sorry, your browser does not support SVG.</object>
+<object type="image/svg+xml" data="figure/sc-vs-bulk.org/vs-cells/NA18507-200.svg" class="org-svg">
+Sorry, your browser does not support SVG.</object>
 </p>
 </div>
 </div>
@@ -451,7 +529,7 @@ partitioning into two halves.
       x=pool1,
       y=pool2,
       title=<span class="org-string">'{}, {} cell{}'</span>.<span class="org-builtin">format</span>(individual, num_cells, <span class="org-string">'s'</span> <span class="org-keyword">if</span> num_cells &gt; 1 <span class="org-keyword">else</span> <span class="org-string">''</span>),
-      filename=<span class="org-string">'{}/{}-{}.png'</span>.<span class="org-builtin">format</span>(output_dir, individual, num_cells),
+      filename=<span class="org-string">'{}/{}-{}.svg'</span>.<span class="org-builtin">format</span>(output_dir, individual, num_cells),
       ylabel=<span class="org-string">'scRNA-Seq $\log_2(\mathrm{CPM} + 1)$'</span>,
       gridsize=15)
 </pre>
@@ -468,17 +546,87 @@ partitioning into two halves.
 </div>
 
 <p>
-<img src="figure/sc-vs-bulk.org/subsets/NA18507-1.png" alt="NA18507-1.png">
-<img src="figure/sc-vs-bulk.org/subsets/NA18507-10.png" alt="NA18507-10.png">
-<img src="figure/sc-vs-bulk.org/subsets/NA18507-50.png" alt="NA18507-50.png">
-<img src="figure/sc-vs-bulk.org/subsets/NA18507-100.png" alt="NA18507-100.png">
+<object type="image/svg+xml" data="figure/sc-vs-bulk.org/subsets/NA18507-1.svg" class="org-svg">
+Sorry, your browser does not support SVG.</object>
+<object type="image/svg+xml" data="figure/sc-vs-bulk.org/subsets/NA18507-10.svg" class="org-svg">
+Sorry, your browser does not support SVG.</object>
+<object type="image/svg+xml" data="figure/sc-vs-bulk.org/subsets/NA18507-50.svg" class="org-svg">
+Sorry, your browser does not support SVG.</object>
+<object type="image/svg+xml" data="figure/sc-vs-bulk.org/subsets/NA18507-100.svg" class="org-svg">
+Sorry, your browser does not support SVG.</object>
+</p>
+</div>
+</div>
+
+<div id="outline-container-orgd1000d9" class="outline-2">
+<h2 id="orgd1000d9">Plot bulk vs. single cell relative abundance</h2>
+<div class="outline-text-2" id="text-orgd1000d9">
+<p>
+TPM is proportional to relative abundance.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">bulk_tpm</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/kallisto/bulk-ipsc-tpm.txt.gz'</span>, header=<span class="org-constant">None</span>, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">bulk_rho</span> = bulk_tpm.pivot(columns=0, index=1, values=2)
+<span class="org-variable-name">bulk_rho.index</span> = [x.split(<span class="org-string">'.'</span>)[0] <span class="org-keyword">for</span> x <span class="org-keyword">in</span> bulk_rho.index]
+<span class="org-variable-name">bulk_rho</span> = bulk_rho.<span class="org-builtin">filter</span>(items=keep_genes.index, axis=<span class="org-string">'index'</span>)
+<span class="org-variable-name">bulk_log_rho</span> = np.ma.masked_invalid(np.log(bulk_rho.values)) - np.log(bulk_rho.values.<span class="org-builtin">sum</span>(axis=0))
+<span class="org-variable-name">bulk_log_rho</span> = pd.DataFrame(bulk_log_rho, index=bulk_rho.index, columns=bulk_rho.columns)
+</pre>
+</div>
+
+<p>
+Under <a href="zinb.html">our assumed model</a>, the parameter \(\mu\) is relative abundance.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">import</span> sqlite3
+
+<span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'</span>) <span class="org-keyword">as</span> conn:
+  <span class="org-variable-name">log_mu</span> = (pd.read_sql(
+    <span class="org-string">"""select gene, ind, log_mu from params where ind in </span>
+<span class="org-string">    (select chip_id from annotation group by chip_id </span>
+<span class="org-string">    having count(distinct sample) &gt;= 50);"""</span>, conn)
+              .pivot(index=<span class="org-string">'gene'</span>, columns=<span class="org-string">'ind'</span>, values=<span class="org-string">'log_mu'</span>))
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">plot_concordance_rho</span>(bulk, sc, output_dir):
+  <span class="org-variable-name">bulk</span>, <span class="org-variable-name">sc</span> = bulk.align(sc, axis=1, join=<span class="org-string">'inner'</span>)
+  <span class="org-keyword">for</span> k <span class="org-keyword">in</span> bulk:
+    plot_concordance(
+      x=sc[k].to_frame(),
+      y=bulk[k].to_frame(),
+      title=k,
+      xlabel=<span class="org-string">'Single cell log relative abundance'</span>,
+      ylabel=<span class="org-string">'Bulk log relative abundance'</span>,
+      filename=<span class="org-string">'{}/{}.svg'</span>.<span class="org-builtin">format</span>(output_dir, k))
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plot_concordance_rho(
+  bulk_log_rho,
+  log_mu,
+  <span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/vs-sc-mean'</span>)
+</pre>
+</div>
+
+<p>
+<object type="image/svg+xml" data="figure/sc-vs-bulk.org/vs-sc-mean/NA18501.svg" class="org-svg">
+Sorry, your browser does not support SVG.</object>
+<object type="image/svg+xml" data="figure/sc-vs-bulk.org/vs-sc-mean/NA18502.svg" class="org-svg">
+Sorry, your browser does not support SVG.</object>
+<object type="image/svg+xml" data="figure/sc-vs-bulk.org/vs-sc-mean/NA18505.svg" class="org-svg">
+Sorry, your browser does not support SVG.</object>
 </p>
 </div>
 </div>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-03-16 Fri 12:51</p>
+<p class="date">Created: 2018-03-28 Wed 20:24</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-03-16 Fri 12:51 -->
+<!-- 2018-03-28 Wed 20:24 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mean/dispersion estimation</title>
@@ -271,8 +271,9 @@ Here, we solve (1).
 </p>
 
 <ol class="org-ol">
-<li><a href="#org614c5c8">We implement GPU-based ML estimation</a></li>
 <li><a href="#org6ace9b3">We implement CPU-based ML estimation</a></li>
+<li><a href="#orgebc1920">We estimate per-gene indexes of dispersion</a> accounting for the fact that
+data came from multiple individuals</li>
 </ol>
 </div>
 </div>
@@ -334,256 +335,6 @@ Then, the log-likelihood of the data is:
 </div>
 </div>
 
-<div id="outline-container-org614c5c8" class="outline-2">
-<h2 id="org614c5c8">Tensorflow implementation</h2>
-<div class="outline-text-2" id="text-org614c5c8">
-<p>
-We optimize all of the parameters together, using one-hot encoding to map
-parameters to data points. This makes inference more amenable to running on
-the GPU.
-</p>
-
-<p>
-Use <code>tensorflow</code> to automatically differentiate the negative log likelihood and
-perform gradient descent.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython" id="orgc619ce3"><span class="org-keyword">def</span> <span class="org-function-name">sigmoid</span>(x):
-  <span class="org-doc">"""Numerically safe sigmoid"""</span>
-  <span class="org-keyword">return</span> tf.clip_by_value(tf.sigmoid(x), -13, 13)
-
-<span class="org-keyword">def</span> <span class="org-function-name">log</span>(x):
-  <span class="org-doc">"""Numerically safe log"""</span>
-  <span class="org-keyword">return</span> tf.log(x + 1e-8)
-
-<span class="org-keyword">def</span> <span class="org-function-name">nb_llik</span>(x, mean, inv_disp):
-  <span class="org-doc">"""Log likelihood of x distributed as NB</span>
-
-<span class="org-doc">  See Hilbe 2012, eq. 8.10</span>
-
-<span class="org-doc">  mean - mean (&gt; 0)</span>
-<span class="org-doc">  inv_disp - inverse dispersion (&gt; 0)</span>
-
-<span class="org-doc">  """</span>
-  <span class="org-keyword">return</span> (x * log(mean / inv_disp) -
-          x * log(1 + mean / inv_disp) -
-          inv_disp * log(1 + mean / inv_disp) +
-          tf.lgamma(x + inv_disp) -
-          tf.lgamma(inv_disp) -
-          tf.lgamma(x + 1))
-
-<span class="org-keyword">def</span> <span class="org-function-name">zinb_llik</span>(x, mean, inv_disp, logodds, eps=1e-8):
-  <span class="org-doc">"""Log likelihood of x distributed as ZINB</span>
-
-<span class="org-doc">  See Hilbe 2012, eq. 11.12, 11.13</span>
-
-<span class="org-doc">  mean - mean (&gt; 0)</span>
-<span class="org-doc">  inv_disp - inverse dispersion (&gt; 0)</span>
-<span class="org-doc">  logodds - dropout log odds</span>
-
-<span class="org-doc">  """</span>
-  <span class="org-variable-name">case_zero</span> = log(sigmoid(-logodds) + sigmoid(logodds) * tf.exp(nb_llik(x, mean, inv_disp)))
-  <span class="org-variable-name">case_non_zero</span> = -tf.nn.softplus(logodds) + nb_llik(x, mean, inv_disp)
-  <span class="org-keyword">return</span> tf.where(tf.less(x, 1e-8), case_zero, case_non_zero)
-
-<span class="org-keyword">def</span> <span class="org-function-name">fit</span>(umi, onehot, size_factor, gene_dropout=<span class="org-constant">False</span>, ind_dropout=<span class="org-constant">False</span>, learning_rate=1e-2, max_epochs=1000):
-  <span class="org-doc">"""Return estimated log mean and log dispersion. </span>
-
-<span class="org-doc">  If fitting a zero-inflated model, additionally return dropout log odds.</span>
-
-<span class="org-doc">  umi - count matrix (n x p; float32)</span>
-<span class="org-doc">  onehot - mapping of individuals to cells (m x n; float32)</span>
-<span class="org-doc">  size_factor - size factor vector (n x 1; float32)</span>
-<span class="org-doc">  gene_dropout - fit one dropout parameter per gene</span>
-<span class="org-doc">  ind_dropout - fit one dropout parameter per individual</span>
-<span class="org-doc">  init_log_mean - initial value for estimated log mean (m x p; float32)</span>
-<span class="org-doc">  init_log_disp - initial value for estimated log dispersion (m x p; float32)</span>
-
-<span class="org-doc">  If ind_dropout is True, gene_dropout must be True, otherwise raises</span>
-<span class="org-doc">  ArgumentError.</span>
-
-<span class="org-doc">  Returns:</span>
-
-<span class="org-doc">  log_mean - log mean parameter (m x p)</span>
-<span class="org-doc">  log_disp - log dispersion parameter (m x p)</span>
-<span class="org-doc">  dropout - dropout log odds (1 x p if gene_dropout, n x p if ind_dropout)</span>
-
-<span class="org-doc">  """</span>
-  <span class="org-variable-name">n</span>, <span class="org-variable-name">p</span> = umi.shape
-  <span class="org-variable-name">_</span>, <span class="org-variable-name">m</span> = onehot.shape
-
-  <span class="org-variable-name">params</span> = <span class="org-builtin">locals</span>()
-  <span class="org-variable-name">graph</span> = tf.Graph()
-  <span class="org-keyword">with</span> graph.as_default(), graph.device(<span class="org-string">'/gpu:*'</span>):
-    <span class="org-variable-name">size_factor</span> = tf.Variable(size_factor, trainable=<span class="org-constant">False</span>)
-    <span class="org-variable-name">umi</span> = tf.Variable(umi, trainable=<span class="org-constant">False</span>)
-    <span class="org-variable-name">onehot</span> = tf.Variable(onehot, trainable=<span class="org-constant">False</span>)
-
-    <span class="org-variable-name">mean</span> = tf.exp(tf.Variable(tf.zeros([m, p])))
-    <span class="org-variable-name">inv_disp</span> = tf.exp(tf.Variable(tf.zeros([m, p])))
-
-    <span class="org-keyword">if</span> gene_dropout:
-      <span class="org-keyword">if</span> ind_dropout:
-        <span class="org-variable-name">dropout_params</span> = tf.Variable(tf.zeros([m, p]))
-        <span class="org-variable-name">dropout</span> = tf.matmul(onehot, dropout_params)
-      <span class="org-keyword">else</span>:
-        <span class="org-variable-name">dropout_params</span> = tf.Variable(tf.zeros([1, p]))
-        <span class="org-variable-name">dropout</span> = dropout_params
-      <span class="org-variable-name">llik</span> = tf.reduce_mean(
-        zinb_llik(umi, size_factor * tf.matmul(onehot, mean),
-                  tf.matmul(onehot, inv_disp), dropout))
-    <span class="org-keyword">elif</span> ind_dropout:
-      <span class="org-keyword">raise</span> <span class="org-type">ValueError</span>(<span class="org-string">'Cannot specify individual-specific dropout without gene-specific dropout'</span>)
-    <span class="org-keyword">else</span>:
-      <span class="org-variable-name">llik</span> = tf.reduce_mean(
-        nb_llik(umi, size_factor * tf.matmul(onehot, mean),
-                tf.matmul(onehot, inv_disp)))
-
-    <span class="org-variable-name">train</span> = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(-llik)
-    <span class="org-variable-name">opt</span> = [tf.log(mean), -tf.log(inv_disp)]
-    <span class="org-keyword">if</span> gene_dropout:
-      opt.append(dropout_params)
-    <span class="org-variable-name">curr</span> = <span class="org-builtin">float</span>(<span class="org-string">'-inf'</span>)
-    <span class="org-keyword">with</span> tf.Session() <span class="org-keyword">as</span> sess:
-      sess.run(tf.global_variables_initializer())
-      <span class="org-keyword">for</span> i <span class="org-keyword">in</span> <span class="org-builtin">range</span>(max_epochs):
-        <span class="org-variable-name">_</span>, <span class="org-variable-name">update</span> = sess.run([train, llik])
-        <span class="org-keyword">if</span> <span class="org-keyword">not</span> np.isfinite(update):
-          <span class="org-keyword">raise</span> tf.train.NanLossDuringTrainingError
-        <span class="org-keyword">if</span> <span class="org-keyword">not</span> i % 100:
-          <span class="org-keyword">print</span>(i, update)
-      <span class="org-keyword">return</span> sess.run(opt)
-</pre>
-</div>
-</div>
-
-<div id="outline-container-orgda943b5" class="outline-3">
-<h3 id="orgda943b5">Read the data</h3>
-<div class="outline-text-3" id="text-orgda943b5">
-<p>
-Read the QC'ed data.
-</p>
-
-<p>
-Onehot-encode the samples.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython" id="orgb1779d3"><span class="org-variable-name">individuals</span> = <span class="org-builtin">sorted</span>(annotations[<span class="org-string">'chip_id'</span>].unique())
-<span class="org-variable-name">onehot</span> = np.zeros((umi.shape[1], <span class="org-builtin">len</span>(individuals)), dtype=np.float32)
-onehot[np.arange(onehot.shape[0]),annotations[<span class="org-string">'chip_id'</span>].<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: individuals.index(x))] = 1
-<span class="org-variable-name">onehot</span> = pd.DataFrame(onehot, columns=individuals, index=umi.columns)
-onehot.shape
-</pre>
-</div>
-
-<pre class="example">
-(4995, 54)
-
-</pre>
-
-<p>
-Check that one-hot encoding is OK:
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">for</span> _ <span class="org-keyword">in</span> <span class="org-builtin">range</span>(100):
-  <span class="org-variable-name">gene</span> = np.random.choice(umi.index)
-  <span class="org-variable-name">ind</span> = np.random.choice(individuals)
-  <span class="org-variable-name">idx</span> = individuals.index(ind)
-  <span class="org-keyword">assert</span> (umi.loc[gene, (annotations[<span class="org-string">'chip_id'</span>] == ind).values] == 
-          umi.loc[gene, onehot.dot(np.eye(onehot.shape[1])[idx]).astype(<span class="org-builtin">bool</span>)]).<span class="org-builtin">all</span>()
-</pre>
-</div>
-</div>
-</div>
-
-<div id="outline-container-orga1dc686" class="outline-3">
-<h3 id="orga1dc686">Fit NB</h3>
-<div class="outline-text-3" id="text-orga1dc686">
-<p>
-Estimate means and dispersions assuming no dropout.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">&lt;&lt;zinb-imports&gt;&gt;
-&lt;&lt;tf-imports&gt;&gt;
-&lt;&lt;zinb-impl&gt;&gt;
-&lt;&lt;read-data-qc&gt;&gt;
-&lt;&lt;onehot-qc&gt;&gt;
-<span class="org-variable-name">mean</span>, <span class="org-variable-name">dispersion</span> = fit(
-  umi=umi.values.T.astype(np.float32),
-  onehot=onehot.values.astype(np.float32),
-  size_factor=umi.agg(np.<span class="org-builtin">sum</span>).astype(np.float32).values.reshape(-1, 1),
-  learning_rate=1e-2,
-  max_epochs=8000)
-pd.DataFrame(mean.T, index=umi.index, columns=onehot.columns).to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/mean2.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
-pd.DataFrame(dispersion.T, index=umi.index, columns=onehot.columns).to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/dispersion2.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
-</pre>
-</div>
-</div>
-</div>
-
-<div id="outline-container-orgb50c3a6" class="outline-3">
-<h3 id="orgb50c3a6">Fit ZINB</h3>
-<div class="outline-text-3" id="text-orgb50c3a6">
-<p>
-Estimate the parameters of the zero-inflated model assuming dropout per gene.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">&lt;&lt;zinb-imports&gt;&gt;
-&lt;&lt;tf-imports&gt;&gt;
-&lt;&lt;zinb-impl&gt;&gt;
-&lt;&lt;read-data-qc&gt;&gt;
-&lt;&lt;onehot-qc&gt;&gt;
-<span class="org-variable-name">mean</span>, <span class="org-variable-name">dispersion</span>, <span class="org-variable-name">dropout</span> = fit(
-  umi=umi.values.T.astype(np.float32),
-  onehot=onehot.values.astype(np.float32),
-  size_factor=umi.agg(np.<span class="org-builtin">sum</span>).astype(np.float32).values.reshape(-1, 1),
-  gene_dropout=<span class="org-constant">True</span>,
-  learning_rate=1e-2,
-  max_epochs=8000)
-pd.DataFrame(mean.T, index=umi.index, columns=onehot.columns).to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/zi-mean.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
-pd.DataFrame(dispersion.T, index=umi.index, columns=onehot.columns).to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/zi-dispersion.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
-pd.DataFrame(dropout.T, index=umi.index).to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/zi-dropout.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
-</pre>
-</div>
-</div>
-</div>
-
-<div id="outline-container-orgf48a12b" class="outline-3">
-<h3 id="orgf48a12b">Fit ZINB2</h3>
-<div class="outline-text-3" id="text-orgf48a12b">
-<p>
-Estimate the parameters of the zero-inflated model assuming dropout per
-individual and gene.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">&lt;&lt;zinb-imports&gt;&gt;
-&lt;&lt;tf-imports&gt;&gt;
-&lt;&lt;zinb-impl&gt;&gt;
-&lt;&lt;read-data-qc&gt;&gt;
-&lt;&lt;onehot-qc&gt;&gt;
-<span class="org-variable-name">mean</span>, <span class="org-variable-name">dispersion</span>, <span class="org-variable-name">dropout</span> = fit(
-  umi=umi.values.T.astype(np.float32),
-  onehot=onehot.values.astype(np.float32),
-  size_factor=umi.agg(np.<span class="org-builtin">sum</span>).astype(np.float32).values.reshape(-1, 1),
-  gene_dropout=<span class="org-constant">True</span>,
-  ind_dropout=<span class="org-constant">True</span>,
-  learning_rate=1e-2,
-  max_epochs=8000)
-pd.DataFrame(mean.T, index=umi.index, columns=onehot.columns).to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/zi2-mean.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
-pd.DataFrame(dispersion.T, index=umi.index, columns=onehot.columns).to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/zi2-dispersion.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
-pd.DataFrame(dropout.T, index=umi.index, columns=onehot.columns).to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/zi2-dropout.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
-</pre>
-</div>
-</div>
-</div>
-</div>
-
 <div id="outline-container-org6ace9b3" class="outline-2">
 <h2 id="org6ace9b3">numpy/scipy implementation</h2>
 <div class="outline-text-2" id="text-org6ace9b3">
@@ -623,33 +374,6 @@ Optimize the negative log-likelihood.
 </div>
 
 <p>
-Write the data to the database. Use the pass through the count matrix to
-compute and write out size factors for each cell.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">annotations</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
-<span class="org-variable-name">keep_genes</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
-<span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
-<span class="org-variable-name">annotations</span> = annotations.loc[keep_samples.values.ravel()]
-<span class="org-variable-name">annotations</span>[<span class="org-string">'sample'</span>] = annotation.<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: <span class="org-string">'{chip_id}.{experiment:08d}.{well}'</span>.<span class="org-builtin">format</span>(**<span class="org-builtin">dict</span>(x)), axis=1)
-<span class="org-variable-name">annotations</span> = annotations.set_index(<span class="org-string">'sample'</span>)
-<span class="org-variable-name">annotations</span>[<span class="org-string">'size'</span>] = np.zeros(annotations.shape[0])
-<span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'</span>) <span class="org-keyword">as</span> conn:
-  conn.execute(<span class="org-string">'drop table if exists umi;'</span>)
-  <span class="org-keyword">for</span> chunk <span class="org-keyword">in</span> pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>, index_col=0, chunksize=100):
-    <span class="org-variable-name">chunk</span> = (chunk
-             .<span class="org-builtin">filter</span>(items=keep_genes[keep_genes.values.ravel()].index, axis=<span class="org-string">'index'</span>)
-             .loc[:,keep_samples.values.ravel()])
-    <span class="org-keyword">if</span> <span class="org-keyword">not</span> chunk.empty:
-      <span class="org-variable-name">annotations</span>[<span class="org-string">'size'</span>] += chunk.<span class="org-builtin">sum</span>(axis=0)
-      chunk.reset_index().melt(id_vars=<span class="org-string">'gene'</span>, var_name=<span class="org-string">'sample'</span>).to_sql(name=<span class="org-string">'umi'</span>, con=conn, index=<span class="org-constant">False</span>, if_exists=<span class="org-string">'append'</span>)
-  annotations[[<span class="org-string">'chip_id'</span>, <span class="org-string">'size'</span>]].to_sql(name=<span class="org-string">'annotation'</span>, con=conn, if_exists=<span class="org-string">'replace'</span>)
-  conn.execute(<span class="org-string">'create index ix_umi on umi(gene, sample);'</span>)
-</pre>
-</div>
-
-<p>
 Use this to check the parameter estimation for a particular gene/individual.
 </p>
 
@@ -664,33 +388,42 @@ Use this to check the parameter estimation for a particular gene/individual.
 </div>
 
 <p>
-Shard the data to parallelize over nodes. Doing this in one pass over the
-count matrix is easier than doing this in one pass over the database table
-because we don't have to worry about accidentally splitting up data for an
-individual/gene pair across chunks.
+Shard the data to parallelize over nodes. During this pass, write the data
+out to the database. <b>Important: we need to use the actual number of
+molecules detected rather than the sum of QC'ed counts as the size factor.</b>
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'</span>) <span class="org-keyword">as</span> conn:
-  <span class="org-variable-name">annotation</span> = pd.read_sql(<span class="org-string">'select * from annotation'</span>, con=conn)
+<pre class="src src-ipython"><span class="org-variable-name">annotations</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
+<span class="org-variable-name">annotations</span>[<span class="org-string">'sample'</span>] = annotations.<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: <span class="org-string">'{chip_id}.{experiment:08d}.{well}'</span>.<span class="org-builtin">format</span>(**<span class="org-builtin">dict</span>(x)), axis=1)
+<span class="org-variable-name">annotations</span>[<span class="org-string">'size'</span>] = annotations[<span class="org-string">'mol_hs'</span>]
+<span class="org-variable-name">annotations</span> = annotations[[<span class="org-string">'sample'</span>, <span class="org-string">'chip_id'</span>, <span class="org-string">'size'</span>]]
+<span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'</span>) <span class="org-keyword">as</span> conn:
+  annotations.to_sql(name=<span class="org-string">'annotation'</span>, con=conn, if_exists=<span class="org-string">'replace'</span>)
+  conn.execute(<span class="org-string">'create index ix_annotation on annotation(chip_id, sample);'</span>)
 
 <span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
 <span class="org-variable-name">keep_genes</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
 <span class="org-variable-name">keep_genes</span> = keep_genes[keep_genes.values].index
+
 <span class="org-variable-name">i</span> = 0
-<span class="org-keyword">for</span> chunk <span class="org-keyword">in</span> pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>, index_col=0, chunksize=1000):
-  <span class="org-keyword">print</span>(<span class="org-string">'Processing chunk {}'</span>.<span class="org-builtin">format</span>(i))
-  <span class="org-variable-name">chunk</span> = (chunk
-           .loc[:,keep_samples.values.ravel()]
-           .<span class="org-builtin">filter</span>(items=keep_genes, axis=<span class="org-string">'index'</span>))
-  <span class="org-keyword">if</span> <span class="org-keyword">not</span> chunk.empty:
+<span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'</span>) <span class="org-keyword">as</span> conn:
+  conn.execute(<span class="org-string">'drop table if exists umi;'</span>)
+  <span class="org-keyword">for</span> chunk <span class="org-keyword">in</span> pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>, index_col=0, chunksize=1000):
+    <span class="org-keyword">print</span>(<span class="org-string">'Processing chunk {}'</span>.<span class="org-builtin">format</span>(i))
     <span class="org-variable-name">chunk</span> = (chunk
-             .reset_index()
-             .melt(id_vars=<span class="org-string">'gene'</span>, var_name=<span class="org-string">'sample'</span>)
-             .merge(annotation[[<span class="org-string">'chip_id'</span>, <span class="org-string">'sample'</span>, <span class="org-string">'size'</span>]], on=<span class="org-string">'sample'</span>)
-             .sort_values([<span class="org-string">'gene'</span>, <span class="org-string">'chip_id'</span>, <span class="org-string">'sample'</span>]))
-    chunk.to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/density-estimation/chunk-{}.txt.gz'</span>.<span class="org-builtin">format</span>(i), columns=[<span class="org-string">'gene'</span>, <span class="org-string">'chip_id'</span>, <span class="org-string">'sample'</span>, <span class="org-string">'value'</span>, <span class="org-string">'size'</span>], compression=<span class="org-string">'gzip'</span>, sep=<span class="org-string">'\t'</span>)
-    <span class="org-variable-name">i</span> += 1
+             .loc[:,keep_samples.values.ravel()]
+             .<span class="org-builtin">filter</span>(items=keep_genes, axis=<span class="org-string">'index'</span>))
+    <span class="org-keyword">if</span> <span class="org-keyword">not</span> chunk.empty:
+      <span class="org-variable-name">chunk</span> = (chunk
+               .reset_index()
+               .melt(id_vars=<span class="org-string">'gene'</span>, var_name=<span class="org-string">'sample'</span>)
+               .merge(annotations, on=<span class="org-string">'sample'</span>)
+               .sort_values([<span class="org-string">'gene'</span>, <span class="org-string">'chip_id'</span>, <span class="org-string">'sample'</span>]))
+      chunk.to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/density-estimation/chunk-{}.txt.gz'</span>.<span class="org-builtin">format</span>(i), columns=[<span class="org-string">'gene'</span>, <span class="org-string">'chip_id'</span>, <span class="org-string">'sample'</span>, <span class="org-string">'value'</span>, <span class="org-string">'size'</span>], compression=<span class="org-string">'gzip'</span>, sep=<span class="org-string">'\t'</span>)
+      chunk[[<span class="org-string">'gene'</span>, <span class="org-string">'sample'</span>, <span class="org-string">'value'</span>]].to_sql(name=<span class="org-string">'umi'</span>, con=conn, index=<span class="org-constant">False</span>, if_exists=<span class="org-string">'append'</span>)
+      <span class="org-variable-name">i</span> += 1
+  conn.execute(<span class="org-string">'create index ix_umi on umi(gene, sample);'</span>)
 </pre>
 </div>
 
@@ -701,11 +434,23 @@ Process each chunk in parallel.
 <div class="org-src-container">
 <pre class="src src-ipython" id="orgbd92003"><span class="org-keyword">def</span> <span class="org-function-name">fit_gene</span>(chunk):
   <span class="org-variable-name">res0</span> = so.minimize(nb, x0=[0, 0], args=(chunk[:,0], chunk[:,1]))
-  <span class="org-variable-name">pi0</span> = (chunk[:,0] == 0).<span class="org-builtin">sum</span>() / chunk.shape[0] + 1e-8
+  <span class="org-variable-name">pi0</span> = (chunk[:,0] == 0).<span class="org-builtin">sum</span>() / chunk.shape[0]
   <span class="org-variable-name">res</span> = so.minimize(zinb, x0=<span class="org-builtin">list</span>(res0.x) + [sp.logit(pi0 + 1e-8)], args=(chunk[:,0], chunk[:,1]))
   <span class="org-comment-delimiter"># </span><span class="org-comment">Log likelihood of ZINB vs. NB. We need to flip signs again</span>
   <span class="org-variable-name">llr</span> = chunk.shape[0] * (res0.fun - res.fun)
-  <span class="org-keyword">return</span> <span class="org-builtin">list</span>(res0.x) + [res0.success] + <span class="org-builtin">list</span>(res.x) + [res.success, llr]
+  <span class="org-keyword">if</span> llr &lt; 1:
+    <span class="org-comment-delimiter"># </span><span class="org-comment">This isn't a likelihood ratio test. Numerically, our implementation of</span>
+    <span class="org-comment-delimiter"># </span><span class="org-comment">ZINB can't represent pi = 0, so we need to use a separate implementation</span>
+    <span class="org-comment-delimiter"># </span><span class="org-comment">for it</span>
+    <span class="org-variable-name">log_mu</span>, <span class="org-variable-name">neg_log_phi</span> = res0.x
+    <span class="org-variable-name">logit_pi</span> = -np.inf
+  <span class="org-keyword">else</span>:
+    <span class="org-variable-name">log_mu</span>, <span class="org-variable-name">neg_log_phi</span>, <span class="org-variable-name">logit_pi</span> = res.x
+  <span class="org-variable-name">mean_by_sample</span> = chunk[:,1].ravel() * np.exp(log_mu)
+  <span class="org-variable-name">var_by_sample</span> = mean_by_sample + np.square(mean_by_sample) * np.exp(-neg_log_phi)
+  <span class="org-variable-name">mean_by_ind</span> = mean_by_sample.mean()
+  <span class="org-variable-name">var_by_ind</span> = (np.square(mean_by_sample - mean_by_ind) + var_by_sample).mean()
+  <span class="org-keyword">return</span> [log_mu, -neg_log_phi, logit_pi, mean_by_ind, var_by_ind]
 
 <span class="org-keyword">def</span> <span class="org-function-name">compute_breaks</span>(chunk, by_ind=<span class="org-constant">False</span>):
   <span class="org-comment-delimiter"># </span><span class="org-comment">Each subproblem has fixed size, so we can just split on integer indices</span>
@@ -763,7 +508,7 @@ Populate the database.
   conn.execute(<span class="org-string">'drop table if exists params;'</span>)
   <span class="org-keyword">for</span> i <span class="org-keyword">in</span> <span class="org-builtin">range</span>(20):
     <span class="org-keyword">for</span> chunk <span class="org-keyword">in</span> pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/density-estimation/result-{}.txt.gz'</span>.<span class="org-builtin">format</span>(i), sep=<span class="org-string">' '</span>, header=<span class="org-constant">None</span>, chunksize=1000):
-      <span class="org-variable-name">chunk.columns</span> = [<span class="org-string">'gene'</span>, <span class="org-string">'ind'</span>, <span class="org-string">'nb_log_mean'</span>, <span class="org-string">'nb_log_disp'</span>, <span class="org-string">'nb_success'</span>, <span class="org-string">'zinb2_log_mean'</span>, <span class="org-string">'zinb2_log_disp'</span>, <span class="org-string">'zinb2_logodds'</span>, <span class="org-string">'zinb_success'</span>, <span class="org-string">'llr'</span>]
+      <span class="org-variable-name">chunk.columns</span> = [<span class="org-string">'gene'</span>, <span class="org-string">'ind'</span>, <span class="org-string">'log_mu'</span>, <span class="org-string">'log_phi'</span>, <span class="org-string">'logodds'</span>, <span class="org-string">'mean'</span>, <span class="org-string">'var'</span>]
       chunk.to_sql(name=<span class="org-string">'params'</span>, con=conn, index=<span class="org-constant">False</span>, if_exists=<span class="org-string">'append'</span>)
   conn.execute(<span class="org-string">'create index ix_params on params(gene, ind);'</span>)
 </pre>
@@ -783,46 +528,103 @@ The index of dispersion for observed data \(r_{ijk}\) at gene \(k\) is:
 </p>
 
 <p>
-The numerator can be decomposed according to the law of total variance:
+where expectations (variances) are taken over individuals \(i\) and cells
+\(j\).
 </p>
 
 <p>
-\[ V[r_{ijk}] = V_i[E_j[r_{ijk}]] + E_i[V_j[r_{ijk}]] \]
+Let \(g_{ijk}\) denote the zero-inflated negative binomial density as defined
+above. Then, we have:
 </p>
 
 <p>
-\[ = V_i[\mu_{ik}] + E_i[\mu_{ik} + \mu_{ik}^2 \phi_{ik}] \]
+\[ r_{ijk} \sim \sum_{ijk} \frac{1}{N} g_{ijk}(\cdot) \]
 </p>
 
 <p>
-The first term is the variation between individual means, and the second term
-is variation within each individual.
+Fixing gene \(k\), the mixture density has expectation:
 </p>
 
 <p>
-Similarly, the denominator can be decomposed according to the law of total
-expectation:
+\[ \mu_k = \frac{1}{N} \sum_{ijk} E_{g_{ijk}}[r_{ijk}] \]
 </p>
 
 <p>
-\[ E[r_{ijk}] = E_i[E_j[r_{ijk}]] = E_i[\mu_{ik}] \]
+and variance (<a href="http://www.springer.com/us/book/9780387329093">Frühwirth-Schnatter 2006</a>):
+</p>
+
+<p>
+\[ \sigma^2_k = \frac{1}{N} \sum (E_{g_{ijk}}[r_{ijk}] - \mu)^2 + V_{g_{ijk}}
+  [r_{ijk}] \]
+</p>
+
+<p>
+Fixing individual \(i\) and cell \(j\), we have:
+</p>
+
+<p>
+\[ E[r_{ijk}] = (1 - \pi_{ik}) R_{ij} \mu_{ik} \]
+</p>
+
+<p>
+\[ V[r_[ijk]] = (1 - \pi_{ik}) \left(R_{ij} \mu_{ik} + (R_{ij} \mu_{ik})^2 \phi_{ik}\right) \]
+</p>
+
+<p>
+Read the estimated parameters, throwing out individuals with fewer than 50
+cells.
+</p>
+
+<p>
+Compute the index of dispersion as described above. Use the sharded results
+to parallelize. <b>Important: we parameterized in terms of inverse dispersion,
+so we need to flip signs here.</b>
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'</span>) <span class="org-keyword">as</span> conn:
-  <span class="org-variable-name">params</span> = (pd.read_sql(
-    <span class="org-string">"""select gene, ind, case when llr &lt; 1 then nb_log_mean else zinb2_log_mean end</span>
-<span class="org-string">    as log_mean, case when llr &lt; 1 then nb_log_disp else zinb2_log_disp end as</span>
-<span class="org-string">    log_disp, case when llr &lt; 1 then null else zinb2_logodds end as logodds from</span>
-<span class="org-string">    params where ind != "NA18498";"""</span>, conn))
+<pre class="src src-ipython">
 </pre>
 </div>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">params</span>[<span class="org-string">'var'</span>] = np.exp(params[<span class="org-string">'log_mean'</span>]) + np.exp(2 * params[<span class="org-string">'log_mean'</span>] + params[<span class="org-string">'log_disp'</span>])
-<span class="org-variable-name">total_var</span> = params.groupby(<span class="org-string">'gene'</span>).<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: np.exp(x[<span class="org-string">'log_mean'</span>]).var() + x[<span class="org-string">'var'</span>].mean())
-<span class="org-variable-name">total_exp</span> = params.groupby(<span class="org-string">'gene'</span>).<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: np.exp(x[<span class="org-string">'log_mean'</span>]).mean())
-<span class="org-variable-name">dispersion</span> = total_var / total_exp
+<pre class="src src-ipython">&lt;&lt;zinb-imports&gt;&gt;
+<span class="org-keyword">import</span> multiprocessing <span class="org-keyword">as</span> mp
+<span class="org-keyword">import</span> sqlite3
+
+<span class="org-keyword">def</span> <span class="org-function-name">process_gene</span>(chunk):
+  <span class="org-keyword">global</span> annotation
+  gene, ind, *<span class="org-variable-name">_</span> = chunk.iloc[0]
+  <span class="org-keyword">if</span> ind <span class="org-keyword">in</span> annotation[<span class="org-string">'chip_id'</span>]:
+    <span class="org-variable-name">exp_value</span> = annotation[annotation[<span class="org-string">'chip_id'</span>] == ind][<span class="org-string">'size'</span>] * np.exp(chunk[<span class="org-string">'log_mean'</span>])
+    <span class="org-variable-name">var</span> = exp_value + exp_value * exp_value * np.exp(-g[<span class="org-string">'log_disp'</span>])
+    <span class="org-variable-name">gene_mean</span> = exp_value.mean()
+    <span class="org-variable-name">gene_var</span> = (np.square(exp_value - gene_mean) + var).mean()
+    <span class="org-keyword">return</span>
+  <span class="org-keyword">else</span>:
+    <span class="org-keyword">return</span> {}
+
+<span class="org-keyword">with</span> mp.Pool() <span class="org-keyword">as</span> pool:
+  <span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'</span>) <span class="org-keyword">as</span> conn:
+    <span class="org-variable-name">annotation</span> = pd.read_sql(<span class="org-string">'select * from annotation group by chip_id having count(distinct sample) &gt;= 50;'</span>, conn)
+  <span class="org-variable-name">chunk</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/density-estimation/result-{}.txt.gz'</span>.<span class="org-builtin">format</span>(os.getenv(<span class="org-string">'SLURM_ARRAY_TASK_ID'</span>)), header=<span class="org-constant">None</span>)
+  <span class="org-variable-name">chunk.columns</span> = [<span class="org-string">'gene'</span>, <span class="org-string">'ind'</span>, <span class="org-string">'nb_log_mean'</span>, <span class="org-string">'nb_log_disp'</span>, <span class="org-string">'nb_success'</span>, <span class="org-string">'zinb2_log_mean'</span>, <span class="org-string">'zinb2_log_disp'</span>, <span class="org-string">'zinb2_logodds'</span>, <span class="org-string">'zinb2_success'</span>, <span class="org-string">'llr'</span>]
+  <span class="org-variable-name">chunk</span>[<span class="org-string">'log_mean'</span>] = np.where(chunk[<span class="org-string">'llr'</span>] &lt; 1, chunk[<span class="org-string">'nb_log_mean'</span>], chunk[<span class="org-string">'zinb2_log_mean'</span>])
+  <span class="org-variable-name">chunk</span>[<span class="org-string">'log_disp'</span>] = np.where(chunk[<span class="org-string">'llr'</span>] &lt; 1, chunk[<span class="org-string">'nb_log_disp'</span>], chunk[<span class="org-string">'zinb2_log_disp'</span>])
+  <span class="org-comment-delimiter"># </span><span class="org-comment">Subproblems have fixed size</span>
+  <span class="org-variable-name">num_genes</span> = <span class="org-builtin">len</span>(<span class="org-builtin">set</span>(chunk[<span class="org-string">'gene'</span>]))
+  <span class="org-variable-name">num_inds</span> = <span class="org-builtin">len</span>(<span class="org-builtin">set</span>(chunk[<span class="org-string">'chip_id'</span>]))
+  <span class="org-comment-delimiter"># </span><span class="org-comment">Get the right endpoints (exclusive)</span>
+  <span class="org-variable-name">breaks</span> = num_inds * np.arange(1, num_genes + 1)
+  <span class="org-variable-name">res</span> = pd.DataFrame.from_dict(pool.<span class="org-builtin">map</span>(process_gene, np.split(chunk[[<span class="org-string">'gene'</span>, <span class="org-string">'ind'</span>, <span class="org-string">'log_mean'</span>, <span class="org-string">'log_disp'</span>]].values, breaks[:-1])))
+  res.to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/density-estimation/dispersion-index-{}.txt.gz'</span>.<span class="org-builtin">format</span>(os.getenv(<span class="org-string">'SLURM_ARRAY_TASK_ID'</span>)), compression=<span class="org-string">'gzip'</span>, sep=<span class="org-string">'\t'</span>)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-sh">sbatch --partition=broadwl --job-name=<span class="org-string">"np-zinb"</span> --mem=4G -a 0-20 -n1 -c28 --exclusive
+<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
+<span class="org-builtin">source</span> activate scqtl
+python /scratch/midway2/aksarkar/singlecell/np-zinb.py
 </pre>
 </div>
 
@@ -832,8 +634,8 @@ Plot the distribution of dispersions.
 
 <div class="org-src-container">
 <pre class="src src-ipython">plt.clf()
-plt.hist(np.log(dispersion[np.isfinite(dispersion)]), bins=100, color=<span class="org-string">'k'</span>)
-plt.xlabel(<span class="org-string">'Log-transformed index of dispersion'</span>)
+plt.hist(dispersion[np.isfinite(dispersion)], bins=50, color=<span class="org-string">'k'</span>)
+plt.xlabel(<span class="org-string">'Index of dispersion'</span>)
 <span class="org-variable-name">_</span> = plt.ylabel(<span class="org-string">'Number of genes'</span>)
 </pre>
 </div>
@@ -857,7 +659,7 @@ Write out the computed dispersions.
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-03-16 Fri 12:51</p>
+<p class="date">Created: 2018-03-28 Wed 20:24</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
