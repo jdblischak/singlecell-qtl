@@ -1,0 +1,163 @@
+#+TITLE: Bulk RNA-Seq quantification in kallisto
+#+AUTHOR: Abhishek Sarkar
+
+* Introduction
+
+  We previously showed that pooled single cell CPM was strongly correlated with
+  bulk log TPM (but not log CPM/RPKM).
+
+  To understand why pooled CPM eQTL mapping appears much more difficult,
+  estimate log TPM for the iPSC bulk RNA-Seq using ~kallisto~
+
+* File manifest
+
+  The data were deposited in GEO under accession [[https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE89895][GSE89895]].
+
+  Get the mapping from samples to files.
+
+  #+BEGIN_SRC org
+    | BioSample    | Experiment |   LoadDate | MBases | MBytes | ReleaseDate | Run        | SRA_Sample | Sample_Name | Assay_Type | AvgSpotLen | BioProject  | Center_Name | Consent | DATASTORE_filetype | DATASTORE_provider | InsertSize | Instrument          | LibraryLayout | LibrarySelection | LibrarySource  | Organism     | Platform | SRA_Study | cell_type                     | source_name                   | title   |
+    | SAMN06020640 | SRX3452559 | 2017-12-08 |   4777 |   3322 |  2017-12-15 | SRR6355950 | SRS1802805 | GSM2392685  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA18486 |
+    | SAMN06020639 | SRX3452560 | 2017-12-26 |   1728 |   1179 |  2017-12-26 | SRR6355951 | SRS1802806 | GSM2392686  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA18489 |
+    | SAMN06020691 | SRX3452561 | 2017-12-08 |   3516 |   2343 |  2017-12-15 | SRR6355952 | SRS1802807 | GSM2392687  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA18498 |
+    | SAMN06020690 | SRX3452562 | 2017-12-08 |   4605 |   3062 |  2017-12-15 | SRR6355953 | SRS1802809 | GSM2392688  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA18501 |
+    | SAMN06020689 | SRX3452563 | 2017-12-08 |   3900 |   2597 |  2017-12-15 | SRR6355954 | SRS1802808 | GSM2392689  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA18502 |
+    | SAMN06020688 | SRX3452564 | 2017-12-08 |    685 |    382 |  2017-12-15 | SRR6355955 | SRS1802810 | GSM2392690  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA18505 |
+    | SAMN06020687 | SRX3452565 | 2017-12-26 |   3402 |   2337 |  2017-12-26 | SRR6355956 | SRS1802811 | GSM2392691  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA18507 |
+    | SAMN06020686 | SRX3452566 | 2017-12-26 |   4110 |   2807 |  2017-12-26 | SRR6355957 | SRS1802812 | GSM2392692  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA18508 |
+    | SAMN06020685 | SRX3452567 | 2017-12-08 |    832 |    468 |  2017-12-15 | SRR6355958 | SRS1802813 | GSM2392693  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA18510 |
+    | SAMN06020684 | SRX3452568 | 2017-12-08 |   1495 |    839 |  2017-12-15 | SRR6355959 | SRS1802814 | GSM2392694  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA18511 |
+    | SAMN06020683 | SRX3452569 | 2017-12-08 |   2891 |   1942 |  2017-12-15 | SRR6355960 | SRS1802815 | GSM2392695  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA18517 |
+    | SAMN06020682 | SRX3452570 | 2017-12-08 |   5092 |   3400 |  2017-12-15 | SRR6355961 | SRS1802816 | GSM2392696  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA18519 |
+    | SAMN06020681 | SRX3452571 | 2017-12-08 |   7683 |   5327 |  2017-12-15 | SRR6355962 | SRS1802817 | GSM2392697  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA18520 |
+    | SAMN06020680 | SRX3452572 | 2017-12-08 |   7461 |   5221 |  2017-12-15 | SRR6355963 | SRS1802818 | GSM2392698  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA18522 |
+    | SAMN06020679 | SRX3452573 | 2017-12-08 |   2906 |   1893 |  2017-12-15 | SRR6355964 | SRS1802819 | GSM2392699  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA18852 |
+    | SAMN06020678 | SRX3452574 | 2017-12-08 |   3202 |   2142 |  2017-12-15 | SRR6355965 | SRS1802820 | GSM2392700  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA18853 |
+    | SAMN06020677 | SRX3452575 | 2017-12-26 |   4154 |   2899 |  2017-12-26 | SRR6355966 | SRS1802821 | GSM2392701  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA18855 |
+    | SAMN06020676 | SRX3452576 | 2017-12-26 |   4122 |   2906 |  2017-12-26 | SRR6355967 | SRS1802822 | GSM2392702  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA18856 |
+    | SAMN06020675 | SRX3452577 | 2017-12-08 |   4716 |   3053 |  2017-12-15 | SRR6355968 | SRS1802824 | GSM2392703  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA18858 |
+    | SAMN06020674 | SRX3452578 | 2017-12-08 |   6313 |   4378 |  2017-12-15 | SRR6355969 | SRS1802823 | GSM2392704  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA18859 |
+    | SAMN06020673 | SRX3452579 | 2017-12-26 |   3910 |   2521 |  2017-12-26 | SRR6355970 | SRS1802827 | GSM2392705  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA18861 |
+    | SAMN06020672 | SRX3452580 | 2017-12-08 |   3787 |   2525 |  2017-12-15 | SRR6355971 | SRS1802825 | GSM2392706  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA18862 |
+    | SAMN06020671 | SRX3452581 | 2017-12-08 |   1020 |    575 |  2017-12-15 | SRR6355972 | SRS1802826 | GSM2392707  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA18870 |
+    | SAMN06020670 | SRX3452582 | 2017-12-08 |   3750 |   2522 |  2017-12-15 | SRR6355973 | SRS1802828 | GSM2392708  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA18907 |
+    | SAMN06020669 | SRX3452583 | 2017-12-08 |   1279 |    713 |  2017-12-15 | SRR6355974 | SRS1802833 | GSM2392709  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA18912 |
+    | SAMN06020668 | SRX3452584 | 2017-12-08 |   5057 |   3320 |  2017-12-15 | SRR6355975 | SRS1802832 | GSM2392710  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA18913 |
+    | SAMN06020667 | SRX3452585 | 2017-12-08 |   9035 |   5880 |  2017-12-15 | SRR6355976 | SRS1802829 | GSM2392711  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA19093 |
+    | SAMN06020666 | SRX3452586 | 2017-12-26 |   2122 |   1442 |  2017-12-26 | SRR6355977 | SRS1802830 | GSM2392712  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA19098 |
+    | SAMN06020665 | SRX3452587 | 2017-12-08 |   1609 |    920 |  2017-12-15 | SRR6355978 | SRS1802831 | GSM2392713  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA19099 |
+    | SAMN06020664 | SRX3452588 | 2017-12-26 |   2777 |   1804 |  2017-12-26 | SRR6355979 | SRS1802834 | GSM2392714  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA19101 |
+    | SAMN06020663 | SRX3452589 | 2017-12-08 |   3984 |   2621 |  2017-12-15 | SRR6355980 | SRS1802836 | GSM2392715  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA19102 |
+    | SAMN06020662 | SRX3452590 | 2017-12-08 |    719 |    408 |  2017-12-15 | SRR6355981 | SRS1802835 | GSM2392716  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA19108 |
+    | SAMN06020661 | SRX3452591 | 2017-12-08 |    562 |    301 |  2017-12-15 | SRR6355982 | SRS1802837 | GSM2392717  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA19114 |
+    | SAMN06020660 | SRX3452592 | 2017-12-08 |   4131 |   2945 |  2017-12-15 | SRR6355983 | SRS1802838 | GSM2392718  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA19116 |
+    | SAMN06020659 | SRX3452593 | 2017-12-08 |   5158 |   3443 |  2017-12-15 | SRR6355984 | SRS1802839 | GSM2392719  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA19119 |
+    | SAMN06020658 | SRX3452594 | 2017-12-08 |   4047 |   2897 |  2017-12-15 | SRR6355985 | SRS1802840 | GSM2392720  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA19127 |
+    | SAMN06020657 | SRX3452595 | 2017-12-08 |    758 |    429 |  2017-12-15 | SRR6355986 | SRS1802841 | GSM2392721  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA19128 |
+    | SAMN06020656 | SRX3452596 | 2017-12-08 |   2909 |   1962 |  2017-12-15 | SRR6355987 | SRS1802842 | GSM2392722  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA19130 |
+    | SAMN06020655 | SRX3452597 | 2017-12-08 |    763 |    438 |  2017-12-15 | SRR6355988 | SRS1802843 | GSM2392723  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA19138 |
+    | SAMN06020654 | SRX3452598 | 2017-12-08 |   3254 |   2342 |  2017-12-15 | SRR6355989 | SRS1802846 | GSM2392724  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA19140 |
+    | SAMN06020653 | SRX3452599 | 2017-12-08 |   2939 |   1986 |  2017-12-15 | SRR6355990 | SRS1802844 | GSM2392725  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA19143 |
+    | SAMN06020652 | SRX3452600 | 2017-12-08 |   3215 |   2301 |  2017-12-15 | SRR6355991 | SRS1802845 | GSM2392726  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA19144 |
+    | SAMN06020651 | SRX3452601 | 2017-12-08 |   3187 |   2130 |  2017-12-15 | SRR6355992 | SRS1802851 | GSM2392727  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA19152 |
+    | SAMN06020650 | SRX3452602 | 2017-12-08 |   4138 |   2778 |  2017-12-15 | SRR6355993 | SRS1802848 | GSM2392728  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA19153 |
+    | SAMN06020649 | SRX3452603 | 2017-12-08 |   5082 |   3380 |  2017-12-15 | SRR6355994 | SRS1802849 | GSM2392729  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA19159 |
+    | SAMN06020648 | SRX3452604 | 2017-12-08 |   4789 |   3437 |  2017-12-15 | SRR6355995 | SRS1802847 | GSM2392730  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA19160 |
+    | SAMN06020647 | SRX3452605 | 2017-12-08 |   2984 |   1999 |  2017-12-15 | SRR6355996 | SRS1802850 | GSM2392731  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA19190 |
+    | SAMN06020646 | SRX3452606 | 2017-12-08 |   5594 |   3980 |  2017-12-15 | SRR6355997 | SRS1802854 | GSM2392732  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA19192 |
+    | SAMN06020645 | SRX3452607 | 2017-12-08 |   3053 |   2033 |  2017-12-15 | SRR6355998 | SRS1802852 | GSM2392733  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA19193 |
+    | SAMN06020644 | SRX3452608 | 2017-12-08 |   3290 |   2200 |  2017-12-15 | SRR6355999 | SRS1802853 | GSM2392734  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA19204 |
+    | SAMN06020643 | SRX3452609 | 2017-12-08 |   3832 |   2548 |  2017-12-15 | SRR6356000 | SRS1802859 | GSM2392735  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA19206 |
+    | SAMN06020642 | SRX3452610 | 2017-12-08 |   4932 |   3598 |  2017-12-15 | SRR6356001 | SRS1802856 | GSM2392736  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA19207 |
+    | SAMN06020641 | SRX3452611 | 2017-12-08 |   1720 |    932 |  2017-12-15 | SRR6356002 | SRS1802855 | GSM2392737  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA19209 |
+    | SAMN06020696 | SRX3452612 | 2017-12-08 |   5306 |   3879 |  2017-12-15 | SRR6356003 | SRS1802857 | GSM2392738  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA19210 |
+    | SAMN06020695 | SRX3452613 | 2017-12-08 |   1128 |    811 |  2017-12-15 | SRR6356004 | SRS1802858 | GSM2392739  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA19225 |
+    | SAMN06020694 | SRX3452614 | 2017-12-08 |   2963 |   1986 |  2017-12-15 | SRR6356005 | SRS1802860 | GSM2392740  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA19238 |
+    | SAMN06020693 | SRX3452615 | 2017-12-26 |   4332 |   3036 |  2017-12-26 | SRR6356006 | SRS1802862 | GSM2392741  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA19239 |
+    | SAMN06020692 | SRX3452616 | 2017-12-26 |   4555 |   3142 |  2017-12-26 | SRR6356007 | SRS1802861 | GSM2392742  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA19257 |
+  #+END_SRC
+
+* Run kallisto
+
+  Build the index.
+
+  #+BEGIN_SRC sh
+    sbatch --partition=broadwl
+    #!/bin/bash
+    curl -OL --ftp-pasv "ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_19/gencode.v19.pc_transcripts.fa.gz"
+  #+END_SRC
+
+  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/run-kallisto
+    sbatch --partition=broadwl --mem=8G
+    #!/bin/bash
+    source activate scqtl
+    kallisto index -i transcripts.idx /scratch/midway2/aksarkar/singlecell/run-kallisto/gencode.v19.pc_transcripts.fa.gz
+  #+END_SRC
+
+  #+RESULTS:
+  : Submitted batch job 44355530
+
+  Download the data and run quantification.
+
+  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/run-kallisto
+    sbatch --partition=broadwl -a 2-58
+    #!/bin/bash
+    source activate scqtl
+    awk 'BEGIN {FS = "\t"; i = 0; while (getline < "metadata.txt") {id[i] = $2; i++} task = ENVIRON["SLURM_ARRAY_TASK_ID"]; system("fastq-dump --gzip " id[task])}'
+  #+END_SRC
+
+  #+RESULTS:
+  : Submitted batch job 44358869
+
+  Run quantification.
+
+  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/run-kallisto
+    sbatch --partition=broadwl -a 2-58 --mem=5G -d afterok:44358869
+    #!/bin/bash
+    source activate scqtl
+    awk 'BEGIN {FS = "\t"; i = 0; while (getline < "metadata.txt") {id[i] = $2; name[i] = $NF; i++} task = ENVIRON["SLURM_ARRAY_TASK_ID"]; system("kallisto quant --plaintext --single -l 200 -s 50 -i transcripts.idx -o " name[task] " " id[task] ".fastq.gz")}'
+  #+END_SRC
+
+  #+RESULTS:
+  : Submitted batch job 44358929
+
+  Compress the output.
+
+  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/run-kallisto
+    sbatch --partition=broadwl -n1 -c28 --exclusive
+    #!/bin/bash
+    find -name "abundance.tsv" | parallel bzip2
+  #+END_SRC
+
+  #+RESULTS:
+  : Submitted batch job 44363775
+
+  Move the output to permanent storage.
+
+  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/run-kallisto
+    test -e .rsync-filter || cat >.rsync-filter <<EOF
+    + */
+    + abundance.tsv.bz2
+    - *
+    EOF
+    rsync -FFau /scratch/midway2/aksarkar/singlecell/run-kallisto/ /project2/mstephens/aksarkar/projects/singlecell-qtl/data/kallisto/
+  #+END_SRC
+
+  #+RESULTS:
+ 
+  Process the output.
+
+  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/run-kallisto
+    sbatch --partition=broadwl
+    #!/bin/bash
+    set -e
+    function process () {
+        bzcat $1 | awk -v ind=$(basename $(dirname $1)) 'NR > 1 {split($1, target, "|"); tpm[target[2]] += $NF} END {for (gene in tpm) {print ind, gene, tpm[gene]}}'
+    }
+    export -f process
+    find -name "abundance.tsv.bz2" | parallel --halt now,fail=1 -j1 process | gzip >bulk-ipsc-tpm.txt.gz
+    cp bulk-ipsc-tpm.txt.gz /project2/mstephens/aksarkar/projects/singlecell-qtl/data/kallisto/
+  #+END_SRC
+
+  #+RESULTS:
+  : Submitted batch job 44366802
