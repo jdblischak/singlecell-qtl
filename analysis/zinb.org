@@ -10,8 +10,9 @@
 
   Here, we solve (1).
 
-  1. [[*Tensorflow implementation][We implement GPU-based ML estimation]]
-  2. [[*numpy/scipy implementation][We implement CPU-based ML estimation]]
+  1. [[*numpy/scipy implementation][We implement CPU-based ML estimation]]
+  2. [[*Genome-wide distribution of dispersion][We estimate per-gene indexes of dispersion]] accounting for the fact that
+     data came from multiple individuals
 
 * Model specification
 
@@ -60,7 +61,7 @@
   #+CALL: ipython3(memory="4G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 44315879
+  : Submitted batch job 44724977
 
   #+NAME: zinb-imports
   #+BEGIN_SRC ipython
@@ -117,7 +118,7 @@
   #+END_EXAMPLE
   :END:
 
-* Tensorflow implementation
+* Tensorflow implementation                                        :noexport:
 
   We optimize all of the parameters together, using one-hot encoding to map
   parameters to data points. This makes inference more amenable to running on
@@ -428,35 +429,6 @@
    # Out[4]:
    :END:
 
-   Write the data to the database. Use the pass through the count matrix to
-   compute and write out size factors for each cell.
-
-   #+BEGIN_SRC ipython :async t
-     annotations = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
-     keep_genes = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt', index_col=0, header=None)
-     keep_samples = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
-     annotations = annotations.loc[keep_samples.values.ravel()]
-     annotations['sample'] = annotation.apply(lambda x: '{chip_id}.{experiment:08d}.{well}'.format(**dict(x)), axis=1)
-     annotations = annotations.set_index('sample')
-     annotations['size'] = np.zeros(annotations.shape[0])
-     with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
-       conn.execute('drop table if exists umi;')
-       for chunk in pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', index_col=0, chunksize=100):
-         chunk = (chunk
-                  .filter(items=keep_genes[keep_genes.values.ravel()].index, axis='index')
-                  .loc[:,keep_samples.values.ravel()])
-         if not chunk.empty:
-           annotations['size'] += chunk.sum(axis=0)
-           chunk.reset_index().melt(id_vars='gene', var_name='sample').to_sql(name='umi', con=conn, index=False, if_exists='append')
-       annotations[['chip_id', 'size']].to_sql(name='annotation', con=conn, if_exists='replace')
-       conn.execute('create index ix_umi on umi(gene, sample);')
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[99]:
-   :END:
-
    Use this to check the parameter estimation for a particular gene/individual.
 
    #+BEGIN_SRC ipython
@@ -473,37 +445,46 @@
    # Out[7]:
    :END:
 
-   Shard the data to parallelize over nodes. Doing this in one pass over the
-   count matrix is easier than doing this in one pass over the database table
-   because we don't have to worry about accidentally splitting up data for an
-   individual/gene pair across chunks.
+   Shard the data to parallelize over nodes. During this pass, write the data
+   out to the database. *Important: we need to use the actual number of
+   molecules detected rather than the sum of QC'ed counts as the size factor.*
 
-   #+BEGIN_SRC ipython :async t
+   #+BEGIN_SRC ipython
+     annotations = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
+     annotations['sample'] = annotations.apply(lambda x: '{chip_id}.{experiment:08d}.{well}'.format(**dict(x)), axis=1)
+     annotations['size'] = annotations['mol_hs']
+     annotations = annotations[['sample', 'chip_id', 'size']]
      with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
-       annotation = pd.read_sql('select * from annotation', con=conn)
+       annotations.to_sql(name='annotation', con=conn, if_exists='replace')
+       conn.execute('create index ix_annotation on annotation(chip_id, sample);')
 
      keep_samples = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
      keep_genes = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt', index_col=0, header=None)
      keep_genes = keep_genes[keep_genes.values].index
+
      i = 0
-     for chunk in pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', index_col=0, chunksize=1000):
-       print('Processing chunk {}'.format(i))
-       chunk = (chunk
-                .loc[:,keep_samples.values.ravel()]
-                .filter(items=keep_genes, axis='index'))
-       if not chunk.empty:
+     with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
+       conn.execute('drop table if exists umi;')
+       for chunk in pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', index_col=0, chunksize=1000):
+         print('Processing chunk {}'.format(i))
          chunk = (chunk
-                  .reset_index()
-                  .melt(id_vars='gene', var_name='sample')
-                  .merge(annotation[['chip_id', 'sample', 'size']], on='sample')
-                  .sort_values(['gene', 'chip_id', 'sample']))
-         chunk.to_csv('/scratch/midway2/aksarkar/singlecell/density-estimation/chunk-{}.txt.gz'.format(i), columns=['gene', 'chip_id', 'sample', 'value', 'size'], compression='gzip', sep='\t')
-         i += 1
+                  .loc[:,keep_samples.values.ravel()]
+                  .filter(items=keep_genes, axis='index'))
+         if not chunk.empty:
+           chunk = (chunk
+                    .reset_index()
+                    .melt(id_vars='gene', var_name='sample')
+                    .merge(annotations, on='sample')
+                    .sort_values(['gene', 'chip_id', 'sample']))
+           chunk.to_csv('/scratch/midway2/aksarkar/singlecell/density-estimation/chunk-{}.txt.gz'.format(i), columns=['gene', 'chip_id', 'sample', 'value', 'size'], compression='gzip', sep='\t')
+           chunk[['gene', 'sample', 'value']].to_sql(name='umi', con=conn, index=False, if_exists='append')
+           i += 1
+       conn.execute('create index ix_umi on umi(gene, sample);')
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[105]:
+   # Out[35]:
    :END:
 
    Process each chunk in parallel.
@@ -512,11 +493,23 @@
    #+BEGIN_SRC ipython :eval never
      def fit_gene(chunk):
        res0 = so.minimize(nb, x0=[0, 0], args=(chunk[:,0], chunk[:,1]))
-       pi0 = (chunk[:,0] == 0).sum() / chunk.shape[0] + 1e-8
+       pi0 = (chunk[:,0] == 0).sum() / chunk.shape[0]
        res = so.minimize(zinb, x0=list(res0.x) + [sp.logit(pi0 + 1e-8)], args=(chunk[:,0], chunk[:,1]))
        # Log likelihood of ZINB vs. NB. We need to flip signs again
        llr = chunk.shape[0] * (res0.fun - res.fun)
-       return list(res0.x) + [res0.success] + list(res.x) + [res.success, llr]
+       if llr < 1:
+         # This isn't a likelihood ratio test. Numerically, our implementation of
+         # ZINB can't represent pi = 0, so we need to use a separate implementation
+         # for it
+         log_mu, neg_log_phi = res0.x
+         logit_pi = -np.inf
+       else:
+         log_mu, neg_log_phi, logit_pi = res.x
+       mean_by_sample = chunk[:,1].ravel() * np.exp(log_mu)
+       var_by_sample = mean_by_sample + np.square(mean_by_sample) * np.exp(-neg_log_phi)
+       mean_by_ind = mean_by_sample.mean()
+       var_by_ind = (np.square(mean_by_sample - mean_by_ind) + var_by_sample).mean()
+       return [log_mu, -neg_log_phi, logit_pi, mean_by_ind, var_by_ind]
 
      def compute_breaks(chunk, by_ind=False):
        # Each subproblem has fixed size, so we can just split on integer indices
@@ -563,93 +556,63 @@
    #+END_SRC
 
    #+RESULTS:
-   : Submitted batch job 44315588
+   : Submitted batch job 44633431
 
    Populate the database.
 
-   #+BEGIN_SRC ipython :async t
+   #+BEGIN_SRC ipython
      with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
        conn.execute('drop table if exists params;')
        for i in range(20):
          for chunk in pd.read_table('/scratch/midway2/aksarkar/singlecell/density-estimation/result-{}.txt.gz'.format(i), sep=' ', header=None, chunksize=1000):
-           chunk.columns = ['gene', 'ind', 'nb_log_mean', 'nb_log_disp', 'nb_success', 'zinb2_log_mean', 'zinb2_log_disp', 'zinb2_logodds', 'zinb_success', 'llr']
+           chunk.columns = ['gene', 'ind', 'log_mu', 'log_phi', 'logodds', 'mean', 'var']
            chunk.to_sql(name='params', con=conn, index=False, if_exists='append')
        conn.execute('create index ix_params on params(gene, ind);')
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[4]:
+   # Out[56]:
    :END:
 
-* Genome-wide distribution of dispersion
+* Per-gene dispersion
 
   The index of dispersion for observed data \(r_{ijk}\) at gene \(k\) is:
 
   \[ D_k = \frac{V[r_{ijk}]}{E[r_{ijk}]} \]
 
-  The numerator can be decomposed according to the law of total variance:
+  where expectations (variances) are taken over individuals \(i\) and cells
+  \(j\).
 
-  \[ V[r_{ijk}] = V_i[E_j[r_{ijk}]] + E_i[V_j[r_{ijk}]] \]
+  Let \(g_{ijk}\) denote the zero-inflated negative binomial density as defined
+  above. Then, we have:
 
-  \[ = V_i[\mu_{ik}] + E_i[\mu_{ik} + \mu_{ik}^2 \phi_{ik}] \]
+  \[ r_{ijk} \sim \sum_{ijk} \frac{1}{N} g_{ijk}(\cdot) \]
 
-  The first term is the variation between individual means, and the second term
-  is variation within each individual.
+  Fixing gene \(k\), the mixture density has expectation:
 
-  Similarly, the denominator can be decomposed according to the law of total
-  expectation:
+  \[ \mu_k = \frac{1}{N} \sum E[r_{ijk}] \]
 
-  \[ E[r_{ijk}] = E_i[E_j[r_{ijk}]] = E_i[\mu_{ik}] \]
+  and variance ([[http://www.springer.com/us/book/9780387329093][Frühwirth-Schnatter 2006]]):
+
+  \[ \sigma^2_k = \frac{1}{N} \sum (E[r_{ijk}] - \mu)^2 + V[r_{ijk}] \]
+
+  Fixing individual \(i\) and cell \(j\), we have:
+
+  \[ E[r_{ijk}] = R_{ij} \mu_{ik} \]
+
+  \[ V[r_[ijk]] = \left(R_{ij} \mu_{ik} + (R_{ij} \mu_{ik})^2 \phi_{ik}\right) \]
+
+  Here, we ignore the factor of \((1 - \pi_{ik})\) under the assumption that
+  excess zeros do not reflect biology.
 
   #+BEGIN_SRC ipython
     with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
-      params = (pd.read_sql(
-        """select gene, ind, case when llr < 1 then nb_log_mean else zinb2_log_mean end
-        as log_mean, case when llr < 1 then nb_log_disp else zinb2_log_disp end as
-        log_disp, case when llr < 1 then null else zinb2_logodds end as logodds from
-        params where ind != "NA18498";""", conn))
+      params = pd.read_sql('select * from params;', conn)
+    gene_params = params.groupby('gene').apply(lambda x: pd.Series([x['mean'].mean(), (np.square(x['mean'] - x['mean'].mean()) + x['var']).mean()]))
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[71]:
-  :END:
-
-  #+BEGIN_SRC ipython
-    params['var'] = np.exp(params['log_mean']) + np.exp(2 * params['log_mean'] + params['log_disp'])
-    total_var = params.groupby('gene').apply(lambda x: np.exp(x['log_mean']).var() + x['var'].mean())
-    total_exp = params.groupby('gene').apply(lambda x: np.exp(x['log_mean']).mean())
-    dispersion = total_var / total_exp
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[72]:
-  :END:
-
-  Plot the distribution of dispersions.
-
-  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/global-dispersion-hist.png
-    plt.clf()
-    plt.hist(np.log(dispersion[np.isfinite(dispersion)]), bins=100, color='k')
-    plt.xlabel('Log-transformed index of dispersion')
-    _ = plt.ylabel('Number of genes')
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[75]:
-  [[file:figure/zinb.org/global-dispersion-hist.png]]
-  :END:
-
-  Write out the computed dispersions.
-
-  #+BEGIN_SRC ipython
-    dispersion[np.isfinite(dispersion)].to_frame().to_csv('/scratch/midway2/aksarkar/singlecell/index-dispersion-by-gene.txt.gz', compression='gzip', header=False, sep='\t')
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[83]:
+  # Out[2]:
   :END:
