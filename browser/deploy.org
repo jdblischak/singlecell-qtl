@@ -1,0 +1,123 @@
+#+TITLE: Deploy scQTL browser
+#+AUTHOR: Abhishek Sarkar
+#+PROPERTY: header-args:shell :eval never-export :results output
+
+Start a remote session on ~shiny.stephenslab.uchicago.edu~.
+
+#+BEGIN_SRC sh :session shiny
+  ssh shiny
+#+END_SRC
+
+#+RESULTS:
+|         |                |                          |          |          |            |                  |         |                |
+| Welcome | to             | Ubuntu                   | 16.04    | LTS      | (GNU/Linux | 4.4.0-98-generic | x86_64) |                |
+|         |                |                          |          |          |            |                  |         |                |
+| *       | Documentation: | https://help.ubuntu.com/ |          |          |            |                  |         |                |
+|         |                |                          |          |          |            |                  |         |                |
+| 231     | packages       | can                      | be       | updated. |            |                  |         |                |
+| 23      | updates        | are                      | security | updates. |            |                  |         |                |
+|         |                |                          |          |          |            |                  |         |                |
+|         |                |                          |          |          |            |                  |         |                |
+| ***     | System         | restart                  | required | ***      |            |                  |         |                |
+| Last    | login:         | Sat                      | Mar      | 31       |   12:39:24 |             2018 | from    | 128.135.112.68 |
+
+The version of ~vagrant~ on ~shiny.stephenslab.uchicago.edu~ is old, and
+appears to use a broken URL to download Vagrant boxes. Add the Debian Stretch
+box using the full URL.
+
+#+BEGIN_SRC sh :session shiny
+  vagrant box add "https://app.vagrantup.com/debian/boxes/stretch64"
+#+END_SRC
+
+Start the VM.
+
+#+BEGIN_SRC sh :session shiny :results output
+  mkdir -p scqtl-browser
+  cd scqtl-browser
+  vagrant up
+#+END_SRC
+
+#+RESULTS:
+: 
+: aksarkar@shiny:~/scqtl-browser$ [0mBringing machine 'default' up with 'virtualbox' provider...[0m
+: default: Checking if box 'debian/stretch64' is up to date...[0m
+: default: VirtualBox VM is already running.[0m
+: [0m[0m
+: default: Machine 'default' has a post `vagrant up` message. This is a message
+: default: from the creator of the Vagrantfile, and not from Vagrant itself:
+: default:
+: default: Vanilla Debian box. See https://app.vagrantup.com/debian for help and bug reports[0m
+
+ssh into the VM.
+
+#+BEGIN_SRC sh :session shiny :results output
+  vagrant ssh
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+
+1 SMP Debian 4.9.82-1+deb9u3 (2018-03-02) x86_64
+
+The programs included with the Debian GNU/Linux system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
+permitted by applicable law.
+Last login: Fri Mar 30 21:30:31 2018 from 10.0.2.2
+#+end_example
+
+The data are available on the VM under ~/vagrant~. Fake the location of the
+database as it appears on the test server (~*.midway2.rcc.uchicago.edu~).
+
+#+BEGIN_SRC sh :session shiny
+  sudo mkdir -p /project2/mstephens/aksarkar/projects/singlecell-qtl/
+  sudo ln -s /vagrant /project2/mstephens/aksarkar/projects/singlecell-qtl/browser
+#+END_SRC
+
+Install ~miniconda3~ as user ~vagrant~.
+
+#+BEGIN_SRC sh :session shiny
+  wget -q https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
+  bash Miniconda3-latest-Linux-x86_64.sh -p
+  echo "export PATH=$PATH:$HOME/miniconda3/bin" >>$HOME/.bashrc
+  . $HOME/.bashrc
+#+END_SRC
+
+Initialize a new environment. We don't need the full environment from
+~singlecell-qtl~.
+
+#+BEGIN_SRC sh :session shiny
+  conda env create -n "scqtl-browser" numpy scipy pandas matplotlib bokeh
+#+END_SRC
+
+~rsync~ the code and data to the server.
+
+#+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell
+  sbatch --partition=broadwl
+  #!/bin/bash
+  rsync -au /project2/mstephens/aksarkar/projects/singlecell-qtl/browser/ shiny:scqtl-browser/
+#+END_SRC
+
+#+RESULTS:
+: Submitted batch job 44717291
+
+Start the QTL browser. The code/data are available under ~/vagrant~ inside the VM.
+
+#+BEGIN_SRC sh :session shiny
+  cd /vagrant
+  source activate scqtl-browser
+  nohup bokeh serve fano-qtls --port 5006 --allow-websocket-origin=shiny.stephenslab.uchicago.edu:5006 &
+  exit
+  exit
+#+END_SRC
+
+#+RESULTS:
+|                 |                           |                                |         |           |        |    |             |
+| (scqtl-browser) | vagrant@stretch:/vagrant$ | [1]                            | 550     |           |        |    |             |
+| logout          |                           |                                |         |           |        |    |             |
+| nohup:          | ignoring                  | input                          | and     | appending | output | to | 'nohup.out' |
+| Connection      | to                        | 127.0.0.1                      | closed. |           |        |    |             |
+| logout          |                           |                                |         |           |        |    |             |
+| Connection      | to                        | shiny.stephenslab.uchicago.edu | closed. |           |        |    |             |
