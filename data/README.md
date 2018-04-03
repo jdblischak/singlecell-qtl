@@ -45,6 +45,10 @@ one QC file per C1 chip in `data/lab-info/`.
     swaps) that it wasn't worth building one universal script for this step.
     b. The script should be executed from `code/`.
 
+1. John manually adds the new C1 chips to `config.yml`. Each batch is a list of
+character strings of C1 chip IDs. Then he adds, e.g. `config["batch1"]`, to the
+list `chips` in `Snakefile`.
+
 1. The Snakemake pipeline automatically detects the files in `data/lab-info/`
 and executes the script `code/create-expressionset.R`. This inserts the lab-info
 into the ExpressionSet objects in `data/eset/`. The information is then
