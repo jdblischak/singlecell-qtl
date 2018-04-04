@@ -319,10 +319,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2018-03-20</p>
+<p><strong>Last updated:</strong> 2018-04-04</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> 888f7e2</p>
+<p><strong>Code version:</strong> 24d3ffb</p>
 <p>This is for qc of the samples. Based on obsevation under the scope and the sequencing results, samples with bad quality will be removed.</p>
 <section id="setup" class="level2">
 <h2>Setup</h2>
@@ -351,14 +351,14 @@ cut_off_reads &lt;- quantile(anno[anno$cell_number == 0,&quot;mapped&quot;], 0.9
 
 cut_off_reads</code></pre>
 <pre><code>   95% 
-946631 </code></pre>
+880620 </code></pre>
 <pre class="r"><code>anno$cut_off_reads &lt;- anno$mapped &gt; cut_off_reads
 
 ## numbers of cells 
 sum(anno[anno$cell_number == 1, &quot;mapped&quot;] &gt; cut_off_reads)</code></pre>
-<pre><code>[1] 4971</code></pre>
+<pre><code>[1] 5548</code></pre>
 <pre class="r"><code>sum(anno[anno$cell_number == 1, &quot;mapped&quot;] &lt;= cut_off_reads)</code></pre>
-<pre><code>[1] 948</code></pre>
+<pre><code>[1] 1080</code></pre>
 <pre class="r"><code>## density plots
 plot_reads &lt;- ggplot(anno[anno$cell_number == 0 |
                           anno$cell_number == 1 , ],
@@ -381,14 +381,14 @@ cut_off_unmapped &lt;- quantile(anno[anno$cell_number == 0,&quot;unmapped_ratios
 
 cut_off_unmapped</code></pre>
 <pre><code>      75% 
-0.4577504 </code></pre>
+0.4715696 </code></pre>
 <pre class="r"><code>anno$cut_off_unmapped &lt;- anno$unmapped_ratios &lt; cut_off_unmapped
 
 ## numbers of cells 
 sum(anno[anno$cell_number == 1, &quot;unmapped_ratios&quot;] &gt;= cut_off_unmapped)</code></pre>
-<pre><code>[1] 197</code></pre>
+<pre><code>[1] 173</code></pre>
 <pre class="r"><code>sum(anno[anno$cell_number == 1, &quot;unmapped_ratios&quot;] &lt; cut_off_unmapped)</code></pre>
-<pre><code>[1] 5722</code></pre>
+<pre><code>[1] 6455</code></pre>
 <pre class="r"><code>## density plots
 plot_unmapped &lt;- ggplot(anno[anno$cell_number == 0 |
                              anno$cell_number == 1 , ],
@@ -411,14 +411,14 @@ cut_off_ercc &lt;- quantile(anno[anno$cell_number == 0,&quot;ercc_percentage&quo
 
 cut_off_ercc</code></pre>
 <pre><code>      25% 
-0.3654225 </code></pre>
+0.4671811 </code></pre>
 <pre class="r"><code>anno$cut_off_ercc &lt;- anno$ercc_percentage &lt; cut_off_ercc
 
 ## numbers of cells 
 sum(anno[anno$cell_number == 1, &quot;ercc_percentage&quot;] &gt;= cut_off_ercc)</code></pre>
-<pre><code>[1] 808</code></pre>
+<pre><code>[1] 505</code></pre>
 <pre class="r"><code>sum(anno[anno$cell_number == 1, &quot;ercc_percentage&quot;] &lt; cut_off_ercc)</code></pre>
-<pre><code>[1] 5111</code></pre>
+<pre><code>[1] 6123</code></pre>
 <pre class="r"><code>## density plots
 plot_ercc &lt;- ggplot(anno[anno$cell_number == 0 |
                                 anno$cell_number == 1 , ],
@@ -441,14 +441,14 @@ cut_off_spike &lt;- quantile(anno[anno$cell_number == 0,&quot;spike_percentage&q
 
 cut_off_spike</code></pre>
 <pre><code>      10% 
-0.4692639 </code></pre>
+0.4714009 </code></pre>
 <pre class="r"><code>anno$cut_off_spike &lt;- anno$spike_percentage &lt; cut_off_spike
 
 ## numbers of cells 
 sum(anno[anno$cell_number == 1, &quot;spike_percentage&quot;] &gt;= cut_off_spike)</code></pre>
-<pre><code>[1] 470</code></pre>
+<pre><code>[1] 530</code></pre>
 <pre class="r"><code>sum(anno[anno$cell_number == 1, &quot;spike_percentage&quot;] &lt; cut_off_spike)</code></pre>
-<pre><code>[1] 5449</code></pre>
+<pre><code>[1] 6098</code></pre>
 <pre class="r"><code>## density plots
 plot_spike &lt;- ggplot(anno[anno$cell_number == 0 |
                           anno$cell_number == 1 , ],
@@ -466,15 +466,15 @@ plot_spike</code></pre>
 cut_off_genes &lt;- quantile(anno[anno$cell_number == 0,&quot;detect_hs&quot;], 0.90)
 
 cut_off_genes</code></pre>
-<pre><code> 90% 
-4710 </code></pre>
+<pre><code>   90% 
+4556.2 </code></pre>
 <pre class="r"><code>anno$cut_off_genes &lt;- anno$detect_hs &gt; cut_off_genes
 
 ## numbers of cells 
 sum(anno[anno$cell_number == 1, &quot;detect_hs&quot;] &gt; cut_off_genes)</code></pre>
-<pre><code>[1] 5211</code></pre>
+<pre><code>[1] 5831</code></pre>
 <pre class="r"><code>sum(anno[anno$cell_number == 1, &quot;detect_hs&quot;] &lt;= cut_off_genes)</code></pre>
-<pre><code>[1] 708</code></pre>
+<pre><code>[1] 797</code></pre>
 <pre class="r"><code>## density plots
 plot_gene &lt;- ggplot(anno[anno$cell_number == 0 |
                          anno$cell_number == 1 , ],
@@ -515,8 +515,8 @@ table(data_lda_p, data[, &quot;group&quot;])</code></pre>
 <pre><code>          
 data_lda_p   no  one  two
        no     0    0    0
-       one  233 5863  202
-       two    1   56   77</code></pre>
+       one  276 6566  214
+       two    1   62   81</code></pre>
 <pre class="r"><code>data$data_lda_p &lt;- data_lda_p
 
 ## identify the outlier
@@ -531,54 +531,60 @@ outliers_lda</code></pre>
 6  08212017-E02   08212017  E02    b2           1     2.0478414 4904929
 7  08232017-C01   08232017  C01    b2           1     0.7138795 3386096
 8  08232017-C05   08232017  C05    b2           1     1.0386415 3456184
-9  08232017-E12   08232017  E12    b2           1     1.0380230 3414477
-10 08232017-F01   08232017  F01    b2           1     1.7140052 4878269
-11 08232017-G11   08232017  G11    b2           1     1.8179815 5005975
-12 08232017-G12   08232017  G12    b2           1     1.6131800 5661160
-13 08232017-H02   08232017  H02    b2           1     0.5255853 3892407
-14 08242017-D06   08242017  D06    b2           1     1.6715697 4065086
-15 08292017-E06   08292017  E06    b2           1     1.8983801 4757861
-16 08302017-B09   08302017  B09    b2           1     1.1814211 3405197
-17 08302017-C09   08302017  C09    b2           1     0.6499613 2745495
-18 08302017-D09   08302017  D09    b2           1     1.1915693 3138433
-19 08302017-G05   08302017  G05    b2           1     1.6844109 4806186
-20 08312017-B11   08312017  B11    b2           1     0.8779793 2706349
-21 08312017-D01   08312017  D01    b2           1     0.3565580 2521219
-22 08312017-G10   08312017  G10    b2           1     1.5046401 3648699
-23 09252017-E10   09252017  E10    b3           1     2.4073958 3998547
-24 09262017-D03   09262017  D03    b3           1     1.8386027 3246704
-25 10112017-A05   10112017  A05    b3           1     2.0361340 2417215
-26 10112017-D05   10112017  D05    b3           1     1.4777928 1743010
-27 10112017-E05   10112017  E05    b3           1     0.4153881  957736
-28 10112017-F05   10112017  F05    b3           1     2.0907968 2337734
-29 10112017-H05   10112017  H05    b3           1     2.5150583 2331443
-30 10122017-D05   10122017  D05    b3           1     1.7121228 4257557
-31 10162017-C08   10162017  C08    b3           1     1.9654983 4330386
-32 10162017-E02   10162017  E02    b3           1     2.2002305 4648097
-33 10162017-E05   10162017  E05    b3           1     2.7322329 5107489
-34 10162017-F05   10162017  F05    b3           1     2.7496106 5095364
-35 10162017-G09   10162017  G09    b3           1     2.4496919 6050854
-36 10162017-G12   10162017  G12    b3           1     2.1943500 4662881
-37 10162017-H08   10162017  H08    b3           1     2.2897779 4915278
-38 10162017-H11   10162017  H11    b3           1     2.6873520 5448556
-39 10302017-E07   10302017  E07    b4           1     1.1431150 4449357
-40 10302017-F03   10302017  F03    b4           1     1.3932924 4576721
-41 10302017-F05   10302017  F05    b4           1     1.1279243 4723648
-42 11072017-C05   11072017  C05    b4           1     2.4462219 5555567
-43 11072017-F05   11072017  F05    b4           1     1.9977614 5388259
-44 11092017-E04   11092017  E04    b4           1     2.5461048 4028995
-45 11132017-D06   11132017  D06    b4           1     1.4905986 2920517
-46 11212017-C08   11212017  C08    b4           1     1.0897800 3035924
-47 11292017-C03   11292017  C03    b5           1     0.7288834 2299046
-48 12052017-B12   12052017  B12    b5           1     1.2406718 3332945
-49 12052017-D06   12052017  D06    b5           1     1.4539893 3041236
-50 12072017-D01   12072017  D01    b5           1     0.6185866 5162611
-51 12072017-D05   12072017  D05    b5           1     0.5239694 4493960
-52 12072017-D06   12072017  D06    b5           1     1.5493517 6508274
-53 12072017-D08   12072017  D08    b5           1     1.7749502 7900719
-54 12072017-D09   12072017  D09    b5           1     2.5319505 5988340
-55 12072017-D10   12072017  D10    b5           1     2.3218666 8180072
-56 12072017-G11   12072017  G11    b5           1     1.2518756 4180188
+9  08232017-E02   08232017  E02    b2           1     1.6560096 4959154
+10 08232017-E12   08232017  E12    b2           1     1.0380230 3414477
+11 08232017-F01   08232017  F01    b2           1     1.7140052 4878269
+12 08232017-G11   08232017  G11    b2           1     1.8179815 5005975
+13 08232017-G12   08232017  G12    b2           1     1.6131800 5661160
+14 08232017-H02   08232017  H02    b2           1     0.5255853 3892407
+15 08242017-D06   08242017  D06    b2           1     1.6715697 4065086
+16 08242017-F01   08242017  F01    b2           1     3.4742133 5764574
+17 08242017-G09   08242017  G09    b2           1     3.0532916 5948259
+18 08292017-E06   08292017  E06    b2           1     1.8983801 4757861
+19 08302017-B09   08302017  B09    b2           1     1.1814211 3405197
+20 08302017-C09   08302017  C09    b2           1     0.6499613 2745495
+21 08302017-D09   08302017  D09    b2           1     1.1915693 3138433
+22 08302017-G05   08302017  G05    b2           1     1.6844109 4806186
+23 08312017-B11   08312017  B11    b2           1     0.8779793 2706349
+24 08312017-D01   08312017  D01    b2           1     0.3565580 2521219
+25 08312017-G10   08312017  G10    b2           1     1.5046401 3648699
+26 09252017-E10   09252017  E10    b3           1     2.4073958 3998547
+27 09262017-D03   09262017  D03    b3           1     1.8386027 3246704
+28 10112017-A05   10112017  A05    b3           1     2.0361340 2417215
+29 10112017-D05   10112017  D05    b3           1     1.4777928 1743010
+30 10112017-E05   10112017  E05    b3           1     0.4153881  957736
+31 10112017-F05   10112017  F05    b3           1     2.0907968 2337734
+32 10112017-H05   10112017  H05    b3           1     2.5150583 2331443
+33 10122017-D05   10122017  D05    b3           1     1.7121228 4257557
+34 10162017-C05   10162017  C05    b3           1     2.4181372 4003165
+35 10162017-C08   10162017  C08    b3           1     1.9654983 4330386
+36 10162017-E02   10162017  E02    b3           1     2.2002305 4648097
+37 10162017-E05   10162017  E05    b3           1     2.7322329 5107489
+38 10162017-F05   10162017  F05    b3           1     2.7496106 5095364
+39 10162017-G09   10162017  G09    b3           1     2.4496919 6050854
+40 10162017-G12   10162017  G12    b3           1     2.1943500 4662881
+41 10162017-H08   10162017  H08    b3           1     2.2897779 4915278
+42 10162017-H11   10162017  H11    b3           1     2.6873520 5448556
+43 10302017-E07   10302017  E07    b4           1     1.1431150 4449357
+44 10302017-F03   10302017  F03    b4           1     1.3932924 4576721
+45 10302017-F05   10302017  F05    b4           1     1.1279243 4723648
+46 11072017-A11   11072017  A11    b4           1     1.8845034 3282227
+47 11072017-C05   11072017  C05    b4           1     2.4462219 5555567
+48 11072017-F05   11072017  F05    b4           1     1.9977614 5388259
+49 11092017-E04   11092017  E04    b4           1     2.5461048 4028995
+50 11132017-D06   11132017  D06    b4           1     1.4905986 2920517
+51 11212017-C08   11212017  C08    b4           1     1.0897800 3035924
+52 11292017-C03   11292017  C03    b5           1     0.7288834 2299046
+53 12052017-B12   12052017  B12    b5           1     1.2406718 3332945
+54 12052017-D06   12052017  D06    b5           1     1.4539893 3041236
+55 12072017-D01   12072017  D01    b5           1     0.6185866 5162611
+56 12072017-D05   12072017  D05    b5           1     0.5239694 4493960
+57 12072017-D06   12072017  D06    b5           1     1.5493517 6508274
+58 12072017-D08   12072017  D08    b5           1     1.7749502 7900719
+59 12072017-D09   12072017  D09    b5           1     2.5319505 5988340
+60 12072017-D10   12072017  D10    b5           1     2.3218666 8180072
+61 12072017-G11   12072017  G11    b5           1     1.2518756 4180188
+62 12122017-G09   12122017  G09    b5           1     1.8987365 2894514
    molecules group data_lda_p
 1     220914   one        two
 2     226423   one        two
@@ -588,54 +594,60 @@ outliers_lda</code></pre>
 6     275159   one        two
 7     302296   one        two
 8     275188   one        two
-9     303952   one        two
-10    246552   one        two
-11    250950   one        two
-12    295622   one        two
-13    368903   one        two
-14    248966   one        two
-15    251939   one        two
-16    224950   one        two
-17    245208   one        two
-18    243178   one        two
-19    278500   one        two
-20    273096   one        two
-21    418731   one        two
-22    270603   one        two
-23    256090   one        two
-24    249735   one        two
-25    298935   one        two
-26    273655   one        two
-27    308025   one        two
-28    345797   one        two
-29    318066   one        two
-30    256558   one        two
-31    282929   one        two
-32    261361   one        two
-33    265542   one        two
-34    285487   one        two
-35    265230   one        two
-36    271810   one        two
-37    278148   one        two
-38    278988   one        two
-39    223152   one        two
-40    231619   one        two
-41    238854   one        two
-42    274113   one        two
-43    284304   one        two
-44    254939   one        two
-45    293984   one        two
-46    255066   one        two
-47    233171   one        two
-48    241212   one        two
-49    232479   one        two
-50    234332   one        two
-51    222125   one        two
-52    289249   one        two
-53    382545   one        two
-54    281521   one        two
-55    359559   one        two
-56    228998   one        two</code></pre>
+9     231956   one        two
+10    303952   one        two
+11    246552   one        two
+12    250950   one        two
+13    295622   one        two
+14    368903   one        two
+15    248966   one        two
+16    271389   one        two
+17    260881   one        two
+18    251939   one        two
+19    224950   one        two
+20    245208   one        two
+21    243178   one        two
+22    278500   one        two
+23    273096   one        two
+24    418731   one        two
+25    270603   one        two
+26    256090   one        two
+27    249735   one        two
+28    298935   one        two
+29    273655   one        two
+30    308025   one        two
+31    345797   one        two
+32    318066   one        two
+33    256558   one        two
+34    248744   one        two
+35    282929   one        two
+36    261361   one        two
+37    265542   one        two
+38    285487   one        two
+39    265230   one        two
+40    271810   one        two
+41    278148   one        two
+42    278988   one        two
+43    223152   one        two
+44    231619   one        two
+45    238854   one        two
+46    237905   one        two
+47    274113   one        two
+48    284304   one        two
+49    254939   one        two
+50    293984   one        two
+51    255066   one        two
+52    233171   one        two
+53    241212   one        two
+54    232479   one        two
+55    234332   one        two
+56    222125   one        two
+57    289249   one        two
+58    382545   one        two
+59    281521   one        two
+60    359559   one        two
+61    228998   one        two
+62    236957   one        two</code></pre>
 <pre class="r"><code>## create filter
 anno$molecule_outlier &lt;- row.names(anno) %in% outliers_lda$sample_id
 
@@ -691,8 +703,8 @@ data_ercc_lda_p &lt;- predict(data_ercc_lda,  newdata = data_ercc[,c(&quot;ercc_
 table(data_ercc_lda_p, data_ercc[, &quot;group&quot;])</code></pre>
 <pre><code>               
 data_ercc_lda_p   no  one  two
-            no   129  107    2
-            one   37 4920  265
+            no   153  121    2
+            one   56 5615  281
             two    0   12    0</code></pre>
 <pre class="r"><code>data_ercc$data_ercc_lda_p &lt;- data_ercc_lda_p
 
@@ -736,18 +748,18 @@ anno$filter_all &lt;- anno$cell_number == 1 &amp;
                    anno$cut_off_genes 
 sort(table(anno[anno$filter_all, &quot;chip_id&quot;]))</code></pre>
 <pre><code>
-NA18498 NA19203 NA19159 NA18913 NA19204 NA19092 NA18505 NA19193 NA18519 
-     18      23      27      48      49      50      51      52      57 
-NA19098 NA18859 NA19130 NA19143 NA18522 NA19210 NA18517 NA18856 NA18870 
-     59      64      64      65      66      66      67      67      68 
-NA19206 NA18862 NA19127 NA18853 NA19102 NA18907 NA19114 NA18852 NA18912 
-     69      70      73      74      76      78      79      81      82 
-NA19209 NA19140 NA19257 NA18855 NA18489 NA19190 NA18516 NA19225 NA19108 
-     83      84      85      86      89      89      91      93      94 
-NA19160 NA19128 NA19101 NA19093 NA19099 NA19153 NA19144 NA19116 NA18511 
-     94      95      97     100     101     108     110     112     115 
-NA19152 NA18520 NA18499 NA18858 NA18508 NA19207 NA18502 NA18501 NA18507 
-    117     127     134     150     151     155     188     218     292 </code></pre>
+NA18498 NA19092 NA19203 NA18522 NA18856 NA18862 NA18870 NA19159 NA19206 
+     19      51      62      66      69      69      69      70      71 
+NA18519 NA18853 NA19127 NA19102 NA19114 NA18907 NA18852 NA19209 NA18912 
+     73      74      76      78      79      81      83      84      85 
+NA19257 NA19140 NA18855 NA18859 NA18489 NA19190 NA18517 NA19143 NA18516 
+     85      86      87      88      89      91      92      92      94 
+NA19225 NA18505 NA19108 NA19193 NA19101 NA19128 NA19160 NA19099 NA19093 
+     94      96      96      96      97      97      97     100     102 
+NA19210 NA19153 NA19130 NA19116 NA19144 NA19098 NA18511 NA19204 NA19152 
+    103     108     109     112     112     113     115     117     118 
+NA18520 NA18913 NA18499 NA18858 NA18508 NA19207 NA18502 NA18501 NA18507 
+    129     129     134     153     155     157     189     221     293 </code></pre>
 <pre class="r"><code>write.table(data.frame(row.names(anno), anno[,&quot;filter_all&quot;]),
             file = &quot;../data/quality-single-cells.txt&quot;, quote = FALSE,
             sep = &quot;\t&quot;, row.names = FALSE, col.names = FALSE)</code></pre>
@@ -845,19 +857,19 @@ head(featureNames(eset_hs))</code></pre>
 eset_hs_clean &lt;- eset_hs[rowSums(exprs(eset_hs)) != 0, ]
 dim(eset_hs_clean)</code></pre>
 <pre><code>Features  Samples 
-   19799     6432 </code></pre>
+   19806     7200 </code></pre>
 <pre class="r"><code>## convert to log2 cpm
 mol_hs_cpm &lt;- cpm(exprs(eset_hs_clean), log = TRUE)
 mol_hs_cpm_means &lt;- rowMeans(mol_hs_cpm)
 summary(mol_hs_cpm_means)</code></pre>
 <pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-  2.504   2.556   3.128   3.828   4.607  13.091 </code></pre>
+  2.560   2.610   3.154   3.850   4.595  13.049 </code></pre>
 <pre class="r"><code>hist(mol_hs_cpm_means)
 abline(v = median(mol_hs_cpm_means), col = &quot;red&quot;)</code></pre>
 <p><img src="figure/sampleqc.Rmd/select-gene-before-1.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>mol_hs_cpm &lt;- mol_hs_cpm[mol_hs_cpm_means &gt; median(mol_hs_cpm_means), ]
 dim(mol_hs_cpm)</code></pre>
-<pre><code>[1] 9899 6432</code></pre>
+<pre><code>[1] 9903 7200</code></pre>
 <p>Using the genes with reasonable expression levels to perform PCA</p>
 <pre class="r"><code>## pca of genes with reasonable expression levels
 pca_hs &lt;- run_pca(mol_hs_cpm)
@@ -920,20 +932,20 @@ plot_grid(pc1_reads + theme(legend.position=c(.7,.5)),
 eset_hs_clean_filter &lt;- eset_hs_clean[,anno$filter_all]
 dim(eset_hs_clean_filter)</code></pre>
 <pre><code>Features  Samples 
-   19799     4901 </code></pre>
+   19806     5505 </code></pre>
 <pre class="r"><code>## convert to log2 cpm
 mol_hs_cpm_filter &lt;- cpm(exprs(eset_hs_clean_filter), log = TRUE)
 stopifnot(rownames(anno[anno$filter_all,]) == colnames(mol_hs_cpm_filter))
 mol_hs_cpm_filter_means &lt;- rowMeans(mol_hs_cpm_filter)
 summary(mol_hs_cpm_filter_means)</code></pre>
 <pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-  2.355   2.416   3.067   3.803   4.706  12.983 </code></pre>
+  2.409   2.466   3.090   3.825   4.701  12.939 </code></pre>
 <pre class="r"><code>hist(mol_hs_cpm_filter_means)
 abline(v = median(mol_hs_cpm_filter_means), col = &quot;red&quot;)</code></pre>
 <p><img src="figure/sampleqc.Rmd/pca-after-1.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>mol_hs_cpm_filter &lt;- mol_hs_cpm_filter[mol_hs_cpm_filter_means &gt; median(mol_hs_cpm_filter_means), ]
 dim(mol_hs_cpm_filter)</code></pre>
-<pre><code>[1] 9899 4901</code></pre>
+<pre><code>[1] 9903 5505</code></pre>
 <pre class="r"><code>## pca of genes with reasonable expression levels
 pca_hs_filter &lt;- run_pca(mol_hs_cpm_filter)
 
