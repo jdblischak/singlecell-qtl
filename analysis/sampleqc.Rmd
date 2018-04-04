@@ -88,7 +88,7 @@ Note: Using the 5% cutoff of samples with no cells excludes all the samples
 anno$unmapped_ratios <- anno$unmapped/anno$umi
 
 ## cut off 
-cut_off_unmapped <- quantile(anno[anno$cell_number == 0,"unmapped_ratios"], 0.75)
+cut_off_unmapped <- quantile(anno[anno$cell_number == 0,"unmapped_ratios"], 0.65)
 
 cut_off_unmapped
 
@@ -171,6 +171,7 @@ plot_spike
 ```
 
 ## Number of genes detected 
+
 ```{r gene-number}
 ## cut off 
 cut_off_genes <- quantile(anno[anno$cell_number == 0,"detect_hs"], 0.90)
@@ -203,8 +204,32 @@ plot_grid(plot_reads + theme(legend.position=c(.7,.7)),
           labels = LETTERS[1:4])
 ```
 
+## Mitochondria 
+
+```{r mito}
+## create a list of mitochondrial genes (13 protein-coding genes)
+## MT-ATP6, MT-CYB, MT-ND1, MT-ND4, MT-ND4L, MT-ND5, MT-ND6, MT-CO2, MT-CO1, MT-ND2, MT-ATP8, MT-CO3, MT-ND3
+mtgene <- c("ENSG00000198899", "ENSG00000198727", "ENSG00000198888", "ENSG00000198886", "ENSG00000212907", "ENSG00000198786", "ENSG00000198695", "ENSG00000198712", "ENSG00000198804", "ENSG00000198763","ENSG00000228253", "ENSG00000198938", "ENSG00000198840")
+
+## molecules of mt genes in single cells
+eset_mt <- exprs(eset)[mtgene,]
+dim(eset_mt)
+
+## mt ratio of single cell
+anno$mt_ratio <- apply(eset_mt, 2, sum) / anno$mol_hs
+
+## mt ratio vs. number of genes detected
+ggplot(anno,
+       aes(x = detect_hs, y = mt_ratio, 
+       color = as.factor(cell_number))) +
+       geom_text(aes(label = cell_number)) +
+       labs(x = "Number of genes", y = "Mitochondrial ratio") +
+       scale_fill_manual(values = cbPalette)
+```
+
 ## Linear Discriminat Analysis
-### Total molecule vs concentration 
+### Total molecule vs concentration
+
 ```{r lda, fig.width=12, fig.height=6}
 library(MASS)
 ## create 3 groups according to cell number
@@ -285,7 +310,7 @@ table(data_ercc_lda_p, data_ercc[, "group"])
 data_ercc$data_ercc_lda_p <- data_ercc_lda_p
 
 ## create a cutoff for outliers 
-anno$conversion_outlier <- anno$cell_number == 1 & anno$conversion > .3
+anno$conversion_outlier <- anno$cell_number == 1 & anno$conversion > .4
 
 ## plot before and after
 plot_ercc_before <- ggplot(data_ercc, aes(x = ercc_conversion, y = conversion,
@@ -314,9 +339,9 @@ plot_grid(plot_ercc_before,
 ## all filter
 anno$filter_all <- anno$cell_number == 1 &
                    anno$valid_id &
-                ##   anno$cut_off_reads &
-                   anno$cut_off_unmapped &
-                ##   anno$cut_off_ercc &
+                   anno$cut_off_reads &
+                ## anno$cut_off_unmapped &
+                ## anno$cut_off_ercc &
                    anno$cut_off_spike &
                    anno$molecule_outlier != "TRUE" &
                    anno$conversion_outlier != "TRUE" &
@@ -364,10 +389,10 @@ genes_spike <- ggplot(anno,
 
 reads_unmapped_num <-  ggplot(anno,
                        aes(x = mapped, y = unmapped_ratios * 100,
-                           col = as.factor(chip_id), 
+                           col = as.factor(batch), 
                            label = as.character(cell_number), 
                            height = 600, width = 2000)) +
-                      # scale_colour_manual(values=cbPalette) +
+                       scale_colour_manual(values=cbPalette) +
                        geom_text(fontface = 3, alpha = 0.3) + 
                        geom_vline(xintercept = cut_off_reads, 
                                   colour="grey", linetype = "longdash") +
@@ -381,7 +406,7 @@ reads_spike_num <- ggplot(anno,
                        col = as.factor(batch), 
                        label = as.character(cell_number), 
                        height = 600, width = 2000)) +
-                   # scale_colour_manual(values=cbPalette) +
+                   scale_colour_manual(values=cbPalette) +
                    geom_text(fontface = 3, alpha = 0.3) + 
                    geom_vline(xintercept = cut_off_reads, 
                               colour="grey", linetype = "longdash") +
@@ -393,22 +418,27 @@ reads_spike_num <- ggplot(anno,
 plot_grid(genes_unmapped + theme(legend.position=c(.7,.9)) + labs(col = "Batch"), 
           genes_spike + theme(legend.position = "none"),
           labels = letters[1:2])
+
 plot_grid(reads_unmapped_num + theme(legend.position = "none"), 
           reads_spike_num + theme(legend.position = "none"),
           labels = letters[3:4])
 ```
 
-```{r read-molecule plot, fig.width=12, fig.heigh=4, dpi=300}
+```{r read-molecule plot, fig.width=12, fig.heigh=6, dpi=300}
 
-ggplot(data.frame(anno[anno$filter_all,]),
+plot_grid(ggplot(data.frame(anno[anno$filter_all,]),
        aes(x = factor(chip_id), y = conversion,
-           fill = factor(batch)), height = 600, width = 2000) +
+           fill = factor(batch))) +
   geom_boxplot() +
   scale_fill_manual(values = cbPalette) +
   labs(x = "Individual", y = "Read-to-molecule conversion efficiency") +
-  theme(legend.position=c(.9,.9)) +
-  labs(fill = "Batch") +
-  theme(axis.text.x = element_text(hjust=1, angle = 90))
+  theme(axis.text.x = element_text(hjust=1, angle = 90)) + 
+  theme(legend.position = "none"),
+  labels = "c") 
+
+plot_grid(reads_spike_num + theme(legend.position = "none") + theme(legend.position=c(.7,.85)) + labs(col = "Batch"), 
+          genes_unmapped + theme(legend.position = "none"),
+          labels = letters[1:2])
 
 ```
 
