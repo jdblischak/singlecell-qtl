@@ -20,8 +20,8 @@
 <script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
 <script src="site_libs/navigation-1.1/tabsets.js"></script>
-<link href="site_libs/highlightjs-1.1/textmate.css" rel="stylesheet" />
-<script src="site_libs/highlightjs-1.1/highlight.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
 <link href="site_libs/font-awesome-4.5.0/css/font-awesome.min.css" rel="stylesheet" />
 
 <style type="text/css">code{white-space: pre;}</style>
@@ -31,10 +31,12 @@
   }
 </style>
 <script type="text/javascript">
-if (window.hljs && document.readyState && document.readyState === "complete") {
-   window.setTimeout(function() {
-      hljs.initHighlighting();
-   }, 0);
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
 }
 </script>
 
@@ -225,6 +227,7 @@ $(document).ready(function () {
 <li><a href="partition.html">Paritioning variance across different factors</a></li>
 <li><a href="sampleqc.html">Sample quality control</a></li>
 <li><a href="filter-gene.html">Filter genes</a></li>
+<li><a href="scde-all.html">Gene set and pathway overdispersion analysis</a></li>
 <li><a href="dim-reduction.html">Dimensionality reduction</a></li>
 <li><a href="noisygene.html">Identification of noisy genes</a></li>
 <li><a href="sc-stratified-geno.html">UMI count distribution stratified by genotype</a></li>
