@@ -322,7 +322,7 @@ shared across the workflowr files. -->
 <p><strong>Last updated:</strong> 2018-04-04</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> 24d3ffb</p>
+<p><strong>Code version:</strong> e829d9e</p>
 <p>This is for qc of the samples. Based on obsevation under the scope and the sequencing results, samples with bad quality will be removed.</p>
 <section id="setup" class="level2">
 <h2>Setup</h2>
@@ -377,18 +377,18 @@ plot_reads</code></pre>
 anno$unmapped_ratios &lt;- anno$unmapped/anno$umi
 
 ## cut off 
-cut_off_unmapped &lt;- quantile(anno[anno$cell_number == 0,&quot;unmapped_ratios&quot;], 0.75)
+cut_off_unmapped &lt;- quantile(anno[anno$cell_number == 0,&quot;unmapped_ratios&quot;], 0.65)
 
 cut_off_unmapped</code></pre>
-<pre><code>      75% 
-0.4715696 </code></pre>
+<pre><code>      65% 
+0.4016852 </code></pre>
 <pre class="r"><code>anno$cut_off_unmapped &lt;- anno$unmapped_ratios &lt; cut_off_unmapped
 
 ## numbers of cells 
 sum(anno[anno$cell_number == 1, &quot;unmapped_ratios&quot;] &gt;= cut_off_unmapped)</code></pre>
-<pre><code>[1] 173</code></pre>
+<pre><code>[1] 580</code></pre>
 <pre class="r"><code>sum(anno[anno$cell_number == 1, &quot;unmapped_ratios&quot;] &lt; cut_off_unmapped)</code></pre>
-<pre><code>[1] 6455</code></pre>
+<pre><code>[1] 6048</code></pre>
 <pre class="r"><code>## density plots
 plot_unmapped &lt;- ggplot(anno[anno$cell_number == 0 |
                              anno$cell_number == 1 , ],
@@ -491,6 +491,28 @@ plot_gene</code></pre>
           plot_gene + theme(legend.position = &quot;none&quot;),
           labels = LETTERS[1:4])</code></pre>
 <p><img src="figure/sampleqc.Rmd/density%20plots-1.png" width="768" style="display: block; margin: auto;" /></p>
+</section>
+<section id="mitochondria" class="level2">
+<h2>Mitochondria</h2>
+<pre class="r"><code>## create a list of mitochondrial genes (13 protein-coding genes)
+## MT-ATP6, MT-CYB, MT-ND1, MT-ND4, MT-ND4L, MT-ND5, MT-ND6, MT-CO2, MT-CO1, MT-ND2, MT-ATP8, MT-CO3, MT-ND3
+mtgene &lt;- c(&quot;ENSG00000198899&quot;, &quot;ENSG00000198727&quot;, &quot;ENSG00000198888&quot;, &quot;ENSG00000198886&quot;, &quot;ENSG00000212907&quot;, &quot;ENSG00000198786&quot;, &quot;ENSG00000198695&quot;, &quot;ENSG00000198712&quot;, &quot;ENSG00000198804&quot;, &quot;ENSG00000198763&quot;,&quot;ENSG00000228253&quot;, &quot;ENSG00000198938&quot;, &quot;ENSG00000198840&quot;)
+
+## molecules of mt genes in single cells
+eset_mt &lt;- exprs(eset)[mtgene,]
+dim(eset_mt)</code></pre>
+<pre><code>[1]   13 7200</code></pre>
+<pre class="r"><code>## mt ratio of single cell
+anno$mt_ratio &lt;- apply(eset_mt, 2, sum) / anno$mol_hs
+
+## mt ratio vs. number of genes detected
+ggplot(anno,
+       aes(x = detect_hs, y = mt_ratio, 
+       color = as.factor(cell_number))) +
+       geom_text(aes(label = cell_number)) +
+       labs(x = &quot;Number of genes&quot;, y = &quot;Mitochondrial ratio&quot;) +
+       scale_fill_manual(values = cbPalette)</code></pre>
+<p><img src="figure/sampleqc.Rmd/mito-1.png" width="768" style="display: block; margin: auto;" /></p>
 </section>
 <section id="linear-discriminat-analysis" class="level2">
 <h2>Linear Discriminat Analysis</h2>
@@ -709,7 +731,7 @@ data_ercc_lda_p   no  one  two
 <pre class="r"><code>data_ercc$data_ercc_lda_p &lt;- data_ercc_lda_p
 
 ## create a cutoff for outliers 
-anno$conversion_outlier &lt;- anno$cell_number == 1 &amp; anno$conversion &gt; .3
+anno$conversion_outlier &lt;- anno$cell_number == 1 &amp; anno$conversion &gt; .4
 
 ## plot before and after
 plot_ercc_before &lt;- ggplot(data_ercc, aes(x = ercc_conversion, y = conversion,
@@ -739,27 +761,27 @@ plot_grid(plot_ercc_before,
 <pre class="r"><code>## all filter
 anno$filter_all &lt;- anno$cell_number == 1 &amp;
                    anno$valid_id &amp;
-                ##   anno$cut_off_reads &amp;
-                   anno$cut_off_unmapped &amp;
-                ##   anno$cut_off_ercc &amp;
+                   anno$cut_off_reads &amp;
+                ## anno$cut_off_unmapped &amp;
+                ## anno$cut_off_ercc &amp;
                    anno$cut_off_spike &amp;
                    anno$molecule_outlier != &quot;TRUE&quot; &amp;
                    anno$conversion_outlier != &quot;TRUE&quot; &amp;
                    anno$cut_off_genes 
 sort(table(anno[anno$filter_all, &quot;chip_id&quot;]))</code></pre>
 <pre><code>
-NA18498 NA19092 NA19203 NA18522 NA18856 NA18862 NA18870 NA19159 NA19206 
-     19      51      62      66      69      69      69      70      71 
-NA18519 NA18853 NA19127 NA19102 NA19114 NA18907 NA18852 NA19209 NA18912 
-     73      74      76      78      79      81      83      84      85 
-NA19257 NA19140 NA18855 NA18859 NA18489 NA19190 NA18517 NA19143 NA18516 
-     85      86      87      88      89      91      92      92      94 
-NA19225 NA18505 NA19108 NA19193 NA19101 NA19128 NA19160 NA19099 NA19093 
-     94      96      96      96      97      97      97     100     102 
-NA19210 NA19153 NA19130 NA19116 NA19144 NA19098 NA18511 NA19204 NA19152 
-    103     108     109     112     112     113     115     117     118 
-NA18520 NA18913 NA18499 NA18858 NA18508 NA19207 NA18502 NA18501 NA18507 
-    129     129     134     153     155     157     189     221     293 </code></pre>
+NA18498 NA19092 NA19203 NA18522 NA19159 NA18519 NA18856 NA18870 NA19206 
+     19      50      57      64      65      67      67      67      67 
+NA18862 NA19127 NA18853 NA19102 NA18907 NA18912 NA19114 NA18852 NA19193 
+     68      72      74      77      78      78      78      82      82 
+NA18859 NA19209 NA19257 NA19140 NA18489 NA18516 NA18855 NA19143 NA19190 
+     83      83      83      84      86      86      86      86      88 
+NA18505 NA18517 NA19093 NA19108 NA19128 NA19101 NA19160 NA19225 NA19153 
+     89      90      93      93      93      94      94      94      95 
+NA19210 NA19099 NA19116 NA19130 NA19098 NA19204 NA18913 NA18511 NA19144 
+     97      99      99     100     103     107     109     110     110 
+NA19152 NA18520 NA18499 NA18858 NA18508 NA19207 NA18502 NA18501 NA18507 
+    117     125     130     130     147     147     186     212     281 </code></pre>
 <pre class="r"><code>write.table(data.frame(row.names(anno), anno[,&quot;filter_all&quot;]),
             file = &quot;../data/quality-single-cells.txt&quot;, quote = FALSE,
             sep = &quot;\t&quot;, row.names = FALSE, col.names = FALSE)</code></pre>
@@ -797,10 +819,10 @@ genes_spike &lt;- ggplot(anno,
 
 reads_unmapped_num &lt;-  ggplot(anno,
                        aes(x = mapped, y = unmapped_ratios * 100,
-                           col = as.factor(chip_id), 
+                           col = as.factor(batch), 
                            label = as.character(cell_number), 
                            height = 600, width = 2000)) +
-                      # scale_colour_manual(values=cbPalette) +
+                       scale_colour_manual(values=cbPalette) +
                        geom_text(fontface = 3, alpha = 0.3) + 
                        geom_vline(xintercept = cut_off_reads, 
                                   colour=&quot;grey&quot;, linetype = &quot;longdash&quot;) +
@@ -814,7 +836,7 @@ reads_spike_num &lt;- ggplot(anno,
                        col = as.factor(batch), 
                        label = as.character(cell_number), 
                        height = 600, width = 2000)) +
-                   # scale_colour_manual(values=cbPalette) +
+                   scale_colour_manual(values=cbPalette) +
                    geom_text(fontface = 3, alpha = 0.3) + 
                    geom_vline(xintercept = cut_off_reads, 
                               colour=&quot;grey&quot;, linetype = &quot;longdash&quot;) +
@@ -831,16 +853,20 @@ plot_grid(genes_unmapped + theme(legend.position=c(.7,.9)) + labs(col = &quot;Ba
           reads_spike_num + theme(legend.position = &quot;none&quot;),
           labels = letters[3:4])</code></pre>
 <p><img src="figure/sampleqc.Rmd/plots-2.png" width="3600" style="display: block; margin: auto;" /></p>
-<pre class="r"><code>ggplot(data.frame(anno[anno$filter_all,]),
+<pre class="r"><code>plot_grid(ggplot(data.frame(anno[anno$filter_all,]),
        aes(x = factor(chip_id), y = conversion,
-           fill = factor(batch)), height = 600, width = 2000) +
+           fill = factor(batch))) +
   geom_boxplot() +
   scale_fill_manual(values = cbPalette) +
   labs(x = &quot;Individual&quot;, y = &quot;Read-to-molecule conversion efficiency&quot;) +
-  theme(legend.position=c(.9,.9)) +
-  labs(fill = &quot;Batch&quot;) +
-  theme(axis.text.x = element_text(hjust=1, angle = 90))</code></pre>
+  theme(axis.text.x = element_text(hjust=1, angle = 90)) + 
+  theme(legend.position = &quot;none&quot;),
+  labels = &quot;c&quot;) </code></pre>
 <p><img src="figure/sampleqc.Rmd/read-molecule%20plot-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>plot_grid(reads_spike_num + theme(legend.position = &quot;none&quot;) + theme(legend.position=c(.7,.85)) + labs(col = &quot;Batch&quot;), 
+          genes_unmapped + theme(legend.position = &quot;none&quot;),
+          labels = letters[1:2])</code></pre>
+<p><img src="figure/sampleqc.Rmd/read-molecule%20plot-2.png" width="3600" style="display: block; margin: auto;" /></p>
 </section>
 </section>
 <section id="pca" class="level2">
@@ -932,20 +958,20 @@ plot_grid(pc1_reads + theme(legend.position=c(.7,.5)),
 eset_hs_clean_filter &lt;- eset_hs_clean[,anno$filter_all]
 dim(eset_hs_clean_filter)</code></pre>
 <pre><code>Features  Samples 
-   19806     5505 </code></pre>
+   19806     5221 </code></pre>
 <pre class="r"><code>## convert to log2 cpm
 mol_hs_cpm_filter &lt;- cpm(exprs(eset_hs_clean_filter), log = TRUE)
 stopifnot(rownames(anno[anno$filter_all,]) == colnames(mol_hs_cpm_filter))
 mol_hs_cpm_filter_means &lt;- rowMeans(mol_hs_cpm_filter)
 summary(mol_hs_cpm_filter_means)</code></pre>
 <pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-  2.409   2.466   3.090   3.825   4.701  12.939 </code></pre>
+  2.366   2.425   3.067   3.808   4.709  12.927 </code></pre>
 <pre class="r"><code>hist(mol_hs_cpm_filter_means)
 abline(v = median(mol_hs_cpm_filter_means), col = &quot;red&quot;)</code></pre>
 <p><img src="figure/sampleqc.Rmd/pca-after-1.png" width="768" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>mol_hs_cpm_filter &lt;- mol_hs_cpm_filter[mol_hs_cpm_filter_means &gt; median(mol_hs_cpm_filter_means), ]
 dim(mol_hs_cpm_filter)</code></pre>
-<pre><code>[1] 9903 5505</code></pre>
+<pre><code>[1] 9903 5221</code></pre>
 <pre class="r"><code>## pca of genes with reasonable expression levels
 pca_hs_filter &lt;- run_pca(mol_hs_cpm_filter)
 
