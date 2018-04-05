@@ -34,15 +34,19 @@ library("DT")
 library("Biobase")
 source("../code/functions.R")
 eset <- readRDS("../data/eset.rds")
+# Filter cells
 quality <- read.table("../data/quality-single-cells.txt",
                       stringsAsFactors = FALSE)
 colnames(quality) <- c("sample", "quality")
-eset_quality <- eset[, quality$quality]
-eset_hs <- eset_quality[fData(eset_quality)$source == "H. sapiens", ]
-eset_hs_clean <- eset_hs[rowSums(exprs(eset_hs)) != 0, ]
-eset_hs_clean <- eset_hs_clean[apply(exprs(eset_hs_clean), 1, present), ]
-sums <- colSums(exprs(eset_hs_clean))
-collection <- pData(eset_hs_clean) %>%
+eset <- eset[, quality$quality]
+# Filter genes
+eset <- eset[fData(eset)$source %in% c("H. sapiens", "ERCC") , ]
+genes <- read.table("../data/genes-pass-filter.txt", stringsAsFactors = FALSE)
+colnames(genes) <- c("gene", "passed")
+eset <- eset[genes$passed, ]
+# Total molecules of human genes and ERCC spike-ins
+sums <- colSums(exprs(eset))
+collection <- pData(eset) %>%
   select(chip_id, detect_hs) %>%
   cbind(sums) %>%
   group_by(chip_id) %>%
@@ -51,27 +55,27 @@ collection <- pData(eset_hs_clean) %>%
             # a trivial 0.5 to be added
             detect_med = round(median(detect_hs)),
             sum_med = round(median(sums))) %>%
+  filter(n >= 5) %>%
   arrange(desc(n))
 ```
 
-We have collected a total of `r ncol(eset_hs_clean)` cells from a total of
-`r length(unique(eset_hs_clean$chip_id))` individuals.
+We have collected a total of `r sum(collection$n)` cells from a total of
+`r nrow(collection)` individuals.
 
 Column descriptions:
 
-* **Individual** - This includes any individual that had more than 5 cells on at
-least 1 C1 chip.
+* **Individual** - This includes any individual that had at least 5 cells that
+passed the [quality control cutoffs](sampleqc.html)
 
-* **Number of cells** - Total number of cells for that individual. This is a
-high estimate because only a few QC filters were used. The number will decrease
-when more stringent QC filters are applied.
+* **Number of cells** - Total number of cells for that individual that
+passed the [quality control cutoffs](sampleqc.html)
 
-* **Median number of genes detected** - This only includes human genes which
-were observed in at least 50% of the cells across the entire experiment.
+* **Median number of genes detected** - This only includes human genes and ERCC
+spike-ins which passed the [gene filtering cutoffs](filter-gene.html)
 
 * **Median number of molecules** - This only includes the molecules that map to
-human genes which were observed in at least 50% of the cells across the entire
-experiment.
+human genes and ERCC spike-ins which passed the [gene filtering
+cutoffs](filter-gene.html)
 
 ```{r datatable}
 datatable(collection, options = list(pageLength = nrow(collection)),
