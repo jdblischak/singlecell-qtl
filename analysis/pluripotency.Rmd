@@ -1,0 +1,119 @@
+---
+title: "Pluripotency"
+author: "PoYuan Tung"
+date: 2017-09-13
+output: html_document
+---
+
+<!-- The file analysis/chunks.R contains chunks that define default settings
+shared across the workflowr files. -->
+```{r read-chunk, include=FALSE, cache=FALSE}
+knitr::read_chunk("chunks.R")
+```
+
+<!-- Update knitr chunk options -->
+```{r knitr-opts-chunk, include=FALSE}
+```
+
+<!-- Insert the date the file was last updated -->
+```{r last-updated, echo=FALSE, results='asis'}
+```
+
+<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
+ package git2r is installed -->
+```{r code-version, echo=FALSE, results='asis'}
+```
+
+This analysis is to see if there is a difference in the pluripotent state across all the individuals. 
+
+## Setup
+
+```{r packages, message=FALSE}
+library("cowplot")
+library("dplyr")
+library("edgeR")
+library("ggplot2")
+library("heatmap3")
+library("knitr")
+theme_set(theme_cowplot())
+source("../code/functions.R")
+library("Biobase") # has to be loaded last to use `combine`
+```
+
+Import data.
+
+```{r import}
+eset <- readRDS("../data/eset.rds")
+dim(eset)
+```
+
+Keep only human
+```{r human-genes}
+eset <- eset[fData(eset)$source == "H. sapiens", ]
+dim(eset) 
+```
+
+Only keep high-quality single cells.
+
+```{r quality-cell}
+quality <- read.table("../data/quality-single-cells.txt", stringsAsFactors = FALSE)
+colnames(quality) <- c("sample", "quality")
+eset <- eset[, quality$quality]
+dim(eset)
+
+anno <- pData(eset)
+```
+
+Convert to log2 counts per million.
+
+```{r cmp}
+log2cpm <- cpm(exprs(eset), log = TRUE)
+dim(log2cpm)
+```
+
+## Expression of pluripotent genes
+
+Looking at the expression of 25 pluripotent genes
+
+```{r plurigenes}
+## Input pluripotency genes. A list of 27 pluripotency genes used to demonstrate iPSC heterogeneity in [Narshin2011](https://www.jci.org/articles/view/44635)
+pluripotency_genes <- read.table("../data/pluripotency-genes.txt", header = TRUE, sep="\t")
+
+log2cpm_pluripotency <- log2cpm[rownames(log2cpm) %in% pluripotency_genes[,2],]
+dim(log2cpm_pluripotency)
+```
+
+### PCA
+
+PCA to see if there is any outlier. 
+
+```{r pca}
+pca_pluripotency <- run_pca(log2cpm_pluripotency)
+plot_pca(pca_pluripotency$PCs, pcx = 1, pcy = 2, explained = pca_pluripotency$explained,
+         metadata = anno, color = "chip_id", alpha = 0.3)
+
+plot_pca(pca_pluripotency$PCs, pcx = 1, pcy = 2, explained = pca_pluripotency$explained,
+         metadata = anno, color = "batch", alpha = 0.3)
+```
+
+### Heatmap
+
+```{r heatmap}
+batch_id <- anno$batch
+color <- rep("#999999",length(batch_id))
+color[grep("b2", batch_id)] <- "#E69F00"
+color[grep("b3", batch_id)] <- "#56B4E9"
+color[grep("b4", batch_id)] <- "#009E73"
+color[grep("b5", batch_id)] <- "#F0E442"
+color[grep("b6", batch_id)] <- "#0072B2"
+
+heatmap3(log2cpm_pluripotency, cexRow=1, cexCol=1, margins=c(8,8), scale = "none", ColSideColors = color, main = "Pluripotent genees")
+```
+
+### Variance explained 
+
+```{r variance}
+library("variancePartition")
+
+```
+
