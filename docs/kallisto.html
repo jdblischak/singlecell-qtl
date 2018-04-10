@@ -1,14 +1,12 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
-"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-<!-- 2018-03-22 Thu 11:41 -->
-<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<!-- 2018-04-08 Sun 22:21 -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bulk RNA-Seq quantification in kallisto</title>
-<meta name="generator" content="Org mode" />
-<meta name="author" content="Abhishek Sarkar" />
+<meta name="generator" content="Org mode">
+<meta name="author" content="Abhishek Sarkar Abhishek Sarkar">
 <style type="text/css">
  <!--/*--><![CDATA[/*><!--*/
   .title  { text-align: center;
@@ -180,6 +178,9 @@
   .org-svg { width: 90%; }
   /*]]>*/-->
 </style>
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<link rel="stylesheet" type="text/css" href="https://www.pirilampo.org/styles/readtheorg/css/htmlize.css"/>
+<style type="text/css">body {width: 60em; margin:auto} pre.src {overflow:auto}</style>
 <script type="text/javascript">
 /*
 @licstart  The following is the entire license notice for the
@@ -230,20 +231,10 @@ for the JavaScript code in this tag.
 <body>
 <div id="content">
 <h1 class="title">Bulk RNA-Seq quantification in kallisto</h1>
-<div id="table-of-contents">
-<h2>Table of Contents</h2>
-<div id="text-table-of-contents">
-<ul>
-<li><a href="#org5906efa">1. Introduction</a></li>
-<li><a href="#org7f44279">2. File manifest</a></li>
-<li><a href="#org39ba32b">3. Run kallisto</a></li>
-</ul>
-</div>
-</div>
 
 <div id="outline-container-org5906efa" class="outline-2">
-<h2 id="org5906efa"><span class="section-number-2">1</span> Introduction</h2>
-<div class="outline-text-2" id="text-1">
+<h2 id="org5906efa">Introduction</h2>
+<div class="outline-text-2" id="text-org5906efa">
 <p>
 We previously showed that pooled single cell CPM was strongly correlated with
 bulk log TPM (but not log CPM/RPKM).
@@ -257,8 +248,8 @@ estimate log TPM for the iPSC bulk RNA-Seq using <code>kallisto</code>
 </div>
 
 <div id="outline-container-org7f44279" class="outline-2">
-<h2 id="org7f44279"><span class="section-number-2">2</span> File manifest</h2>
-<div class="outline-text-2" id="text-2">
+<h2 id="org7f44279">File manifest</h2>
+<div class="outline-text-2" id="text-org7f44279">
 <p>
 The data were deposited in GEO under accession <a href="https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE89895">GSE89895</a>.
 </p>
@@ -332,62 +323,112 @@ Get the mapping from samples to files.
 </div>
 </div>
 
-<div id="outline-container-org39ba32b" class="outline-2">
-<h2 id="org39ba32b"><span class="section-number-2">3</span> Run kallisto</h2>
-<div class="outline-text-2" id="text-3">
+<div id="outline-container-org86c5085" class="outline-2">
+<h2 id="org86c5085">Build the index</h2>
+<div class="outline-text-2" id="text-org86c5085">
 <p>
-Build the index.
+We need to be careful and use exactly the same sequences which were used in
+the scRNA-Seq quantification.
 </p>
 
 <div class="org-src-container">
 <pre class="src src-sh">sbatch --partition=broadwl
 <span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
-curl -OL --ftp-pasv <span class="org-string">"ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_19/gencode.v19.pc_transcripts.fa.gz"</span>
+curl -OL --ftp-pasv <span class="org-string">"ftp://ftp.ensembl.org/pub/release-75/fasta/homo_sapiens/cds/Homo_sapiens.GRCh37.75.cds.all.fa.gz"</span>
 </pre>
 </div>
+
+<pre class="example">
+Submitted batch job 44782550
+
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-sh">srun --partition=broadwl --pty bash
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-sh">srun: job 44825594 queued and waiting for resources
+srun: job 44825594 has been allocated resources
+<span class="org-builtin">echo</span> <span class="org-string">'org_babel_sh_eoe'</span>
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-sh">zcat Homo_sapiens.GRCh37.75.cds.all.fa.gz | head
+</pre>
+</div>
+
+<pre class="example">
+zcat Homo_sapi ens.GRCh37.75.cds.all.fa.gz | head
+ENST00000415118 cds:known chromosome:GRCh37:14:22907539:22907546:1 gene:ENSG00000223997 gene_biotype:TR_D_gene transcript_biotype:TR_D_gene
+GAAATAGT
+ENST00000434970 cds:known chromosome:GRCh37:14:22907999:22908007:1 gene:ENSG00000237235 gene_biotype:TR_D_gene transcript_biotype:TR_D_gene
+CCTTCCTAC
+ENST00000448914 cds:known chromosome:GRCh37:14:22918105:22918117:1 gene:ENSG00000228985 gene_biotype:TR_D_gene transcript_biotype:TR_D_gene
+ACTGGGGGATACG
+ENST00000604642 cds:known chromosome:GRCh37:15:20209093:20209115:-1 gene:ENSG00000270961 gene_biotype:IG_D_gene transcript_biotype:IG_D_gene
+GTGGATATAGTGTCTACGATTAC
+ENST00000603326 cds:known chromosome:GRCh37:15:20210050:20210068:-1 gene:ENSG00000271317 gene_biotype:IG_D_gene transcript_biotype:IG_D_gene
+NNTGACTATGGTGCTAACTAC
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-sh">zcat Homo_sapiens.GRCh37.75.cds.all.fa.gz | awk <span class="org-string">'{split($3, a, ":"); c=a[3]} c ~ /^([0-9][0-9]?|[XY]|MT)$/ &amp;&amp; $5 == "gene_biotype:protein_coding" {k[$4] = 1} END {for (i in k) {n += 1} print n}'</span>
+</pre>
+</div>
+
+<pre class="example">
+
+3, a, ":"); c=a[3]} c ~ /^([0-9][0-9]?|[XY]| MT)$/ &amp;&amp; $5 == "gene_biotype:protein_coding" {k[$4] = 1} END {for (i in k) {n += 1} pri nt n}'
+20327
+
+</pre>
+
+<p>
+Build the index.
+</p>
 
 <div class="org-src-container">
 <pre class="src src-sh">sbatch --partition=broadwl --mem=8G
 <span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
 <span class="org-builtin">source</span> activate scqtl
-kallisto index -i transcripts.idx /scratch/midway2/aksarkar/singlecell/run-kallisto/gencode.v19.pc_transcripts.fa.gz
+kallisto index -i transcripts.idx /scratch/midway2/aksarkar/singlecell/run-kallisto/ensembl-75-protein-coding.fa.gz
 </pre>
 </div>
 
+<pre class="example">
+Submitted batch job 44822034
+
+</pre>
+</div>
+</div>
+
+<div id="outline-container-org39ba32b" class="outline-2">
+<h2 id="org39ba32b">Run kallisto</h2>
+<div class="outline-text-2" id="text-org39ba32b">
 <p>
 Download the data and run quantification.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sh">sbatch --partition=broadwl -a 2-58
+<pre class="src src-sh">sbatch --partition=broadwl --mem=5G --job-name kallisto -a 2-58
 <span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
+<span class="org-builtin">set</span> -e
 <span class="org-builtin">source</span> activate scqtl
-awk <span class="org-string">'BEGIN {FS = "\t"; i = 0; while (getline &lt; "metadata.txt") {id[i] = $2; i++} task = ENVIRON["SLURM_ARRAY_TASK_ID"]; system("fastq-dump --gzip " id[task])}'</span>
+<span class="org-builtin">readarray</span> tasks &lt;metadata.txt
+<span class="org-variable-name">task</span>=(${<span class="org-variable-name">tasks</span>[$<span class="org-variable-name">SLURM_ARRAY_TASK_ID</span>]})
+<span class="org-builtin">test</span> -f ${<span class="org-variable-name">task</span>[1]}.fastq.gz || fastq-dump --gzip ${<span class="org-variable-name">task</span>[1]}
+kallisto quant --plaintext --single -l 200 -s 50 -i transcripts.idx -o ${<span class="org-variable-name">task</span>[-1]} ${<span class="org-variable-name">task</span>[1]}.fastq.gz
+gzip ${<span class="org-variable-name">task</span>[-1]}/abundance.tsv
 </pre>
 </div>
 
-<p>
-Run quantification.
-</p>
+<pre class="example">
+Submitted batch job 44829590
 
-<div class="org-src-container">
-<pre class="src src-sh">sbatch --partition=broadwl -a 2-58 --mem=5G -d afterok:44358869
-<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
-<span class="org-builtin">source</span> activate scqtl
-awk <span class="org-string">'BEGIN {FS = "\t"; i = 0; while (getline &lt; "metadata.txt") {id[i] = $2; name[i] = $NF; i++} task = ENVIRON["SLURM_ARRAY_TASK_ID"]; system("kallisto quant --plaintext --single -l 200 -s 50 -i transcripts.idx -o " name[task] " " id[task] ".fastq.gz")}'</span>
 </pre>
-</div>
-
-<p>
-Compress the output.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-sh">sbatch --partition=broadwl -n1 -c28 --exclusive
-<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
-find -name <span class="org-string">"abundance.tsv"</span> | parallel bzip2
-</pre>
-</div>
 
 <p>
 Move the output to permanent storage.
@@ -396,7 +437,7 @@ Move the output to permanent storage.
 <div class="org-src-container">
 <pre class="src src-sh"><span class="org-builtin">test</span> -e .rsync-filter || cat &gt;.rsync-filter &lt;&lt;EOF
 <span class="org-sh-heredoc">+ */</span>
-<span class="org-sh-heredoc">+ abundance.tsv.bz2</span>
+<span class="org-sh-heredoc">+ abundance.tsv.gz</span>
 <span class="org-sh-heredoc">- *</span>
 <span class="org-sh-heredoc">EOF</span>
 rsync -FFau /scratch/midway2/aksarkar/singlecell/run-kallisto/ /project2/mstephens/aksarkar/projects/singlecell-qtl/data/kallisto/
@@ -408,23 +449,33 @@ Process the output.
 </p>
 
 <div class="org-src-container">
+<pre class="src src-sh">zcat Homo_sapiens.GRCh37.75.cds.all.fa.gz | awk <span class="org-string">'/^&gt;/ {sub("&gt;", "", $1); split($3, a, ":"); split($4, b, ":"); c=a[3]} c ~ /^([0-9][0-9]?|[XY]|MT)$/ &amp;&amp; $5 == "gene_biotype:protein_coding" {print $1, b[2]}'</span> &gt;mapping.txt
+</pre>
+</div>
+
+<div class="org-src-container">
 <pre class="src src-sh">sbatch --partition=broadwl
 <span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
 <span class="org-builtin">set</span> -e
 <span class="org-keyword">function</span> <span class="org-function-name">process</span> () {
-    bzcat $<span class="org-variable-name">1</span> | awk -v <span class="org-variable-name">ind</span>=$(<span class="org-sh-quoted-exec">basename</span> $(<span class="org-sh-quoted-exec">dirname</span> $<span class="org-variable-name">1</span>)) <span class="org-string">'NR &gt; 1 {split($1, target, "|"); tpm[target[2]] += $NF} END {for (gene in tpm) {print ind, gene, tpm[gene]}}'</span>
+    zcat $<span class="org-variable-name">1</span> | awk -v <span class="org-variable-name">ind</span>=$(<span class="org-sh-quoted-exec">basename</span> $(<span class="org-sh-quoted-exec">dirname</span> $<span class="org-variable-name">1</span>)) <span class="org-string">'BEGIN {while (getline &lt;"mapping.txt") {m[$1] = $2}} NR &gt; 1 {tpm[m[$1]] += $NF} END {for (gene in tpm) {print ind, gene, tpm[gene]}}'</span>
 }
 <span class="org-builtin">export</span> -f process
-find -name <span class="org-string">"abundance.tsv.bz2"</span> | parallel --halt now,<span class="org-variable-name">fail</span>=1 -j1 process | gzip &gt;bulk-ipsc-tpm.txt.gz
+find -name <span class="org-string">"abundance.tsv.gz"</span> | parallel --halt now,<span class="org-variable-name">fail</span>=1 -j1 process | gzip &gt;bulk-ipsc-tpm.txt.gz
 cp bulk-ipsc-tpm.txt.gz /project2/mstephens/aksarkar/projects/singlecell-qtl/data/kallisto/
+</pre>
+</div>
+
+<pre class="example">
+Submitted batch job 44835137
+
 </pre>
 </div>
 </div>
 </div>
-</div>
 <div id="postamble" class="status">
-<p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-03-22 Thu 11:41</p>
+<p class="author">Author: Abhishek Sarkar Abhishek Sarkar</p>
+<p class="date">Created: 2018-04-08 Sun 22:21</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>

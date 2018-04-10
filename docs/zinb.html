@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-03-28 Wed 20:24 -->
+<!-- 2018-04-10 Tue 13:21 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mean/dispersion estimation</title>
@@ -272,7 +272,7 @@ Here, we solve (1).
 
 <ol class="org-ol">
 <li><a href="#org6ace9b3">We implement CPU-based ML estimation</a></li>
-<li><a href="#orgebc1920">We estimate per-gene indexes of dispersion</a> accounting for the fact that
+<li><a href="#org4f496c8">We estimate per-gene indexes of dispersion</a> accounting for the fact that
 data came from multiple individuals</li>
 </ol>
 </div>
@@ -283,54 +283,75 @@ data came from multiple individuals</li>
 <div class="outline-text-2" id="text-org83e68c4">
 <p>
 Let \(r_{ijk}\) denote the number of molecules for individual \(i\), cell
-\(j\), gene \(k\). Let \(R_{ij}\) denote a size factor for each cell. As a
-first pass, define \(R_{ij} = \sum_k r_{ijk}\).
+\(j\), gene \(k\). Let \(R_{ij}\) denote a size factor for each cell.
 </p>
 
 <p>
-Following Hilbe 2012, we derive the negative binomial as a Poisson-Gamma
-mixture:
+\[ r_{ijk} \sim \pi_{ik} \delta_0(\cdot) + (1 - \pi_{ik})\text{Poisson}(\cdot; R_{ij} \mu_{ik} u_{ijk}) \]
 </p>
 
 <p>
-\[ r_{ijk} \sim \text{Pois}(R_{ij} \mu_{ik} u_{ijk}) \]
+\[ u_{ijk} \sim \text{Gamma}(\cdot; \phi_{ik}^{-1}, \phi_{ik}^{-1}) \]
 </p>
 
 <p>
-\[ u_{ijk} \sim \text{Gamma}(\phi_{ik}^{-1}, \phi_{ik}^{-1}) \]
+Here, \(\mu_{ik}\) is proportional to relative expression (<a href="https://arxiv.org/abs/1104.3889">Pachter 2011</a>), and
+\(\phi_{ik}\) is the variance of expression noise.
 </p>
 
 <p>
-Here, \(\mu_{ik}u_{ijk}\) denotes relative expression
-(<a href="https://arxiv.org/abs/1104.3889">Pachter 2011</a>). Marginalizing out \(u\)
-yields the negative binomial distribution, with log likelihood:
+Considering just the Poisson component, marginalizing out \(u\) yields the
+log likelihood:
 </p>
 
 <p>
-\[ \ln p(r_{ijk} \mid R_{ij}, \mu_{ik}, \phi_{ik}) = r_{ijk} \ln\left(\frac{R_{ij}\mu_{ik}\phi_{ik}}{1 + R_{ij}\mu_{ik}\phi_{ik}}\right) - \phi_{ik}^{-1} \ln(1 + R_{ij}\mu_{ik}\phi_{ik}) + \ln \Gamma(r_{ijk} + \phi_{ik}^{-1}) - \ln \Gamma(r_{ijk} + 1) - \ln \Gamma(\phi^{-1}) \]
+\[ l(\cdot) = \ln(1 - \pi_{ik}) + r_{ijk} \ln\left(\frac{R_{ij}\mu_{ik}\phi_{ik}}{1 + R_{ij}\mu_{ik}\phi_{ik}}\right) - \phi_{ik}^{-1} \ln(1 + R_{ij}\mu_{ik}\phi_{ik}) + \ln \Gamma(r_{ijk} + \phi_{ik}^{-1}) - \ln \Gamma(r_{ijk} + 1) - \ln \Gamma(\phi^{-1}) \]
 </p>
 
 <p>
-We have multiple data points (30-200 cells) per mean/dispersion parameter, so
-simply minimizing the negative log likelihood should give reasonable
-estimates.
+Then, marginalizing over the mixture yields the log likelihood:
 </p>
 
 <p>
-We additionally account for zero-inflation, by letting \(\pi_{ik}\) denote
-the probability of observing an excess zero (not arising from the
-negative-binomial).
+\[ \ln p(r_{ijk} \mid \cdot) = \ln(\pi_{ik} + \exp(l(\cdot)))\ \text{if}\ r_{ijk} = 0 \]
 </p>
 
 <p>
-Then, the log-likelihood of the data is:
+\[ \ln p(r_{ijk} \mid \cdot) = l(\cdot)\ \text{otherwise} \]
 </p>
 
 <p>
-\[ \ln p(r_{ijk} \mid \cdot) = \ln(\pi_{ik} + (1 -  \pi_{ik}) p(r_{ijk}
-    \mid R_{ij}, \mu_{ik}, \phi_{ik}))\ \text{if}\ r_{ijk} = 0 \]
-\[ \ln p(r_{ijk} \mid \cdot) = \ln(1 - \pi_{ik}) + \ln p(r_{ijk} \mid
-    R_{ij}, \mu_{ik}, \phi_{ik})\ \text{otherwise} \]
+We have enough observations per mean/dispersion parameter that simply
+minimizing the negative log likelihood should give reasonable estimates.
+</p>
+
+<p>
+This model is equivalent to a model where we assume that the underlying rate
+is a point-Gamma mixture:
+</p>
+
+<p>
+\[ r_{ijk} \mid \lambda_{ijk} \sim \mathrm{Poisson}(\cdot; R_{ij}\lambda_{ijk}) \]
+</p>
+
+<p>
+\[ \lambda_{ijk} \sim \pi_{ik} \delta_0(\cdot) + (1 - \pi_{ik})
+  \text{Gamma}(\lambda_{ijk}; \phi_{ik}^{-1}, \phi_{ik}^{-1}\mu_{ik}^{-1}) \]
+</p>
+
+<p>
+The Gamma component of this mixture corresponds to \(\mu_{ik}u_{ijk}\) in the
+model above. Considering just the Gamma component, marginalizing out
+\(\lambda\) yields the log likelihood:
+</p>
+
+<p>
+\[ \tilde{l}(\cdot) = \ln(1 - \pi_{ik}) + r_{ijk} \ln\left(\frac{R_{ij}}{R_{ij} + \phi_{ik}^{-1}\mu_{ik}^{-1}} \right) + \phi_{ik}^{-1} \ln\left(\frac{\phi_{ik}^{-1}\mu_{ik}^{-1}}{R_{ij} + \phi_{ik}^{-1}\mu_{ik}^{-1}}\right) + \ln\Gamma(r_{ijk} + \phi_{ik}^{-1}) - \ln\Gamma(r_{ijk} + 1) - \ln\Gamma(\phi_{ik}^{-1}) \]
+</p>
+
+<p>
+It is clear \(l = \tilde{l}\), and therefore the marginal likelihoods (over
+the mixture components) are also equal.
 </p>
 </div>
 </div>
@@ -343,9 +364,7 @@ Optimize the negative log-likelihood.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org9951dba"><span class="org-keyword">import</span> scipy.optimize <span class="org-keyword">as</span> so
-
-<span class="org-keyword">def</span> <span class="org-function-name">log</span>(x):
+<pre class="src src-ipython" id="org9951dba"><span class="org-keyword">def</span> <span class="org-function-name">log</span>(x):
   <span class="org-doc">"""Numerically safe log"""</span>
   <span class="org-keyword">return</span> np.log(x + 1e-8)
 
@@ -354,24 +373,162 @@ Optimize the negative log-likelihood.
   <span class="org-variable-name">lim</span> = np.log(np.finfo(np.float64).resolution)
   <span class="org-keyword">return</span> np.clip(sp.expit(x), lim, -lim)
 
-<span class="org-keyword">def</span> <span class="org-function-name">zinb</span>(theta, x, size):
-  <span class="org-variable-name">theta</span>, <span class="org-variable-name">dropout</span> = theta[:2], sigmoid(theta[2])
-  <span class="org-variable-name">case_zero</span> = log(dropout + (1 - dropout) * np.exp(-nb(theta, x, size)))
-  <span class="org-variable-name">case_non_zero</span> = log(1 - dropout) - nb(theta, x, size)
-  <span class="org-keyword">return</span> -np.where(x &lt; 1e-8, case_zero, case_non_zero).mean()
-
 <span class="org-keyword">def</span> <span class="org-function-name">nb</span>(theta, x, size):
+  <span class="org-doc">"""Return the per-data point log likelihood NB(x; theta, size)"""</span>
   <span class="org-variable-name">mean</span>, <span class="org-variable-name">inv_disp</span> = np.exp(theta)
   <span class="org-variable-name">mean</span> *= size
   <span class="org-keyword">assert</span> mean.shape == x.shape
-  <span class="org-keyword">return</span> -(x * log(mean / inv_disp) -
-           x * log(1 + mean / inv_disp) -
-           inv_disp * log(1 + mean / inv_disp) +
-           sp.gammaln(x + inv_disp) -
-           sp.gammaln(inv_disp) -
-           sp.gammaln(x + 1)).mean()
+  <span class="org-keyword">return</span> (x * log(mean / inv_disp) -
+          x * log(1 + mean / inv_disp) -
+          inv_disp * log(1 + mean / inv_disp) +
+          sp.gammaln(x + inv_disp) -
+          sp.gammaln(inv_disp) -
+          sp.gammaln(x + 1))
+
+<span class="org-keyword">def</span> <span class="org-function-name">_nb</span>(theta, x, size):
+  <span class="org-doc">"""Return the mean negative log likelihood of x"""</span>
+  <span class="org-keyword">return</span> -nb(theta, x, size).mean()
+
+<span class="org-keyword">def</span> <span class="org-function-name">zinb</span>(theta, x, size):
+  <span class="org-doc">"""Return the mean negative log likelihood of x"""</span>
+  <span class="org-variable-name">theta</span>, <span class="org-variable-name">logodds</span> = theta[:2], theta[2]
+  <span class="org-variable-name">case_non_zero</span> = -np.log1p(np.exp(logodds)) + nb(theta, x, size)
+  <span class="org-variable-name">case_zero</span> = np.logaddexp(logodds - np.log1p(np.exp(logodds)), case_non_zero)
+  <span class="org-keyword">return</span> -np.where(x &lt; 1e-8, case_zero, case_non_zero).mean()
+
+<span class="org-keyword">def</span> <span class="org-function-name">_fit_gene</span>(chunk):
+  <span class="org-keyword">if</span> chunk[:,0].<span class="org-builtin">sum</span>() == 0:
+    <span class="org-comment-delimiter"># </span><span class="org-comment">Without stringent QC, we need to handle the case of all zero observations</span>
+    <span class="org-keyword">return</span> [-np.inf, -np.inf, np.inf, 0, 0]
+  <span class="org-variable-name">res0</span> = so.minimize(_nb, x0=[0, 0], args=(chunk[:,0], chunk[:,1]))
+  <span class="org-variable-name">pi0</span> = (chunk[:,0] == 0).<span class="org-builtin">sum</span>() / chunk.shape[0]
+  <span class="org-variable-name">res</span> = so.minimize(zinb, x0=<span class="org-builtin">list</span>(res0.x) + [sp.logit(pi0 + 1e-8)], args=(chunk[:,0], chunk[:,1]))
+  <span class="org-keyword">if</span> res0.fun &lt; res.fun:
+    <span class="org-comment-delimiter"># </span><span class="org-comment">This isn't a likelihood ratio test. Numerically, our implementation of</span>
+    <span class="org-comment-delimiter"># </span><span class="org-comment">ZINB can't represent pi = 0, so we need to use a separate implementation</span>
+    <span class="org-comment-delimiter"># </span><span class="org-comment">for it</span>
+    <span class="org-variable-name">log_mu</span>, <span class="org-variable-name">neg_log_phi</span> = res0.x
+    <span class="org-variable-name">logit_pi</span> = -np.inf
+  <span class="org-keyword">else</span>:
+    <span class="org-variable-name">log_mu</span>, <span class="org-variable-name">neg_log_phi</span>, <span class="org-variable-name">logit_pi</span> = res.x
+  <span class="org-variable-name">mean_by_sample</span> = chunk[:,1].ravel() * np.exp(log_mu)
+  <span class="org-variable-name">var_by_sample</span> = mean_by_sample + np.square(mean_by_sample) * np.exp(-neg_log_phi)
+  <span class="org-variable-name">mean_by_ind</span> = mean_by_sample.mean()
+  <span class="org-variable-name">var_by_ind</span> = (np.square(mean_by_sample - mean_by_ind) + var_by_sample).mean()
+  <span class="org-keyword">return</span> [log_mu, -neg_log_phi, logit_pi, mean_by_ind, var_by_ind]
+
+<span class="org-keyword">def</span> <span class="org-function-name">fit_gene</span>(chunk, bootstraps=100):
+  <span class="org-variable-name">orig</span> = _fit_gene(chunk)
+  <span class="org-variable-name">B</span> = []
+  <span class="org-keyword">for</span> _ <span class="org-keyword">in</span> <span class="org-builtin">range</span>(bootstraps):
+    B.append(_fit_gene(chunk[np.random.choice(chunk.shape[0], chunk.shape[0], replace=<span class="org-constant">True</span>)]))
+  <span class="org-variable-name">se</span> = np.array(B)[:,:2].std(axis=0)
+  <span class="org-keyword">return</span> orig + <span class="org-builtin">list</span>(se.ravel())
 </pre>
 </div>
+
+<p>
+Computing analytic SE runs into numerical problems.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">_pois</span>(theta, x, size):
+  <span class="org-variable-name">mean</span> = np.exp(theta)
+  <span class="org-variable-name">mean</span> *= size
+  <span class="org-keyword">return</span> (x * log(mean) - mean - sp.gammaln(x + 1)).mean()
+
+<span class="org-keyword">def</span> <span class="org-function-name">_pois_jac</span>(theta, x, size):
+  <span class="org-variable-name">mean</span> = np.exp(theta)
+  <span class="org-keyword">return</span> mean * (x / mean - size).mean()
+
+<span class="org-keyword">def</span> <span class="org-function-name">_nb_jac</span>(theta, x, size):
+  <span class="org-variable-name">mean</span>, <span class="org-variable-name">inv_disp</span> = np.exp(theta)
+  <span class="org-variable-name">T</span> = (1 + size * mean / inv_disp)
+  <span class="org-keyword">return</span> mean * (x / mean - size / inv_disp * (x + inv_disp) / T).mean()
+
+<span class="org-keyword">def</span> <span class="org-function-name">check_gradients</span>(x, f, df, args=<span class="org-constant">None</span>, num_trials=100):
+  <span class="org-variable-name">x</span> = np.array(x)
+  <span class="org-variable-name">y</span> = f(x, *args)
+  <span class="org-variable-name">analytic_diff</span> = df(x, *args)
+  <span class="org-variable-name">error</span> = []
+  <span class="org-keyword">for</span> i <span class="org-keyword">in</span> <span class="org-builtin">range</span>(num_trials):
+    <span class="org-variable-name">eps</span> = np.random.normal(scale=1e-4, size=x.shape)
+    <span class="org-variable-name">num_diff</span> = (f(x + eps, *args) - y) / eps
+    error.append(<span class="org-builtin">abs</span>(num_diff - analytic_diff))
+  <span class="org-keyword">return</span> np.array(error)
+</pre>
+</div>
+
+<p>
+Check the parameter estimation on simulated data.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython" id="orga0aec35"><span class="org-keyword">def</span> <span class="org-function-name">simulate</span>(num_samples, size=<span class="org-constant">None</span>, log_mu=<span class="org-constant">None</span>, log_phi=<span class="org-constant">None</span>, logodds=<span class="org-constant">None</span>, seed=<span class="org-constant">None</span>):
+  <span class="org-keyword">if</span> seed <span class="org-keyword">is</span> <span class="org-constant">None</span>:
+    <span class="org-variable-name">seed</span> = 0
+  np.random.seed(seed)
+  <span class="org-keyword">if</span> log_mu <span class="org-keyword">is</span> <span class="org-constant">None</span>:
+    <span class="org-variable-name">log_mu</span> = np.random.uniform(low=-12, high=-8)
+  <span class="org-keyword">if</span> log_phi <span class="org-keyword">is</span> <span class="org-constant">None</span>:
+    <span class="org-variable-name">log_phi</span> = np.random.uniform(low=-6, high=0)
+  <span class="org-keyword">if</span> size <span class="org-keyword">is</span> <span class="org-constant">None</span>:
+    <span class="org-variable-name">size</span> = 1e5
+  <span class="org-keyword">if</span> logodds <span class="org-keyword">is</span> <span class="org-constant">None</span>:
+    <span class="org-variable-name">prob</span> = np.random.uniform()
+  <span class="org-keyword">else</span>:
+    <span class="org-variable-name">prob</span> = sp.expit(logodds)
+  <span class="org-variable-name">n</span> = np.exp(-log_phi)
+  <span class="org-variable-name">p</span> = 1 / (1 + size * np.exp(log_mu + log_phi))
+  <span class="org-variable-name">x</span> = np.where(np.random.uniform(size=num_samples) &lt; prob,
+               0,
+               np.random.negative_binomial(n=n, p=p, size=num_samples))
+  <span class="org-keyword">return</span> np.vstack((x, size * np.ones(num_samples))).T
+
+<span class="org-keyword">def</span> <span class="org-function-name">evaluate</span>(num_samples, num_mols, log_mu, log_phi, logodds, trial):
+  <span class="org-variable-name">keys</span> = [<span class="org-string">'num_samples'</span>, <span class="org-string">'num_mols'</span>, <span class="org-string">'log_mu'</span>, <span class="org-string">'log_phi'</span>, <span class="org-string">'logodds'</span>, <span class="org-string">'trial'</span>,
+          <span class="org-string">'log_mu_hat'</span>, <span class="org-string">'log_phi_hat'</span>, <span class="org-string">'logodds_hat'</span>, <span class="org-string">'mean'</span>, <span class="org-string">'var'</span>]
+  <span class="org-variable-name">result</span> = _fit_gene(simulate(num_samples=num_samples, size=num_mols,
+                              log_mu=log_mu, log_phi=log_phi,
+                              logodds=logodds, seed=trial))
+  <span class="org-variable-name">result</span> = [num_samples, num_mols, log_mu, log_phi, logodds, trial] + <span class="org-builtin">list</span>(result)
+  <span class="org-keyword">return</span> {k: v <span class="org-keyword">for</span> k, v <span class="org-keyword">in</span> <span class="org-builtin">zip</span>(keys, result)}
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-comment-delimiter">#</span><span class="org-comment">!/usr/bin/env python3</span>
+&lt;&lt;zinb-imports&gt;&gt;
+<span class="org-keyword">import</span> multiprocessing <span class="org-keyword">as</span> mp
+<span class="org-keyword">import</span> sqlite3
+&lt;&lt;np-zinb-impl&gt;&gt;
+&lt;&lt;sim-impl&gt;&gt;
+<span class="org-variable-name">args</span> = [(num_samples, num_mols, log_mu, log_phi, logodds, trial)
+        <span class="org-keyword">for</span> num_samples <span class="org-keyword">in</span> np.linspace(100, 1000, 5).astype(<span class="org-builtin">int</span>)
+        <span class="org-keyword">for</span> num_mols <span class="org-keyword">in</span> 1e3 * np.linspace(100, 1000, 5).astype(<span class="org-builtin">int</span>)
+        <span class="org-keyword">for</span> log_mu <span class="org-keyword">in</span> np.linspace(-12, -6, 7)
+        <span class="org-keyword">for</span> log_phi <span class="org-keyword">in</span> np.linspace(-6, 0, 7)
+        <span class="org-keyword">for</span> logodds <span class="org-keyword">in</span> np.linspace(-3, 3, 7)
+        <span class="org-keyword">for</span> trial <span class="org-keyword">in</span> <span class="org-builtin">range</span>(20)]
+<span class="org-keyword">with</span> mp.Pool() <span class="org-keyword">as</span> pool:
+  <span class="org-variable-name">result</span> = pd.DataFrame.from_dict(pool.starmap(evaluate, args))
+<span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'</span>) <span class="org-keyword">as</span> conn:
+  result.to_sql(name=<span class="org-string">'simulation'</span>, con=conn, index=<span class="org-constant">False</span>, if_exists=<span class="org-string">'replace'</span>)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-sh">sbatch --partition=broadwl --mem=4G --job-name sim -n1 -c28 --exclusive 
+<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
+<span class="org-builtin">source</span> activate scqtl
+python /scratch/midway2/aksarkar/singlecell/density-estimation/sim.py
+</pre>
+</div>
+
+<pre class="example">
+Submitted batch job 44935043
+
+</pre>
 
 <p>
 Use this to check the parameter estimation for a particular gene/individual.
@@ -389,9 +546,19 @@ Use this to check the parameter estimation for a particular gene/individual.
 
 <p>
 Shard the data to parallelize over nodes. During this pass, write the data
-out to the database. <b>Important: we need to use the actual number of
-molecules detected rather than the sum of QC'ed counts as the size factor.</b>
+out to the database. 
 </p>
+
+<p>
+<b>Important notes:</b> 
+</p>
+
+<ol class="org-ol">
+<li>We need to use the actual number of molecules detected as the size factor,
+not the sum of QC'ed counts</li>
+<li>We need to estimate relative abundance for all genes (to match bulk), not
+just those which passed QC</li>
+</ol>
 
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-variable-name">annotations</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
@@ -403,8 +570,6 @@ molecules detected rather than the sum of QC'ed counts as the size factor.</b>
   conn.execute(<span class="org-string">'create index ix_annotation on annotation(chip_id, sample);'</span>)
 
 <span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
-<span class="org-variable-name">keep_genes</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
-<span class="org-variable-name">keep_genes</span> = keep_genes[keep_genes.values].index
 
 <span class="org-variable-name">i</span> = 0
 <span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'</span>) <span class="org-keyword">as</span> conn:
@@ -412,8 +577,7 @@ molecules detected rather than the sum of QC'ed counts as the size factor.</b>
   <span class="org-keyword">for</span> chunk <span class="org-keyword">in</span> pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>, index_col=0, chunksize=1000):
     <span class="org-keyword">print</span>(<span class="org-string">'Processing chunk {}'</span>.<span class="org-builtin">format</span>(i))
     <span class="org-variable-name">chunk</span> = (chunk
-             .loc[:,keep_samples.values.ravel()]
-             .<span class="org-builtin">filter</span>(items=keep_genes, axis=<span class="org-string">'index'</span>))
+             .loc[:,keep_samples.values.ravel()])
     <span class="org-keyword">if</span> <span class="org-keyword">not</span> chunk.empty:
       <span class="org-variable-name">chunk</span> = (chunk
                .reset_index()
@@ -423,6 +587,7 @@ molecules detected rather than the sum of QC'ed counts as the size factor.</b>
       chunk.to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/density-estimation/chunk-{}.txt.gz'</span>.<span class="org-builtin">format</span>(i), columns=[<span class="org-string">'gene'</span>, <span class="org-string">'chip_id'</span>, <span class="org-string">'sample'</span>, <span class="org-string">'value'</span>, <span class="org-string">'size'</span>], compression=<span class="org-string">'gzip'</span>, sep=<span class="org-string">'\t'</span>)
       chunk[[<span class="org-string">'gene'</span>, <span class="org-string">'sample'</span>, <span class="org-string">'value'</span>]].to_sql(name=<span class="org-string">'umi'</span>, con=conn, index=<span class="org-constant">False</span>, if_exists=<span class="org-string">'append'</span>)
       <span class="org-variable-name">i</span> += 1
+    <span class="org-keyword">del</span> chunk
   conn.execute(<span class="org-string">'create index ix_umi on umi(gene, sample);'</span>)
 </pre>
 </div>
@@ -432,27 +597,7 @@ Process each chunk in parallel.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="orgbd92003"><span class="org-keyword">def</span> <span class="org-function-name">fit_gene</span>(chunk):
-  <span class="org-variable-name">res0</span> = so.minimize(nb, x0=[0, 0], args=(chunk[:,0], chunk[:,1]))
-  <span class="org-variable-name">pi0</span> = (chunk[:,0] == 0).<span class="org-builtin">sum</span>() / chunk.shape[0]
-  <span class="org-variable-name">res</span> = so.minimize(zinb, x0=<span class="org-builtin">list</span>(res0.x) + [sp.logit(pi0 + 1e-8)], args=(chunk[:,0], chunk[:,1]))
-  <span class="org-comment-delimiter"># </span><span class="org-comment">Log likelihood of ZINB vs. NB. We need to flip signs again</span>
-  <span class="org-variable-name">llr</span> = chunk.shape[0] * (res0.fun - res.fun)
-  <span class="org-keyword">if</span> llr &lt; 1:
-    <span class="org-comment-delimiter"># </span><span class="org-comment">This isn't a likelihood ratio test. Numerically, our implementation of</span>
-    <span class="org-comment-delimiter"># </span><span class="org-comment">ZINB can't represent pi = 0, so we need to use a separate implementation</span>
-    <span class="org-comment-delimiter"># </span><span class="org-comment">for it</span>
-    <span class="org-variable-name">log_mu</span>, <span class="org-variable-name">neg_log_phi</span> = res0.x
-    <span class="org-variable-name">logit_pi</span> = -np.inf
-  <span class="org-keyword">else</span>:
-    <span class="org-variable-name">log_mu</span>, <span class="org-variable-name">neg_log_phi</span>, <span class="org-variable-name">logit_pi</span> = res.x
-  <span class="org-variable-name">mean_by_sample</span> = chunk[:,1].ravel() * np.exp(log_mu)
-  <span class="org-variable-name">var_by_sample</span> = mean_by_sample + np.square(mean_by_sample) * np.exp(-neg_log_phi)
-  <span class="org-variable-name">mean_by_ind</span> = mean_by_sample.mean()
-  <span class="org-variable-name">var_by_ind</span> = (np.square(mean_by_sample - mean_by_ind) + var_by_sample).mean()
-  <span class="org-keyword">return</span> [log_mu, -neg_log_phi, logit_pi, mean_by_ind, var_by_ind]
-
-<span class="org-keyword">def</span> <span class="org-function-name">compute_breaks</span>(chunk, by_ind=<span class="org-constant">False</span>):
+<pre class="src src-ipython" id="orgbd92003"><span class="org-keyword">def</span> <span class="org-function-name">compute_breaks</span>(chunk, by_ind=<span class="org-constant">False</span>):
   <span class="org-comment-delimiter"># </span><span class="org-comment">Each subproblem has fixed size, so we can just split on integer indices</span>
   <span class="org-comment-delimiter"># </span><span class="org-comment">(instead of grouping)</span>
   <span class="org-variable-name">num_genes</span> = <span class="org-builtin">len</span>(<span class="org-builtin">set</span>(chunk[<span class="org-string">'gene'</span>]))
@@ -499,6 +644,11 @@ python /scratch/midway2/aksarkar/singlecell/np-zinb.py
 </pre>
 </div>
 
+<pre class="example">
+Submitted batch job 44962891
+
+</pre>
+
 <p>
 Populate the database.
 </p>
@@ -506,9 +656,9 @@ Populate the database.
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'</span>) <span class="org-keyword">as</span> conn:
   conn.execute(<span class="org-string">'drop table if exists params;'</span>)
-  <span class="org-keyword">for</span> i <span class="org-keyword">in</span> <span class="org-builtin">range</span>(20):
+  <span class="org-keyword">for</span> i <span class="org-keyword">in</span> <span class="org-builtin">range</span>(21):
     <span class="org-keyword">for</span> chunk <span class="org-keyword">in</span> pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/density-estimation/result-{}.txt.gz'</span>.<span class="org-builtin">format</span>(i), sep=<span class="org-string">' '</span>, header=<span class="org-constant">None</span>, chunksize=1000):
-      <span class="org-variable-name">chunk.columns</span> = [<span class="org-string">'gene'</span>, <span class="org-string">'ind'</span>, <span class="org-string">'log_mu'</span>, <span class="org-string">'log_phi'</span>, <span class="org-string">'logodds'</span>, <span class="org-string">'mean'</span>, <span class="org-string">'var'</span>]
+      <span class="org-variable-name">chunk.columns</span> = [<span class="org-string">'gene'</span>, <span class="org-string">'ind'</span>, <span class="org-string">'log_mu'</span>, <span class="org-string">'log_phi'</span>, <span class="org-string">'logodds'</span>, <span class="org-string">'mean'</span>, <span class="org-string">'var'</span>, <span class="org-string">'log_mu_se'</span>, <span class="org-string">'log_phi_se'</span>]
       chunk.to_sql(name=<span class="org-string">'params'</span>, con=conn, index=<span class="org-constant">False</span>, if_exists=<span class="org-string">'append'</span>)
   conn.execute(<span class="org-string">'create index ix_params on params(gene, ind);'</span>)
 </pre>
@@ -516,9 +666,9 @@ Populate the database.
 </div>
 </div>
 
-<div id="outline-container-orgebc1920" class="outline-2">
-<h2 id="orgebc1920">Genome-wide distribution of dispersion</h2>
-<div class="outline-text-2" id="text-orgebc1920">
+<div id="outline-container-org4f496c8" class="outline-2">
+<h2 id="org4f496c8">Per-gene dispersion</h2>
+<div class="outline-text-2" id="text-org4f496c8">
 <p>
 The index of dispersion for observed data \(r_{ijk}\) at gene \(k\) is:
 </p>
@@ -546,7 +696,7 @@ Fixing gene \(k\), the mixture density has expectation:
 </p>
 
 <p>
-\[ \mu_k = \frac{1}{N} \sum_{ijk} E_{g_{ijk}}[r_{ijk}] \]
+\[ \mu_k = \frac{1}{N} \sum E[r_{ijk}] \]
 </p>
 
 <p>
@@ -554,8 +704,7 @@ and variance (<a href="http://www.springer.com/us/book/9780387329093">Frühwirth
 </p>
 
 <p>
-\[ \sigma^2_k = \frac{1}{N} \sum (E_{g_{ijk}}[r_{ijk}] - \mu)^2 + V_{g_{ijk}}
-  [r_{ijk}] \]
+\[ \sigma^2_k = \frac{1}{N} \sum (E[r_{ijk}] - \mu_k)^2 + V[r_{ijk}] \]
 </p>
 
 <p>
@@ -563,95 +712,22 @@ Fixing individual \(i\) and cell \(j\), we have:
 </p>
 
 <p>
-\[ E[r_{ijk}] = (1 - \pi_{ik}) R_{ij} \mu_{ik} \]
+\[ E[r_{ijk}] = R_{ij} \mu_{ik} \]
 </p>
 
 <p>
-\[ V[r_[ijk]] = (1 - \pi_{ik}) \left(R_{ij} \mu_{ik} + (R_{ij} \mu_{ik})^2 \phi_{ik}\right) \]
+\[ V[r_{ijk}] = \left(R_{ij} \mu_{ik} + (R_{ij} \mu_{ik})^2 \phi_{ik}\right) \]
 </p>
 
 <p>
-Read the estimated parameters, throwing out individuals with fewer than 50
-cells.
-</p>
-
-<p>
-Compute the index of dispersion as described above. Use the sharded results
-to parallelize. <b>Important: we parameterized in terms of inverse dispersion,
-so we need to flip signs here.</b>
+Here, we ignore the factor of \((1 - \pi_{ik})\) under the assumption that
+excess zeros do not reflect biology.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython">
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython">&lt;&lt;zinb-imports&gt;&gt;
-<span class="org-keyword">import</span> multiprocessing <span class="org-keyword">as</span> mp
-<span class="org-keyword">import</span> sqlite3
-
-<span class="org-keyword">def</span> <span class="org-function-name">process_gene</span>(chunk):
-  <span class="org-keyword">global</span> annotation
-  gene, ind, *<span class="org-variable-name">_</span> = chunk.iloc[0]
-  <span class="org-keyword">if</span> ind <span class="org-keyword">in</span> annotation[<span class="org-string">'chip_id'</span>]:
-    <span class="org-variable-name">exp_value</span> = annotation[annotation[<span class="org-string">'chip_id'</span>] == ind][<span class="org-string">'size'</span>] * np.exp(chunk[<span class="org-string">'log_mean'</span>])
-    <span class="org-variable-name">var</span> = exp_value + exp_value * exp_value * np.exp(-g[<span class="org-string">'log_disp'</span>])
-    <span class="org-variable-name">gene_mean</span> = exp_value.mean()
-    <span class="org-variable-name">gene_var</span> = (np.square(exp_value - gene_mean) + var).mean()
-    <span class="org-keyword">return</span>
-  <span class="org-keyword">else</span>:
-    <span class="org-keyword">return</span> {}
-
-<span class="org-keyword">with</span> mp.Pool() <span class="org-keyword">as</span> pool:
-  <span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'</span>) <span class="org-keyword">as</span> conn:
-    <span class="org-variable-name">annotation</span> = pd.read_sql(<span class="org-string">'select * from annotation group by chip_id having count(distinct sample) &gt;= 50;'</span>, conn)
-  <span class="org-variable-name">chunk</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/density-estimation/result-{}.txt.gz'</span>.<span class="org-builtin">format</span>(os.getenv(<span class="org-string">'SLURM_ARRAY_TASK_ID'</span>)), header=<span class="org-constant">None</span>)
-  <span class="org-variable-name">chunk.columns</span> = [<span class="org-string">'gene'</span>, <span class="org-string">'ind'</span>, <span class="org-string">'nb_log_mean'</span>, <span class="org-string">'nb_log_disp'</span>, <span class="org-string">'nb_success'</span>, <span class="org-string">'zinb2_log_mean'</span>, <span class="org-string">'zinb2_log_disp'</span>, <span class="org-string">'zinb2_logodds'</span>, <span class="org-string">'zinb2_success'</span>, <span class="org-string">'llr'</span>]
-  <span class="org-variable-name">chunk</span>[<span class="org-string">'log_mean'</span>] = np.where(chunk[<span class="org-string">'llr'</span>] &lt; 1, chunk[<span class="org-string">'nb_log_mean'</span>], chunk[<span class="org-string">'zinb2_log_mean'</span>])
-  <span class="org-variable-name">chunk</span>[<span class="org-string">'log_disp'</span>] = np.where(chunk[<span class="org-string">'llr'</span>] &lt; 1, chunk[<span class="org-string">'nb_log_disp'</span>], chunk[<span class="org-string">'zinb2_log_disp'</span>])
-  <span class="org-comment-delimiter"># </span><span class="org-comment">Subproblems have fixed size</span>
-  <span class="org-variable-name">num_genes</span> = <span class="org-builtin">len</span>(<span class="org-builtin">set</span>(chunk[<span class="org-string">'gene'</span>]))
-  <span class="org-variable-name">num_inds</span> = <span class="org-builtin">len</span>(<span class="org-builtin">set</span>(chunk[<span class="org-string">'chip_id'</span>]))
-  <span class="org-comment-delimiter"># </span><span class="org-comment">Get the right endpoints (exclusive)</span>
-  <span class="org-variable-name">breaks</span> = num_inds * np.arange(1, num_genes + 1)
-  <span class="org-variable-name">res</span> = pd.DataFrame.from_dict(pool.<span class="org-builtin">map</span>(process_gene, np.split(chunk[[<span class="org-string">'gene'</span>, <span class="org-string">'ind'</span>, <span class="org-string">'log_mean'</span>, <span class="org-string">'log_disp'</span>]].values, breaks[:-1])))
-  res.to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/density-estimation/dispersion-index-{}.txt.gz'</span>.<span class="org-builtin">format</span>(os.getenv(<span class="org-string">'SLURM_ARRAY_TASK_ID'</span>)), compression=<span class="org-string">'gzip'</span>, sep=<span class="org-string">'\t'</span>)
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-sh">sbatch --partition=broadwl --job-name=<span class="org-string">"np-zinb"</span> --mem=4G -a 0-20 -n1 -c28 --exclusive
-<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
-<span class="org-builtin">source</span> activate scqtl
-python /scratch/midway2/aksarkar/singlecell/np-zinb.py
-</pre>
-</div>
-
-<p>
-Plot the distribution of dispersions.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">plt.clf()
-plt.hist(dispersion[np.isfinite(dispersion)], bins=50, color=<span class="org-string">'k'</span>)
-plt.xlabel(<span class="org-string">'Index of dispersion'</span>)
-<span class="org-variable-name">_</span> = plt.ylabel(<span class="org-string">'Number of genes'</span>)
-</pre>
-</div>
-
-
-<div class="figure">
-<p><img src="figure/zinb.org/global-dispersion-hist.png" alt="global-dispersion-hist.png">
-</p>
-</div>
-
-<p>
-Write out the computed dispersions.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">dispersion[np.isfinite(dispersion)].to_frame().to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/index-dispersion-by-gene.txt.gz'</span>, compression=<span class="org-string">'gzip'</span>, header=<span class="org-constant">False</span>, sep=<span class="org-string">'\t'</span>)
+<pre class="src src-ipython"><span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'</span>) <span class="org-keyword">as</span> conn:
+  <span class="org-variable-name">params</span> = pd.read_sql(<span class="org-string">'select * from params;'</span>, conn)
+<span class="org-variable-name">gene_params</span> = params.groupby(<span class="org-string">'gene'</span>).<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: pd.Series([x[<span class="org-string">'mean'</span>].mean(), (np.square(x[<span class="org-string">'mean'</span>] - x[<span class="org-string">'mean'</span>].mean()) + x[<span class="org-string">'var'</span>]).mean()]))
 </pre>
 </div>
 </div>
@@ -659,7 +735,7 @@ Write out the computed dispersions.
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-03-28 Wed 20:24</p>
+<p class="date">Created: 2018-04-10 Tue 13:21</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>

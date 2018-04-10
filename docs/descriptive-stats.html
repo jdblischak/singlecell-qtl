@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-03-22 Thu 11:41 -->
+<!-- 2018-04-08 Sun 22:21 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Descriptive statistics</title>
@@ -262,9 +262,9 @@ annotations.shape
 <h2 id="org317b5b8">Distributions of read counts</h2>
 <div class="outline-text-2" id="text-org317b5b8">
 </div>
-<div id="outline-container-org7f46b24" class="outline-3">
-<h3 id="org7f46b24">H. sapiens</h3>
-<div class="outline-text-3" id="text-org7f46b24">
+<div id="outline-container-orgb95e8bc" class="outline-3">
+<h3 id="orgb95e8bc">H. sapiens</h3>
+<div class="outline-text-3" id="text-orgb95e8bc">
 <div class="org-src-container">
 <pre class="src src-ipython">plt.clf()
 plt.gcf().set_size_inches(12, 4)
@@ -377,9 +377,9 @@ Text(0.5,0.98,'Read count by individual/batch')
 </div>
 </div>
 
-<div id="outline-container-org8a7fd78" class="outline-3">
-<h3 id="org8a7fd78">ERCC</h3>
-<div class="outline-text-3" id="text-org8a7fd78">
+<div id="outline-container-org7dec487" class="outline-3">
+<h3 id="org7dec487">ERCC</h3>
+<div class="outline-text-3" id="text-org7dec487">
 <div class="org-src-container">
 <pre class="src src-ipython">plt.clf()
 <span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(3, 1)
@@ -407,9 +407,9 @@ Text(0.5,0.98,'ERCC read count by individual')
 </div>
 </div>
 </div>
-<div id="outline-container-org3f57f26" class="outline-3">
-<h3 id="org3f57f26">D. melanogaster</h3>
-<div class="outline-text-3" id="text-org3f57f26">
+<div id="outline-container-orgc40da1f" class="outline-3">
+<h3 id="orgc40da1f">D. melanogaster</h3>
+<div class="outline-text-3" id="text-orgc40da1f">
 <div class="org-src-container">
 <pre class="src src-ipython">plt.clf()
 <span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(<span class="org-builtin">len</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'fly'</span>])), 1)
@@ -438,9 +438,9 @@ Text(0.5,0.98,'D. mel. read count by individual')
 </div>
 </div>
 
-<div id="outline-container-org5cf1282" class="outline-3">
-<h3 id="org5cf1282">C. elegans</h3>
-<div class="outline-text-3" id="text-org5cf1282">
+<div id="outline-container-org57a4c30" class="outline-3">
+<h3 id="org57a4c30">C. elegans</h3>
+<div class="outline-text-3" id="text-org57a4c30">
 <div class="org-src-container">
 <pre class="src src-ipython">plt.clf()
 <span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(3, 1)
@@ -474,9 +474,9 @@ Text(0.5,0.98,'C. elegans read count by individual')
 <h2 id="orgdcc90fa">Distributions of molecules</h2>
 <div class="outline-text-2" id="text-orgdcc90fa">
 </div>
-<div id="outline-container-orgb6a2e58" class="outline-3">
-<h3 id="orgb6a2e58">H. sapiens</h3>
-<div class="outline-text-3" id="text-orgb6a2e58">
+<div id="outline-container-org05f67ce" class="outline-3">
+<h3 id="org05f67ce">H. sapiens</h3>
+<div class="outline-text-3" id="text-org05f67ce">
 <div class="org-src-container">
 <pre class="src src-ipython">plt.clf()
 plt.hist(annotations[<span class="org-string">'mol_hs'</span>], bins=100)
@@ -536,9 +536,9 @@ Text(0.5,0.98,'Molecule count by individual')
 </div>
 </div>
 
-<div id="outline-container-org5badf7d" class="outline-3">
-<h3 id="org5badf7d">ERCC</h3>
-<div class="outline-text-3" id="text-org5badf7d">
+<div id="outline-container-orgc8bd27e" class="outline-3">
+<h3 id="orgc8bd27e">ERCC</h3>
+<div class="outline-text-3" id="text-orgc8bd27e">
 <div class="org-src-container">
 <pre class="src src-ipython">plt.clf()
 <span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(3, 1)
@@ -568,9 +568,9 @@ Text(0.5,0.98,'ERCC molecule count by individual')
 </div>
 </div>
 
-<div id="outline-container-org53d5927" class="outline-3">
-<h3 id="org53d5927">D. melanogaster</h3>
-<div class="outline-text-3" id="text-org53d5927">
+<div id="outline-container-org2a2c201" class="outline-3">
+<h3 id="org2a2c201">D. melanogaster</h3>
+<div class="outline-text-3" id="text-org2a2c201">
 <div class="org-src-container">
 <pre class="src src-ipython">plt.clf()
 <span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(<span class="org-builtin">len</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'fly'</span>])), 1)
@@ -600,9 +600,9 @@ Text(0.5,0.98,'D. mel. molecule count by individual')
 </div>
 </div>
 
-<div id="outline-container-org98ea600" class="outline-3">
-<h3 id="org98ea600">C. elegans</h3>
-<div class="outline-text-3" id="text-org98ea600">
+<div id="outline-container-org2e59b7c" class="outline-3">
+<h3 id="org2e59b7c">C. elegans</h3>
+<div class="outline-text-3" id="text-org2e59b7c">
 <div class="org-src-container">
 <pre class="src src-ipython">plt.clf()
 <span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(3, 1)
@@ -637,7 +637,7 @@ Text(0.5,0.98,'C. elegans molecule count by individual')
 <h2 id="org9a57c2e">Distributions of cells</h2>
 <div class="outline-text-2" id="text-org9a57c2e">
 <p>
-Our previous results on <a href="sc-vs-bulk.html#orgbf62ddb">concordance between pools of single cells</a> suggest
+Our previous results on <a href="sc-vs-bulk.html#org0b39659">concordance between pools of single cells</a> suggest
 that at least 50 cells are needed to consistently estimate mean expression.
 </p>
 
@@ -738,6 +738,11 @@ bedtools intersect -b tss-100-bp.bed -a /project2/gilad/singlecell-qtl/bulk/geno
 </pre>
 </div>
 
+<pre class="example">
+Submitted batch job 42496069
+
+</pre>
+
 <div class="org-src-container">
 <pre class="src src-sh">zcat out.bed.gz | awk <span class="org-string">'{k[$NF] = 1} END {for (i in k) {n += 1} print n}'</span>
 </pre>
@@ -791,7 +796,7 @@ Text(0,0.5,'Number of genes')
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-03-22 Thu 11:41</p>
+<p class="date">Created: 2018-04-08 Sun 22:21</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
