@@ -319,10 +319,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2018-02-18</p>
+<p><strong>Last updated:</strong> 2018-04-10</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> bdc9784</p>
+<p><strong>Code version:</strong> a7dd0a3</p>
 <section id="setup" class="level2">
 <h2>Setup</h2>
 <pre class="r"><code>library(&quot;cowplot&quot;)
@@ -336,32 +336,35 @@ library(&quot;Biobase&quot;) # has to be loaded last to use `combine`</code></pr
 <pre class="r"><code>eset &lt;- readRDS(&quot;../data/eset.rds&quot;)
 dim(eset)</code></pre>
 <pre><code>Features  Samples 
-   54792     6432 </code></pre>
+   54792     7200 </code></pre>
 <p>Keep human genes and ERCC</p>
 <pre class="r"><code>eset &lt;- eset[fData(eset)$source %in% c(&quot;H. sapiens&quot;, &quot;ERCC&quot;) , ]
 dim(eset) </code></pre>
 <pre><code>Features  Samples 
-   20419     6432 </code></pre>
+   20419     7200 </code></pre>
 <p>Only keep high-quality single cells.</p>
 <pre class="r"><code>quality &lt;- read.table(&quot;../data/quality-single-cells.txt&quot;, stringsAsFactors = FALSE)
 colnames(quality) &lt;- c(&quot;sample&quot;, &quot;quality&quot;)
 eset &lt;- eset[, quality$quality]
 dim(eset)</code></pre>
 <pre><code>Features  Samples 
-   20419     5012 </code></pre>
+   20419     5221 </code></pre>
 <p>Remove zeros.</p>
 <pre class="r"><code>eset &lt;- eset[rowSums(exprs(eset)) != 0, ]
+anno &lt;- pData(eset)
 dim(eset)</code></pre>
 <pre><code>Features  Samples 
-   19827     5012 </code></pre>
+   19861     5221 </code></pre>
 </section>
 <section id="mean-and-cv" class="level2">
 <h2>Mean and CV</h2>
 <p>First, we need to correct for collision probability.</p>
 <pre class="r"><code>eset_data &lt;- exprs(eset)
+stopifnot(nrow(anno) == ncol(eset_data))
 eset_data_cr &lt;- as.data.frame(-4^6*log(1-eset_data/4^6))
 dim(eset_data_cr)</code></pre>
-<pre><code>[1] 19827  5012</code></pre>
+<pre><code>[1] 19861  5221</code></pre>
+<pre class="r"><code>stopifnot(nrow(anno) == ncol(eset_data_cr))</code></pre>
 <p>Calculate mean for each gene</p>
 <pre class="r"><code>eset_data_cr$mean &lt;- apply(eset_data_cr, 1, function(x) mean(x,na.rm=TRUE) )</code></pre>
 <p>Calculate CV for each gene</p>
@@ -462,49 +465,41 @@ noisy_gene &lt;- function(data.in){
 # noisy genes of all sampels
 noisy_gene_all &lt;- noisy_gene(data.in=eset_data_cr)
 noisy_gene_all</code></pre>
-<pre><code>  [1] &quot;ENSG00000002822&quot; &quot;ENSG00000005022&quot; &quot;ENSG00000008988&quot;
-  [4] &quot;ENSG00000034510&quot; &quot;ENSG00000062716&quot; &quot;ENSG00000070756&quot;
-  [7] &quot;ENSG00000071082&quot; &quot;ENSG00000074800&quot; &quot;ENSG00000075624&quot;
- [10] &quot;ENSG00000079459&quot; &quot;ENSG00000080824&quot; &quot;ENSG00000083845&quot;
- [13] &quot;ENSG00000084207&quot; &quot;ENSG00000087086&quot; &quot;ENSG00000089157&quot;
- [16] &quot;ENSG00000092841&quot; &quot;ENSG00000096384&quot; &quot;ENSG00000100316&quot;
- [19] &quot;ENSG00000105372&quot; &quot;ENSG00000108298&quot; &quot;ENSG00000108518&quot;
- [22] &quot;ENSG00000108821&quot; &quot;ENSG00000109971&quot; &quot;ENSG00000110700&quot;
- [25] &quot;ENSG00000110713&quot; &quot;ENSG00000111640&quot; &quot;ENSG00000111716&quot;
- [28] &quot;ENSG00000112306&quot; &quot;ENSG00000114391&quot; &quot;ENSG00000115541&quot;
- [31] &quot;ENSG00000117450&quot; &quot;ENSG00000118181&quot; &quot;ENSG00000119705&quot;
- [34] &quot;ENSG00000120437&quot; &quot;ENSG00000122406&quot; &quot;ENSG00000123416&quot;
- [37] &quot;ENSG00000124614&quot; &quot;ENSG00000124762&quot; &quot;ENSG00000124766&quot;
- [40] &quot;ENSG00000125144&quot; &quot;ENSG00000125691&quot; &quot;ENSG00000125743&quot;
- [43] &quot;ENSG00000127184&quot; &quot;ENSG00000130255&quot; &quot;ENSG00000131469&quot;
- [46] &quot;ENSG00000131969&quot; &quot;ENSG00000132341&quot; &quot;ENSG00000132475&quot;
- [49] &quot;ENSG00000136810&quot; &quot;ENSG00000136942&quot; &quot;ENSG00000137154&quot;
- [52] &quot;ENSG00000137818&quot; &quot;ENSG00000138326&quot; &quot;ENSG00000140264&quot;
- [55] &quot;ENSG00000142534&quot; &quot;ENSG00000142541&quot; &quot;ENSG00000143947&quot;
- [58] &quot;ENSG00000143977&quot; &quot;ENSG00000144713&quot; &quot;ENSG00000145592&quot;
- [61] &quot;ENSG00000149273&quot; &quot;ENSG00000149591&quot; &quot;ENSG00000149925&quot;
- [64] &quot;ENSG00000156482&quot; &quot;ENSG00000156508&quot; &quot;ENSG00000161016&quot;
- [67] &quot;ENSG00000162244&quot; &quot;ENSG00000164032&quot; &quot;ENSG00000164587&quot;
- [70] &quot;ENSG00000166441&quot; &quot;ENSG00000166681&quot; &quot;ENSG00000167088&quot;
- [73] &quot;ENSG00000167526&quot; &quot;ENSG00000167996&quot; &quot;ENSG00000168653&quot;
- [76] &quot;ENSG00000169020&quot; &quot;ENSG00000170315&quot; &quot;ENSG00000172809&quot;
- [79] &quot;ENSG00000174748&quot; &quot;ENSG00000175063&quot; &quot;ENSG00000177105&quot;
- [82] &quot;ENSG00000177600&quot; &quot;ENSG00000177954&quot; &quot;ENSG00000181163&quot;
- [85] &quot;ENSG00000182481&quot; &quot;ENSG00000182899&quot; &quot;ENSG00000184009&quot;
- [88] &quot;ENSG00000185885&quot; &quot;ENSG00000186468&quot; &quot;ENSG00000187193&quot;
- [91] &quot;ENSG00000189043&quot; &quot;ENSG00000189403&quot; &quot;ENSG00000196230&quot;
- [94] &quot;ENSG00000196262&quot; &quot;ENSG00000196531&quot; &quot;ENSG00000197061&quot;
- [97] &quot;ENSG00000197756&quot; &quot;ENSG00000198518&quot; &quot;ENSG00000198712&quot;
-[100] &quot;ENSG00000198727&quot; &quot;ENSG00000198763&quot; &quot;ENSG00000198786&quot;
-[103] &quot;ENSG00000198804&quot; &quot;ENSG00000198886&quot; &quot;ENSG00000198888&quot;
-[106] &quot;ENSG00000198899&quot; &quot;ENSG00000198938&quot; &quot;ENSG00000204628&quot;
-[109] &quot;ENSG00000205358&quot; &quot;ENSG00000212907&quot; &quot;ENSG00000213741&quot;
-[112] &quot;ENSG00000228253&quot; &quot;ENSG00000231500&quot; &quot;ENSG00000240972&quot;
-[115] &quot;ENSG00000255823&quot; &quot;ERCC-00002&quot;      &quot;ERCC-00003&quot;     
-[118] &quot;ERCC-00004&quot;      &quot;ERCC-00009&quot;      &quot;ERCC-00046&quot;     
-[121] &quot;ERCC-00074&quot;      &quot;ERCC-00096&quot;      &quot;ERCC-00108&quot;     
-[124] &quot;ERCC-00113&quot;      &quot;ERCC-00130&quot;      &quot;ERCC-00136&quot;     
-[127] &quot;ERCC-00171&quot;     </code></pre>
+<pre><code>  [1] &quot;ENSG00000002822&quot; &quot;ENSG00000008988&quot; &quot;ENSG00000034510&quot;
+  [4] &quot;ENSG00000062716&quot; &quot;ENSG00000070756&quot; &quot;ENSG00000071082&quot;
+  [7] &quot;ENSG00000074800&quot; &quot;ENSG00000075624&quot; &quot;ENSG00000079459&quot;
+ [10] &quot;ENSG00000080824&quot; &quot;ENSG00000084207&quot; &quot;ENSG00000087086&quot;
+ [13] &quot;ENSG00000089157&quot; &quot;ENSG00000092841&quot; &quot;ENSG00000096384&quot;
+ [16] &quot;ENSG00000100316&quot; &quot;ENSG00000105372&quot; &quot;ENSG00000108298&quot;
+ [19] &quot;ENSG00000108518&quot; &quot;ENSG00000108821&quot; &quot;ENSG00000109971&quot;
+ [22] &quot;ENSG00000110700&quot; &quot;ENSG00000110713&quot; &quot;ENSG00000111640&quot;
+ [25] &quot;ENSG00000111716&quot; &quot;ENSG00000115414&quot; &quot;ENSG00000115541&quot;
+ [28] &quot;ENSG00000117450&quot; &quot;ENSG00000122406&quot; &quot;ENSG00000123416&quot;
+ [31] &quot;ENSG00000124762&quot; &quot;ENSG00000125144&quot; &quot;ENSG00000125691&quot;
+ [34] &quot;ENSG00000127184&quot; &quot;ENSG00000130255&quot; &quot;ENSG00000131969&quot;
+ [37] &quot;ENSG00000132341&quot; &quot;ENSG00000136810&quot; &quot;ENSG00000136942&quot;
+ [40] &quot;ENSG00000137154&quot; &quot;ENSG00000137818&quot; &quot;ENSG00000138326&quot;
+ [43] &quot;ENSG00000140264&quot; &quot;ENSG00000142534&quot; &quot;ENSG00000142541&quot;
+ [46] &quot;ENSG00000143947&quot; &quot;ENSG00000145592&quot; &quot;ENSG00000149273&quot;
+ [49] &quot;ENSG00000149591&quot; &quot;ENSG00000156482&quot; &quot;ENSG00000158470&quot;
+ [52] &quot;ENSG00000161016&quot; &quot;ENSG00000164032&quot; &quot;ENSG00000164587&quot;
+ [55] &quot;ENSG00000166681&quot; &quot;ENSG00000167526&quot; &quot;ENSG00000167996&quot;
+ [58] &quot;ENSG00000172809&quot; &quot;ENSG00000174748&quot; &quot;ENSG00000175063&quot;
+ [61] &quot;ENSG00000177105&quot; &quot;ENSG00000177600&quot; &quot;ENSG00000177954&quot;
+ [64] &quot;ENSG00000181163&quot; &quot;ENSG00000182481&quot; &quot;ENSG00000182899&quot;
+ [67] &quot;ENSG00000184009&quot; &quot;ENSG00000185885&quot; &quot;ENSG00000186468&quot;
+ [70] &quot;ENSG00000187193&quot; &quot;ENSG00000189043&quot; &quot;ENSG00000189403&quot;
+ [73] &quot;ENSG00000196262&quot; &quot;ENSG00000197061&quot; &quot;ENSG00000197756&quot;
+ [76] &quot;ENSG00000198518&quot; &quot;ENSG00000198712&quot; &quot;ENSG00000198727&quot;
+ [79] &quot;ENSG00000198763&quot; &quot;ENSG00000198786&quot; &quot;ENSG00000198804&quot;
+ [82] &quot;ENSG00000198886&quot; &quot;ENSG00000198888&quot; &quot;ENSG00000198899&quot;
+ [85] &quot;ENSG00000198938&quot; &quot;ENSG00000204628&quot; &quot;ENSG00000205358&quot;
+ [88] &quot;ENSG00000212907&quot; &quot;ENSG00000213741&quot; &quot;ENSG00000228253&quot;
+ [91] &quot;ENSG00000231500&quot; &quot;ENSG00000240972&quot; &quot;ENSG00000255823&quot;
+ [94] &quot;ERCC-00002&quot;      &quot;ERCC-00003&quot;      &quot;ERCC-00004&quot;     
+ [97] &quot;ERCC-00009&quot;      &quot;ERCC-00046&quot;      &quot;ERCC-00074&quot;     
+[100] &quot;ERCC-00096&quot;      &quot;ERCC-00108&quot;      &quot;ERCC-00113&quot;     
+[103] &quot;ERCC-00130&quot;      &quot;ERCC-00136&quot;      &quot;ERCC-00171&quot;     </code></pre>
 </section>
 
 <hr>
