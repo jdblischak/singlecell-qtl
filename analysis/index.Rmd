@@ -38,4 +38,6 @@ RNA-Seq data.
 
 Next, we [estimated means and dispersions](zinb.html) per individual per
 gene. We then [treated these as continuous phenotypes and mapped
-QTLs](qtl-mapping.html) using QTLtools.
+QTLs](qtl-mapping.html) using QTLtools. We built an [interactive
+browser](http://shiny.stephenslab.uchicago.edu:5006/fano-qtls) to view the
+discovered robustness QTLs.
