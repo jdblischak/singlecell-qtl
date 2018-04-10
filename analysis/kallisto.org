@@ -1,5 +1,6 @@
 #+TITLE: Bulk RNA-Seq quantification in kallisto
 #+AUTHOR: Abhishek Sarkar
+#+SETUPFILE: setup.org
 
 * Introduction
 
@@ -77,67 +78,97 @@
     | SAMN06020692 | SRX3452616 | 2017-12-26 |   4555 |   3142 |  2017-12-26 | SRR6356007 | SRS1802861 | GSM2392742  | RNA-Seq    |         50 | PRJNA420980 | GEO         | public  | sra                | ncbi               |          0 | Illumina HiSeq 2500 | SINGLE        | cDNA             | TRANSCRIPTOMIC | Homo sapiens | ILLUMINA | SRP126289 | Induced pluripotent stem cell | Induced pluripotent stem cell | NA19257 |
   #+END_SRC
 
-* Run kallisto
+* Build the index
 
-  Build the index.
+  We need to be careful and use exactly the same sequences which were used in
+  the scRNA-Seq quantification.
 
-  #+BEGIN_SRC sh
+  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/run-kallisto
     sbatch --partition=broadwl
     #!/bin/bash
-    curl -OL --ftp-pasv "ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_19/gencode.v19.pc_transcripts.fa.gz"
+    curl -OL --ftp-pasv "ftp://ftp.ensembl.org/pub/release-75/fasta/homo_sapiens/cds/Homo_sapiens.GRCh37.75.cds.all.fa.gz"
   #+END_SRC
+
+  #+RESULTS:
+  : Submitted batch job 44782550
+
+  #+BEGIN_SRC sh :session interactive :dir /scratch/midway2/aksarkar/singlecell/run-kallisto
+    srun --partition=broadwl --pty bash
+  #+END_SRC
+
+  #+RESULTS:
+  #+BEGIN_SRC sh
+
+  srun: job 44825594 queued and waiting for resources
+  srun: job 44825594 has been allocated resources
+  echo 'org_babel_sh_eoe'
+  #+END_SRC
+
+  #+BEGIN_SRC sh :session interactive
+    zcat Homo_sapiens.GRCh37.75.cds.all.fa.gz | head
+  #+END_SRC
+
+  #+RESULTS:
+  #+begin_example
+  zcat Homo_sapi ens.GRCh37.75.cds.all.fa.gz | head
+  ENST00000415118 cds:known chromosome:GRCh37:14:22907539:22907546:1 gene:ENSG00000223997 gene_biotype:TR_D_gene transcript_biotype:TR_D_gene
+  GAAATAGT
+  ENST00000434970 cds:known chromosome:GRCh37:14:22907999:22908007:1 gene:ENSG00000237235 gene_biotype:TR_D_gene transcript_biotype:TR_D_gene
+  CCTTCCTAC
+  ENST00000448914 cds:known chromosome:GRCh37:14:22918105:22918117:1 gene:ENSG00000228985 gene_biotype:TR_D_gene transcript_biotype:TR_D_gene
+  ACTGGGGGATACG
+  ENST00000604642 cds:known chromosome:GRCh37:15:20209093:20209115:-1 gene:ENSG00000270961 gene_biotype:IG_D_gene transcript_biotype:IG_D_gene
+  GTGGATATAGTGTCTACGATTAC
+  ENST00000603326 cds:known chromosome:GRCh37:15:20210050:20210068:-1 gene:ENSG00000271317 gene_biotype:IG_D_gene transcript_biotype:IG_D_gene
+  NNTGACTATGGTGCTAACTAC
+  #+end_example
+
+  #+BEGIN_SRC sh :session interactive
+    zcat Homo_sapiens.GRCh37.75.cds.all.fa.gz | awk '{split($3, a, ":"); c=a[3]} c ~ /^([0-9][0-9]?|[XY]|MT)$/ && $5 == "gene_biotype:protein_coding" {k[$4] = 1} END {for (i in k) {n += 1} print n}'
+  #+END_SRC
+
+  #+RESULTS:
+  : 
+  : 3, a, ":"); c=a[3]} c ~ /^([0-9][0-9]?|[XY]| MT)$/ && $5 == "gene_biotype:protein_coding" {k[$4] = 1} END {for (i in k) {n += 1} pri nt n}'
+  : 20327
+
+  Build the index.
 
   #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/run-kallisto
     sbatch --partition=broadwl --mem=8G
     #!/bin/bash
     source activate scqtl
-    kallisto index -i transcripts.idx /scratch/midway2/aksarkar/singlecell/run-kallisto/gencode.v19.pc_transcripts.fa.gz
+    kallisto index -i transcripts.idx /scratch/midway2/aksarkar/singlecell/run-kallisto/ensembl-75-protein-coding.fa.gz
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 44355530
+  : Submitted batch job 44822034
+
+* Run kallisto
 
   Download the data and run quantification.
 
-  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/run-kallisto
-    sbatch --partition=broadwl -a 2-58
+  #+BEGIN_SRC sh :noweb eval :dir /scratch/midway2/aksarkar/singlecell/run-kallisto
+    sbatch --partition=broadwl --mem=5G --job-name kallisto -a 2-58
     #!/bin/bash
+    set -e
     source activate scqtl
-    awk 'BEGIN {FS = "\t"; i = 0; while (getline < "metadata.txt") {id[i] = $2; i++} task = ENVIRON["SLURM_ARRAY_TASK_ID"]; system("fastq-dump --gzip " id[task])}'
+    readarray tasks <metadata.txt
+    task=(${tasks[$SLURM_ARRAY_TASK_ID]})
+    test -f ${task[1]}.fastq.gz || fastq-dump --gzip ${task[1]}
+    kallisto quant --plaintext --single -l 200 -s 50 -i transcripts.idx -o ${task[-1]} ${task[1]}.fastq.gz
+    gzip ${task[-1]}/abundance.tsv
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 44358869
-
-  Run quantification.
-
-  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/run-kallisto
-    sbatch --partition=broadwl -a 2-58 --mem=5G -d afterok:44358869
-    #!/bin/bash
-    source activate scqtl
-    awk 'BEGIN {FS = "\t"; i = 0; while (getline < "metadata.txt") {id[i] = $2; name[i] = $NF; i++} task = ENVIRON["SLURM_ARRAY_TASK_ID"]; system("kallisto quant --plaintext --single -l 200 -s 50 -i transcripts.idx -o " name[task] " " id[task] ".fastq.gz")}'
-  #+END_SRC
-
-  #+RESULTS:
-  : Submitted batch job 44358929
-
-  Compress the output.
-
-  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/run-kallisto
-    sbatch --partition=broadwl -n1 -c28 --exclusive
-    #!/bin/bash
-    find -name "abundance.tsv" | parallel bzip2
-  #+END_SRC
-
-  #+RESULTS:
-  : Submitted batch job 44363775
+  : Submitted batch job 44829590
 
   Move the output to permanent storage.
 
   #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/run-kallisto
     test -e .rsync-filter || cat >.rsync-filter <<EOF
     + */
-    + abundance.tsv.bz2
+    + abundance.tsv.gz
     - *
     EOF
     rsync -FFau /scratch/midway2/aksarkar/singlecell/run-kallisto/ /project2/mstephens/aksarkar/projects/singlecell-qtl/data/kallisto/
@@ -148,16 +179,23 @@
   Process the output.
 
   #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/run-kallisto
+    zcat Homo_sapiens.GRCh37.75.cds.all.fa.gz | awk '/^>/ {sub(">", "", $1); split($3, a, ":"); split($4, b, ":"); c=a[3]} c ~ /^([0-9][0-9]?|[XY]|MT)$/ && $5 == "gene_biotype:protein_coding" {print $1, b[2]}' >mapping.txt
+  #+END_SRC
+
+  #+RESULTS:
+
+  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/run-kallisto
     sbatch --partition=broadwl
     #!/bin/bash
     set -e
     function process () {
-        bzcat $1 | awk -v ind=$(basename $(dirname $1)) 'NR > 1 {split($1, target, "|"); tpm[target[2]] += $NF} END {for (gene in tpm) {print ind, gene, tpm[gene]}}'
+        zcat $1 | awk -v ind=$(basename $(dirname $1)) 'BEGIN {while (getline <"mapping.txt") {m[$1] = $2}} NR > 1 {tpm[m[$1]] += $NF} END {for (gene in tpm) {print ind, gene, tpm[gene]}}'
     }
     export -f process
-    find -name "abundance.tsv.bz2" | parallel --halt now,fail=1 -j1 process | gzip >bulk-ipsc-tpm.txt.gz
+    find -name "abundance.tsv.gz" | parallel --halt now,fail=1 -j1 process | gzip >bulk-ipsc-tpm.txt.gz
     cp bulk-ipsc-tpm.txt.gz /project2/mstephens/aksarkar/projects/singlecell-qtl/data/kallisto/
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 44366802
+  : Submitted batch job 44835137
+

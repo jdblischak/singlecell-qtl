@@ -20,7 +20,7 @@
   #+CALL: ipython3(memory="16G", venv="scqtl")
 
   #+RESULTS:
-  : Submitted batch job 44628582
+  : Submitted batch job 44915330
 
   #+BEGIN_SRC ipython
     import colorcet
@@ -32,8 +32,10 @@
     import pandas as pd
     import re
     import requests
+    import scipy.special as sp
     import scipy.stats as sst
     import sklearn.linear_model as sklm
+    import sqlite3
   #+END_SRC
 
   #+RESULTS:
@@ -46,18 +48,21 @@
   Read and QC the single cell counts.
 
   #+BEGIN_SRC ipython
-    umi = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', index_col=0)
     annotations = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
     keep_samples = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
     keep_genes = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt', index_col=0, header=None)
-    umi = umi.loc[keep_genes.values.ravel(),keep_samples.values.ravel()]
     annotations = annotations.loc[keep_samples.values.ravel()]
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[50]:
+  # Out[4]:
   :END:
+
+  #+BEGIN_SRC ipython
+    umi = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', index_col=0)
+    umi = umi.loc[keep_genes.values.ravel(),keep_samples.values.ravel()]
+  #+END_SRC
 
   Our preliminary investigation into concordance between single cell log CPM
   and bulk log RPKM did not give good results. Therefore, we [[file:kallisto.org][re-processed the
@@ -76,21 +81,26 @@
 
   #+NAME: concordance-def
   #+BEGIN_SRC ipython
-    def plot_concordance(x, y, title, filename, xlabel=None, ylabel=None, **kwargs):
+    def plot_concordance(x, y, title, filename, xlabel=None, ylabel=None, lim=None, **kwargs):
       """Plot hexbin of concordance"""
       merged = x.merge(y, left_index=True, right_index=True)
       merged.columns = ['x', 'y']
-      lim = [merged.min().min(), merged.max().max()]
+      if lim is None:
+        lim = [merged.min().min(), merged.max().max()]
       plt.clf()
       if 'gridsize' not in kwargs:
         kwargs['gridsize'] = 40
-      plt.hexbin(merged['x'], merged['y'], cmap=colorcet.cm['blues'], **kwargs)
+      hexes = plt.hexbin(merged['x'], merged['y'], cmap=colorcet.cm['blues'], extent=lim + lim, **kwargs)
       cb = plt.colorbar()
       cb.set_label('Number of genes')
       plt.plot(lim, lim, color='red')
       ax = plt.gca()
-      ax.set_xlim([merged['x'].min(), merged['x'].max()])
-      ax.set_ylim([merged['y'].min(), merged['y'].max()])
+      if lim is None:
+        ax.set_xlim([merged['x'].min(), merged['x'].max()])
+        ax.set_ylim([merged['y'].min(), merged['y'].max()])
+      else:
+        ax.set_xlim(lim)
+        ax.set_ylim(lim)
       plt.title(title)
       if xlabel is None:
         xlabel = 'scRNA-Seq $\log_2(\mathrm{CPM} + 1) $'
@@ -111,7 +121,7 @@
 
   #+RESULTS: concordance-def
   :RESULTS:
-  # Out[36]:
+  # Out[5]:
   :END:
 
   #+RESULTS:
@@ -253,8 +263,11 @@
     def plot_concordance_by_num_cells(individual, umi, annotations, bulk_tpm, output_dir):
       bulk_tpm = bulk_tpm[individual].to_frame()
       umi = umi.loc[:,(annotations['chip_id'] == individual).values]
+      annotations = annotations[annotations['chip_id'] == individual]
       for num_cells in [1, 10, 50, 100, 200]:
-        pooled_cpm = cpm(umi.sample(n=num_cells, axis=1).sum(axis=1).to_frame(), log2=True)
+        sample = np.random.choice(annotations.shape[0], size=num_cells)
+        pooled_cpm = cpm(umi.iloc[:,sample].sum(axis=1).to_frame(),
+                         size=annotations.iloc[sample]['mol_hs'].agg(np.sum), log2=True)
         plot_concordance(
           x=pooled_cpm,
           y=bulk_tpm,
@@ -265,7 +278,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[7]:
+  # Out[44]:
   :END:
 
   #+BEGIN_SRC ipython :results none
@@ -326,47 +339,50 @@
 
 * Plot bulk vs. single cell relative abundance
 
-  TPM is proportional to relative abundance.
+  TPM is proportional to relative abundance. *Important:* we need to quantify
+  relative abundance with respect to exactly the same set of genes as the
+  single cell data.
 
   #+BEGIN_SRC ipython
-    bulk_tpm = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/kallisto/bulk-ipsc-tpm.txt.gz', header=None, sep=' ')
-    bulk_rho = bulk_tpm.pivot(columns=0, index=1, values=2)
-    bulk_rho.index = [x.split('.')[0] for x in bulk_rho.index]
-    bulk_rho = bulk_rho.filter(items=keep_genes.index, axis='index')
-    bulk_log_rho = np.ma.masked_invalid(np.log(bulk_rho.values)) - np.log(bulk_rho.values.sum(axis=0))
-    bulk_log_rho = pd.DataFrame(bulk_log_rho, index=bulk_rho.index, columns=bulk_rho.columns)
+    bulk_tpm = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/kallisto/bulk-ipsc-tpm.txt.gz', header=None, sep=' ').pivot(columns=0, index=1, values=2)
+    bulk_log_rho = np.log(bulk_tpm) - np.log(bulk_tpm.sum(axis=0))
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[72]:
+  # Out[6]:
   :END:
 
-  Under [[file:zinb.org][our assumed model]], the parameter \(\mu\) is relative abundance.
+  Under [[file:zinb.org][our assumed model]], the parameter \(\mu\) is proportional to relative
+  abundance.
 
   #+BEGIN_SRC ipython
-    import sqlite3
-
     with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
       log_mu = (pd.read_sql(
         """select gene, ind, log_mu from params where ind in 
         (select chip_id from annotation group by chip_id 
         having count(distinct sample) >= 50);""", conn)
                   .pivot(index='gene', columns='ind', values='log_mu'))
+      log_mu -= log_mu.agg(sp.logsumexp, axis=0)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[58]:
+  # Out[7]:
   :END:
 
   #+BEGIN_SRC ipython
     def plot_concordance_rho(bulk, sc, output_dir):
       bulk, sc = bulk.align(sc, axis=1, join='inner')
       for k in bulk:
+        y = bulk[k].to_frame()
+        y = y.mask(~np.isfinite(y)).dropna()
+        x = sc[k].to_frame()
+        x = x.mask(np.logical_or(~np.isfinite(x), x < y.min().min())).dropna()
         plot_concordance(
-          x=sc[k].to_frame(),
-          y=bulk[k].to_frame(),
+          x=x,
+          y=y,
+          lim=[y.min().min(), y.max().max()],
           title=k,
           xlabel='Single cell log relative abundance',
           ylabel='Bulk log relative abundance',
@@ -375,7 +391,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[73]:
+  # Out[8]:
   :END:
 
   #+BEGIN_SRC ipython :results none
