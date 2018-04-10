@@ -1,6 +1,7 @@
 ---
+site: workflowr::wflow_site
 title: "Overview"
-output: html_document
+output: workflowr::wflow_html
 ---
 
 ## Introduction

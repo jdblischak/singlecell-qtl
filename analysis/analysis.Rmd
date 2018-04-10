@@ -1,7 +1,7 @@
 ---
 title: "Analysis"
 output:
-  html_document:
+  workflowr::wflow_html:
     toc: false
 ---
 

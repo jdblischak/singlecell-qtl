@@ -3,30 +3,21 @@ title: "Data collection overview"
 author: "John Blischak"
 date: 2017-10-25
 output:
-  html_document:
+  workflowr::wflow_html:
     toc: false
 ---
 
-<!-- The file analysis/chunks.R contains chunks that define defau
 lt settings
-shared across the workflowr files. -->
 ```{r read-chunk, include=FALSE, cache=FALSE}
 knitr::read_chunk("chunks.R")
 knitr::opts_chunk$set(echo = FALSE)
 ```
 
-<!-- Update knitr chunk options -->
-```{r knitr-opts-chunk, include=FALSE}
-```
 
-<!-- Insert the date the file was last updated -->
-```{r last-updated, echo=FALSE, results='asis'}
-```
 
-<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
- package git2r is installed -->
-```{r code-version, echo=FALSE, results='asis'}
-```
+
+
+
 
 ```{r analysis, message=FALSE}
 library("dplyr")

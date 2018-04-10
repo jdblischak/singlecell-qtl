@@ -2,27 +2,16 @@
 title: "Introduction"
 author: "Po-Yuan Tung"
 date: 2018-01-25
-output: html_document
+output: workflowr::wflow_html
 ---
 
-<!-- The file analysis/chunks.R contains chunks that define default settings
-shared across the workflowr files. -->
-```{r read-chunk, include=FALSE, cache=FALSE}
-knitr::read_chunk("chunks.R")
-```
 
-<!-- Update knitr chunk options -->
-```{r knitr-opts-chunk, include=FALSE}
-```
 
-<!-- Insert the date the file was last updated -->
-```{r last-updated, echo=FALSE, results='asis'}
-```
 
-<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
- package git2r is installed -->
-```{r code-version, echo=FALSE, results='asis'}
-```
+
+
+
+
 
 The importance of robustness and the regulation of noise as mechanisms that maintain high evolutionary fitness is evident[@Kirschner1998;@Kitano2004;@Masel2009;@Wolf2015].
 Yet, we still have a relatively poor understanding of how robustness is achieved and how expression noise is being regulated at the molecular level.
