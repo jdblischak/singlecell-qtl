@@ -25,8 +25,8 @@
 <link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
 <script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
 <script src="site_libs/navigation-1.1/tabsets.js"></script>
-<link href="site_libs/highlightjs-1.1/textmate.css" rel="stylesheet" />
-<script src="site_libs/highlightjs-1.1/highlight.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
 <link href="site_libs/font-awesome-4.5.0/css/font-awesome.min.css" rel="stylesheet" />
 
 <style type="text/css">code{white-space: pre;}</style>
@@ -36,10 +36,12 @@
   }
 </style>
 <script type="text/javascript">
-if (window.hljs && document.readyState && document.readyState === "complete") {
-   window.setTimeout(function() {
-      hljs.initHighlighting();
-   }, 0);
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
 }
 </script>
 
@@ -304,6 +306,13 @@ div.tocify {
   </div><!--/.container -->
 </div><!--/.navbar -->
 
+<!-- Add a small amount of space between sections. -->
+<style type="text/css">
+div.section {
+  padding-top: 12px;
+}
+</style>
+
 <div class="fluid-row" id="header">
 
 
@@ -315,16 +324,540 @@ div.tocify {
 </div>
 
 
-<!-- The file analysis/chunks.R contains chunks that define default settings
-shared across the workflowr files. -->
-<!-- Update knitr chunk options -->
-<!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2018-04-04</p>
-<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
- package git2r is installed -->
-<p><strong>Code version:</strong> 24d3ffb</p>
+<p><strong>Last updated:</strong> 2018-04-09</p>
+<strong>workflowr checks:</strong> <small>(Click a bullet for more information)</small>
+<ul>
+<li>
+<details>
+<p><summary> <strong style="color:blue;">&#10004;</strong> <strong>R Markdown file:</strong> up-to-date </summary></p>
+<p>Great! Since the R Markdown file has been committed to the Git repository, you know the exact version of the code that produced these results.</p>
+</details>
+</li>
+<li>
+<details>
+<p><summary> <strong style="color:blue;">&#10004;</strong> <strong>Environment:</strong> empty </summary></p>
+<p>Great job! The global environment was empty. Objects defined in the global environment can affect the analysis in your R Markdown file in unknown ways. For reproduciblity it’s best to always run the code in an empty environment.</p>
+</details>
+</li>
+<li>
+<details>
+<p><summary> <strong style="color:blue;">&#10004;</strong> <strong>Seed:</strong> <code>set.seed(12345)</code> </summary></p>
+<p>The command <code>set.seed(12345)</code> was run prior to running the code in the R Markdown file. Setting a seed ensures that any results that rely on randomness, e.g. subsampling or permutations, are reproducible.</p>
+</details>
+</li>
+<li>
+<details>
+<p><summary> <strong style="color:blue;">&#10004;</strong> <strong>Session information:</strong> recorded </summary></p>
+<p>Great job! Recording the operating system, R version, and package versions is critical for reproducibility.</p>
+</details>
+</li>
+<li>
+<details>
+<p><summary> <strong style="color:blue;">&#10004;</strong> <strong>Repository version:</strong> <a href="https://github.com/jdblischak/singlecell-qtl/tree/da56ff1f5d5f9875b86aad8c12fd5e577601a852" target="_blank">da56ff1</a> </summary></p>
+Great! You are using Git for version control. Tracking code development and connecting the code version to the results is critical for reproducibility. The version displayed above was the version of the Git repository at the time these results were generated. <br><br> Note that you need to be careful to ensure that all relevant files for the analysis have been committed to Git prior to generating the results (you can use <code>wflow_publish</code> or <code>wflow_git_commit</code>). workflowr only checks the R Markdown file, but you know if there are other scripts or data files that it depends on. Below is the status of the Git repository when the results were generated:
+<pre><code>
+Ignored files:
+    Ignored:    .Rhistory
+    Ignored:    .Rproj.user/
+
+Untracked files:
+    Untracked:  udpate.R
+
+</code></pre>
+Note that any generated files, e.g. HTML, png, CSS, etc., are not included in this status report because it is ok for generated content to have uncommitted changes.
+</details>
+</li>
+</ul>
+<details>
+<summary> <small><strong>Expand here to see past versions:</strong></small> </summary>
+<ul>
+<table style="border-collapse:separate; border-spacing:5px;">
+<thead>
+<tr>
+<th style="text-align:left;">
+File
+</th>
+<th style="text-align:left;">
+Version
+</th>
+<th style="text-align:left;">
+Author
+</th>
+<th style="text-align:left;">
+Date
+</th>
+<th style="text-align:left;">
+Message
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+Rmd
+</td>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/da56ff1f5d5f9875b86aad8c12fd5e577601a852/analysis/totals.Rmd" target="_blank">da56ff1</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-04-09
+</td>
+<td style="text-align:left;">
+Migrate to workflowr 1.0
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+html
+</td>
+<td style="text-align:left;">
+<a href="https://cdn.rawgit.com/jdblischak/singlecell-qtl/034330f2947fdac50aee3fce64e23f51f314a628/docs/totals.html" target="_blank">034330f</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-04-04
+</td>
+<td style="text-align:left;">
+Build site.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+html
+</td>
+<td style="text-align:left;">
+<a href="https://cdn.rawgit.com/jdblischak/singlecell-qtl/e019192e58124169802ff190fbb2423912d5b892/docs/totals.html" target="_blank">e019192</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-03-20
+</td>
+<td style="text-align:left;">
+Build site.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+html
+</td>
+<td style="text-align:left;">
+<a href="https://cdn.rawgit.com/jdblischak/singlecell-qtl/bc61844215fea7163ea8ec8c7f7f854c8f51d0f3/docs/totals.html" target="_blank">bc61844</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-03-09
+</td>
+<td style="text-align:left;">
+Build site.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+html
+</td>
+<td style="text-align:left;">
+<a href="https://cdn.rawgit.com/jdblischak/singlecell-qtl/48f84ad58352611b1452b131f4a9aadf7b43b9bf/docs/totals.html" target="_blank">48f84ad</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-02-22
+</td>
+<td style="text-align:left;">
+Build site.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+html
+</td>
+<td style="text-align:left;">
+<a href="https://cdn.rawgit.com/jdblischak/singlecell-qtl/8a7a2ec76955500fb5d5d799c7f012cd8874e279/docs/totals.html" target="_blank">8a7a2ec</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-02-21
+</td>
+<td style="text-align:left;">
+Investigate diminishing returns by individual
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+html
+</td>
+<td style="text-align:left;">
+<a href="https://cdn.rawgit.com/jdblischak/singlecell-qtl/219bc8495525b762e96280f2bfe63b554714cb61/docs/totals.html" target="_blank">219bc84</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-02-17
+</td>
+<td style="text-align:left;">
+Build site.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+html
+</td>
+<td style="text-align:left;">
+<a href="https://cdn.rawgit.com/jdblischak/singlecell-qtl/432797583041707a0b93b523fd01e171493a274c/docs/totals.html" target="_blank">4327975</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-02-11
+</td>
+<td style="text-align:left;">
+Investigate UMI count correction
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+html
+</td>
+<td style="text-align:left;">
+<a href="https://cdn.rawgit.com/jdblischak/singlecell-qtl/400f1561fac9671731ceddeaa997cb34f1ea7f89/docs/totals.html" target="_blank">400f156</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-01-29
+</td>
+<td style="text-align:left;">
+Build site.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Rmd
+</td>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/39e8046299cd769f5de0c84dbfbf1ddeb606fd14/analysis/totals.Rmd" target="_blank">39e8046</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-01-23
+</td>
+<td style="text-align:left;">
+Investigate UMI saturation vs read depth
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+html
+</td>
+<td style="text-align:left;">
+<a href="https://cdn.rawgit.com/jdblischak/singlecell-qtl/39e8046299cd769f5de0c84dbfbf1ddeb606fd14/docs/totals.html" target="_blank">39e8046</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-01-23
+</td>
+<td style="text-align:left;">
+Investigate UMI saturation vs read depth
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+html
+</td>
+<td style="text-align:left;">
+<a href="https://cdn.rawgit.com/jdblischak/singlecell-qtl/f439f21d673c503f13643a49e932823c5762ae88/docs/totals.html" target="_blank">f439f21</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-01-18
+</td>
+<td style="text-align:left;">
+Implement zero-inflated model estimation and diagnostics
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+html
+</td>
+<td style="text-align:left;">
+<a href="https://cdn.rawgit.com/jdblischak/singlecell-qtl/389ee3ba4e9c4717e5d0c14bf9cff6a1c39f95fe/docs/totals.html" target="_blank">389ee3b</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2017-12-04
+</td>
+<td style="text-align:left;">
+Call mean/dispersion QTLs
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+html
+</td>
+<td style="text-align:left;">
+<a href="https://cdn.rawgit.com/jdblischak/singlecell-qtl/43a2bd23abe18b01b4bcefb58986b94600e23ec1/docs/totals.html" target="_blank">43a2bd2</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-31
+</td>
+<td style="text-align:left;">
+Build site.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+html
+</td>
+<td style="text-align:left;">
+<a href="https://cdn.rawgit.com/jdblischak/singlecell-qtl/9f2497144668186d60e1a40a8d91374614c5ef7a/docs/totals.html" target="_blank">9f24971</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-26
+</td>
+<td style="text-align:left;">
+Build site.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+html
+</td>
+<td style="text-align:left;">
+<a href="https://cdn.rawgit.com/jdblischak/singlecell-qtl/462fb11e7bd2cc91a52db9ce225f51bc46c99f88/docs/totals.html" target="_blank">462fb11</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-24
+</td>
+<td style="text-align:left;">
+Build site.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+html
+</td>
+<td style="text-align:left;">
+<a href="https://cdn.rawgit.com/jdblischak/singlecell-qtl/eb09f611c4694f6de89a080ac0178564626bb4fd/docs/totals.html" target="_blank">eb09f61</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-09-14
+</td>
+<td style="text-align:left;">
+Build site.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Rmd
+</td>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/e455fa0c397f203b0b7a40d2e27fd89134b57728/analysis/totals.Rmd" target="_blank">e455fa0</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-09-14
+</td>
+<td style="text-align:left;">
+Update total counts analysis to use ExpressionSet objects.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+html
+</td>
+<td style="text-align:left;">
+<a href="https://cdn.rawgit.com/jdblischak/singlecell-qtl/1470b047bd546de6ac1a9ba861ed8df8cd18959b/docs/totals.html" target="_blank">1470b04</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-09-05
+</td>
+<td style="text-align:left;">
+Build site.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+html
+</td>
+<td style="text-align:left;">
+<a href="https://cdn.rawgit.com/jdblischak/singlecell-qtl/9fd161906b55665d8093eb481e5e2274390d809e/docs/totals.html" target="_blank">9fd1619</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-29
+</td>
+<td style="text-align:left;">
+Build site.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Rmd
+</td>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/1268b1aa2fb50fec6709d9ed5bed4061c438f720/analysis/totals.Rmd" target="_blank">1268b1a</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-29
+</td>
+<td style="text-align:left;">
+Calculate the number of mapped reads per C1 chip.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+html
+</td>
+<td style="text-align:left;">
+<a href="https://cdn.rawgit.com/jdblischak/singlecell-qtl/da534e7efabdbdc7e61db5a7dc736383f5105f57/docs/totals.html" target="_blank">da534e7</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-24
+</td>
+<td style="text-align:left;">
+Build site.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+html
+</td>
+<td style="text-align:left;">
+<a href="https://cdn.rawgit.com/jdblischak/singlecell-qtl/804993f18c2a652fbe4ef94d79744f673451ed52/docs/totals.html" target="_blank">804993f</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-21
+</td>
+<td style="text-align:left;">
+Build site.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Rmd
+</td>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/f805249d99be7615e13b8f7cf4cda28d130a4d81/analysis/totals.Rmd" target="_blank">f805249</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-21
+</td>
+<td style="text-align:left;">
+Add plot of read classification percentage per sample.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+html
+</td>
+<td style="text-align:left;">
+<a href="https://cdn.rawgit.com/jdblischak/singlecell-qtl/ad42e0983fba4af672ad970c104b2684c47151c4/docs/totals.html" target="_blank">ad42e09</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-14
+</td>
+<td style="text-align:left;">
+Build site.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Rmd
+</td>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/e4d40305aacafa4272116c737797dc34f2125080/analysis/totals.Rmd" target="_blank">e4d4030</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-14
+</td>
+<td style="text-align:left;">
+Make plots of the absolute number of reads/molecules for the spikeins.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Rmd
+</td>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/52d69b85c413e936ba7ec556a28e288419dfe8d1/analysis/totals.Rmd" target="_blank">52d69b8</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-14
+</td>
+<td style="text-align:left;">
+Analyze total counts from processing pipeline.
+</td>
+</tr>
+</tbody>
+</table>
+</ul>
+</details>
+<hr />
 <p>This analysis explores the total counts of reads and molecules mapped to each source (human, fly, worm, and ERCC).</p>
-<section id="setup" class="level2">
+<div id="setup" class="section level2">
 <h2>Setup</h2>
 <pre class="r"><code>library(&quot;cowplot&quot;)
 library(&quot;dplyr&quot;)
@@ -341,8 +874,8 @@ anno &lt;- pData(eset)</code></pre>
 anno_qc &lt;- pData(eset_qc)</code></pre>
 <p>Extract the columns relevant for this analysis.</p>
 <pre class="r"><code>totals &lt;- anno_qc %&gt;% select(experiment:well, raw:mol_hs)</code></pre>
-</section>
-<section id="what-percentage-of-reads-are-mapped-to-the-genome" class="level2">
+</div>
+<div id="what-percentage-of-reads-are-mapped-to-the-genome" class="section level2">
 <h2>What percentage of reads are mapped to the genome?</h2>
 <pre class="r"><code>totals_long &lt;- totals %&gt;%
   gather(key = &quot;type&quot;, value = &quot;count&quot;, raw:mol_hs) %&gt;%
@@ -363,7 +896,214 @@ head(totals_long)</code></pre>
   geom_boxplot() +
   labs(x = &quot;Classification&quot;, y = &quot;Number of sequences&quot;,
        title = &quot;Processing of raw reads&quot;)</code></pre>
-<p><img src="figure/totals.Rmd/percent-mapped-1.png" width="768" style="display: block; margin: auto;" /></p>
+<p><img src="figure/totals.Rmd/percent-mapped-1.png" /></p>
+<details>
+<summary><em>Expand here to see past versions of percent-mapped-1.png:</em></summary>
+<table style = "border-collapse:separate; border-spacing:5px;">
+<thead>
+<tr>
+<th style="text-align:left;">
+Version
+</th>
+<th style="text-align:left;">
+Author
+</th>
+<th style="text-align:left;">
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/034330f2947fdac50aee3fce64e23f51f314a628/docs/figure/totals.Rmd/percent-mapped-1.png" target="_blank">034330f</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-04-04
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/e019192e58124169802ff190fbb2423912d5b892/docs/figure/totals.Rmd/percent-mapped-1.png" target="_blank">e019192</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-03-20
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/bc61844215fea7163ea8ec8c7f7f854c8f51d0f3/docs/figure/totals.Rmd/percent-mapped-1.png" target="_blank">bc61844</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-03-09
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/48f84ad58352611b1452b131f4a9aadf7b43b9bf/docs/figure/totals.Rmd/percent-mapped-1.png" target="_blank">48f84ad</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-02-22
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/8a7a2ec76955500fb5d5d799c7f012cd8874e279/docs/figure/totals.Rmd/percent-mapped-1.png" target="_blank">8a7a2ec</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-02-21
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/219bc8495525b762e96280f2bfe63b554714cb61/docs/figure/totals.Rmd/percent-mapped-1.png" target="_blank">219bc84</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-02-17
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/432797583041707a0b93b523fd01e171493a274c/docs/figure/totals.Rmd/percent-mapped-1.png" target="_blank">4327975</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-02-11
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/39e8046299cd769f5de0c84dbfbf1ddeb606fd14/docs/figure/totals.Rmd/percent-mapped-1.png" target="_blank">39e8046</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-01-23
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/f439f21d673c503f13643a49e932823c5762ae88/docs/figure/totals.Rmd/percent-mapped-1.png" target="_blank">f439f21</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-01-18
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/389ee3ba4e9c4717e5d0c14bf9cff6a1c39f95fe/docs/figure/totals.Rmd/percent-mapped-1.png" target="_blank">389ee3b</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2017-12-04
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/43a2bd23abe18b01b4bcefb58986b94600e23ec1/docs/figure/totals.Rmd/percent-mapped-1.png" target="_blank">43a2bd2</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-31
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/9f2497144668186d60e1a40a8d91374614c5ef7a/docs/figure/totals.Rmd/percent-mapped-1.png" target="_blank">9f24971</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-26
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/462fb11e7bd2cc91a52db9ce225f51bc46c99f88/docs/figure/totals.Rmd/percent-mapped-1.png" target="_blank">462fb11</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-24
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/eb09f611c4694f6de89a080ac0178564626bb4fd/docs/figure/totals.Rmd/percent-mapped-1.png" target="_blank">eb09f61</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-09-14
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/da534e7efabdbdc7e61db5a7dc736383f5105f57/docs/figure/totals.Rmd/percent-mapped-1.png" target="_blank">da534e7</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-24
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/804993f18c2a652fbe4ef94d79744f673451ed52/docs/figure/totals.Rmd/percent-mapped-1.png" target="_blank">804993f</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-21
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/ad42e0983fba4af672ad970c104b2684c47151c4/docs/figure/totals.Rmd/percent-mapped-1.png" target="_blank">ad42e09</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-14
+</td>
+</tr>
+</tbody>
+</table>
+</details>
 <table>
 <thead>
 <tr class="header">
@@ -400,8 +1140,8 @@ head(totals_long)</code></pre>
 </tr>
 </tbody>
 </table>
-</section>
-<section id="how-does-the-number-of-mapped-reads-vary-by-c1-chip" class="level2">
+</div>
+<div id="how-does-the-number-of-mapped-reads-vary-by-c1-chip" class="section level2">
 <h2>How does the number of mapped reads vary by C1 chip?</h2>
 <pre class="r"><code>mapped &lt;- totals_long %&gt;%
   filter(type == &quot;Reads mapped\nto genome&quot;)
@@ -410,7 +1150,192 @@ ggplot(mapped, aes(x = experiment, y = count)) +
   labs(x = &quot;C1 chip&quot;, y = &quot;Number of mapped reads&quot;,
        title = &quot;Mapped reads per C1 chip&quot;) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))</code></pre>
-<p><img src="figure/totals.Rmd/mapped-per-chip-1.png" width="768" style="display: block; margin: auto;" /></p>
+<p><img src="figure/totals.Rmd/mapped-per-chip-1.png" /></p>
+<details>
+<summary><em>Expand here to see past versions of mapped-per-chip-1.png:</em></summary>
+<table style = "border-collapse:separate; border-spacing:5px;">
+<thead>
+<tr>
+<th style="text-align:left;">
+Version
+</th>
+<th style="text-align:left;">
+Author
+</th>
+<th style="text-align:left;">
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/034330f2947fdac50aee3fce64e23f51f314a628/docs/figure/totals.Rmd/mapped-per-chip-1.png" target="_blank">034330f</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-04-04
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/e019192e58124169802ff190fbb2423912d5b892/docs/figure/totals.Rmd/mapped-per-chip-1.png" target="_blank">e019192</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-03-20
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/bc61844215fea7163ea8ec8c7f7f854c8f51d0f3/docs/figure/totals.Rmd/mapped-per-chip-1.png" target="_blank">bc61844</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-03-09
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/48f84ad58352611b1452b131f4a9aadf7b43b9bf/docs/figure/totals.Rmd/mapped-per-chip-1.png" target="_blank">48f84ad</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-02-22
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/8a7a2ec76955500fb5d5d799c7f012cd8874e279/docs/figure/totals.Rmd/mapped-per-chip-1.png" target="_blank">8a7a2ec</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-02-21
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/219bc8495525b762e96280f2bfe63b554714cb61/docs/figure/totals.Rmd/mapped-per-chip-1.png" target="_blank">219bc84</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-02-17
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/432797583041707a0b93b523fd01e171493a274c/docs/figure/totals.Rmd/mapped-per-chip-1.png" target="_blank">4327975</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-02-11
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/39e8046299cd769f5de0c84dbfbf1ddeb606fd14/docs/figure/totals.Rmd/mapped-per-chip-1.png" target="_blank">39e8046</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-01-23
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/f439f21d673c503f13643a49e932823c5762ae88/docs/figure/totals.Rmd/mapped-per-chip-1.png" target="_blank">f439f21</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-01-18
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/389ee3ba4e9c4717e5d0c14bf9cff6a1c39f95fe/docs/figure/totals.Rmd/mapped-per-chip-1.png" target="_blank">389ee3b</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2017-12-04
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/43a2bd23abe18b01b4bcefb58986b94600e23ec1/docs/figure/totals.Rmd/mapped-per-chip-1.png" target="_blank">43a2bd2</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-31
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/9f2497144668186d60e1a40a8d91374614c5ef7a/docs/figure/totals.Rmd/mapped-per-chip-1.png" target="_blank">9f24971</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-26
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/462fb11e7bd2cc91a52db9ce225f51bc46c99f88/docs/figure/totals.Rmd/mapped-per-chip-1.png" target="_blank">462fb11</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-24
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/eb09f611c4694f6de89a080ac0178564626bb4fd/docs/figure/totals.Rmd/mapped-per-chip-1.png" target="_blank">eb09f61</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-09-14
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/9fd161906b55665d8093eb481e5e2274390d809e/docs/figure/totals.Rmd/mapped-per-chip-1.png" target="_blank">9fd1619</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-29
+</td>
+</tr>
+</tbody>
+</table>
+</details>
 <pre class="r"><code>mapped_sum &lt;- mapped %&gt;%
   group_by(experiment) %&gt;%
   summarize(total = sum(count))
@@ -419,7 +1344,192 @@ ggplot(mapped_sum, aes(x = experiment, y = total)) +
   labs(x = &quot;C1 chip&quot;, y = &quot;Total number of mapped reads&quot;,
        title = &quot;Total mapped reads per C1 chip&quot;) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))</code></pre>
-<p><img src="figure/totals.Rmd/total-mapped-per-chip-1.png" width="768" style="display: block; margin: auto;" /></p>
+<p><img src="figure/totals.Rmd/total-mapped-per-chip-1.png" /></p>
+<details>
+<summary><em>Expand here to see past versions of total-mapped-per-chip-1.png:</em></summary>
+<table style = "border-collapse:separate; border-spacing:5px;">
+<thead>
+<tr>
+<th style="text-align:left;">
+Version
+</th>
+<th style="text-align:left;">
+Author
+</th>
+<th style="text-align:left;">
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/034330f2947fdac50aee3fce64e23f51f314a628/docs/figure/totals.Rmd/total-mapped-per-chip-1.png" target="_blank">034330f</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-04-04
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/e019192e58124169802ff190fbb2423912d5b892/docs/figure/totals.Rmd/total-mapped-per-chip-1.png" target="_blank">e019192</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-03-20
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/bc61844215fea7163ea8ec8c7f7f854c8f51d0f3/docs/figure/totals.Rmd/total-mapped-per-chip-1.png" target="_blank">bc61844</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-03-09
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/48f84ad58352611b1452b131f4a9aadf7b43b9bf/docs/figure/totals.Rmd/total-mapped-per-chip-1.png" target="_blank">48f84ad</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-02-22
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/8a7a2ec76955500fb5d5d799c7f012cd8874e279/docs/figure/totals.Rmd/total-mapped-per-chip-1.png" target="_blank">8a7a2ec</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-02-21
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/219bc8495525b762e96280f2bfe63b554714cb61/docs/figure/totals.Rmd/total-mapped-per-chip-1.png" target="_blank">219bc84</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-02-17
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/432797583041707a0b93b523fd01e171493a274c/docs/figure/totals.Rmd/total-mapped-per-chip-1.png" target="_blank">4327975</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-02-11
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/39e8046299cd769f5de0c84dbfbf1ddeb606fd14/docs/figure/totals.Rmd/total-mapped-per-chip-1.png" target="_blank">39e8046</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-01-23
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/f439f21d673c503f13643a49e932823c5762ae88/docs/figure/totals.Rmd/total-mapped-per-chip-1.png" target="_blank">f439f21</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-01-18
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/389ee3ba4e9c4717e5d0c14bf9cff6a1c39f95fe/docs/figure/totals.Rmd/total-mapped-per-chip-1.png" target="_blank">389ee3b</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2017-12-04
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/43a2bd23abe18b01b4bcefb58986b94600e23ec1/docs/figure/totals.Rmd/total-mapped-per-chip-1.png" target="_blank">43a2bd2</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-31
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/9f2497144668186d60e1a40a8d91374614c5ef7a/docs/figure/totals.Rmd/total-mapped-per-chip-1.png" target="_blank">9f24971</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-26
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/462fb11e7bd2cc91a52db9ce225f51bc46c99f88/docs/figure/totals.Rmd/total-mapped-per-chip-1.png" target="_blank">462fb11</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-24
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/eb09f611c4694f6de89a080ac0178564626bb4fd/docs/figure/totals.Rmd/total-mapped-per-chip-1.png" target="_blank">eb09f61</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-09-14
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/9fd161906b55665d8093eb481e5e2274390d809e/docs/figure/totals.Rmd/total-mapped-per-chip-1.png" target="_blank">9fd1619</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-29
+</td>
+</tr>
+</tbody>
+</table>
+</details>
 <p>Sorted by total number of mapped reads (in millions).</p>
 <pre class="r"><code>mapped_sum %&gt;%
   arrange(total) %&gt;%
@@ -428,315 +1538,315 @@ ggplot(mapped_sum, aes(x = experiment, y = total)) +
 <table>
 <thead>
 <tr class="header">
-<th style="text-align: left;">experiment</th>
-<th style="text-align: right;">total</th>
+<th align="left">experiment</th>
+<th align="right">total</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td style="text-align: left;">02222018</td>
-<td style="text-align: right;">78.28778</td>
+<td align="left">02222018</td>
+<td align="right">78.28778</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">02272018</td>
-<td style="text-align: right;">78.95743</td>
+<td align="left">02272018</td>
+<td align="right">78.95743</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">02282018</td>
-<td style="text-align: right;">82.56542</td>
+<td align="left">02282018</td>
+<td align="right">82.56542</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">02242018</td>
-<td style="text-align: right;">85.21371</td>
+<td align="left">02242018</td>
+<td align="right">85.21371</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">02202018</td>
-<td style="text-align: right;">85.65508</td>
+<td align="left">02202018</td>
+<td align="right">85.65508</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">02192018</td>
-<td style="text-align: right;">86.54926</td>
+<td align="left">02192018</td>
+<td align="right">86.54926</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">02262018</td>
-<td style="text-align: right;">91.65845</td>
+<td align="left">02262018</td>
+<td align="right">91.65845</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">02212018</td>
-<td style="text-align: right;">91.73489</td>
+<td align="left">02212018</td>
+<td align="right">91.73489</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">12042017</td>
-<td style="text-align: right;">110.17911</td>
+<td align="left">12042017</td>
+<td align="right">110.17911</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">09272017</td>
-<td style="text-align: right;">124.24309</td>
+<td align="left">09272017</td>
+<td align="right">124.24309</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">10112017</td>
-<td style="text-align: right;">125.28473</td>
+<td align="left">10112017</td>
+<td align="right">125.28473</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">08162017</td>
-<td style="text-align: right;">150.86872</td>
+<td align="left">08162017</td>
+<td align="right">150.86872</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">08102017</td>
-<td style="text-align: right;">151.02021</td>
+<td align="left">08102017</td>
+<td align="right">151.02021</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">10092017</td>
-<td style="text-align: right;">152.42567</td>
+<td align="left">10092017</td>
+<td align="right">152.42567</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">10102017</td>
-<td style="text-align: right;">153.27700</td>
+<td align="left">10102017</td>
+<td align="right">153.27700</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">04132017</td>
-<td style="text-align: right;">156.97627</td>
+<td align="left">04132017</td>
+<td align="right">156.97627</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">04142017</td>
-<td style="text-align: right;">157.35120</td>
+<td align="left">04142017</td>
+<td align="right">157.35120</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">11282017</td>
-<td style="text-align: right;">159.68109</td>
+<td align="left">11282017</td>
+<td align="right">159.68109</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">04072017</td>
-<td style="text-align: right;">159.80946</td>
+<td align="left">04072017</td>
+<td align="right">159.80946</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">03312017</td>
-<td style="text-align: right;">159.88979</td>
+<td align="left">03312017</td>
+<td align="right">159.88979</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">08142017</td>
-<td style="text-align: right;">164.23577</td>
+<td align="left">08142017</td>
+<td align="right">164.23577</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">08152017</td>
-<td style="text-align: right;">164.44799</td>
+<td align="left">08152017</td>
+<td align="right">164.44799</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">10052017</td>
-<td style="text-align: right;">164.67997</td>
+<td align="left">10052017</td>
+<td align="right">164.67997</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">10042017</td>
-<td style="text-align: right;">171.92751</td>
+<td align="left">10042017</td>
+<td align="right">171.92751</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">10022017</td>
-<td style="text-align: right;">172.99697</td>
+<td align="left">10022017</td>
+<td align="right">172.99697</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">04052017</td>
-<td style="text-align: right;">173.99471</td>
+<td align="left">04052017</td>
+<td align="right">173.99471</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">12112017</td>
-<td style="text-align: right;">174.39488</td>
+<td align="left">12112017</td>
+<td align="right">174.39488</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">10062017</td>
-<td style="text-align: right;">174.98989</td>
+<td align="left">10062017</td>
+<td align="right">174.98989</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">11272017</td>
-<td style="text-align: right;">177.30120</td>
+<td align="left">11272017</td>
+<td align="right">177.30120</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">11152017</td>
-<td style="text-align: right;">180.40158</td>
+<td align="left">11152017</td>
+<td align="right">180.40158</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">11202017</td>
-<td style="text-align: right;">180.62962</td>
+<td align="left">11202017</td>
+<td align="right">180.62962</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">10172017</td>
-<td style="text-align: right;">181.36524</td>
+<td align="left">10172017</td>
+<td align="right">181.36524</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">12132017</td>
-<td style="text-align: right;">182.20841</td>
+<td align="left">12132017</td>
+<td align="right">182.20841</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">12062017</td>
-<td style="text-align: right;">182.97073</td>
+<td align="left">12062017</td>
+<td align="right">182.97073</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">12082017</td>
-<td style="text-align: right;">184.43222</td>
+<td align="left">12082017</td>
+<td align="right">184.43222</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">11162017</td>
-<td style="text-align: right;">185.14167</td>
+<td align="left">11162017</td>
+<td align="right">185.14167</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">09262017</td>
-<td style="text-align: right;">185.53907</td>
+<td align="left">09262017</td>
+<td align="right">185.53907</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">03172017</td>
-<td style="text-align: right;">186.36864</td>
+<td align="left">03172017</td>
+<td align="right">186.36864</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">03162017</td>
-<td style="text-align: right;">186.48628</td>
+<td align="left">03162017</td>
+<td align="right">186.48628</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">11302017</td>
-<td style="text-align: right;">186.83788</td>
+<td align="left">11302017</td>
+<td align="right">186.83788</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">11142017</td>
-<td style="text-align: right;">187.32526</td>
+<td align="left">11142017</td>
+<td align="right">187.32526</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">11172017</td>
-<td style="text-align: right;">189.37489</td>
+<td align="left">11172017</td>
+<td align="right">189.37489</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">11292017</td>
-<td style="text-align: right;">191.71199</td>
+<td align="left">11292017</td>
+<td align="right">191.71199</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">11022017</td>
-<td style="text-align: right;">191.84742</td>
+<td align="left">11022017</td>
+<td align="right">191.84742</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">08222017</td>
-<td style="text-align: right;">192.28710</td>
+<td align="left">08222017</td>
+<td align="right">192.28710</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">11102017</td>
-<td style="text-align: right;">193.67440</td>
+<td align="left">11102017</td>
+<td align="right">193.67440</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">12122017</td>
-<td style="text-align: right;">195.11310</td>
+<td align="left">12122017</td>
+<td align="right">195.11310</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">09252017</td>
-<td style="text-align: right;">195.98869</td>
+<td align="left">09252017</td>
+<td align="right">195.98869</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">04202017</td>
-<td style="text-align: right;">196.00356</td>
+<td align="left">04202017</td>
+<td align="right">196.00356</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">11032017</td>
-<td style="text-align: right;">196.22684</td>
+<td align="left">11032017</td>
+<td align="right">196.22684</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">08112017</td>
-<td style="text-align: right;">197.41407</td>
+<td align="left">08112017</td>
+<td align="right">197.41407</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">11212017</td>
-<td style="text-align: right;">197.64972</td>
+<td align="left">11212017</td>
+<td align="right">197.64972</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">10302017</td>
-<td style="text-align: right;">198.08885</td>
+<td align="left">10302017</td>
+<td align="right">198.08885</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">11092017</td>
-<td style="text-align: right;">204.05467</td>
+<td align="left">11092017</td>
+<td align="right">204.05467</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">08182017</td>
-<td style="text-align: right;">204.45323</td>
+<td align="left">08182017</td>
+<td align="right">204.45323</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">12142017</td>
-<td style="text-align: right;">205.71842</td>
+<td align="left">12142017</td>
+<td align="right">205.71842</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">12052017</td>
-<td style="text-align: right;">209.09493</td>
+<td align="left">12052017</td>
+<td align="right">209.09493</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">08282017</td>
-<td style="text-align: right;">210.10865</td>
+<td align="left">08282017</td>
+<td align="right">210.10865</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">11082017</td>
-<td style="text-align: right;">211.73388</td>
+<td align="left">11082017</td>
+<td align="right">211.73388</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">08212017</td>
-<td style="text-align: right;">217.35114</td>
+<td align="left">08212017</td>
+<td align="right">217.35114</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">08302017</td>
-<td style="text-align: right;">219.94928</td>
+<td align="left">08302017</td>
+<td align="right">219.94928</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">03302017</td>
-<td style="text-align: right;">222.02280</td>
+<td align="left">03302017</td>
+<td align="right">222.02280</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">11072017</td>
-<td style="text-align: right;">230.40747</td>
+<td align="left">11072017</td>
+<td align="right">230.40747</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">11132017</td>
-<td style="text-align: right;">238.07216</td>
+<td align="left">11132017</td>
+<td align="right">238.07216</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">08242017</td>
-<td style="text-align: right;">239.15060</td>
+<td align="left">08242017</td>
+<td align="right">239.15060</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">12072017</td>
-<td style="text-align: right;">239.53636</td>
+<td align="left">12072017</td>
+<td align="right">239.53636</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">10162017</td>
-<td style="text-align: right;">241.19492</td>
+<td align="left">10162017</td>
+<td align="right">241.19492</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">08312017</td>
-<td style="text-align: right;">241.82901</td>
+<td align="left">08312017</td>
+<td align="right">241.82901</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">11062017</td>
-<td style="text-align: right;">244.14146</td>
+<td align="left">11062017</td>
+<td align="right">244.14146</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">10132017</td>
-<td style="text-align: right;">248.58268</td>
+<td align="left">10132017</td>
+<td align="right">248.58268</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">03232017</td>
-<td style="text-align: right;">248.62403</td>
+<td align="left">03232017</td>
+<td align="right">248.62403</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">12012017</td>
-<td style="text-align: right;">257.07111</td>
+<td align="left">12012017</td>
+<td align="right">257.07111</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">08232017</td>
-<td style="text-align: right;">258.91525</td>
+<td align="left">08232017</td>
+<td align="right">258.91525</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">08292017</td>
-<td style="text-align: right;">260.73275</td>
+<td align="left">08292017</td>
+<td align="right">260.73275</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">10122017</td>
-<td style="text-align: right;">269.94842</td>
+<td align="left">10122017</td>
+<td align="right">269.94842</td>
 </tr>
 </tbody>
 </table>
-</section>
-<section id="what-is-the-conversion-of-reads-to-molecules" class="level2">
+</div>
+<div id="what-is-the-conversion-of-reads-to-molecules" class="section level2">
 <h2>What is the conversion of reads to molecules?</h2>
 <pre class="r"><code>convert_all &lt;- ggplot(totals, aes(x = mapped, y = molecules)) +
   geom_point() +
@@ -761,9 +1871,216 @@ convert_ce &lt;- ggplot(totals, aes(x = reads_ce, y = mol_ce)) +
 
 plot_grid(convert_all, convert_hs, convert_dm, convert_ce,
           labels = letters[1:4])</code></pre>
-<p><img src="figure/totals.Rmd/reads-to-molecules-1.png" width="960" style="display: block; margin: auto;" /></p>
-</section>
-<section id="drosophila-spike-in" class="level2">
+<p><img src="figure/totals.Rmd/reads-to-molecules-1.png" /></p>
+<details>
+<summary><em>Expand here to see past versions of reads-to-molecules-1.png:</em></summary>
+<table style = "border-collapse:separate; border-spacing:5px;">
+<thead>
+<tr>
+<th style="text-align:left;">
+Version
+</th>
+<th style="text-align:left;">
+Author
+</th>
+<th style="text-align:left;">
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/034330f2947fdac50aee3fce64e23f51f314a628/docs/figure/totals.Rmd/reads-to-molecules-1.png" target="_blank">034330f</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-04-04
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/e019192e58124169802ff190fbb2423912d5b892/docs/figure/totals.Rmd/reads-to-molecules-1.png" target="_blank">e019192</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-03-20
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/bc61844215fea7163ea8ec8c7f7f854c8f51d0f3/docs/figure/totals.Rmd/reads-to-molecules-1.png" target="_blank">bc61844</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-03-09
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/48f84ad58352611b1452b131f4a9aadf7b43b9bf/docs/figure/totals.Rmd/reads-to-molecules-1.png" target="_blank">48f84ad</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-02-22
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/8a7a2ec76955500fb5d5d799c7f012cd8874e279/docs/figure/totals.Rmd/reads-to-molecules-1.png" target="_blank">8a7a2ec</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-02-21
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/219bc8495525b762e96280f2bfe63b554714cb61/docs/figure/totals.Rmd/reads-to-molecules-1.png" target="_blank">219bc84</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-02-17
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/432797583041707a0b93b523fd01e171493a274c/docs/figure/totals.Rmd/reads-to-molecules-1.png" target="_blank">4327975</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-02-11
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/39e8046299cd769f5de0c84dbfbf1ddeb606fd14/docs/figure/totals.Rmd/reads-to-molecules-1.png" target="_blank">39e8046</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-01-23
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/f439f21d673c503f13643a49e932823c5762ae88/docs/figure/totals.Rmd/reads-to-molecules-1.png" target="_blank">f439f21</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-01-18
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/389ee3ba4e9c4717e5d0c14bf9cff6a1c39f95fe/docs/figure/totals.Rmd/reads-to-molecules-1.png" target="_blank">389ee3b</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2017-12-04
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/43a2bd23abe18b01b4bcefb58986b94600e23ec1/docs/figure/totals.Rmd/reads-to-molecules-1.png" target="_blank">43a2bd2</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-31
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/9f2497144668186d60e1a40a8d91374614c5ef7a/docs/figure/totals.Rmd/reads-to-molecules-1.png" target="_blank">9f24971</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-26
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/462fb11e7bd2cc91a52db9ce225f51bc46c99f88/docs/figure/totals.Rmd/reads-to-molecules-1.png" target="_blank">462fb11</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-24
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/eb09f611c4694f6de89a080ac0178564626bb4fd/docs/figure/totals.Rmd/reads-to-molecules-1.png" target="_blank">eb09f61</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-09-14
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/da534e7efabdbdc7e61db5a7dc736383f5105f57/docs/figure/totals.Rmd/reads-to-molecules-1.png" target="_blank">da534e7</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-24
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/804993f18c2a652fbe4ef94d79744f673451ed52/docs/figure/totals.Rmd/reads-to-molecules-1.png" target="_blank">804993f</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-21
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/ad42e0983fba4af672ad970c104b2684c47151c4/docs/figure/totals.Rmd/reads-to-molecules-1.png" target="_blank">ad42e09</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-14
+</td>
+</tr>
+</tbody>
+</table>
+</details>
+</div>
+<div id="drosophila-spike-in" class="section level2">
 <h2>Drosophila spike-in</h2>
 <pre class="r"><code>p_reads_dm &lt;- ggplot(anno_qc, aes(x = as.factor(fly), y = reads_dm / mapped * 100)) +
   geom_boxplot() +
@@ -774,7 +2091,214 @@ p_mol_dm &lt;- ggplot(anno_qc, aes(x = as.factor(fly), y = mol_dm / molecules * 
   labs(x = &quot;Fly spike-in concentration&quot;,
        y = &quot;Percentage of mapped molecules that mapped to fly genome&quot;)
 plot_grid(p_reads_dm, p_mol_dm, labels = letters[1:2])</code></pre>
-<p><img src="figure/totals.Rmd/totals-fly-perc-1.png" width="768" style="display: block; margin: auto;" /></p>
+<p><img src="figure/totals.Rmd/totals-fly-perc-1.png" /></p>
+<details>
+<summary><em>Expand here to see past versions of totals-fly-perc-1.png:</em></summary>
+<table style = "border-collapse:separate; border-spacing:5px;">
+<thead>
+<tr>
+<th style="text-align:left;">
+Version
+</th>
+<th style="text-align:left;">
+Author
+</th>
+<th style="text-align:left;">
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/034330f2947fdac50aee3fce64e23f51f314a628/docs/figure/totals.Rmd/totals-fly-perc-1.png" target="_blank">034330f</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-04-04
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/e019192e58124169802ff190fbb2423912d5b892/docs/figure/totals.Rmd/totals-fly-perc-1.png" target="_blank">e019192</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-03-20
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/bc61844215fea7163ea8ec8c7f7f854c8f51d0f3/docs/figure/totals.Rmd/totals-fly-perc-1.png" target="_blank">bc61844</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-03-09
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/48f84ad58352611b1452b131f4a9aadf7b43b9bf/docs/figure/totals.Rmd/totals-fly-perc-1.png" target="_blank">48f84ad</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-02-22
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/8a7a2ec76955500fb5d5d799c7f012cd8874e279/docs/figure/totals.Rmd/totals-fly-perc-1.png" target="_blank">8a7a2ec</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-02-21
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/219bc8495525b762e96280f2bfe63b554714cb61/docs/figure/totals.Rmd/totals-fly-perc-1.png" target="_blank">219bc84</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-02-17
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/432797583041707a0b93b523fd01e171493a274c/docs/figure/totals.Rmd/totals-fly-perc-1.png" target="_blank">4327975</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-02-11
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/39e8046299cd769f5de0c84dbfbf1ddeb606fd14/docs/figure/totals.Rmd/totals-fly-perc-1.png" target="_blank">39e8046</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-01-23
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/f439f21d673c503f13643a49e932823c5762ae88/docs/figure/totals.Rmd/totals-fly-perc-1.png" target="_blank">f439f21</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-01-18
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/389ee3ba4e9c4717e5d0c14bf9cff6a1c39f95fe/docs/figure/totals.Rmd/totals-fly-perc-1.png" target="_blank">389ee3b</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2017-12-04
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/43a2bd23abe18b01b4bcefb58986b94600e23ec1/docs/figure/totals.Rmd/totals-fly-perc-1.png" target="_blank">43a2bd2</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-31
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/9f2497144668186d60e1a40a8d91374614c5ef7a/docs/figure/totals.Rmd/totals-fly-perc-1.png" target="_blank">9f24971</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-26
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/462fb11e7bd2cc91a52db9ce225f51bc46c99f88/docs/figure/totals.Rmd/totals-fly-perc-1.png" target="_blank">462fb11</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-24
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/eb09f611c4694f6de89a080ac0178564626bb4fd/docs/figure/totals.Rmd/totals-fly-perc-1.png" target="_blank">eb09f61</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-09-14
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/da534e7efabdbdc7e61db5a7dc736383f5105f57/docs/figure/totals.Rmd/totals-fly-perc-1.png" target="_blank">da534e7</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-24
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/804993f18c2a652fbe4ef94d79744f673451ed52/docs/figure/totals.Rmd/totals-fly-perc-1.png" target="_blank">804993f</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-21
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/ad42e0983fba4af672ad970c104b2684c47151c4/docs/figure/totals.Rmd/totals-fly-perc-1.png" target="_blank">ad42e09</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-14
+</td>
+</tr>
+</tbody>
+</table>
+</details>
 <pre class="r"><code>p_reads_dm_counts &lt;- ggplot(anno_qc, aes(x = as.factor(fly), y = reads_dm)) +
   geom_boxplot() +
   labs(x = &quot;Fly spike-in concentration&quot;,
@@ -784,7 +2308,214 @@ p_mol_dm_counts &lt;- ggplot(anno_qc, aes(x = as.factor(fly), y = mol_dm)) +
   labs(x = &quot;Fly spike-in concentration&quot;,
        y = &quot;Number of molecules that mapped to fly genome&quot;)
 plot_grid(p_reads_dm_counts, p_mol_dm_counts, labels = letters[1:2])</code></pre>
-<p><img src="figure/totals.Rmd/totals-fly-counts-1.png" width="768" style="display: block; margin: auto;" /></p>
+<p><img src="figure/totals.Rmd/totals-fly-counts-1.png" /></p>
+<details>
+<summary><em>Expand here to see past versions of totals-fly-counts-1.png:</em></summary>
+<table style = "border-collapse:separate; border-spacing:5px;">
+<thead>
+<tr>
+<th style="text-align:left;">
+Version
+</th>
+<th style="text-align:left;">
+Author
+</th>
+<th style="text-align:left;">
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/034330f2947fdac50aee3fce64e23f51f314a628/docs/figure/totals.Rmd/totals-fly-counts-1.png" target="_blank">034330f</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-04-04
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/e019192e58124169802ff190fbb2423912d5b892/docs/figure/totals.Rmd/totals-fly-counts-1.png" target="_blank">e019192</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-03-20
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/bc61844215fea7163ea8ec8c7f7f854c8f51d0f3/docs/figure/totals.Rmd/totals-fly-counts-1.png" target="_blank">bc61844</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-03-09
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/48f84ad58352611b1452b131f4a9aadf7b43b9bf/docs/figure/totals.Rmd/totals-fly-counts-1.png" target="_blank">48f84ad</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-02-22
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/8a7a2ec76955500fb5d5d799c7f012cd8874e279/docs/figure/totals.Rmd/totals-fly-counts-1.png" target="_blank">8a7a2ec</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-02-21
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/219bc8495525b762e96280f2bfe63b554714cb61/docs/figure/totals.Rmd/totals-fly-counts-1.png" target="_blank">219bc84</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-02-17
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/432797583041707a0b93b523fd01e171493a274c/docs/figure/totals.Rmd/totals-fly-counts-1.png" target="_blank">4327975</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-02-11
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/39e8046299cd769f5de0c84dbfbf1ddeb606fd14/docs/figure/totals.Rmd/totals-fly-counts-1.png" target="_blank">39e8046</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-01-23
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/f439f21d673c503f13643a49e932823c5762ae88/docs/figure/totals.Rmd/totals-fly-counts-1.png" target="_blank">f439f21</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-01-18
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/389ee3ba4e9c4717e5d0c14bf9cff6a1c39f95fe/docs/figure/totals.Rmd/totals-fly-counts-1.png" target="_blank">389ee3b</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2017-12-04
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/43a2bd23abe18b01b4bcefb58986b94600e23ec1/docs/figure/totals.Rmd/totals-fly-counts-1.png" target="_blank">43a2bd2</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-31
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/9f2497144668186d60e1a40a8d91374614c5ef7a/docs/figure/totals.Rmd/totals-fly-counts-1.png" target="_blank">9f24971</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-26
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/462fb11e7bd2cc91a52db9ce225f51bc46c99f88/docs/figure/totals.Rmd/totals-fly-counts-1.png" target="_blank">462fb11</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-24
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/eb09f611c4694f6de89a080ac0178564626bb4fd/docs/figure/totals.Rmd/totals-fly-counts-1.png" target="_blank">eb09f61</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-09-14
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/da534e7efabdbdc7e61db5a7dc736383f5105f57/docs/figure/totals.Rmd/totals-fly-counts-1.png" target="_blank">da534e7</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-24
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/804993f18c2a652fbe4ef94d79744f673451ed52/docs/figure/totals.Rmd/totals-fly-counts-1.png" target="_blank">804993f</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-21
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/ad42e0983fba4af672ad970c104b2684c47151c4/docs/figure/totals.Rmd/totals-fly-counts-1.png" target="_blank">ad42e09</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-14
+</td>
+</tr>
+</tbody>
+</table>
+</details>
 <pre class="r"><code>totals_percent &lt;- anno_qc %&gt;%
   mutate(sample = paste(experiment, well, sep = &quot;-&quot;),
          sample = factor(sample, levels = sample[order(reads_dm / raw)])) %&gt;%
@@ -810,9 +2541,205 @@ ggplot(totals_percent, aes(x = sample, y = percent, fill = type)) +
   facet_wrap(~fly) +
   labs(x = &quot;Sample&quot;, y = &quot;Percent&quot;, title = &quot;Read classification per sample&quot;) +
   theme(legend.title = element_blank())</code></pre>
-<p><img src="figure/totals.Rmd/read-classification-per-sample-1.png" width="768" style="display: block; margin: auto;" /></p>
-</section>
-<section id="c.-elegans-spike-in" class="level2">
+<p><img src="figure/totals.Rmd/read-classification-per-sample-1.png" /></p>
+<details>
+<summary><em>Expand here to see past versions of read-classification-per-sample-1.png:</em></summary>
+<table style = "border-collapse:separate; border-spacing:5px;">
+<thead>
+<tr>
+<th style="text-align:left;">
+Version
+</th>
+<th style="text-align:left;">
+Author
+</th>
+<th style="text-align:left;">
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/034330f2947fdac50aee3fce64e23f51f314a628/docs/figure/totals.Rmd/read-classification-per-sample-1.png" target="_blank">034330f</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-04-04
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/e019192e58124169802ff190fbb2423912d5b892/docs/figure/totals.Rmd/read-classification-per-sample-1.png" target="_blank">e019192</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-03-20
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/bc61844215fea7163ea8ec8c7f7f854c8f51d0f3/docs/figure/totals.Rmd/read-classification-per-sample-1.png" target="_blank">bc61844</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-03-09
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/48f84ad58352611b1452b131f4a9aadf7b43b9bf/docs/figure/totals.Rmd/read-classification-per-sample-1.png" target="_blank">48f84ad</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-02-22
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/8a7a2ec76955500fb5d5d799c7f012cd8874e279/docs/figure/totals.Rmd/read-classification-per-sample-1.png" target="_blank">8a7a2ec</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-02-21
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/219bc8495525b762e96280f2bfe63b554714cb61/docs/figure/totals.Rmd/read-classification-per-sample-1.png" target="_blank">219bc84</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-02-17
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/432797583041707a0b93b523fd01e171493a274c/docs/figure/totals.Rmd/read-classification-per-sample-1.png" target="_blank">4327975</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-02-11
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/39e8046299cd769f5de0c84dbfbf1ddeb606fd14/docs/figure/totals.Rmd/read-classification-per-sample-1.png" target="_blank">39e8046</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-01-23
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/f439f21d673c503f13643a49e932823c5762ae88/docs/figure/totals.Rmd/read-classification-per-sample-1.png" target="_blank">f439f21</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-01-18
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/389ee3ba4e9c4717e5d0c14bf9cff6a1c39f95fe/docs/figure/totals.Rmd/read-classification-per-sample-1.png" target="_blank">389ee3b</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2017-12-04
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/43a2bd23abe18b01b4bcefb58986b94600e23ec1/docs/figure/totals.Rmd/read-classification-per-sample-1.png" target="_blank">43a2bd2</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-31
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/9f2497144668186d60e1a40a8d91374614c5ef7a/docs/figure/totals.Rmd/read-classification-per-sample-1.png" target="_blank">9f24971</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-26
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/462fb11e7bd2cc91a52db9ce225f51bc46c99f88/docs/figure/totals.Rmd/read-classification-per-sample-1.png" target="_blank">462fb11</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-24
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/eb09f611c4694f6de89a080ac0178564626bb4fd/docs/figure/totals.Rmd/read-classification-per-sample-1.png" target="_blank">eb09f61</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-09-14
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/da534e7efabdbdc7e61db5a7dc736383f5105f57/docs/figure/totals.Rmd/read-classification-per-sample-1.png" target="_blank">da534e7</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-24
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/804993f18c2a652fbe4ef94d79744f673451ed52/docs/figure/totals.Rmd/read-classification-per-sample-1.png" target="_blank">804993f</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-21
+</td>
+</tr>
+</tbody>
+</table>
+</details>
+</div>
+<div id="c.-elegans-spike-in" class="section level2">
 <h2>C. elegans spike-in</h2>
 <pre class="r"><code>p_reads_ce &lt;- ggplot(anno_qc, aes(x = as.factor(worm), y = reads_ce / mapped * 100)) +
   geom_boxplot() +
@@ -823,7 +2750,214 @@ p_mol_ce &lt;- ggplot(anno_qc, aes(x = as.factor(worm), y = mol_ce / molecules *
   labs(x = &quot;Worm spike-in concentration&quot;,
        y = &quot;Percentage of mapped molecules that mapped to worm genome&quot;)
 plot_grid(p_reads_ce, p_mol_ce, labels = letters[1:2])</code></pre>
-<p><img src="figure/totals.Rmd/totals-worm-perc-1.png" width="768" style="display: block; margin: auto;" /></p>
+<p><img src="figure/totals.Rmd/totals-worm-perc-1.png" /></p>
+<details>
+<summary><em>Expand here to see past versions of totals-worm-perc-1.png:</em></summary>
+<table style = "border-collapse:separate; border-spacing:5px;">
+<thead>
+<tr>
+<th style="text-align:left;">
+Version
+</th>
+<th style="text-align:left;">
+Author
+</th>
+<th style="text-align:left;">
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/034330f2947fdac50aee3fce64e23f51f314a628/docs/figure/totals.Rmd/totals-worm-perc-1.png" target="_blank">034330f</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-04-04
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/e019192e58124169802ff190fbb2423912d5b892/docs/figure/totals.Rmd/totals-worm-perc-1.png" target="_blank">e019192</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-03-20
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/bc61844215fea7163ea8ec8c7f7f854c8f51d0f3/docs/figure/totals.Rmd/totals-worm-perc-1.png" target="_blank">bc61844</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-03-09
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/48f84ad58352611b1452b131f4a9aadf7b43b9bf/docs/figure/totals.Rmd/totals-worm-perc-1.png" target="_blank">48f84ad</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-02-22
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/8a7a2ec76955500fb5d5d799c7f012cd8874e279/docs/figure/totals.Rmd/totals-worm-perc-1.png" target="_blank">8a7a2ec</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-02-21
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/219bc8495525b762e96280f2bfe63b554714cb61/docs/figure/totals.Rmd/totals-worm-perc-1.png" target="_blank">219bc84</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-02-17
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/432797583041707a0b93b523fd01e171493a274c/docs/figure/totals.Rmd/totals-worm-perc-1.png" target="_blank">4327975</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-02-11
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/39e8046299cd769f5de0c84dbfbf1ddeb606fd14/docs/figure/totals.Rmd/totals-worm-perc-1.png" target="_blank">39e8046</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-01-23
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/f439f21d673c503f13643a49e932823c5762ae88/docs/figure/totals.Rmd/totals-worm-perc-1.png" target="_blank">f439f21</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-01-18
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/389ee3ba4e9c4717e5d0c14bf9cff6a1c39f95fe/docs/figure/totals.Rmd/totals-worm-perc-1.png" target="_blank">389ee3b</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2017-12-04
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/43a2bd23abe18b01b4bcefb58986b94600e23ec1/docs/figure/totals.Rmd/totals-worm-perc-1.png" target="_blank">43a2bd2</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-31
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/9f2497144668186d60e1a40a8d91374614c5ef7a/docs/figure/totals.Rmd/totals-worm-perc-1.png" target="_blank">9f24971</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-26
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/462fb11e7bd2cc91a52db9ce225f51bc46c99f88/docs/figure/totals.Rmd/totals-worm-perc-1.png" target="_blank">462fb11</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-24
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/eb09f611c4694f6de89a080ac0178564626bb4fd/docs/figure/totals.Rmd/totals-worm-perc-1.png" target="_blank">eb09f61</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-09-14
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/da534e7efabdbdc7e61db5a7dc736383f5105f57/docs/figure/totals.Rmd/totals-worm-perc-1.png" target="_blank">da534e7</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-24
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/804993f18c2a652fbe4ef94d79744f673451ed52/docs/figure/totals.Rmd/totals-worm-perc-1.png" target="_blank">804993f</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-21
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/ad42e0983fba4af672ad970c104b2684c47151c4/docs/figure/totals.Rmd/totals-worm-perc-1.png" target="_blank">ad42e09</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-14
+</td>
+</tr>
+</tbody>
+</table>
+</details>
 <pre class="r"><code>p_reads_ce_counts &lt;- ggplot(anno_qc, aes(x = as.factor(worm), y = reads_ce)) +
   geom_boxplot() +
   labs(x = &quot;Worm spike-in concentration&quot;,
@@ -833,9 +2967,216 @@ p_mol_ce_counts &lt;- ggplot(anno_qc, aes(x = as.factor(worm), y = mol_ce)) +
   labs(x = &quot;Worm spike-in concentration&quot;,
        y = &quot;Number of mapped molecules that mapped to worm genome&quot;)
 plot_grid(p_reads_ce_counts, p_mol_ce_counts, labels = letters[1:2])</code></pre>
-<p><img src="figure/totals.Rmd/totals-worm-counts-1.png" width="768" style="display: block; margin: auto;" /></p>
-</section>
-<section id="ercc-spike-in" class="level2">
+<p><img src="figure/totals.Rmd/totals-worm-counts-1.png" /></p>
+<details>
+<summary><em>Expand here to see past versions of totals-worm-counts-1.png:</em></summary>
+<table style = "border-collapse:separate; border-spacing:5px;">
+<thead>
+<tr>
+<th style="text-align:left;">
+Version
+</th>
+<th style="text-align:left;">
+Author
+</th>
+<th style="text-align:left;">
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/034330f2947fdac50aee3fce64e23f51f314a628/docs/figure/totals.Rmd/totals-worm-counts-1.png" target="_blank">034330f</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-04-04
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/e019192e58124169802ff190fbb2423912d5b892/docs/figure/totals.Rmd/totals-worm-counts-1.png" target="_blank">e019192</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-03-20
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/bc61844215fea7163ea8ec8c7f7f854c8f51d0f3/docs/figure/totals.Rmd/totals-worm-counts-1.png" target="_blank">bc61844</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-03-09
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/48f84ad58352611b1452b131f4a9aadf7b43b9bf/docs/figure/totals.Rmd/totals-worm-counts-1.png" target="_blank">48f84ad</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-02-22
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/8a7a2ec76955500fb5d5d799c7f012cd8874e279/docs/figure/totals.Rmd/totals-worm-counts-1.png" target="_blank">8a7a2ec</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-02-21
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/219bc8495525b762e96280f2bfe63b554714cb61/docs/figure/totals.Rmd/totals-worm-counts-1.png" target="_blank">219bc84</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-02-17
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/432797583041707a0b93b523fd01e171493a274c/docs/figure/totals.Rmd/totals-worm-counts-1.png" target="_blank">4327975</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-02-11
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/39e8046299cd769f5de0c84dbfbf1ddeb606fd14/docs/figure/totals.Rmd/totals-worm-counts-1.png" target="_blank">39e8046</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-01-23
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/f439f21d673c503f13643a49e932823c5762ae88/docs/figure/totals.Rmd/totals-worm-counts-1.png" target="_blank">f439f21</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-01-18
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/389ee3ba4e9c4717e5d0c14bf9cff6a1c39f95fe/docs/figure/totals.Rmd/totals-worm-counts-1.png" target="_blank">389ee3b</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2017-12-04
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/43a2bd23abe18b01b4bcefb58986b94600e23ec1/docs/figure/totals.Rmd/totals-worm-counts-1.png" target="_blank">43a2bd2</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-31
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/9f2497144668186d60e1a40a8d91374614c5ef7a/docs/figure/totals.Rmd/totals-worm-counts-1.png" target="_blank">9f24971</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-26
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/462fb11e7bd2cc91a52db9ce225f51bc46c99f88/docs/figure/totals.Rmd/totals-worm-counts-1.png" target="_blank">462fb11</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-24
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/eb09f611c4694f6de89a080ac0178564626bb4fd/docs/figure/totals.Rmd/totals-worm-counts-1.png" target="_blank">eb09f61</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-09-14
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/da534e7efabdbdc7e61db5a7dc736383f5105f57/docs/figure/totals.Rmd/totals-worm-counts-1.png" target="_blank">da534e7</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-24
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/804993f18c2a652fbe4ef94d79744f673451ed52/docs/figure/totals.Rmd/totals-worm-counts-1.png" target="_blank">804993f</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-21
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/ad42e0983fba4af672ad970c104b2684c47151c4/docs/figure/totals.Rmd/totals-worm-counts-1.png" target="_blank">ad42e09</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-14
+</td>
+</tr>
+</tbody>
+</table>
+</details>
+</div>
+<div id="ercc-spike-in" class="section level2">
 <h2>ERCC spike-in</h2>
 <pre class="r"><code>p_reads_ercc &lt;- ggplot(anno_qc, aes(x = as.factor(ERCC), y = reads_ercc / mapped * 100)) +
   geom_boxplot() +
@@ -846,7 +3187,214 @@ p_mol_ercc &lt;- ggplot(anno_qc, aes(x = as.factor(ERCC), y = mol_ercc / molecul
   labs(x = &quot;ERCC spike-in concentration&quot;,
        y = &quot;Percentage of mapped molecules that mapped to ERCCs&quot;)
 plot_grid(p_reads_ercc, p_mol_ercc, labels = letters[1:2])</code></pre>
-<p><img src="figure/totals.Rmd/totals-ercc-perc-1.png" width="768" style="display: block; margin: auto;" /></p>
+<p><img src="figure/totals.Rmd/totals-ercc-perc-1.png" /></p>
+<details>
+<summary><em>Expand here to see past versions of totals-ercc-perc-1.png:</em></summary>
+<table style = "border-collapse:separate; border-spacing:5px;">
+<thead>
+<tr>
+<th style="text-align:left;">
+Version
+</th>
+<th style="text-align:left;">
+Author
+</th>
+<th style="text-align:left;">
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/034330f2947fdac50aee3fce64e23f51f314a628/docs/figure/totals.Rmd/totals-ercc-perc-1.png" target="_blank">034330f</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-04-04
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/e019192e58124169802ff190fbb2423912d5b892/docs/figure/totals.Rmd/totals-ercc-perc-1.png" target="_blank">e019192</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-03-20
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/bc61844215fea7163ea8ec8c7f7f854c8f51d0f3/docs/figure/totals.Rmd/totals-ercc-perc-1.png" target="_blank">bc61844</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-03-09
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/48f84ad58352611b1452b131f4a9aadf7b43b9bf/docs/figure/totals.Rmd/totals-ercc-perc-1.png" target="_blank">48f84ad</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-02-22
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/8a7a2ec76955500fb5d5d799c7f012cd8874e279/docs/figure/totals.Rmd/totals-ercc-perc-1.png" target="_blank">8a7a2ec</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-02-21
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/219bc8495525b762e96280f2bfe63b554714cb61/docs/figure/totals.Rmd/totals-ercc-perc-1.png" target="_blank">219bc84</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-02-17
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/432797583041707a0b93b523fd01e171493a274c/docs/figure/totals.Rmd/totals-ercc-perc-1.png" target="_blank">4327975</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-02-11
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/39e8046299cd769f5de0c84dbfbf1ddeb606fd14/docs/figure/totals.Rmd/totals-ercc-perc-1.png" target="_blank">39e8046</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-01-23
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/f439f21d673c503f13643a49e932823c5762ae88/docs/figure/totals.Rmd/totals-ercc-perc-1.png" target="_blank">f439f21</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-01-18
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/389ee3ba4e9c4717e5d0c14bf9cff6a1c39f95fe/docs/figure/totals.Rmd/totals-ercc-perc-1.png" target="_blank">389ee3b</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2017-12-04
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/43a2bd23abe18b01b4bcefb58986b94600e23ec1/docs/figure/totals.Rmd/totals-ercc-perc-1.png" target="_blank">43a2bd2</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-31
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/9f2497144668186d60e1a40a8d91374614c5ef7a/docs/figure/totals.Rmd/totals-ercc-perc-1.png" target="_blank">9f24971</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-26
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/462fb11e7bd2cc91a52db9ce225f51bc46c99f88/docs/figure/totals.Rmd/totals-ercc-perc-1.png" target="_blank">462fb11</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-24
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/eb09f611c4694f6de89a080ac0178564626bb4fd/docs/figure/totals.Rmd/totals-ercc-perc-1.png" target="_blank">eb09f61</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-09-14
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/da534e7efabdbdc7e61db5a7dc736383f5105f57/docs/figure/totals.Rmd/totals-ercc-perc-1.png" target="_blank">da534e7</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-24
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/804993f18c2a652fbe4ef94d79744f673451ed52/docs/figure/totals.Rmd/totals-ercc-perc-1.png" target="_blank">804993f</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-21
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/ad42e0983fba4af672ad970c104b2684c47151c4/docs/figure/totals.Rmd/totals-ercc-perc-1.png" target="_blank">ad42e09</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-14
+</td>
+</tr>
+</tbody>
+</table>
+</details>
 <pre class="r"><code>p_reads_ercc_counts &lt;- ggplot(anno_qc, aes(x = as.factor(ERCC), y = reads_ercc)) +
   geom_boxplot() +
   labs(x = &quot;ERCC spike-in concentration&quot;,
@@ -856,52 +3404,253 @@ p_mol_ercc_counts &lt;- ggplot(anno_qc, aes(x = as.factor(ERCC), y = mol_ercc)) 
   labs(x = &quot;ERCC spike-in concentration&quot;,
        y = &quot;Number of molecules that mapped to ERCCs&quot;)
 plot_grid(p_reads_ercc_counts, p_mol_ercc_counts, labels = letters[1:2])</code></pre>
-<p><img src="figure/totals.Rmd/totals-ercc-counts-1.png" width="768" style="display: block; margin: auto;" /></p>
-</section>
-<section id="session-information" class="level2">
+<p><img src="figure/totals.Rmd/totals-ercc-counts-1.png" /></p>
+<details>
+<summary><em>Expand here to see past versions of totals-ercc-counts-1.png:</em></summary>
+<table style = "border-collapse:separate; border-spacing:5px;">
+<thead>
+<tr>
+<th style="text-align:left;">
+Version
+</th>
+<th style="text-align:left;">
+Author
+</th>
+<th style="text-align:left;">
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/034330f2947fdac50aee3fce64e23f51f314a628/docs/figure/totals.Rmd/totals-ercc-counts-1.png" target="_blank">034330f</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-04-04
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/e019192e58124169802ff190fbb2423912d5b892/docs/figure/totals.Rmd/totals-ercc-counts-1.png" target="_blank">e019192</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-03-20
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/bc61844215fea7163ea8ec8c7f7f854c8f51d0f3/docs/figure/totals.Rmd/totals-ercc-counts-1.png" target="_blank">bc61844</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-03-09
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/48f84ad58352611b1452b131f4a9aadf7b43b9bf/docs/figure/totals.Rmd/totals-ercc-counts-1.png" target="_blank">48f84ad</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-02-22
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/8a7a2ec76955500fb5d5d799c7f012cd8874e279/docs/figure/totals.Rmd/totals-ercc-counts-1.png" target="_blank">8a7a2ec</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-02-21
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/219bc8495525b762e96280f2bfe63b554714cb61/docs/figure/totals.Rmd/totals-ercc-counts-1.png" target="_blank">219bc84</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-02-17
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/432797583041707a0b93b523fd01e171493a274c/docs/figure/totals.Rmd/totals-ercc-counts-1.png" target="_blank">4327975</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-02-11
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/39e8046299cd769f5de0c84dbfbf1ddeb606fd14/docs/figure/totals.Rmd/totals-ercc-counts-1.png" target="_blank">39e8046</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-01-23
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/f439f21d673c503f13643a49e932823c5762ae88/docs/figure/totals.Rmd/totals-ercc-counts-1.png" target="_blank">f439f21</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-01-18
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/389ee3ba4e9c4717e5d0c14bf9cff6a1c39f95fe/docs/figure/totals.Rmd/totals-ercc-counts-1.png" target="_blank">389ee3b</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2017-12-04
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/43a2bd23abe18b01b4bcefb58986b94600e23ec1/docs/figure/totals.Rmd/totals-ercc-counts-1.png" target="_blank">43a2bd2</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-31
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/9f2497144668186d60e1a40a8d91374614c5ef7a/docs/figure/totals.Rmd/totals-ercc-counts-1.png" target="_blank">9f24971</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-26
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/462fb11e7bd2cc91a52db9ce225f51bc46c99f88/docs/figure/totals.Rmd/totals-ercc-counts-1.png" target="_blank">462fb11</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-24
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/eb09f611c4694f6de89a080ac0178564626bb4fd/docs/figure/totals.Rmd/totals-ercc-counts-1.png" target="_blank">eb09f61</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-09-14
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/da534e7efabdbdc7e61db5a7dc736383f5105f57/docs/figure/totals.Rmd/totals-ercc-counts-1.png" target="_blank">da534e7</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-24
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/804993f18c2a652fbe4ef94d79744f673451ed52/docs/figure/totals.Rmd/totals-ercc-counts-1.png" target="_blank">804993f</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-21
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/ad42e0983fba4af672ad970c104b2684c47151c4/docs/figure/totals.Rmd/totals-ercc-counts-1.png" target="_blank">ad42e09</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-14
+</td>
+</tr>
+</tbody>
+</table>
+</details>
+</div>
+<div id="session-information" class="section level2">
 <h2>Session information</h2>
-<!-- Insert the session information into the document -->
 <pre class="r"><code>sessionInfo()</code></pre>
-<pre><code>R version 3.4.1 (2017-06-30)
-Platform: x86_64-pc-linux-gnu (64-bit)
-Running under: Scientific Linux 7.2 (Nitrogen)
-
-Matrix products: default
-BLAS: /project2/gilad/jdblischak/miniconda3/envs/scqtl/lib/R/lib/libRblas.so
-LAPACK: /project2/gilad/jdblischak/miniconda3/envs/scqtl/lib/R/lib/libRlapack.so
+<pre><code>R version 3.3.2 (2016-10-31)
+Platform: x86_64-apple-darwin13.4.0 (64-bit)
+Running under: OS X Yosemite 10.10.5
 
 locale:
- [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
- [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
- [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
- [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
- [9] LC_ADDRESS=C               LC_TELEPHONE=C            
-[11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
 
 attached base packages:
-[1] parallel  methods   stats     graphics  grDevices utils     datasets 
+[1] parallel  stats     graphics  grDevices utils     datasets  methods  
 [8] base     
 
 other attached packages:
-[1] bindrcpp_0.2        Biobase_2.38.0      BiocGenerics_0.24.0
-[4] tidyr_0.7.1         dplyr_0.7.4         cowplot_0.9.1      
+[1] bindrcpp_0.2        Biobase_2.34.0      BiocGenerics_0.20.0
+[4] tidyr_0.7.2         dplyr_0.7.4         cowplot_0.9.2      
 [7] ggplot2_2.2.1      
 
 loaded via a namespace (and not attached):
- [1] Rcpp_0.12.13     compiler_3.4.1   git2r_0.19.0     plyr_1.8.4      
- [5] highr_0.6        bindr_0.1        tools_3.4.1      digest_0.6.12   
- [9] evaluate_0.10.1  tibble_1.3.3     gtable_0.2.0     pkgconfig_2.0.1 
-[13] rlang_0.1.2      yaml_2.1.14      stringr_1.2.0    knitr_1.16      
-[17] rprojroot_1.2    grid_3.4.1       tidyselect_0.2.3 glue_1.1.1      
-[21] R6_2.2.0         rmarkdown_1.6    purrr_0.2.2      magrittr_1.5    
-[25] backports_1.0.5  scales_0.5.0     htmltools_0.3.6  assertthat_0.1  
-[29] colorspace_1.3-2 labeling_0.3     stringi_1.1.2    lazyeval_0.2.0  
-[33] munsell_0.4.3   </code></pre>
-</section>
+ [1] Rcpp_0.12.14          highr_0.6             pillar_1.2.1         
+ [4] git2r_0.21.0          plyr_1.8.4            workflowr_0.11.0.9000
+ [7] bindr_0.1             R.methodsS3_1.7.1     R.utils_2.6.0        
+[10] tools_3.3.2           digest_0.6.13         evaluate_0.10.1      
+[13] tibble_1.4.2          gtable_0.2.0          pkgconfig_2.0.1      
+[16] rlang_0.2.0           yaml_2.1.16           stringr_1.2.0        
+[19] knitr_1.18            tidyselect_0.2.3      rprojroot_1.3-2      
+[22] grid_3.3.2            glue_1.2.0            R6_2.2.2             
+[25] rmarkdown_1.9         purrr_0.2.4           magrittr_1.5         
+[28] whisker_0.3-2         backports_1.1.2       scales_0.4.1         
+[31] htmltools_0.3.6       assertthat_0.2.0      colorspace_1.3-2     
+[34] labeling_0.3          stringi_1.1.6         lazyeval_0.2.1       
+[37] munsell_0.4.3         R.oo_1.21.0          </code></pre>
+</div>
 
 <hr>
 <p>
-    This <a href="http://rmarkdown.rstudio.com">R Markdown</a> site was created with <a href="https://github.com/jdblischak/workflowr">workflowr</a>
+    
 </p>
 <hr>
 
@@ -923,6 +3672,25 @@ loaded via a namespace (and not attached):
     <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
     <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
 -->
+<!-- Adjust MathJax settings so that all math formulae are shown using
+TeX fonts only; see
+http://docs.mathjax.org/en/latest/configuration.html.  This will make
+the presentation more consistent at the cost of the webpage sometimes
+taking slightly longer to load. Note that this only works because the
+footer is added to webpages before the MathJax javascript. -->
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    "HTML-CSS": { availableFonts: ["TeX"] }
+  });
+</script>
+
+<hr>
+<p>
+  This reproducible <a href="http://rmarkdown.rstudio.com">R Markdown</a>
+  analysis was created with
+  <a href="https://github.com/jdblischak/workflowr">workflowr</a> 0.11.0.9000
+</p>
+<hr>
 
 
 </div>

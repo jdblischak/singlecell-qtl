@@ -23,8 +23,8 @@
 <link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
 <script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
 <script src="site_libs/navigation-1.1/tabsets.js"></script>
-<link href="site_libs/highlightjs-1.1/textmate.css" rel="stylesheet" />
-<script src="site_libs/highlightjs-1.1/highlight.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
 <link href="site_libs/font-awesome-4.5.0/css/font-awesome.min.css" rel="stylesheet" />
 
 <style type="text/css">code{white-space: pre;}</style>
@@ -34,10 +34,12 @@
   }
 </style>
 <script type="text/javascript">
-if (window.hljs && document.readyState && document.readyState === "complete") {
-   window.setTimeout(function() {
-      hljs.initHighlighting();
-   }, 0);
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
 }
 </script>
 
@@ -302,6 +304,13 @@ div.tocify {
   </div><!--/.container -->
 </div><!--/.navbar -->
 
+<!-- Add a small amount of space between sections. -->
+<style type="text/css">
+div.section {
+  padding-top: 12px;
+}
+</style>
+
 <div class="fluid-row" id="header">
 
 
@@ -311,27 +320,627 @@ div.tocify {
 </div>
 
 
-<section id="introduction" class="level2">
+<p><strong>Last updated:</strong> 2018-04-09</p>
+<strong>workflowr checks:</strong> <small>(Click a bullet for more information)</small>
+<ul>
+<li>
+<details>
+<p><summary> <strong style="color:blue;">&#10004;</strong> <strong>R Markdown file:</strong> up-to-date </summary></p>
+<p>Great! Since the R Markdown file has been committed to the Git repository, you know the exact version of the code that produced these results.</p>
+</details>
+</li>
+<li>
+<details>
+<p><summary> <strong style="color:blue;">&#10004;</strong> <strong>Repository version:</strong> <a href="https://github.com/jdblischak/singlecell-qtl/tree/da56ff1f5d5f9875b86aad8c12fd5e577601a852" target="_blank">da56ff1</a> </summary></p>
+Great! You are using Git for version control. Tracking code development and connecting the code version to the results is critical for reproducibility. The version displayed above was the version of the Git repository at the time these results were generated. <br><br> Note that you need to be careful to ensure that all relevant files for the analysis have been committed to Git prior to generating the results (you can use <code>wflow_publish</code> or <code>wflow_git_commit</code>). workflowr only checks the R Markdown file, but you know if there are other scripts or data files that it depends on. Below is the status of the Git repository when the results were generated:
+<pre><code>
+Ignored files:
+    Ignored:    .Rhistory
+    Ignored:    .Rproj.user/
+    Ignored:    analysis/figure/
+
+Untracked files:
+    Untracked:  udpate.R
+
+</code></pre>
+Note that any generated files, e.g. HTML, png, CSS, etc., are not included in this status report because it is ok for generated content to have uncommitted changes.
+</details>
+</li>
+</ul>
+<details>
+<summary> <small><strong>Expand here to see past versions:</strong></small> </summary>
+<ul>
+<table style="border-collapse:separate; border-spacing:5px;">
+<thead>
+<tr>
+<th style="text-align:left;">
+File
+</th>
+<th style="text-align:left;">
+Version
+</th>
+<th style="text-align:left;">
+Author
+</th>
+<th style="text-align:left;">
+Date
+</th>
+<th style="text-align:left;">
+Message
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+Rmd
+</td>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/da56ff1f5d5f9875b86aad8c12fd5e577601a852/analysis/index.Rmd" target="_blank">da56ff1</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-04-09
+</td>
+<td style="text-align:left;">
+Migrate to workflowr 1.0
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+html
+</td>
+<td style="text-align:left;">
+<a href="https://cdn.rawgit.com/jdblischak/singlecell-qtl/400f1561fac9671731ceddeaa997cb34f1ea7f89/docs/index.html" target="_blank">400f156</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-01-29
+</td>
+<td style="text-align:left;">
+Build site.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Rmd
+</td>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/ed4ffd193c1431934e51538f122a843f6097bd37/analysis/index.Rmd" target="_blank">ed4ffd1</a>
+</td>
+<td style="text-align:left;">
+pytung
+</td>
+<td style="text-align:left;">
+2018-01-26
+</td>
+<td style="text-align:left;">
+edit overview site
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+html
+</td>
+<td style="text-align:left;">
+<a href="https://cdn.rawgit.com/jdblischak/singlecell-qtl/f49cc2baab95423b4d279a5b68880d4864a1eba3/docs/index.html" target="_blank">f49cc2b</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-01-26
+</td>
+<td style="text-align:left;">
+Build site.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Rmd
+</td>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/793644ad43bd8a8c6a5eaf97b020c58e3dc71090/analysis/index.Rmd" target="_blank">793644a</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-01-26
+</td>
+<td style="text-align:left;">
+Reorganize website and use faster data import.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+html
+</td>
+<td style="text-align:left;">
+<a href="https://cdn.rawgit.com/jdblischak/singlecell-qtl/18ebd67d8a4e1472b2cdee183a17ed8234b0ad9d/docs/index.html" target="_blank">18ebd67</a>
+</td>
+<td style="text-align:left;">
+pytung
+</td>
+<td style="text-align:left;">
+2018-01-25
+</td>
+<td style="text-align:left;">
+Build site.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Rmd
+</td>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/b947b0f53c717dc8184a05a8fab455a8c4e6a324/analysis/index.Rmd" target="_blank">b947b0f</a>
+</td>
+<td style="text-align:left;">
+pytung
+</td>
+<td style="text-align:left;">
+2018-01-25
+</td>
+<td style="text-align:left;">
+reorganize the analysis with the framework of THE paper
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+html
+</td>
+<td style="text-align:left;">
+<a href="https://cdn.rawgit.com/jdblischak/singlecell-qtl/cff99b94a2c123c238e66d55491db078dba54d65/docs/index.html" target="_blank">cff99b9</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-01-25
+</td>
+<td style="text-align:left;">
+Build site.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Rmd
+</td>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/424b58579fcd0619c0f5293125fac8a25654bc43/analysis/index.Rmd" target="_blank">424b585</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2018-01-25
+</td>
+<td style="text-align:left;">
+Correlate top PCs from highly variable genes with covariates.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Rmd
+</td>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/39e8046299cd769f5de0c84dbfbf1ddeb606fd14/analysis/index.Rmd" target="_blank">39e8046</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-01-23
+</td>
+<td style="text-align:left;">
+Investigate UMI saturation vs read depth
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+html
+</td>
+<td style="text-align:left;">
+<a href="https://cdn.rawgit.com/jdblischak/singlecell-qtl/39e8046299cd769f5de0c84dbfbf1ddeb606fd14/docs/index.html" target="_blank">39e8046</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-01-23
+</td>
+<td style="text-align:left;">
+Investigate UMI saturation vs read depth
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+html
+</td>
+<td style="text-align:left;">
+<a href="https://cdn.rawgit.com/jdblischak/singlecell-qtl/f439f21d673c503f13643a49e932823c5762ae88/docs/index.html" target="_blank">f439f21</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-01-18
+</td>
+<td style="text-align:left;">
+Implement zero-inflated model estimation and diagnostics
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Rmd
+</td>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/ca820afc66a40c7fa05dcdc5de2d7cd5516f7e06/analysis/index.Rmd" target="_blank">ca820af</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2018-01-18
+</td>
+<td style="text-align:left;">
+Update the index
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+html
+</td>
+<td style="text-align:left;">
+<a href="https://cdn.rawgit.com/jdblischak/singlecell-qtl/605948607307d6b2c46bcab0c07af210dbd24633/docs/index.html" target="_blank">6059486</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-12-04
+</td>
+<td style="text-align:left;">
+Build site.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Rmd
+</td>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/471632732aaef70af66e927cf80ace48afa606bb/analysis/index.Rmd" target="_blank">4716327</a>
+</td>
+<td style="text-align:left;">
+Abhishek Sarkar
+</td>
+<td style="text-align:left;">
+2017-11-21
+</td>
+<td style="text-align:left;">
+Resample single cells for simulation
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+html
+</td>
+<td style="text-align:left;">
+<a href="https://cdn.rawgit.com/jdblischak/singlecell-qtl/c30b210ad270fa77ddb00035f06960fe9cbefb8b/docs/index.html" target="_blank">c30b210</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-11-06
+</td>
+<td style="text-align:left;">
+Build site.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Rmd
+</td>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/f1b34617b2681bf06db734e3b2e5cbe9ecf5cae3/analysis/index.Rmd" target="_blank">f1b3461</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-11-06
+</td>
+<td style="text-align:left;">
+Add Abhishek’s analysis of single cell vs bulk expression to index.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+html
+</td>
+<td style="text-align:left;">
+<a href="https://cdn.rawgit.com/jdblischak/singlecell-qtl/8d5c24cca93aefe932bfe3f7b143f700ba5404ac/docs/index.html" target="_blank">8d5c24c</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-11-06
+</td>
+<td style="text-align:left;">
+Build site.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Rmd
+</td>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/8b5af963d1d01d75d0e7900aef2ca29de18b4433/analysis/index.Rmd" target="_blank">8b5af96</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-11-06
+</td>
+<td style="text-align:left;">
+Add Abhishek’s analysis of UMI counts by genotype to index.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+html
+</td>
+<td style="text-align:left;">
+<a href="https://cdn.rawgit.com/jdblischak/singlecell-qtl/9f2497144668186d60e1a40a8d91374614c5ef7a/docs/index.html" target="_blank">9f24971</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-26
+</td>
+<td style="text-align:left;">
+Build site.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Rmd
+</td>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/8b2e159c72a54fa09daf4eb0dbe9e9119da6ea46/analysis/index.Rmd" target="_blank">8b2e159</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-10-25
+</td>
+<td style="text-align:left;">
+Add page that tracks data collection.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+html
+</td>
+<td style="text-align:left;">
+<a href="https://cdn.rawgit.com/jdblischak/singlecell-qtl/f563faa5baadee76ee9224af3ccfa4586cbce4be/docs/index.html" target="_blank">f563faa</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-09-19
+</td>
+<td style="text-align:left;">
+Build site.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Rmd
+</td>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/794ef7b47292a6e5351e7958b430b0f1aedf6031/analysis/index.Rmd" target="_blank">794ef7b</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-09-18
+</td>
+<td style="text-align:left;">
+Use variancePartition package to calculate percent explained by chip and
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+html
+</td>
+<td style="text-align:left;">
+<a href="https://cdn.rawgit.com/jdblischak/singlecell-qtl/1470b047bd546de6ac1a9ba861ed8df8cd18959b/docs/index.html" target="_blank">1470b04</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-09-05
+</td>
+<td style="text-align:left;">
+Build site.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+html
+</td>
+<td style="text-align:left;">
+<a href="https://cdn.rawgit.com/jdblischak/singlecell-qtl/46ecd4011ad6ea6145fbd7dc948ffcb64c3870f6/docs/index.html" target="_blank">46ecd40</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-23
+</td>
+<td style="text-align:left;">
+Build site.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Rmd
+</td>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/96ad19699e31f989a7d182be465893c3aba0aa7a/analysis/index.Rmd" target="_blank">96ad196</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-23
+</td>
+<td style="text-align:left;">
+Add analysis of identifying single cells.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+html
+</td>
+<td style="text-align:left;">
+<a href="https://cdn.rawgit.com/jdblischak/singlecell-qtl/804993f18c2a652fbe4ef94d79744f673451ed52/docs/index.html" target="_blank">804993f</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-21
+</td>
+<td style="text-align:left;">
+Build site.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Rmd
+</td>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/bd35bd41150801b3289273f75d11f9941b95f41c/analysis/index.Rmd" target="_blank">bd35bd4</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-21
+</td>
+<td style="text-align:left;">
+Compute and plot pairwise correlations.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Rmd
+</td>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/7d4b8c4da29ab850652f26868d6fda551295278c/analysis/index.Rmd" target="_blank">7d4b8c4</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-18
+</td>
+<td style="text-align:left;">
+Improve PCA plots.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+html
+</td>
+<td style="text-align:left;">
+<a href="https://cdn.rawgit.com/jdblischak/singlecell-qtl/ad42e0983fba4af672ad970c104b2684c47151c4/docs/index.html" target="_blank">ad42e09</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-14
+</td>
+<td style="text-align:left;">
+Build site.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Rmd
+</td>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/b9ecadebba3f111eea49d508e208e89ea4d5e79b/analysis/index.Rmd" target="_blank">b9ecade</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-14
+</td>
+<td style="text-align:left;">
+Start analysis of pairwise correlations.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Rmd
+</td>
+<td style="text-align:left;">
+<a href="https://github.com/jdblischak/singlecell-qtl/blob/9808e5c13621e0b95df0a7eea6dbf34899c75b5f/analysis/index.Rmd" target="_blank">9808e5c</a>
+</td>
+<td style="text-align:left;">
+John Blischak
+</td>
+<td style="text-align:left;">
+2017-08-14
+</td>
+<td style="text-align:left;">
+Start workflowr project.
+</td>
+</tr>
+</tbody>
+</table>
+</ul>
+</details>
+<hr />
+<div id="introduction" class="section level2">
 <h2>Introduction</h2>
 <p>Phenotypic heterogeneity in cell populations has been shown to play critical roles in determining biologically and clinically significant phenotypes. The goal of this project is to identify <em>robustness QTLs</em>, loci in the human genome that are associated with within-individual variation in gene expression levels.</p>
-</section>
-<section id="data-collection" class="level2">
+</div>
+<div id="data-collection" class="section level2">
 <h2>Data collection</h2>
 <p>We <a href="data-collection.html">collected single cell RNA-seq data</a> from YRI invididuals using the C1 platform. We <a href="totals.html">pooled and sequenced</a> each C1 chip on an Illumina HiSeq 2500.</p>
 <p>We identified sample swaps and <a href="identity.html">matched samples to individuals</a> using verifyBamID.</p>
 <p>Next, we <a href="sampleqc.html">filtered low quality samples</a> and both <a href="filter-gene.html">over- and lowly-expressed genes</a> for downstream analysis.</p>
 <p>We then <a href="dim-reduction.html">performed dimensionality reduction</a> on the quality-controlled samples and genes to identify the remaining major sources of variation.</p>
-</section>
-<section id="qtl-mapping" class="level2">
+</div>
+<div id="qtl-mapping" class="section level2">
 <h2>QTL mapping</h2>
 <p>We first <a href="sc-vs-bulk.html">investigated the concordance between scRNA-Seq and matched bulk RNA-seq data</a>.</p>
 <p>We then built an <a href="https://hpimentel.shinyapps.io/eqtl-shiny/">interactive browser</a> to view the distribution of scRNA-Seq counts stratified by genotype at top eQTLs in the matched bulk RNA-Seq data.</p>
 <p>Next, we <a href="zinb.html">estimated means and dispersions</a> per individual per gene. We then <a href="qtl-mapping.html">treated these as continuous phenotypes and mapped QTLs</a> using QTLtools.</p>
-</section>
+</div>
 
 <hr>
 <p>
-    This <a href="http://rmarkdown.rstudio.com">R Markdown</a> site was created with <a href="https://github.com/jdblischak/workflowr">workflowr</a>
+    
 </p>
 <hr>
 
@@ -353,6 +962,25 @@ div.tocify {
     <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
     <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
 -->
+<!-- Adjust MathJax settings so that all math formulae are shown using
+TeX fonts only; see
+http://docs.mathjax.org/en/latest/configuration.html.  This will make
+the presentation more consistent at the cost of the webpage sometimes
+taking slightly longer to load. Note that this only works because the
+footer is added to webpages before the MathJax javascript. -->
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    "HTML-CSS": { availableFonts: ["TeX"] }
+  });
+</script>
+
+<hr>
+<p>
+  This reproducible <a href="http://rmarkdown.rstudio.com">R Markdown</a>
+  analysis was created with
+  <a href="https://github.com/jdblischak/workflowr">workflowr</a> 0.11.0.9000
+</p>
+<hr>
 
 
 </div>
