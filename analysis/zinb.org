@@ -11,42 +11,51 @@
   Here, we solve (1).
 
   1. [[*numpy/scipy implementation][We implement CPU-based ML estimation]]
-  2. [[*Genome-wide distribution of dispersion][We estimate per-gene indexes of dispersion]] accounting for the fact that
+  2. [[*Per-gene dispersion][We estimate per-gene indexes of dispersion]] accounting for the fact that
      data came from multiple individuals
 
 * Model specification
 
   Let \(r_{ijk}\) denote the number of molecules for individual \(i\), cell
-  \(j\), gene \(k\). Let \(R_{ij}\) denote a size factor for each cell. As a
-  first pass, define \(R_{ij} = \sum_k r_{ijk}\).
+  \(j\), gene \(k\). Let \(R_{ij}\) denote a size factor for each cell.
 
-  Following Hilbe 2012, we derive the negative binomial as a Poisson-Gamma
-  mixture:
+  \[ r_{ijk} \sim \pi_{ik} \delta_0(\cdot) + (1 - \pi_{ik})\text{Poisson}(\cdot; R_{ij} \mu_{ik} u_{ijk}) \]
 
-  \[ r_{ijk} \sim \text{Pois}(R_{ij} \mu_{ik} u_{ijk}) \]
+  \[ u_{ijk} \sim \text{Gamma}(\cdot; \phi_{ik}^{-1}, \phi_{ik}^{-1}) \]
 
-  \[ u_{ijk} \sim \text{Gamma}(\phi_{ik}^{-1}, \phi_{ik}^{-1}) \]
+  Here, \(\mu_{ik}\) is proportional to relative expression ([[https://arxiv.org/abs/1104.3889][Pachter 2011]]), and
+  \(\phi_{ik}\) is the variance of expression noise.
 
-  Here, \(\mu_{ik}u_{ijk}\) denotes relative expression
-  ([[https://arxiv.org/abs/1104.3889][Pachter 2011]]). Marginalizing out \(u\)
-  yields the negative binomial distribution, with log likelihood:
+  Considering just the Poisson component, marginalizing out \(u\) yields the
+  log likelihood:
 
-  \[ \ln p(r_{ijk} \mid R_{ij}, \mu_{ik}, \phi_{ik}) = r_{ijk} \ln\left(\frac{R_{ij}\mu_{ik}\phi_{ik}}{1 + R_{ij}\mu_{ik}\phi_{ik}}\right) - \phi_{ik}^{-1} \ln(1 + R_{ij}\mu_{ik}\phi_{ik}) + \ln \Gamma(r_{ijk} + \phi_{ik}^{-1}) - \ln \Gamma(r_{ijk} + 1) - \ln \Gamma(\phi^{-1}) \]
+  \[ l(\cdot) = \ln(1 - \pi_{ik}) + r_{ijk} \ln\left(\frac{R_{ij}\mu_{ik}\phi_{ik}}{1 + R_{ij}\mu_{ik}\phi_{ik}}\right) - \phi_{ik}^{-1} \ln(1 + R_{ij}\mu_{ik}\phi_{ik}) + \ln \Gamma(r_{ijk} + \phi_{ik}^{-1}) - \ln \Gamma(r_{ijk} + 1) - \ln \Gamma(\phi^{-1}) \]
 
-  We have multiple data points (30-200 cells) per mean/dispersion parameter, so
-  simply minimizing the negative log likelihood should give reasonable
-  estimates.
+  Then, marginalizing over the mixture yields the log likelihood:
 
-  We additionally account for zero-inflation, by letting \(\pi_{ik}\) denote
-  the probability of observing an excess zero (not arising from the
-  negative-binomial).
+  \[ \ln p(r_{ijk} \mid \cdot) = \ln(\pi_{ik} + \exp(l(\cdot)))\ \text{if}\ r_{ijk} = 0 \]
 
-  Then, the log-likelihood of the data is:
+  \[ \ln p(r_{ijk} \mid \cdot) = l(\cdot)\ \text{otherwise} \]
 
-  \[ \ln p(r_{ijk} \mid \cdot) = \ln(\pi_{ik} + (1 -  \pi_{ik}) p(r_{ijk}
-    \mid R_{ij}, \mu_{ik}, \phi_{ik}))\ \text{if}\ r_{ijk} = 0 \]
-  \[ \ln p(r_{ijk} \mid \cdot) = \ln(1 - \pi_{ik}) + \ln p(r_{ijk} \mid
-    R_{ij}, \mu_{ik}, \phi_{ik})\ \text{otherwise} \]
+  We have enough observations per mean/dispersion parameter that simply
+  minimizing the negative log likelihood should give reasonable estimates.
+
+  This model is equivalent to a model where we assume that the underlying rate
+  is a point-Gamma mixture:
+
+  \[ r_{ijk} \mid \lambda_{ijk} \sim \mathrm{Poisson}(\cdot; R_{ij}\lambda_{ijk}) \]
+
+  \[ \lambda_{ijk} \sim \pi_{ik} \delta_0(\cdot) + (1 - \pi_{ik})
+  \text{Gamma}(\lambda_{ijk}; \phi_{ik}^{-1}, \phi_{ik}^{-1}\mu_{ik}^{-1}) \]
+
+  The Gamma component of this mixture corresponds to \(\mu_{ik}u_{ijk}\) in the
+  model above. Considering just the Gamma component, marginalizing out
+  \(\lambda\) yields the log likelihood:
+
+  \[ \tilde{l}(\cdot) = \ln(1 - \pi_{ik}) + r_{ijk} \ln\left(\frac{R_{ij}}{R_{ij} + \phi_{ik}^{-1}\mu_{ik}^{-1}} \right) + \phi_{ik}^{-1} \ln\left(\frac{\phi_{ik}^{-1}\mu_{ik}^{-1}}{R_{ij} + \phi_{ik}^{-1}\mu_{ik}^{-1}}\right) + \ln\Gamma(r_{ijk} + \phi_{ik}^{-1}) - \ln\Gamma(r_{ijk} + 1) - \ln\Gamma(\phi_{ik}^{-1}) \]
+
+  It is clear \(l = \tilde{l}\), and therefore the marginal likelihoods (over
+  the mixture components) are also equal.
 
 * Setup                                                            :noexport:
 
@@ -58,15 +67,16 @@
   #+RESULTS:
   : 1
 
-  #+CALL: ipython3(memory="4G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
+  #+CALL: ipython3(memory="6G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 44724977
+  : Submitted batch job 44968702
 
   #+NAME: zinb-imports
   #+BEGIN_SRC ipython
     import numpy as np
     import pandas as pd
+    import scipy.optimize as so
     import scipy.stats as st
     import scipy.special as sp
     import sqlite3
@@ -79,6 +89,7 @@
 
   #+BEGIN_SRC ipython
     %matplotlib inline
+    %config InlineBackend.figure_formats = set(['svg'])
     import colorcet
     import matplotlib.pyplot as plt
   #+END_SRC
@@ -242,53 +253,53 @@
 
 ** Read the data
 
-  Read the QC'ed data.
+   Read the QC'ed data.
 
-  #+CALL: read-data-qc()
+   #+CALL: read-data-qc()
 
-  #+RESULTS:
-  :RESULTS:
-  # Out[61]:
-  :END:
+   #+RESULTS:
+   :RESULTS:
+   # Out[61]:
+   :END:
 
-  Onehot-encode the samples.
+   Onehot-encode the samples.
 
-  #+NAME: onehot-qc
-  #+BEGIN_SRC ipython
+   #+NAME: onehot-qc
+   #+BEGIN_SRC ipython
     individuals = sorted(annotations['chip_id'].unique())
     onehot = np.zeros((umi.shape[1], len(individuals)), dtype=np.float32)
     onehot[np.arange(onehot.shape[0]),annotations['chip_id'].apply(lambda x: individuals.index(x))] = 1
     onehot = pd.DataFrame(onehot, columns=individuals, index=umi.columns)
     onehot.shape
-  #+END_SRC
+   #+END_SRC
 
-  #+RESULTS: onehot-qc
-  :RESULTS:
-  # Out[5]:
-  : (4995, 54)
-  :END:
+   #+RESULTS: onehot-qc
+   :RESULTS:
+   # Out[5]:
+   : (4995, 54)
+   :END:
 
-  Check that one-hot encoding is OK:
+   Check that one-hot encoding is OK:
 
-  #+BEGIN_SRC ipython :async t
+   #+BEGIN_SRC ipython :async t
     for _ in range(100):
       gene = np.random.choice(umi.index)
       ind = np.random.choice(individuals)
       idx = individuals.index(ind)
       assert (umi.loc[gene, (annotations['chip_id'] == ind).values] == 
               umi.loc[gene, onehot.dot(np.eye(onehot.shape[1])[idx]).astype(bool)]).all()
-  #+END_SRC
+   #+END_SRC
 
-  #+RESULTS:
-  :RESULTS:
-  # Out[5]:
-  :END:
+   #+RESULTS:
+   :RESULTS:
+   # Out[5]:
+   :END:
 
 ** Fit NB
 
-  Estimate means and dispersions assuming no dropout.
+   Estimate means and dispersions assuming no dropout.
 
-  #+BEGIN_SRC ipython :eval never :tangle tensorflow-nb.py :noweb tangle
+   #+BEGIN_SRC ipython :eval never :tangle tensorflow-nb.py :noweb tangle
     <<zinb-imports>>
     <<tf-imports>>
     <<zinb-impl>>
@@ -302,27 +313,27 @@
       max_epochs=8000)
     pd.DataFrame(mean.T, index=umi.index, columns=onehot.columns).to_csv('/scratch/midway2/aksarkar/singlecell/mean2.txt.gz', sep=' ', compression='gzip')
     pd.DataFrame(dispersion.T, index=umi.index, columns=onehot.columns).to_csv('/scratch/midway2/aksarkar/singlecell/dispersion2.txt.gz', sep=' ', compression='gzip')
-  #+END_SRC
+   #+END_SRC
 
-  #+RESULTS:
-  :RESULTS:
-  :END:
+   #+RESULTS:
+   :RESULTS:
+   :END:
 
-  #+BEGIN_SRC sh :eval never-export :exports none
+   #+BEGIN_SRC sh :eval never-export :exports none
     sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --time=60 --job-name=tfnb --output=tfnb.out --error=tfnb.err
     #!/bin/bash
     source activate scqtl
     python tensorflow-nb.py
-  #+END_SRC
+   #+END_SRC
 
-  #+RESULTS:
-  : Submitted batch job 43884214
+   #+RESULTS:
+   : Submitted batch job 43884214
 
 ** Fit ZINB
 
-  Estimate the parameters of the zero-inflated model assuming dropout per gene.
+   Estimate the parameters of the zero-inflated model assuming dropout per gene.
 
-  #+BEGIN_SRC ipython :eval never :tangle zinb.py :noweb tangle
+   #+BEGIN_SRC ipython :eval never :tangle zinb.py :noweb tangle
     <<zinb-imports>>
     <<tf-imports>>
     <<zinb-impl>>
@@ -338,24 +349,24 @@
     pd.DataFrame(mean.T, index=umi.index, columns=onehot.columns).to_csv('/scratch/midway2/aksarkar/singlecell/zi-mean.txt.gz', sep=' ', compression='gzip')
     pd.DataFrame(dispersion.T, index=umi.index, columns=onehot.columns).to_csv('/scratch/midway2/aksarkar/singlecell/zi-dispersion.txt.gz', sep=' ', compression='gzip')
     pd.DataFrame(dropout.T, index=umi.index).to_csv('/scratch/midway2/aksarkar/singlecell/zi-dropout.txt.gz', sep=' ', compression='gzip')
-  #+END_SRC
+   #+END_SRC
 
-  #+BEGIN_SRC sh :eval never-export :exports none
+   #+BEGIN_SRC sh :eval never-export :exports none
     sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --time=150 --job-name=zinb --output=zinb.out --error=zinb.err
     #!/bin/bash
     source activate scqtl
     python zinb.py
-  #+END_SRC
+   #+END_SRC
 
-  #+RESULTS:
-  : Submitted batch job 43966390
+   #+RESULTS:
+   : Submitted batch job 43966390
 
 ** Fit ZINB2
 
-  Estimate the parameters of the zero-inflated model assuming dropout per
-  individual and gene.
+   Estimate the parameters of the zero-inflated model assuming dropout per
+   individual and gene.
 
-  #+BEGIN_SRC ipython :eval never :tangle zinb2.py :noweb tangle
+   #+BEGIN_SRC ipython :eval never :tangle zinb2.py :noweb tangle
     <<zinb-imports>>
     <<tf-imports>>
     <<zinb-impl>>
@@ -372,17 +383,17 @@
     pd.DataFrame(mean.T, index=umi.index, columns=onehot.columns).to_csv('/scratch/midway2/aksarkar/singlecell/zi2-mean.txt.gz', sep=' ', compression='gzip')
     pd.DataFrame(dispersion.T, index=umi.index, columns=onehot.columns).to_csv('/scratch/midway2/aksarkar/singlecell/zi2-dispersion.txt.gz', sep=' ', compression='gzip')
     pd.DataFrame(dropout.T, index=umi.index, columns=onehot.columns).to_csv('/scratch/midway2/aksarkar/singlecell/zi2-dropout.txt.gz', sep=' ', compression='gzip')
-  #+END_SRC
+   #+END_SRC
 
-  #+BEGIN_SRC sh :eval never-export :exports none
+   #+BEGIN_SRC sh :eval never-export :exports none
     sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --time=120 --job-name=zinb2 --output=zinb2.out --error=zinb2.err
     #!/bin/bash
     source activate scqtl
     python zinb2.py
-  #+END_SRC
+   #+END_SRC
 
-  #+RESULTS:
-  : Submitted batch job 43910744
+   #+RESULTS:
+   : Submitted batch job 43910744
 
 * numpy/scipy implementation
 
@@ -390,8 +401,6 @@
 
   #+NAME: np-zinb-impl
   #+BEGIN_SRC ipython
-    import scipy.optimize as so
-
     def log(x):
       """Numerically safe log"""
       return np.log(x + 1e-8)
@@ -401,116 +410,238 @@
       lim = np.log(np.finfo(np.float64).resolution)
       return np.clip(sp.expit(x), lim, -lim)
 
-    def zinb(theta, x, size):
-      theta, dropout = theta[:2], sigmoid(theta[2])
-      case_zero = log(dropout + (1 - dropout) * np.exp(-nb(theta, x, size)))
-      case_non_zero = log(1 - dropout) - nb(theta, x, size)
-      return -np.where(x < 1e-8, case_zero, case_non_zero).mean()
-
     def nb(theta, x, size):
+      """Return the per-data point log likelihood NB(x; theta, size)"""
       mean, inv_disp = np.exp(theta)
       mean *= size
       assert mean.shape == x.shape
-      return -(x * log(mean / inv_disp) -
-               x * log(1 + mean / inv_disp) -
-               inv_disp * log(1 + mean / inv_disp) +
-               sp.gammaln(x + inv_disp) -
-               sp.gammaln(inv_disp) -
-               sp.gammaln(x + 1)).mean()
-   #+END_SRC
+      return (x * log(mean / inv_disp) -
+              x * log(1 + mean / inv_disp) -
+              inv_disp * log(1 + mean / inv_disp) +
+              sp.gammaln(x + inv_disp) -
+              sp.gammaln(inv_disp) -
+              sp.gammaln(x + 1))
 
-   #+RESULTS: np-zinb-impl
-   :RESULTS:
-   # Out[1]:
-   :END:
+    def _nb(theta, x, size):
+      """Return the mean negative log likelihood of x"""
+      return -nb(theta, x, size).mean()
 
-   #+RESULTS:
-   :RESULTS:
-   # Out[4]:
-   :END:
+    def zinb(theta, x, size):
+      """Return the mean negative log likelihood of x"""
+      theta, logodds = theta[:2], theta[2]
+      case_non_zero = -np.log1p(np.exp(logodds)) + nb(theta, x, size)
+      case_zero = np.logaddexp(logodds - np.log1p(np.exp(logodds)), case_non_zero)
+      return -np.where(x < 1e-8, case_zero, case_non_zero).mean()
 
-   Use this to check the parameter estimation for a particular gene/individual.
+    def _fit_gene(chunk):
+      if chunk[:,0].sum() == 0:
+        # Without stringent QC, we need to handle the case of all zero observations
+        return [-np.inf, -np.inf, np.inf, 0, 0]
+      res0 = so.minimize(_nb, x0=[0, 0], args=(chunk[:,0], chunk[:,1]))
+      pi0 = (chunk[:,0] == 0).sum() / chunk.shape[0]
+      res = so.minimize(zinb, x0=list(res0.x) + [sp.logit(pi0 + 1e-8)], args=(chunk[:,0], chunk[:,1]))
+      if res0.fun < res.fun:
+        # This isn't a likelihood ratio test. Numerically, our implementation of
+        # ZINB can't represent pi = 0, so we need to use a separate implementation
+        # for it
+        log_mu, neg_log_phi = res0.x
+        logit_pi = -np.inf
+      else:
+        log_mu, neg_log_phi, logit_pi = res.x
+      mean_by_sample = chunk[:,1].ravel() * np.exp(log_mu)
+      var_by_sample = mean_by_sample + np.square(mean_by_sample) * np.exp(-neg_log_phi)
+      mean_by_ind = mean_by_sample.mean()
+      var_by_ind = (np.square(mean_by_sample - mean_by_ind) + var_by_sample).mean()
+      return [log_mu, -neg_log_phi, logit_pi, mean_by_ind, var_by_ind]
 
-   #+BEGIN_SRC ipython
-     def extract_data(ind, gene):
-       with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
-         umi = pd.read_sql("""select umi.value, annotation.size from umi, annotation 
-         where annotation.chip_id == ? and gene == ? and 
-         umi.sample == annotation.sample;""", con=conn, params=(ind, gene))
-         return umi
-   #+END_SRC
+    def fit_gene(chunk, bootstraps=100):
+      orig = _fit_gene(chunk)
+      B = []
+      for _ in range(bootstraps):
+        B.append(_fit_gene(chunk[np.random.choice(chunk.shape[0], chunk.shape[0], replace=True)]))
+      se = np.array(B)[:,:2].std(axis=0)
+      return orig + list(se.ravel())
+  #+END_SRC
 
-   #+RESULTS:
-   :RESULTS:
-   # Out[7]:
-   :END:
+  #+RESULTS: np-zinb-impl
+  :RESULTS:
+  # Out[3]:
+  :END:
 
-   Shard the data to parallelize over nodes. During this pass, write the data
-   out to the database. *Important: we need to use the actual number of
-   molecules detected rather than the sum of QC'ed counts as the size factor.*
+  Computing analytic SE runs into numerical problems.
 
-   #+BEGIN_SRC ipython
-     annotations = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
-     annotations['sample'] = annotations.apply(lambda x: '{chip_id}.{experiment:08d}.{well}'.format(**dict(x)), axis=1)
-     annotations['size'] = annotations['mol_hs']
-     annotations = annotations[['sample', 'chip_id', 'size']]
-     with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
-       annotations.to_sql(name='annotation', con=conn, if_exists='replace')
-       conn.execute('create index ix_annotation on annotation(chip_id, sample);')
+  #+BEGIN_SRC ipython
+    def _pois(theta, x, size):
+      mean = np.exp(theta)
+      mean *= size
+      return (x * log(mean) - mean - sp.gammaln(x + 1)).mean()
 
-     keep_samples = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
-     keep_genes = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt', index_col=0, header=None)
-     keep_genes = keep_genes[keep_genes.values].index
+    def _pois_jac(theta, x, size):
+      mean = np.exp(theta)
+      return mean * (x / mean - size).mean()
+    
+    def _nb_jac(theta, x, size):
+      mean, inv_disp = np.exp(theta)
+      T = (1 + size * mean / inv_disp)
+      return mean * (x / mean - size / inv_disp * (x + inv_disp) / T).mean()
 
-     i = 0
-     with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
-       conn.execute('drop table if exists umi;')
-       for chunk in pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', index_col=0, chunksize=1000):
-         print('Processing chunk {}'.format(i))
-         chunk = (chunk
-                  .loc[:,keep_samples.values.ravel()]
-                  .filter(items=keep_genes, axis='index'))
-         if not chunk.empty:
-           chunk = (chunk
-                    .reset_index()
-                    .melt(id_vars='gene', var_name='sample')
-                    .merge(annotations, on='sample')
-                    .sort_values(['gene', 'chip_id', 'sample']))
-           chunk.to_csv('/scratch/midway2/aksarkar/singlecell/density-estimation/chunk-{}.txt.gz'.format(i), columns=['gene', 'chip_id', 'sample', 'value', 'size'], compression='gzip', sep='\t')
-           chunk[['gene', 'sample', 'value']].to_sql(name='umi', con=conn, index=False, if_exists='append')
-           i += 1
-       conn.execute('create index ix_umi on umi(gene, sample);')
-   #+END_SRC
+    def check_gradients(x, f, df, args=None, num_trials=100):
+      x = np.array(x)
+      y = f(x, *args)
+      analytic_diff = df(x, *args)
+      error = []
+      for i in range(num_trials):
+        eps = np.random.normal(scale=1e-4, size=x.shape)
+        num_diff = (f(x + eps, *args) - y) / eps
+        error.append(abs(num_diff - analytic_diff))
+      return np.array(error)
+  #+END_SRC
 
-   #+RESULTS:
-   :RESULTS:
-   # Out[35]:
-   :END:
+  #+RESULTS:
+  :RESULTS:
+  # Out[92]:
+  :END:
 
-   Process each chunk in parallel.
+  Check the parameter estimation on simulated data.
 
-   #+NAME: process-chunk-impl
-   #+BEGIN_SRC ipython :eval never
-     def fit_gene(chunk):
-       res0 = so.minimize(nb, x0=[0, 0], args=(chunk[:,0], chunk[:,1]))
-       pi0 = (chunk[:,0] == 0).sum() / chunk.shape[0]
-       res = so.minimize(zinb, x0=list(res0.x) + [sp.logit(pi0 + 1e-8)], args=(chunk[:,0], chunk[:,1]))
-       # Log likelihood of ZINB vs. NB. We need to flip signs again
-       llr = chunk.shape[0] * (res0.fun - res.fun)
-       if llr < 1:
-         # This isn't a likelihood ratio test. Numerically, our implementation of
-         # ZINB can't represent pi = 0, so we need to use a separate implementation
-         # for it
-         log_mu, neg_log_phi = res0.x
-         logit_pi = -np.inf
-       else:
-         log_mu, neg_log_phi, logit_pi = res.x
-       mean_by_sample = chunk[:,1].ravel() * np.exp(log_mu)
-       var_by_sample = mean_by_sample + np.square(mean_by_sample) * np.exp(-neg_log_phi)
-       mean_by_ind = mean_by_sample.mean()
-       var_by_ind = (np.square(mean_by_sample - mean_by_ind) + var_by_sample).mean()
-       return [log_mu, -neg_log_phi, logit_pi, mean_by_ind, var_by_ind]
+  #+NAME: sim-impl
+  #+BEGIN_SRC ipython
+    def simulate(num_samples, size=None, log_mu=None, log_phi=None, logodds=None, seed=None):
+      if seed is None:
+        seed = 0
+      np.random.seed(seed)
+      if log_mu is None:
+        log_mu = np.random.uniform(low=-12, high=-8)
+      if log_phi is None:
+        log_phi = np.random.uniform(low=-6, high=0)
+      if size is None:
+        size = 1e5
+      if logodds is None:
+        prob = np.random.uniform()
+      else:
+        prob = sp.expit(logodds)
+      n = np.exp(-log_phi)
+      p = 1 / (1 + size * np.exp(log_mu + log_phi))
+      x = np.where(np.random.uniform(size=num_samples) < prob,
+                   0,
+                   np.random.negative_binomial(n=n, p=p, size=num_samples))
+      return np.vstack((x, size * np.ones(num_samples))).T
 
+    def evaluate(num_samples, num_mols, log_mu, log_phi, logodds, trial):
+      keys = ['num_samples', 'num_mols', 'log_mu', 'log_phi', 'logodds', 'trial',
+              'log_mu_hat', 'log_phi_hat', 'logodds_hat', 'mean', 'var']
+      result = _fit_gene(simulate(num_samples=num_samples, size=num_mols,
+                                  log_mu=log_mu, log_phi=log_phi,
+                                  logodds=logodds, seed=trial))
+      result = [num_samples, num_mols, log_mu, log_phi, logodds, trial] + list(result)
+      return {k: v for k, v in zip(keys, result)}
+  #+END_SRC
+
+  #+RESULTS: sim-impl
+  :RESULTS:
+  # Out[4]:
+  :END:
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[4]:
+  :END:
+
+  #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /scratch/midway2/aksarkar/singlecell/density-estimation/sim.py
+    #!/usr/bin/env python3
+    <<zinb-imports>>
+    import multiprocessing as mp
+    import sqlite3
+    <<np-zinb-impl>>
+    <<sim-impl>>
+    args = [(num_samples, num_mols, log_mu, log_phi, logodds, trial)
+            for num_samples in np.linspace(100, 1000, 5).astype(int)
+            for num_mols in 1e3 * np.linspace(100, 1000, 5).astype(int)
+            for log_mu in np.linspace(-12, -6, 7)
+            for log_phi in np.linspace(-6, 0, 7)
+            for logodds in np.linspace(-3, 3, 7)
+            for trial in range(20)]
+    with mp.Pool() as pool:
+      result = pd.DataFrame.from_dict(pool.starmap(evaluate, args))
+    with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
+      result.to_sql(name='simulation', con=conn, index=False, if_exists='replace')
+  #+END_SRC
+
+  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation/
+    sbatch --partition=broadwl --mem=4G --job-name sim -n1 -c28 --exclusive 
+    #!/bin/bash
+    source activate scqtl
+    python /scratch/midway2/aksarkar/singlecell/density-estimation/sim.py
+  #+END_SRC
+
+  #+RESULTS:
+  : Submitted batch job 44935043
+
+  Use this to check the parameter estimation for a particular gene/individual.
+
+  #+BEGIN_SRC ipython
+    def extract_data(ind, gene):
+      with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
+        umi = pd.read_sql("""select umi.value, annotation.size from umi, annotation 
+        where annotation.chip_id == ? and gene == ? and 
+        umi.sample == annotation.sample;""", con=conn, params=(ind, gene))
+        return umi
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[74]:
+  :END:
+
+  Shard the data to parallelize over nodes. During this pass, write the data
+  out to the database. 
+
+  *Important notes:* 
+
+  1. We need to use the actual number of molecules detected as the size factor,
+     not the sum of QC'ed counts
+  2. We need to estimate relative abundance for all genes (to match bulk), not
+     just those which passed QC
+
+  #+BEGIN_SRC ipython :async t
+    annotations = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
+    annotations['sample'] = annotations.apply(lambda x: '{chip_id}.{experiment:08d}.{well}'.format(**dict(x)), axis=1)
+    annotations['size'] = annotations['mol_hs']
+    annotations = annotations[['sample', 'chip_id', 'size']]
+    with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
+      annotations.to_sql(name='annotation', con=conn, if_exists='replace')
+      conn.execute('create index ix_annotation on annotation(chip_id, sample);')
+
+    keep_samples = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
+
+    i = 0
+    with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
+      conn.execute('drop table if exists umi;')
+      for chunk in pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', index_col=0, chunksize=1000):
+        print('Processing chunk {}'.format(i))
+        chunk = (chunk
+                 .loc[:,keep_samples.values.ravel()])
+        if not chunk.empty:
+          chunk = (chunk
+                   .reset_index()
+                   .melt(id_vars='gene', var_name='sample')
+                   .merge(annotations, on='sample')
+                   .sort_values(['gene', 'chip_id', 'sample']))
+          chunk.to_csv('/scratch/midway2/aksarkar/singlecell/density-estimation/chunk-{}.txt.gz'.format(i), columns=['gene', 'chip_id', 'sample', 'value', 'size'], compression='gzip', sep='\t')
+          chunk[['gene', 'sample', 'value']].to_sql(name='umi', con=conn, index=False, if_exists='append')
+          i += 1
+        del chunk
+      conn.execute('create index ix_umi on umi(gene, sample);')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  :END:
+
+  Process each chunk in parallel.
+
+  #+NAME: process-chunk-impl
+  #+BEGIN_SRC ipython :eval never
      def compute_breaks(chunk, by_ind=False):
        # Each subproblem has fixed size, so we can just split on integer indices
        # (instead of grouping)
@@ -525,9 +656,9 @@
          # We need to get the right end point of each subproblem (exclusive)
          breaks += num_samples
        return breaks.ravel()
-   #+END_SRC
+  #+END_SRC
 
-   #+BEGIN_SRC ipython :tangle /scratch/midway2/aksarkar/singlecell/np-zinb.py :noweb tangle
+  #+BEGIN_SRC ipython :eval never :tangle /scratch/midway2/aksarkar/singlecell/np-zinb.py :noweb tangle
      <<zinb-imports>>
      import argparse
      import gzip
@@ -546,34 +677,34 @@
        for b in breaks:
          gene, ind = chunk.iloc[b - 1][['gene', 'chip_id']]
          print(gene, ind, *res.pop(0), file=f)
-   #+END_SRC
+  #+END_SRC
 
-   #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation
-     sbatch --partition=broadwl --job-name="np-zinb" --mem=4G -a 0-20 -n1 -c28 --exclusive
-     #!/bin/bash
-     source activate scqtl
-     python /scratch/midway2/aksarkar/singlecell/np-zinb.py
-   #+END_SRC
+  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation
+    sbatch --partition=broadwl --job-name="np-zinb" --mem=4G -a 0-20 -n1 -c28 --exclusive
+    #!/bin/bash
+    source activate scqtl
+    python /scratch/midway2/aksarkar/singlecell/np-zinb.py
+  #+END_SRC
 
-   #+RESULTS:
-   : Submitted batch job 44633431
+  #+RESULTS:
+  : Submitted batch job 44962891
 
-   Populate the database.
+  Populate the database.
 
-   #+BEGIN_SRC ipython
+  #+BEGIN_SRC ipython
      with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
        conn.execute('drop table if exists params;')
-       for i in range(20):
+       for i in range(21):
          for chunk in pd.read_table('/scratch/midway2/aksarkar/singlecell/density-estimation/result-{}.txt.gz'.format(i), sep=' ', header=None, chunksize=1000):
-           chunk.columns = ['gene', 'ind', 'log_mu', 'log_phi', 'logodds', 'mean', 'var']
+           chunk.columns = ['gene', 'ind', 'log_mu', 'log_phi', 'logodds', 'mean', 'var', 'log_mu_se', 'log_phi_se']
            chunk.to_sql(name='params', con=conn, index=False, if_exists='append')
        conn.execute('create index ix_params on params(gene, ind);')
-   #+END_SRC
+  #+END_SRC
 
-   #+RESULTS:
-   :RESULTS:
-   # Out[56]:
-   :END:
+  #+RESULTS:
+  :RESULTS:
+  # Out[3]:
+  :END:
 
 * Per-gene dispersion
 
@@ -595,13 +726,13 @@
 
   and variance ([[http://www.springer.com/us/book/9780387329093][Frühwirth-Schnatter 2006]]):
 
-  \[ \sigma^2_k = \frac{1}{N} \sum (E[r_{ijk}] - \mu)^2 + V[r_{ijk}] \]
+  \[ \sigma^2_k = \frac{1}{N} \sum (E[r_{ijk}] - \mu_k)^2 + V[r_{ijk}] \]
 
   Fixing individual \(i\) and cell \(j\), we have:
 
   \[ E[r_{ijk}] = R_{ij} \mu_{ik} \]
 
-  \[ V[r_[ijk]] = \left(R_{ij} \mu_{ik} + (R_{ij} \mu_{ik})^2 \phi_{ik}\right) \]
+  \[ V[r_{ijk}] = \left(R_{ij} \mu_{ik} + (R_{ij} \mu_{ik})^2 \phi_{ik}\right) \]
 
   Here, we ignore the factor of \((1 - \pi_{ik})\) under the assumption that
   excess zeros do not reflect biology.
