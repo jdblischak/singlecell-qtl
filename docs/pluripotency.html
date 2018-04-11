@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+
+
+<meta name="author" content="PoYuan Tung" />
+
+<meta name="date" content="2017-09-13" />
+
+<title>Pluripotency</title>
+
+<script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<script src="site_libs/jqueryui-1.11.4/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-1.1/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-1.1/highlight.js"></script>
+<link href="site_libs/font-awesome-4.5.0/css/font-awesome.min.css" rel="stylesheet" />
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+  pre:not([class]) {
+    background-color: white;
+  }
+</style>
+<script type="text/javascript">
+if (window.hljs && document.readyState && document.readyState === "complete") {
+   window.setTimeout(function() {
+      hljs.initHighlighting();
+   }, 0);
+}
+</script>
+
+
+
+<style type="text/css">
+h1 {
+  font-size: 34px;
+}
+h1.title {
+  font-size: 38px;
+}
+h2 {
+  font-size: 30px;
+}
+h3 {
+  font-size: 24px;
+}
+h4 {
+  font-size: 18px;
+}
+h5 {
+  font-size: 16px;
+}
+h6 {
+  font-size: 12px;
+}
+.table th:not([align]) {
+  text-align: left;
+}
+</style>
+
+
+</head>
+
+<body>
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+code {
+  color: inherit;
+  background-color: rgba(0, 0, 0, 0.04);
+}
+img {
+  max-width:100%;
+  height: auto;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+</style>
+
+
+<style type="text/css">
+/* padding for bootstrap navbar */
+body {
+  padding-top: 51px;
+  padding-bottom: 40px;
+}
+/* offset scroll position for anchor links (for fixed navbar)  */
+.section h1 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+
+.section h2 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h3 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h4 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h5 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h6 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+</style>
+
+<script>
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark it active
+  menuAnchor.parent().addClass('active');
+
+  // if it's got a parent navbar menu mark it active as well
+  menuAnchor.closest('li.dropdown').addClass('active');
+});
+</script>
+
+
+<div class="container-fluid main-container">
+
+<!-- tabsets -->
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+</script>
+
+<!-- code folding -->
+
+
+
+
+<script>
+$(document).ready(function ()  {
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_').toLowerCase();
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+  padding-left: 25px;
+  text-indent: 0;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row-fluid">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">singlecell-qtl</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Overview</a>
+</li>
+<li>
+  <a href="data-collection.html">Data</a>
+</li>
+<li>
+  <a href="analysis.html">Analysis</a>
+</li>
+<li>
+  <a href="contributing.html">Contributing</a>
+</li>
+<li>
+  <a href="license.html">License</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/jdblischak/singlecell-qtl">
+    <span class="fa fa-github"></span>
+     
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div class="fluid-row" id="header">
+
+
+
+<h1 class="title toc-ignore">Pluripotency</h1>
+<h4 class="author"><em>PoYuan Tung</em></h4>
+<h4 class="date"><em>2017-09-13</em></h4>
+
+</div>
+
+
+<!-- The file analysis/chunks.R contains chunks that define default settings
+shared across the workflowr files. -->
+<!-- Update knitr chunk options -->
+<!-- Insert the date the file was last updated -->
+<p><strong>Last updated:</strong> 2018-04-11</p>
+<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
+ package git2r is installed -->
+<p><strong>Code version:</strong> 5ebfa1c</p>
+<p>This analysis is to see if there is a difference in the pluripotent state across all the individuals.</p>
+<section id="setup" class="level2">
+<h2>Setup</h2>
+<pre class="r"><code>library(&quot;cowplot&quot;)
+library(&quot;dplyr&quot;)
+library(&quot;edgeR&quot;)
+library(&quot;ggplot2&quot;)
+library(&quot;heatmap3&quot;)
+library(&quot;knitr&quot;)
+theme_set(theme_cowplot())
+source(&quot;../code/functions.R&quot;)
+library(&quot;Biobase&quot;) # has to be loaded last to use `combine`</code></pre>
+<p>Import data.</p>
+<pre class="r"><code>eset &lt;- readRDS(&quot;../data/eset.rds&quot;)
+dim(eset)</code></pre>
+<pre><code>Features  Samples 
+   54792     7200 </code></pre>
+<p>Keep only human</p>
+<pre class="r"><code>eset &lt;- eset[fData(eset)$source == &quot;H. sapiens&quot;, ]
+dim(eset) </code></pre>
+<pre><code>Features  Samples 
+   20327     7200 </code></pre>
+<p>Only keep high-quality single cells.</p>
+<pre class="r"><code>quality &lt;- read.table(&quot;../data/quality-single-cells.txt&quot;, stringsAsFactors = FALSE)
+colnames(quality) &lt;- c(&quot;sample&quot;, &quot;quality&quot;)
+eset &lt;- eset[, quality$quality]
+dim(eset)</code></pre>
+<pre><code>Features  Samples 
+   20327     5221 </code></pre>
+<pre class="r"><code>anno &lt;- pData(eset)</code></pre>
+<p>Convert to log2 counts per million.</p>
+<pre class="r"><code>log2cpm &lt;- cpm(exprs(eset), log = TRUE)
+dim(log2cpm)</code></pre>
+<pre><code>[1] 20327  5221</code></pre>
+</section>
+<section id="expression-of-pluripotent-genes" class="level2">
+<h2>Expression of pluripotent genes</h2>
+<p>Looking at the expression of 25 pluripotent genes</p>
+<pre class="r"><code>## Input pluripotency genes. A list of 27 pluripotency genes used to demonstrate iPSC heterogeneity in [Narshin2011](https://www.jci.org/articles/view/44635)
+pluripotency_genes &lt;- read.table(&quot;../data/pluripotency-genes.txt&quot;, header = TRUE, sep=&quot;\t&quot;)
+
+log2cpm_pluripotency &lt;- log2cpm[rownames(log2cpm) %in% pluripotency_genes[,2],]
+dim(log2cpm_pluripotency)</code></pre>
+<pre><code>[1]   25 5221</code></pre>
+<section id="pca" class="level3">
+<h3>PCA</h3>
+<p>PCA to see if there is any outlier.</p>
+<pre class="r"><code>pca_pluripotency &lt;- run_pca(log2cpm_pluripotency)
+plot_pca(pca_pluripotency$PCs, pcx = 1, pcy = 2, explained = pca_pluripotency$explained,
+         metadata = anno, color = &quot;chip_id&quot;, alpha = 0.3)</code></pre>
+<p><img src="figure/pluripotency.Rmd/pca-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>plot_pca(pca_pluripotency$PCs, pcx = 1, pcy = 2, explained = pca_pluripotency$explained,
+         metadata = anno, color = &quot;batch&quot;, alpha = 0.3)</code></pre>
+<p><img src="figure/pluripotency.Rmd/pca-2.png" width="768" style="display: block; margin: auto;" /></p>
+</section>
+<section id="heatmap" class="level3">
+<h3>Heatmap</h3>
+<pre class="r"><code>batch_id &lt;- anno$batch
+color &lt;- rep(&quot;#999999&quot;,length(batch_id))
+color[grep(&quot;b2&quot;, batch_id)] &lt;- &quot;#E69F00&quot;
+color[grep(&quot;b3&quot;, batch_id)] &lt;- &quot;#56B4E9&quot;
+color[grep(&quot;b4&quot;, batch_id)] &lt;- &quot;#009E73&quot;
+color[grep(&quot;b5&quot;, batch_id)] &lt;- &quot;#F0E442&quot;
+color[grep(&quot;b6&quot;, batch_id)] &lt;- &quot;#0072B2&quot;
+
+heatmap3(log2cpm_pluripotency, cexRow=1, cexCol=1, margins=c(8,8), scale = &quot;none&quot;, ColSideColors = color, main = &quot;Pluripotent genees&quot;)</code></pre>
+<p><img src="figure/pluripotency.Rmd/heatmap-1.png" width="768" style="display: block; margin: auto;" /></p>
+</section>
+<section id="variance-explained" class="level3">
+<h3>Variance explained</h3>
+<pre class="r"><code>library(&quot;variancePartition&quot;)</code></pre>
+<pre><code>Loading required package: foreach</code></pre>
+</section>
+</section>
+
+<hr>
+<p>
+    This <a href="http://rmarkdown.rstudio.com">R Markdown</a> site was created with <a href="https://github.com/jdblischak/workflowr">workflowr</a>
+</p>
+<hr>
+
+<!-- To enable disqus, uncomment the section below and provide your disqus_shortname -->
+
+<!-- disqus
+  <div id="disqus_thread"></div>
+    <script type="text/javascript">
+        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+        var disqus_shortname = 'rmarkdown'; // required: replace example with your forum shortname
+
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+    <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+    <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+-->
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.header').parent('thead').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
