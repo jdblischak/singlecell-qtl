@@ -42,19 +42,23 @@
     import rpy2.robjects.packages
     import rpy2.robjects.pandas2ri
     import rpy2.robjects.numpy2ri
+    import scipy.special as sp
     import scipy.stats as st
     import sklearn.decomposition as skd
     import sqlite3
     import tabix
 
+    ashr = rpy2.robjects.packages.importr('ashr')
+    edger = rpy2.robjects.packages.importr('edgeR')
+    mashr = rpy2.robjects.packages.importr('mashr')
+
     pandas2ri = rpy2.robjects.pandas2ri
     numpy2ri = rpy2.robjects.numpy2ri.numpy2ri
-    edger = rpy2.robjects.packages.importr('edgeR')
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[1]:
+  # Out[126]:
   :END:
 
 * Implementation
@@ -205,11 +209,18 @@
       res['pos'] = res['var_start']
       res['id'] = res['id'].apply(lambda x: x.split('.')[0])
       return res
+
+    def read_nominal_pass(f):
+      isf = st.chi2(1).isf
+      result = pd.read_table(f, sep=' ', header=None)
+      result.columns = ['gene', 'chr', 'start', 'end', 'strand', 'n', 'distance', 'id', 'var_chr', 'var_start', 'var_end', 'p_nominal', 'beta', 'top']
+      result['z'] = np.sign(result['beta']) * np.sqrt(isf(result['p_nominal']))
+      return result
   #+END_SRC
 
   #+RESULTS: read-qtltools-def
   :RESULTS:
-  # Out[5]:
+  # Out[143]:
   :END:
 
   #+RESULTS:
@@ -3083,3 +3094,211 @@
   [[file:figure/qtl-mapping.org/pooled-qtl-var-qtl-roc.png]]
   :END:
 
+** Multivariate adaptive shrinkage
+
+  Write out a subset of the phenotype matrix to get SNP-level summary stats for
+  ~mash~.
+
+  #+BEGIN_SRC ipython
+    write_pheno_file(qtls['variance'][1].filter(items=qtls['variance'][0][qtls['variance'][0][thresh_pass]]['gene'], axis='index'),
+                     gene_info, '/scratch/midway2/aksarkar/singlecell/scqtl-mapping/variance-fdr-pass.bed', holdout=False)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[194]:
+  :END:
+
+  Index the phenotype file.
+
+  #+CALL: tabix(input="variance-fdr-pass.bed") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
+
+  #+RESULTS:
+  : Submitted batch job 45224858
+
+  Run the nominal pass.
+
+  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping :eval never-export 
+    sbatch --partition=broadwl --mem=8G --wait
+    #!/bin/bash
+    source activate scqtl
+    qtltools cis --vcf /scratch/midway2/aksarkar/singlecell/reproduce-yang/yri-dosages.vcf.gz --bed variance-fdr-pass.bed.gz --cov variance-covars.txt --window 100000 --nominal 1 --out variance-fdr-pass-nominal.txt
+  #+END_SRC
+
+  #+RESULTS:
+  : Submitted batch job 45224965
+
+  Compute \(\hat\beta\) and bootstrap SE ourselves to check whether we can
+  simply inverse CDF transform from the nominal \(p\)-values.
+
+  #+BEGIN_SRC ipython
+    test_var_qtl_stats = estimate_beta_se(Yv.head(n=1), '/scratch/midway2/aksarkar/singlecell/reproduce-yang/yri-dosages.vcf.gz', gene_info, Cv)
+    test_var_qtl_stats['z'] = test_var_qtl_stats['beta'] / test_var_qtl_stats['se']
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[206]:
+  :END:
+
+  Read the results.
+
+  #+BEGIN_SRC ipython
+    nominal_var_qtl_stats = read_nominal_pass('/scratch/midway2/aksarkar/singlecell/scqtl-mapping/variance-fdr-pass-nominal.txt')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[141]:
+  :END:
+
+  Check our \(z\)-scores against inverse CDF-derived \(z\)-scores.
+
+  #+BEGIN_SRC ipython
+    M = test_var_qtl_stats.merge(nominal_var_qtl_stats, left_on=['gene', 'snp'], right_on=['gene', 'id'])
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[234]:
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/bootstrap-z-vs-nominal-p-inverse-cdf.png
+    plt.clf()
+    plt.gcf().set_size_inches(4, 4)
+    lim = [-6, 6]
+    plt.scatter(M['z_x'], M['z_y'], c='k', s=3)
+    plt.axhline(y=0, c='k', lw=1)
+    plt.axvline(x=0, c='k', lw=1)
+    plt.plot(lim, lim, c='r', ls=':', lw=1)
+    plt.xlim(lim)
+    plt.ylim(lim)
+    plt.xlabel('Bootstrap $z$ scores')
+    _ = plt.ylabel('Inverse CDF $z$ scores')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[235]:
+  [[file:figure/qtl-mapping.org/bootstrap-z-vs-nominal-p-inverse-cdf.png]]
+  :END:
+
+  Subset the pooled expression matrix at the variance QTL genes.
+
+  #+BEGIN_SRC ipython
+    write_pheno_file(qtls['pooled'][1].filter(items=qtls['variance'][0][qtls['variance'][0]['fdr_pass']]['gene'], axis='index'),
+                     gene_info, '/scratch/midway2/aksarkar/singlecell/scqtl-mapping/pooled-fdr-pass.bed', holdout=False)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[236]:
+  :END:
+
+  Index the phenotype file.
+
+  #+CALL: tabix(input="pooled-fdr-pass.bed") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
+
+  #+RESULTS:
+  : Submitted batch job 45224966
+
+  Run the nominal pass.
+
+  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping :eval never-export 
+    sbatch --partition=broadwl --mem=4G --wait
+    #!/bin/bash
+    source activate scqtl
+    qtltools cis --vcf /scratch/midway2/aksarkar/singlecell/reproduce-yang/yri-dosages.vcf.gz --bed pooled-fdr-pass.bed.gz --cov pooled-covars.txt --window 100000 --nominal 1 --out pooled-fdr-pass-nominal.txt
+  #+END_SRC
+
+  #+RESULTS:
+  : Submitted batch job 45224967
+
+  Read the results
+
+  #+BEGIN_SRC ipython
+    nominal_pooled_qtl_stats = read_nominal_pass('/scratch/midway2/aksarkar/singlecell/scqtl-mapping/pooled-fdr-pass-nominal.txt')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[142]:
+  :END:
+
+  Run two-condition ~mash~.
+
+  #+BEGIN_SRC ipython
+    Z = nominal_var_qtl_stats.merge(nominal_pooled_qtl_stats, on=['gene', 'id'])[['gene', 'z_x', 'z_y']].set_index('gene')
+    mash_result = {}
+    for k, g in Z.groupby(level=0):
+      data = mashr.mash_set_data(numpy2ri(g.values), numpy2ri(np.ones(g.shape)))
+      U = mashr.cov_canonical(data)
+      mash_result[k] = mashr.mash(data, U, verbose=False)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[238]:
+  :END:
+
+  Recover the estimated mixture weights.
+
+  #+BEGIN_SRC ipython
+    pihat = pd.DataFrame.from_dict({k: np.array(mashr.get_estimated_pi(v)) for k, v in mash_result.items()}).T
+    pihat.columns = ['pointmass'] + list(U.names)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[239]:
+  :END:
+
+  Plot the distribution of mixture weights over all genes.
+
+  #+BEGIN_SRC ipython
+    pihat.describe()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[254]:
+  #+BEGIN_EXAMPLE
+    pointmass      identity  singletons_1  singletons_2  equal_effects  \
+    count  100.000000  1.000000e+02  1.000000e+02  1.000000e+02     100.000000
+    mean     0.236113  1.440518e-08  7.370024e-04  1.325172e-08       0.763150
+    std      0.171014  2.923391e-08  7.369911e-03  2.542430e-08       0.170895
+    min      0.025428  1.255758e-16  0.000000e+00  1.554074e-13       0.331600
+    25%      0.086583  9.203208e-11  6.397202e-11  1.579286e-10       0.658428
+    50%      0.192531  8.103858e-10  8.467295e-10  9.780927e-10       0.803813
+    75%      0.341572  9.041796e-09  1.336859e-08  1.140590e-08       0.913417
+    max      0.668400  1.577300e-07  7.369912e-02  1.242829e-07       0.974572
+
+    simple_het_1  simple_het_2  simple_het_3
+    count  1.000000e+02  1.000000e+02  1.000000e+02
+    mean   9.991417e-09  1.350293e-08  1.403216e-08
+    std    2.232040e-08  4.009257e-08  3.783770e-08
+    min    6.954820e-14  0.000000e+00  0.000000e+00
+    25%    6.905415e-11  5.008974e-11  5.619386e-11
+    50%    5.612049e-10  4.565214e-10  7.012256e-10
+    75%    7.695997e-09  6.202010e-09  8.381193e-09
+    max    1.208672e-07  3.013986e-07  2.835197e-07
+  #+END_EXAMPLE
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/mash-mean-var.png
+    plt.clf()
+    grid = np.linspace(0, 1, 100)
+    for k, v in {'pointmass': 'Point mass', 'equal_effects': 'Equal effects'}.items():
+      f = st.gaussian_kde(pihat[k])
+      plt.plot(grid, f(grid), label=v, lw=1)
+    plt.legend()
+    plt.xlabel('Mixture proportion')
+    plt.ylabel('Density')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[268]:
+  : Text(0,0.5,'Density')
+  [[file:figure/qtl-mapping.org/mash-mean-var.png]]
+  :END:
