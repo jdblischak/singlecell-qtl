@@ -959,50 +959,50 @@
 
    #+NAME: qc-filters
    #+BEGIN_SRC ipython
-    annotation = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
-    keep_samples = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
-    keep_genes = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt', index_col=0, header=None)
-    annotation = annotation.loc[keep_samples.values.ravel()]
-    keep_inds = annotation.groupby('chip_id').apply(lambda x: len(x) >= 50)
+     annotation = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
+     keep_samples = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
+     keep_genes = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt', index_col=0, header=None)
+     annotation = annotation.loc[keep_samples.values.ravel()]
+     keep_inds = annotation.groupby('chip_id').apply(lambda x: len(x) >= 50)
    #+END_SRC
 
    #+RESULTS: qc-filters
    :RESULTS:
-   # Out[104]:
+   # Out[16]:
    :END:
 
    Read and pool the UMI data.
 
    #+BEGIN_SRC ipython
-    pooled_counts = pd.concat(
-      [(chunk
-        .filter(items=keep_genes[keep_genes.values].index, axis='index')
-        # Important: this can't be done by filter because sample names are
-        # different in the QC file
-        .loc[:,keep_samples.values.ravel()]
-        .groupby(annotation['chip_id'].values, axis=1)
-        .agg(np.sum))
-       for chunk in
-       pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz',
-                     chunksize=1000, index_col=0)])
+     pooled_counts = pd.concat(
+       [(chunk
+         .filter(items=keep_genes[keep_genes.values].index, axis='index')
+         # Important: this can't be done by filter because sample names are
+         # different in the QC file
+         .loc[:,keep_samples.values.ravel()]
+         .groupby(annotation['chip_id'].values, axis=1)
+         .agg(np.sum))
+        for chunk in
+        pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz',
+                      chunksize=1000, index_col=0)])
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[158]:
+   # Out[17]:
    :END:
 
    Normalize the pooled counts.
 
    #+BEGIN_SRC ipython
-    pooled_cpm = (cpm(pooled_counts).loc[:,keep_inds]
-                  .transform(lambda x: (x - x.mean()) / x.std(), axis=1)
-                  .apply(qqnorm, axis=0))
+     pooled_cpm = (cpm(pooled_counts).loc[:,keep_inds]
+                   .transform(lambda x: (x - x.mean()) / x.std(), axis=1)
+                   .apply(qqnorm, axis=0))
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[159]:
+   # Out[18]:
    :END:
 
    Compute principal components and write out the covariate file.
@@ -1015,18 +1015,18 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[160]:
+   # Out[19]:
    :END:
 
    Write out the phenotype file.
 
    #+BEGIN_SRC ipython
-     write_pheno_file(pooled_cpm, gene_info, holdout=True, output_file='/scratch/midway2/aksarkar/singlecell/scqtl-mapping/pooled.bed')
+     write_pheno_file(pooled_cpm, gene_info, holdout=False, output_file='/scratch/midway2/aksarkar/singlecell/scqtl-mapping/pooled.bed')
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[161]:
+   # Out[13]:
    :END:
 
    Index the phenotype file.
@@ -1034,14 +1034,14 @@
    #+CALL: tabix(input="pooled.bed") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
 
    #+RESULTS:
-   : Submitted batch job 44980017
+   : Submitted batch job 45127968
 
    Run ~qtltools~
 
    #+CALL: qtltools(pheno="pooled", geno="/scratch/midway2/aksarkar/singlecell/reproduce-yang/yri-dosages.vcf.gz", op="--cov pooled-covars.txt  --window 100000 --permute 10000") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
 
    #+RESULTS:
-   : Submitted batch job 44980030
+   : Submitted batch job 45127969
 
    Read the output. *Important: this loses 200 genes (is this a bug in
    ~qtltools~)?*
@@ -1052,7 +1052,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[175]:
+   # Out[14]:
    :END:
 
    Check the beta approximation.
@@ -1063,7 +1063,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[163]:
+   # Out[15]:
    [[file:figure/qtl-mapping.org/pooled-cpm-beta-approx.png]]
    :END:
 
@@ -1075,7 +1075,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[164]:
+   # Out[16]:
    [[file:figure/qtl-mapping.org/pooled-qtl-qq.png]]
    :END:
 
@@ -1087,8 +1087,8 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[165]:
-   : 128
+   # Out[17]:
+   : 240
    :END:
 
 ** Call mean-QTLs
@@ -1102,48 +1102,36 @@
    # Out[11]:
    :END:
 
-   Compute sample means.
+   Read the count matrix.
 
+   #+NAME: read-umi
    #+BEGIN_SRC ipython
-     sample_mean = pd.concat(
+     umi = pd.concat(
        [(chunk
          .filter(items=keep_genes[keep_genes.values].index, axis='index')
          # Important: this can't be done by filter because sample names are
          # different in the QC file
-         .loc[:,keep_samples.values.ravel()]
-         .groupby(annotation['chip_id'].values, axis=1)
-         .agg(np.mean))
+         .loc[:,keep_samples.values.ravel()])
         for chunk in
         pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz',
                       chunksize=1000, index_col=0)])
    #+END_SRC
 
-   #+RESULTS:
-   :RESULTS:
-   # Out[16]:
-   :END:
-
-   Normalize the mean matrix.
+   Compute the sample mean log CPM per individual, then normalize.
 
    #+BEGIN_SRC ipython
-     sample_mean = sample_mean.loc[:,keep_inds].transform(lambda x: (x - x.mean()) / x.std(), axis=1).apply(qqnorm, axis=0)
+     sample_mean = (cpm(umi)
+                    .groupby(annotation['chip_id'].values, axis=1)
+                    .agg(np.mean)
+                    .loc[:,keep_inds]
+                    .transform(lambda x: (x - x.mean()) / x.std(), axis=1)
+                    .apply(qqnorm, axis=0))
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[17]:
+   # Out[14]:
    :END:
-
-   # Write out the data.
-
-   # #+BEGIN_SRC ipython
-   #   with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
-   #     (sample_mean
-   #      .reset_index()
-   #      .melt(id_vars='gene', var_name='ind')
-   #      .to_sql('mean', conn, index=False, if_exists='replace'))
-   #     conn.execute('create index ix_mean on mean(gene, ind);')
-   # #+END_SRC
 
    Compute principal components and write out the covariate file.
 
@@ -1155,7 +1143,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[18]:
+   # Out[15]:
    :END:
 
    Write out the [[https://qtltools.github.io/qtltools/pages/input_files.html][phenotype file]] for ~qtltools~. Hold out even chromosomes while
@@ -1166,12 +1154,12 @@
        sample_mean,
        gene_info,
        output_file='/scratch/midway2/aksarkar/singlecell/scqtl-mapping/sample-mean.bed',
-       holdout=True)
+       holdout=False)
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[27]:
+   # Out[16]:
    :END:
 
    Index the phenotype file.
@@ -1179,14 +1167,14 @@
    #+CALL: tabix(input="sample-mean.bed") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
 
    #+RESULTS:
-   : Submitted batch job 44472307
+   : Submitted batch job 45128520
 
    Run ~qtltools~.
 
    #+CALL: qtltools(pheno="sample-mean", geno="/scratch/midway2/aksarkar/singlecell/reproduce-yang/yri-dosages.vcf.gz", op="--cov sample-mean-covars.txt --window 100000 --permute 10000") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
 
    #+RESULTS:
-   : Submitted batch job 44472309
+   : Submitted batch job 45128522
 
    Read the output.
 
@@ -1196,7 +1184,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[150]:
+   # Out[17]:
    :END:
 
    Check the beta approximation to the permutation p-values.
@@ -1207,7 +1195,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[20]:
+   # Out[18]:
    [[file:figure/qtl-mapping.org/sample-mean-qtl-beta-approx.png]]
    :END:
 
@@ -1219,7 +1207,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[151]:
+   # Out[19]:
    [[file:figure/qtl-mapping.org/sample-mean-qtl-qq.png]]
    :END:
 
@@ -1231,8 +1219,8 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[152]:
-   : 127
+   # Out[20]:
+   : 176
    :END:
 
 ** Call variance-QTLs
@@ -1243,51 +1231,33 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[30]:
+   # Out[9]:
    :END:
 
-   Compute sample variances.
+   Read the UMI matrix.
+
+   #+CALL: read-umi()
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[10]:
+   :END:
+
+   Compute the sample variance of log CPM per individual, then normalize.
 
    #+BEGIN_SRC ipython
-     sample_var = pd.concat(
-       [(chunk
-         .filter(items=keep_genes[keep_genes.values].index, axis='index')
-         # Important: this can't be done by filter because sample names are
-         # different in the QC file
-         .loc[:,keep_samples.values.ravel()]
-         .groupby(annotation['chip_id'].values, axis=1)
-         .agg(np.var))
-        for chunk in
-        pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz',
-                      chunksize=1000, index_col=0)])
+     sample_var = (cpm(umi)
+                    .groupby(annotation['chip_id'].values, axis=1)
+                    .agg(np.var)
+                    .loc[:,keep_inds]
+                    .transform(lambda x: (x - x.mean()) / x.std(), axis=1)
+                    .apply(qqnorm, axis=0))
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[39]:
+   # Out[11]:
    :END:
-
-   Normalize the variance matrix.
-
-   #+BEGIN_SRC ipython
-     sample_var = sample_var.loc[:,keep_inds].transform(lambda x: (x - x.mean()) / x.std(), axis=1).apply(qqnorm, axis=0)
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[40]:
-   :END:
-
-   # Write out the data.
-
-   # #+BEGIN_SRC ipython
-   #   with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
-   #     (sample_var
-   #      .reset_index()
-   #      .melt(id_vars='gene', var_name='ind')
-   #      .to_sql('var', conn, index=False, if_exists='replace'))
-   #     conn.execute('create index ix_var on var(gene, ind);')
-   # #+END_SRC
 
    Compute principal components and write out the covariate file.
 
@@ -1299,19 +1269,19 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[41]:
+   # Out[21]:
    :END:
 
    Write out the [[https://qtltools.github.io/qtltools/pages/input_files.html][phenotype file]] for ~qtltools~. Hold out even chromosomes while
    optimizing the power to detect eQTLs.
 
    #+BEGIN_SRC ipython
-     write_pheno_file(sample_var, gene_info, '/scratch/midway2/aksarkar/singlecell/scqtl-mapping/sample-var.bed', holdout=True)
+     write_pheno_file(sample_var, gene_info, '/scratch/midway2/aksarkar/singlecell/scqtl-mapping/sample-var.bed', holdout=False)
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[42]:
+   # Out[22]:
    :END:
 
    Index the phenotype file.
@@ -1319,14 +1289,14 @@
    #+CALL: tabix(input="sample-var.bed") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
 
    #+RESULTS:
-   : Submitted batch job 44666268
+   : Submitted batch job 45128698
 
    Run ~qtltools~.
 
    #+CALL: qtltools(pheno="sample-var", geno="/scratch/midway2/aksarkar/singlecell/reproduce-yang/yri-dosages.vcf.gz", op="--cov sample-var-covars.txt --window 100000 --permute 10000") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
 
    #+RESULTS:
-   : Submitted batch job 44666282
+   : Submitted batch job 45128699
 
    Read the output.
 
@@ -1336,7 +1306,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[153]:
+   # Out[23]:
    :END:
 
    Check the beta approximation to the permutation p-values.
@@ -1347,7 +1317,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[44]:
+   # Out[24]:
    [[file:figure/qtl-mapping.org/sample-var-qtl-beta-approx.png]]
    :END:
 
@@ -1359,7 +1329,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[154]:
+   # Out[25]:
    [[file:figure/qtl-mapping.org/sample-var-qtl-qq.png]]
    :END:
 
@@ -1371,8 +1341,8 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[155]:
-   : 41
+   # Out[26]:
+   : 3
    :END:
 
 ** Call CV-QTLs
@@ -1383,28 +1353,32 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[31]:
+   # Out[9]:
    :END:
 
-   Compute coefficient of variation from sample moments.
+   Read the UMI matrix.
+
+   #+CALL: read-umi()
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[10]:
+   :END:
+
+   Compute the sample CV of log CPM per individual, then normalize.
 
    #+BEGIN_SRC ipython
-     sample_cv = pd.concat(
-       [(chunk
-         .filter(items=keep_genes[keep_genes.values].index, axis='index')
-         # Important: this can't be done by filter because sample names are
-         # different in the QC file
-         .loc[:,keep_samples.values.ravel()]
-         .groupby(annotation['chip_id'].values, axis=1)
-         .agg(lambda x: np.std(x, axis=1) / (np.mean(x, axis=1) + 1e-8)))
-        for chunk in
-        pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz',
-                      chunksize=1000, index_col=0)])
+     sample_cv = (cpm(umi)
+                    .groupby(annotation['chip_id'].values, axis=1)
+                    .agg(lambda x: np.std(x, axis=1) / (np.mean(x, axis=1) + 1e-8))
+                    .loc[:,keep_inds]
+                    .transform(lambda x: (x - x.mean()) / x.std(), axis=1)
+                    .apply(qqnorm, axis=0))
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[47]:
+   # Out[30]:
    :END:
 
    Normalize the CV matrix.
@@ -1415,7 +1389,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[48]:
+   # Out[31]:
    :END:
 
    Write out the [[https://qtltools.github.io/qtltools/pages/input_files.html][phenotype file]] for ~qtltools~. Hold out even chromosomes while
@@ -1427,7 +1401,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[49]:
+   # Out[32]:
    :END:
 
    Index the phenotype file.
@@ -1435,14 +1409,14 @@
    #+CALL: tabix(input="sample-cv.bed") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
 
    #+RESULTS:
-   : Submitted batch job 44666430
+   : Submitted batch job 45128842
 
    Run ~qtltools~.
 
    #+CALL: qtltools(pheno="sample-cv", geno="/scratch/midway2/aksarkar/singlecell/reproduce-yang/yri-dosages.vcf.gz", op="--window 100000 --permute 10000") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
 
    #+RESULTS:
-   : Submitted batch job 44666435
+   : Submitted batch job 45128843
 
    Read the output.
 
@@ -1452,7 +1426,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[156]:
+   # Out[33]:
    :END:
 
    Check the beta approximation to the permutation p-values.
@@ -1463,7 +1437,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[51]:
+   # Out[34]:
    [[file:figure/qtl-mapping.org/sample-cv-qtl-beta-approx.png]]
    :END:
 
@@ -1475,7 +1449,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[157]:
+   # Out[35]:
    [[file:figure/qtl-mapping.org/sample-cv-qtl-qq.png]]
    :END:
 
@@ -1487,7 +1461,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[158]:
+   # Out[36]:
    : 0
    :END:
 
@@ -1499,64 +1473,48 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[66]:
+   # Out[9]:
+   :END:
+
+   Read the UMI matrix.
+
+   #+CALL: read-umi()
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[10]:
    :END:
 
    Fisher's index of dispersion is defined as \(V[x] / E[x]\). The Fano factor
    is Fisher's index of dispersion over a fixed window (in our case, the total
    number of reads).
 
+   Compute the sample Fano factor of log CPM per individual, then normalize.
+
    #+BEGIN_SRC ipython
-     sample_fano = pd.concat(
-       [(chunk
-         .filter(items=keep_genes[keep_genes.values].index, axis='index')
-         # Important: this can't be done by filter because sample names are
-         # different in the QC file
-         .loc[:,keep_samples.values.ravel()]
-         .groupby(annotation['chip_id'].values, axis=1)
-         .agg(lambda x: np.var(x, axis=1) / (np.mean(x, axis=1) + 1e-8)))
-        for chunk in
-        pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz',
-                      chunksize=1000, index_col=0)])
+     sample_fano = (cpm(umi)
+                    .groupby(annotation['chip_id'].values, axis=1)
+                    .agg(lambda x: np.var(x, axis=1) / (np.mean(x, axis=1)))
+                    .loc[:,keep_inds]
+                    .transform(lambda x: (x - x.mean()) / x.std(), axis=1)
+                    .apply(qqnorm, axis=0))
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[54]:
+   # Out[38]:
    :END:
-
-   Normalize the variance matrix analagous to the bulk data.
-
-   #+BEGIN_SRC ipython
-     sample_fano = sample_fano.loc[:,keep_inds].transform(lambda x: (x - x.mean()) / x.std(), axis=1).apply(qqnorm, axis=0)
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[55]:
-   :END:
-
-   # Write out the data.
-
-   # #+BEGIN_SRC ipython
-   #   with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
-   #     (sample_fano
-   #      .reset_index()
-   #      .melt(id_vars='gene', var_name='ind')
-   #      .to_sql('fano', conn, index=False, if_exists='replace'))
-   #     conn.execute('create index ix_fano on fano(gene, ind);')
-   # #+END_SRC
 
    Write out the [[https://qtltools.github.io/qtltools/pages/input_files.html][phenotype file]] for ~qtltools~. Hold out even chromosomes while
    optimizing the power to detect eQTLs.
 
    #+BEGIN_SRC ipython
-     write_pheno_file(sample_fano, gene_info, '/scratch/midway2/aksarkar/singlecell/scqtl-mapping/sample_fano.bed', holdout=True)
+     write_pheno_file(sample_fano, gene_info, '/scratch/midway2/aksarkar/singlecell/scqtl-mapping/sample_fano.bed', holdout=False)
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[56]:
+   # Out[40]:
    :END:
 
    Index the phenotype file.
@@ -1564,7 +1522,7 @@
    #+CALL: tabix(input="sample_fano.bed") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
 
    #+RESULTS:
-   : Submitted batch job 44666577
+   : Submitted batch job 45129160
 
    Compute principal components and write out the covariate file.
 
@@ -1576,7 +1534,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[57]:
+   # Out[41]:
    :END:
 
    Run ~qtltools~.
@@ -1584,7 +1542,7 @@
    #+CALL: qtltools(pheno="sample_fano", geno="/scratch/midway2/aksarkar/singlecell/reproduce-yang/yri-dosages.vcf.gz", op="--cov sample-fano-covars.txt --window 100000 --permute 10000") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
 
    #+RESULTS:
-   : Submitted batch job 44666592
+   : Submitted batch job 45129161
 
    Read the output.
 
@@ -1594,7 +1552,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[159]:
+   # Out[42]:
    :END:
 
    Check the beta approximation to the permutation p-values.
@@ -1605,7 +1563,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[59]:
+   # Out[43]:
    [[file:figure/qtl-mapping.org/sample-fano-qtl-beta-approx.png]]
    :END:
 
@@ -1617,7 +1575,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[160]:
+   # Out[44]:
    [[file:figure/qtl-mapping.org/sample-fano-qtl-qq.png]]
    :END:
 
@@ -1629,8 +1587,8 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[161]:
-   : 5
+   # Out[45]:
+   : 2
    :END:
 
 * Analysis using ZINB
@@ -1642,7 +1600,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[11]:
+   # Out[63]:
    :END:
 
    Read the estimated parameters \(\log \mu_{ik}\). Exclude individuals with
@@ -1659,7 +1617,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[73]:
+   # Out[11]:
    :END:
 
    Normalize the mean matrix analagous to the bulk data. In our estimation
@@ -1673,7 +1631,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[74]:
+   # Out[12]:
    :END:
 
    Compute principal components of the mean matrix.
@@ -1681,49 +1639,49 @@
    #+BEGIN_SRC ipython
     covars = pd.DataFrame(skd.PCA(n_components=10).fit(log_mu).components_, columns=log_mu.columns)
     covars.index.name = 'id'
-    covars.to_csv('/scratch/midway2/aksarkar/singlecell/scqtl-mapping/log-mean-pcs.txt', sep='\t')
+    covars.to_csv('/scratch/midway2/aksarkar/singlecell/scqtl-mapping/log_mu-covars.txt', sep='\t')
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[75]:
+   # Out[13]:
    :END:
 
    Write out the [[https://qtltools.github.io/qtltools/pages/input_files.html][phenotype file]] for ~qtltools~. Hold out even chromosomes while
    optimizing the power to detect eQTLs.
 
    #+BEGIN_SRC ipython
-     write_pheno_file(log_mu, gene_info, '/scratch/midway2/aksarkar/singlecell/scqtl-mapping/log-mean.bed', holdout=True)
+     write_pheno_file(log_mu, gene_info, '/scratch/midway2/aksarkar/singlecell/scqtl-mapping/log_mu.bed', holdout=False)
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[76]:
+   # Out[20]:
    :END:
 
    Index the phenotype file.
 
-   #+CALL: tabix(input="log-mean.bed") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
+   #+CALL: tabix(input="log_mu.bed") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
 
    #+RESULTS:
-   : Submitted batch job 44976597
+   : Submitted batch job 45074749
 
    Run ~qtltools~.
 
-   #+CALL: qtltools(pheno="log-mean", geno="/scratch/midway2/aksarkar/singlecell/reproduce-yang/yri-dosages.vcf.gz", op="--cov log-mean-pcs.txt --window 100000 --permute 10000") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
+   #+CALL: qtltools(pheno="log_mu", geno="/scratch/midway2/aksarkar/singlecell/reproduce-yang/yri-dosages.vcf.gz", op="--cov log_mu-covars.txt --window 100000 --permute 10000") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
 
    #+RESULTS:
-   : Submitted batch job 44976606
+   : Submitted batch job 45074760
 
    Read the output.
 
    #+BEGIN_SRC ipython
-     log_mu_qtls = read_qtltools_output('scqtl-mapping/log-mean')
+     log_mu_qtls = read_qtltools_output('scqtl-mapping/log_mu')
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[77]:
+   # Out[21]:
    :END:
 
    Check the beta approximation to the permutation p-values.
@@ -1734,7 +1692,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[78]:
+   # Out[22]:
    [[file:figure/qtl-mapping.org/mu-qtl-beta-approx.png]]
    :END:
 
@@ -1746,7 +1704,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[79]:
+   # Out[23]:
    [[file:figure/qtl-mapping.org/mu-qtl-qq.png]]
    :END:
 
@@ -1758,8 +1716,8 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[80]:
-   : 99
+   # Out[24]:
+   : 211
    :END:
 
 ** Call \phi-QTLs
@@ -1777,7 +1735,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[81]:
+   # Out[14]:
    :END:
 
    Normalize the dispersion matrix. Again, we have infinite values, but
@@ -1790,43 +1748,43 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[82]:
+   # Out[206]:
    :END:
 
    Write out the phenotype file.
 
    #+BEGIN_SRC ipython
-     write_pheno_file(log_phi, gene_info, holdout=True, output_file='/scratch/midway2/aksarkar/singlecell/scqtl-mapping/phi.bed')
+     write_pheno_file(log_phi, gene_info, holdout=False, output_file='/scratch/midway2/aksarkar/singlecell/scqtl-mapping/log_phi.bed')
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[83]:
+   # Out[27]:
    :END:
 
    Index the phenotype file.
 
-   #+CALL: tabix(input="phi.bed") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
+   #+CALL: tabix(input="log_phi.bed") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
 
    #+RESULTS:
-   : Submitted batch job 44977080
+   : Submitted batch job 45075315
 
    Run ~qtltools~.
 
-   #+CALL: qtltools(pheno="phi", geno="/scratch/midway2/aksarkar/singlecell/reproduce-yang/yri-dosages.vcf.gz", op="--window 100000 --permute 10000") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
+   #+CALL: qtltools(pheno="log_phi", geno="/scratch/midway2/aksarkar/singlecell/reproduce-yang/yri-dosages.vcf.gz", op="--window 100000 --permute 10000") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
 
    #+RESULTS:
-   : Submitted batch job 44977088
+   : Submitted batch job 45075319
 
    Read the output.
 
    #+BEGIN_SRC ipython
-    log_phi_qtls = read_qtltools_output('scqtl-mapping/phi')
+    log_phi_qtls = read_qtltools_output('scqtl-mapping/log_phi')
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[84]:
+   # Out[22]:
    :END:
 
    Check the beta approximation to the permutation p-values.
@@ -1837,7 +1795,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[85]:
+   # Out[29]:
    [[file:figure/qtl-mapping.org/phi-qtl-beta-approx.png]]
    :END:
 
@@ -1849,7 +1807,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[86]:
+   # Out[30]:
    [[file:figure/qtl-mapping.org/phi-qtl-qq.png]]
    :END:
 
@@ -1861,7 +1819,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[87]:
+   # Out[31]:
    : 0
    :END:
 
@@ -1884,7 +1842,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[107]:
+   # Out[32]:
    :END:
 
    Normalize the log odds matrix.
@@ -1897,18 +1855,18 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[108]:
+   # Out[33]:
    :END:
 
    Write out the phenotype file.
 
    #+BEGIN_SRC ipython
-     write_pheno_file(logodds, gene_info, holdout=True, output_file='/scratch/midway2/aksarkar/singlecell/scqtl-mapping/logodds.bed')
+     write_pheno_file(logodds, gene_info, holdout=False, output_file='/scratch/midway2/aksarkar/singlecell/scqtl-mapping/logodds.bed')
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[109]:
+   # Out[34]:
    :END:
 
    Index the phenotype file.
@@ -1916,14 +1874,14 @@
    #+CALL: tabix(input="logodds.bed") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
 
    #+RESULTS:
-   : Submitted batch job 44977702
+   : Submitted batch job 45075744
 
    Run ~qtltools~.
 
    #+CALL: qtltools(pheno="logodds", geno="/scratch/midway2/aksarkar/singlecell/reproduce-yang/yri-dosages.vcf.gz", op="--window 100000 --permute 10000") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
 
    #+RESULTS:
-   : Submitted batch job 44977727
+   : Submitted batch job 45075760
 
    Read the output.
 
@@ -1933,7 +1891,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[111]:
+   # Out[23]:
    :END:
 
    Check the beta approximation to the permutation p-values.
@@ -1944,7 +1902,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[112]:
+   # Out[36]:
    [[file:figure/qtl-mapping.org/logodds-qtl-beta-approx.png]]
    :END:
 
@@ -1956,7 +1914,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[113]:
+   # Out[37]:
    [[file:figure/qtl-mapping.org/logodds-qtl-qq.png]]
    :END:
 
@@ -1968,7 +1926,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[114]:
+   # Out[38]:
    : 0
    :END:
 
@@ -1984,6 +1942,7 @@
 
    Read the estimated corrected means.
 
+   #+NAME: read-mean
    #+BEGIN_SRC ipython
      with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
        mean = (pd.read_sql(
@@ -1993,45 +1952,56 @@
                   .pivot(index='gene', columns='ind', values='mean'))
    #+END_SRC
 
+   #+RESULTS: read-mean
+   :RESULTS:
+   # Out[16]:
+   :END:
+
    #+RESULTS:
    :RESULTS:
-   # Out[118]:
+   # Out[207]:
    :END:
 
    Normalize the mean matrix.
 
+   #+NAME: normalize-mean
    #+BEGIN_SRC ipython
-    mean = mean.loc[keep_genes.values.ravel()].transform(lambda x: (x - x.mean()) / x.std(), axis=1).apply(qqnorm, axis=0)
+     mean = mean.loc[keep_genes.values.ravel()].transform(lambda x: (x - x.mean()) / x.std(), axis=1).apply(qqnorm, axis=0)
    #+END_SRC
+
+   #+RESULTS: normalize-mean
+   :RESULTS:
+   # Out[17]:
+   :END:
 
    #+RESULTS:
    :RESULTS:
-   # Out[119]:
+   # Out[208]:
    :END:
 
    Compute principal components of the mean matrix.
 
    #+BEGIN_SRC ipython
-    covars = pd.DataFrame(skd.PCA(n_components=10).fit(mean).components_, columns=mean.columns)
-    covars.index.name = 'id'
-    covars.to_csv('/scratch/midway2/aksarkar/singlecell/scqtl-mapping/mean-pcs.txt', sep='\t')
+     covars = pd.DataFrame(skd.PCA(n_components=10).fit(mean).components_, columns=mean.columns)
+     covars.index.name = 'id'
+     covars.to_csv('/scratch/midway2/aksarkar/singlecell/scqtl-mapping/mean-covars.txt', sep='\t')
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[120]:
+   # Out[41]:
    :END:
 
    Write out the [[https://qtltools.github.io/qtltools/pages/input_files.html][phenotype file]] for ~qtltools~. Hold out even chromosomes while
    optimizing the power to detect eQTLs.
 
    #+BEGIN_SRC ipython
-    write_pheno_file(mean, gene_info, '/scratch/midway2/aksarkar/singlecell/scqtl-mapping/mean.bed', holdout=True)
+    write_pheno_file(mean, gene_info, '/scratch/midway2/aksarkar/singlecell/scqtl-mapping/mean.bed', holdout=False)
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[121]:
+   # Out[42]:
    :END:
 
    Index the phenotype file.
@@ -2039,35 +2009,35 @@
    #+CALL: tabix(input="mean.bed") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
 
    #+RESULTS:
-   : Submitted batch job 44978147
+   : Submitted batch job 45076054
 
    Run ~qtltools~.
 
-   #+CALL: qtltools(pheno="mean", geno="/scratch/midway2/aksarkar/singlecell/reproduce-yang/yri-dosages.vcf.gz", op="--cov mean-pcs.txt --window 100000 --permute 10000") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
+   #+CALL: qtltools(pheno="mean", geno="/scratch/midway2/aksarkar/singlecell/reproduce-yang/yri-dosages.vcf.gz", op="--cov mean-covars.txt --window 100000 --permute 10000") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
 
    #+RESULTS:
-   : Submitted batch job 44978155
+   : Submitted batch job 45076062
 
    Read the output.
 
    #+BEGIN_SRC ipython
-    mean_qtls = read_qtltools_output('scqtl-mapping/mean')
+     mean_qtls = read_qtltools_output('scqtl-mapping/mean')
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[122]:
+   # Out[135]:
    :END:
 
    Check the beta approximation to the permutation p-values.
 
    #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/mean-qtl-beta-approx.png
-    plot_approx_permutation(mean_qtls)
+     plot_approx_permutation(mean_qtls)
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[123]:
+   # Out[44]:
    [[file:figure/qtl-mapping.org/mean-qtl-beta-approx.png]]
    :END:
 
@@ -2079,7 +2049,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[124]:
+   # Out[45]:
    [[file:figure/qtl-mapping.org/mean-qtl-qq.png]]
    :END:
 
@@ -2091,8 +2061,8 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[125]:
-   : 116
+   # Out[46]:
+   : 199
    :END:
 
 ** Call variance-QTLs
@@ -2109,6 +2079,7 @@
 
    Read the estimated corrected variances.
 
+   #+NAME: read-variance
    #+BEGIN_SRC ipython
      with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
        variance = (pd.read_sql(
@@ -2118,32 +2089,55 @@
                   .pivot(index='gene', columns='ind', values='var'))
    #+END_SRC
 
+   #+RESULTS: read-variance
+   :RESULTS:
+   # Out[61]:
+   :END:
+
    #+RESULTS:
    :RESULTS:
-   # Out[126]:
+   # Out[47]:
    :END:
 
    Normalize the variance matrix.
 
+   #+NAME: normalize-variance
    #+BEGIN_SRC ipython
      variance = variance.loc[keep_genes.values.ravel()].transform(lambda x: (x - x.mean()) / x.std(), axis=1).apply(qqnorm, axis=0)
    #+END_SRC
 
-   #+RESULTS:
+   #+RESULTS: normalize-variance
    :RESULTS:
-   # Out[127]:
+   # Out[64]:
    :END:
 
-   Write out the [[https://qtltools.github.io/qtltools/pages/input_files.html][phenotype file]] for ~qtltools~. Hold out even chromosomes while
-   optimizing the power to detect eQTLs.
+   #+RESULTS:
+   :RESULTS:
+   # Out[48]:
+   :END:
+
+   Compute principal components of the variance matrix.
 
    #+BEGIN_SRC ipython
-     write_pheno_file(variance, gene_info, '/scratch/midway2/aksarkar/singlecell/scqtl-mapping/variance.bed', holdout=True)
+     covars = pd.DataFrame(skd.PCA(n_components=2).fit(variance).components_, columns=variance.columns)
+     covars.index.name = 'id'
+     covars.to_csv('/scratch/midway2/aksarkar/singlecell/scqtl-mapping/variance-covars.txt', sep='\t')
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[128]:
+   # Out[65]:
+   :END:
+
+   Write out the [[https://qtltools.github.io/qtltools/pages/input_files.html][phenotype file]] for ~qtltools~.
+
+   #+BEGIN_SRC ipython
+     write_pheno_file(variance, gene_info, '/scratch/midway2/aksarkar/singlecell/scqtl-mapping/variance.bed', holdout=False)
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[66]:
    :END:
 
    Index the phenotype file.
@@ -2151,14 +2145,14 @@
    #+CALL: tabix(input="variance.bed") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
 
    #+RESULTS:
-   : Submitted batch job 44978446
+   : Submitted batch job 45224226
 
    Run ~qtltools~.
 
-   #+CALL: qtltools(pheno="variance", geno="/scratch/midway2/aksarkar/singlecell/reproduce-yang/yri-dosages.vcf.gz", op="--window 100000 --permute 10000") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
+   #+CALL: qtltools(pheno="variance", geno="/scratch/midway2/aksarkar/singlecell/reproduce-yang/yri-dosages.vcf.gz", op="--cov variance-covars.txt --window 100000 --permute 10000") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
 
    #+RESULTS:
-   : Submitted batch job 44978520
+   : Submitted batch job 45224227
 
    Read the output.
 
@@ -2168,7 +2162,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[129]:
+   # Out[67]:
    :END:
 
    Check the beta approximation to the permutation p-values.
@@ -2179,7 +2173,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[130]:
+   # Out[68]:
    [[file:figure/qtl-mapping.org/variance-qtl-beta-approx.png]]
    :END:
 
@@ -2191,7 +2185,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[131]:
+   # Out[69]:
    [[file:figure/qtl-mapping.org/variance-qtl-qq.png]]
    :END:
 
@@ -2203,8 +2197,8 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[132]:
-   : 56
+   # Out[70]:
+   : 100
    :END:
 
 ** Call CV-QTLs
@@ -2223,7 +2217,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[133]:
+   # Out[55]:
    :END:
 
    Normalize the CV matrix.
@@ -2234,19 +2228,19 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[134]:
+   # Out[56]:
    :END:
 
    Write out the [[https://qtltools.github.io/qtltools/pages/input_files.html][phenotype file]] for ~qtltools~. Hold out even chromosomes while
    optimizing the power to detect eQTLs.
 
    #+BEGIN_SRC ipython
-     write_pheno_file(cv, gene_info, '/scratch/midway2/aksarkar/singlecell/scqtl-mapping/cv.bed', holdout=True)
+     write_pheno_file(cv, gene_info, '/scratch/midway2/aksarkar/singlecell/scqtl-mapping/cv.bed', holdout=False)
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[135]:
+   # Out[57]:
    :END:
 
    Index the phenotype file.
@@ -2254,14 +2248,14 @@
    #+CALL: tabix(input="cv.bed") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
 
    #+RESULTS:
-   : Submitted batch job 44978760
+   : Submitted batch job 45076903
 
    Run ~qtltools~.
 
    #+CALL: qtltools(pheno="cv", geno="/scratch/midway2/aksarkar/singlecell/reproduce-yang/yri-dosages.vcf.gz", op="--window 100000 --permute 10000") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
 
    #+RESULTS:
-   : Submitted batch job 44978778
+   : Submitted batch job 45076906
 
    Read the output.
 
@@ -2271,7 +2265,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[136]:
+   # Out[26]:
    :END:
 
    Check the beta approximation to the permutation p-values.
@@ -2282,7 +2276,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[137]:
+   # Out[59]:
    [[file:figure/qtl-mapping.org/cv-qtl-beta-approx.png]]
    :END:
 
@@ -2294,7 +2288,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[138]:
+   # Out[60]:
    [[file:figure/qtl-mapping.org/cv-qtl-qq.png]]
    :END:
 
@@ -2306,8 +2300,8 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[139]:
-   : 1
+   # Out[61]:
+   : 4
    :END:
 
 ** Call Fano-QTLs
@@ -2326,7 +2320,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[140]:
+   # Out[211]:
    :END:
 
    Normalize the Fano matrix.
@@ -2337,19 +2331,19 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[141]:
+   # Out[212]:
    :END:
 
    Write out the [[https://qtltools.github.io/qtltools/pages/input_files.html][phenotype file]] for ~qtltools~. Hold out even chromosomes while
    optimizing the power to detect eQTLs.
 
    #+BEGIN_SRC ipython
-     write_pheno_file(fano, gene_info, '/scratch/midway2/aksarkar/singlecell/scqtl-mapping/fano.bed', holdout=True)
+     write_pheno_file(fano, gene_info, '/scratch/midway2/aksarkar/singlecell/scqtl-mapping/fano.bed', holdout=False)
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[142]:
+   # Out[64]:
    :END:
 
    Index the phenotype file.
@@ -2357,14 +2351,14 @@
    #+CALL: tabix(input="fano.bed") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
 
    #+RESULTS:
-   : Submitted batch job 44978969
+   : Submitted batch job 45077183
 
    Run ~qtltools~.
 
-   #+CALL: qtltools(pheno="fano", geno="/scratch/midway2/aksarkar/singlecell/reproduce-yang/yri-dosages.vcf.gz", op="--window 100000 --permute 10000") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
+   #+CALL: qtltools(pheno="fano", geno="", op="--window 100000 --permute 10000") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
 
    #+RESULTS:
-   : Submitted batch job 44978979
+   : Submitted batch job 45077190
 
    Read the output.
 
@@ -2374,7 +2368,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[143]:
+   # Out[27]:
    :END:
 
    Check the beta approximation to the permutation p-values.
@@ -2385,7 +2379,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[144]:
+   # Out[66]:
    [[file:figure/qtl-mapping.org/fano-qtl-beta-approx.png]]
    :END:
 
@@ -2397,7 +2391,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[145]:
+   # Out[67]:
    [[file:figure/qtl-mapping.org/fano-qtl-qq.png]]
    :END:
 
@@ -2409,9 +2403,30 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[146]:
+   # Out[68]:
    : 9
    :END:
+
+* Write out the QTLs
+
+  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
+    sbatch --partition=broadwl
+    #!/bin/bash
+    cat >.rsync-filter <<EOF
+    + */
+    + *.bed.gz
+    + *.txt.gz
+    + *covars*
+    - *
+    EOF
+    function z { test $1-qtl.1.txt -nt $1.txt.gz && cat $1-qtl.*.txt | awk 'BEGIN {print "gene", "chr", "start", "end", "strand", "num_vars", "distance", "id", "var_chr", "var_start", "var_end", "df", "dummy", "a", "b", "p_nominal", "beta", "p_empirical", "p_beta"} {print}' | gzip >$1.txt.gz; }
+    export -f z
+    parallel -j1 z ::: cv fano log-mean logodds mean phi pooled variance
+    rsync -FFau . /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/
+  #+END_SRC
+
+  #+RESULTS:
+  : Submitted batch job 45224360
 
 * QTL overlap
 
