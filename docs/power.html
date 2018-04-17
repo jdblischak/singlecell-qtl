@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-04-08 Sun 22:22 -->
+<!-- 2018-04-17 Tue 13:53 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Power to detect QTLs in single cell data</title>
@@ -244,6 +244,25 @@ dependence, etc.
 </div>
 </div>
 
+<div id="outline-container-org25c6fde" class="outline-2">
+<h2 id="org25c6fde">Read and QC the single cell counts</h2>
+<div class="outline-text-2" id="text-org25c6fde">
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">annotations</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
+<span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
+<span class="org-variable-name">keep_genes</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
+<span class="org-variable-name">annotations</span> = annotations.loc[keep_samples.values.ravel()]
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">umi</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>, index_col=0)
+<span class="org-variable-name">umi</span> = umi.loc[keep_genes.values.ravel(),keep_samples.values.ravel()]
+</pre>
+</div>
+</div>
+</div>
+
 <div id="outline-container-orgd964d3d" class="outline-2">
 <h2 id="orgd964d3d">Resample scRNA-Seq</h2>
 <div class="outline-text-2" id="text-orgd964d3d">
@@ -326,7 +345,7 @@ plot_concordance(
 </div>
 
 <p>
-The true concordance, <a href="sc-vs-bulk.html#org87e10ac">as previously computed</a>:
+The true concordance, <a href="sc-vs-bulk.html#org0c90c4d">as previously computed</a>:
 </p>
 
 <p>
@@ -433,7 +452,7 @@ account for winner's curse</li>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-04-08 Sun 22:22</p>
+<p class="date">Created: 2018-04-17 Tue 13:53</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
