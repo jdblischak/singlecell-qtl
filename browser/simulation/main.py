@@ -12,38 +12,77 @@ import sqlite3
 db = '/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'
 
 sim_data = bokeh.models.ColumnDataSource(pd.DataFrame(columns=[
-  "log_mu",
-  "log_mu_hat",
-  "log_phi",
-  "log_phi_hat",
-  "logodds",
-  "logodds_hat",
-  "mean",
-  "num_mols",
-  "num_samples",
-  "trial",
-  "var",
+  'log_mu',
+  'log_mu_hat',
+  'log_phi',
+  'log_phi_hat',
+  'logodds',
+  'logodds_hat',
+  'mean',
+  'true_mean',
+  'num_mols',
+  'num_samples',
+  'trial',
+  'var',
+  'true_var',
+  'fano',
+  'true_fano',
 ]))
 
-num_samples_slider = bokeh.models.widgets.Slider(title="Number of samples", value=100, start=100, end=1000, step=225)
-num_mols_slider = bokeh.models.widgets.Slider(title="Number of molecules", value=100e3, start=100e3, end=1000e3, step=225e3)
-log_mu_slider = bokeh.models.widgets.RangeSlider(title="log(μ)", value=(-12, -6), start=-12, end=-6, step=1)
-log_phi_slider = bokeh.models.widgets.RangeSlider(title="log(φ)", value=(-6, -6), start=-6, end=0, step=1)
-logodds_slider = bokeh.models.widgets.RangeSlider(title="logit(π)", value=(-3, -3), start=-3, end=3, step=1)
+theoretical_data = bokeh.models.ColumnDataSource(pd.DataFrame(columns=[
+  'log_mu0',
+  'log_mu1',
+  'log_phi0',
+  'log_phi1',
+  'logodds0',
+  'logodds1',
+  'true_mean0',
+  'true_mean1',
+  'true_var0',
+  'true_var1',
+  'true_fano0',
+  'true_fano1',
+]))
+
+num_samples_slider = bokeh.models.widgets.Slider(title='Number of samples', value=100, start=100, end=1000, step=225)
+num_mols_slider = bokeh.models.widgets.Slider(title='Number of molecules', value=100e3, start=100e3, end=1000e3, step=225e3)
+log_mu_slider = bokeh.models.widgets.RangeSlider(title='log(μ)', value=(-12, -6), start=-12, end=-6, step=1)
+log_phi_slider = bokeh.models.widgets.RangeSlider(title='log(φ)', value=(-6, -6), start=-6, end=0, step=1)
+logodds_slider = bokeh.models.widgets.RangeSlider(title='logit(π)', value=(-3, -3), start=-3, end=3, step=1)
 controls = [num_samples_slider, num_mols_slider, log_mu_slider, log_phi_slider, logodds_slider]
 
 def update(attr, old, new):
   global sim_data
   args = [x.value for x in controls[:2]] + [endpoint for x in controls[2:] for endpoint in x.value]
   with sqlite3.connect(db) as conn:
-    sim_data.data = bokeh.models.ColumnDataSource.from_df(pd.read_sql(
+    params = pd.read_sql(
       """select * from simulation 
       where num_samples == ? and num_mols == ? and 
       log_mu >= ? and log_mu <= ? and 
       log_phi >= ? and log_phi <= ? and 
       logodds >= ? and logodds <= ?""",
       conn,
-      params=args))
+      params=args)
+    params['true_mean'] = params['num_mols'] * np.exp(params['log_mu'])
+    params['true_var'] = params['true_mean'] + np.square(params['true_mean']) * np.exp(params['log_phi'])
+    params['fano'] = params['var'] / params['mean']
+    params['true_fano'] = params['true_var'] / params['true_mean']
+    sim_data.data = bokeh.models.ColumnDataSource.from_df(params)
+    theoretical_data.data = bokeh.models.ColumnDataSource.from_df(pd.DataFrame(
+      {
+        'log_mu0': params['log_mu'].min(),
+        'log_mu1': params['log_mu'].max(),
+        'log_phi0': params['log_phi'].min(),
+        'log_phi1': params['log_phi'].max(),
+        'logodds0': params['logodds'].min(),
+        'logodds1': params['logodds'].max(),
+        'true_mean0': params['true_mean'].min(),
+        'true_mean1': params['true_mean'].max(),
+        'true_var0': params['true_var'].min(),
+        'true_var1': params['true_var'].max(),
+        'true_fano0': params['true_fano'].min(),
+        'true_fano1': params['true_fano'].max(),
+      }, index=[0]))
 
 for c in controls:
   c.on_change('value', update)
@@ -55,25 +94,44 @@ tools = []
 
 log_mu = bokeh.plotting.figure(width=300, height=300, tools=tools)
 log_mu.scatter(source=sim_data, x='log_mu', y='log_mu_hat', color='black', size=6)
-log_mu.segment(x0=-12, y0=-12, x1=-6, y1=-6, color='red', line_width=1)
+log_mu.segment(source=theoretical_data, x0='log_mu0', y0='log_mu0', x1='log_mu1', y1='log_mu1', line_width=1)
 log_mu.xaxis.axis_label = 'True log(μ)'
 log_mu.yaxis.axis_label = 'Estimated log(μ)'
 
 log_phi = bokeh.plotting.figure(width=300, height=300, tools=tools)
 log_phi.scatter(source=sim_data, x='log_phi', y='log_phi_hat', color='black', size=6)
-log_phi.segment(x0=-6, y0=-6, x1=0, y1=0, color='red', line_width=1)
+log_phi.segment(source=theoretical_data, x0='log_phi0', y0='log_phi0', x1='log_phi1', y1='log_phi1', line_width=1)
 log_phi.xaxis.axis_label = 'True log(φ)'
 log_phi.yaxis.axis_label = 'Estimated log(φ)'
 
 logodds = bokeh.plotting.figure(width=300, height=300, tools=tools)
 logodds.scatter(source=sim_data, x='logodds', y='logodds_hat', color='black', size=6)
-logodds.segment(x0=-3, y0=-3, x1=3, y1=3, color='red', line_width=1)
+logodds.segment(source=theoretical_data, x0='logodds0', y0='logodds0', x1='logodds1', y1='logodds1', line_width=1)
 logodds.xaxis.axis_label = 'True logit(π)'
 logodds.yaxis.axis_label = 'Estimated logit(π)'
 
+mean = bokeh.plotting.figure(width=300, height=300, tools=tools)
+mean.scatter(source=sim_data, x='true_mean', y='mean', color='black', size=6)
+mean.segment(source=theoretical_data, x0='true_mean0', y0='true_mean0', x1='true_mean1', y1='true_mean1', line_width=1)
+mean.xaxis.axis_label = 'True mean'
+mean.yaxis.axis_label = 'Estimated mean'
+
+var = bokeh.plotting.figure(width=300, height=300, tools=tools)
+var.scatter(source=sim_data, x='true_var', y='var', color='black', size=6)
+var.segment(source=theoretical_data, x0='true_var0', y0='true_var0', x1='true_var1', y1='true_var1', line_width=1)
+var.xaxis.axis_label = 'True variance'
+var.yaxis.axis_label = 'Estimated variance'
+
+fano = bokeh.plotting.figure(width=300, height=300, tools=tools)
+fano.scatter(source=sim_data, x='true_fano', y='fano', color='black', size=6)
+fano.segment(source=theoretical_data, x0='true_fano0', y0='true_fano0', x1='true_fano1', y1='true_fano1', line_width=1)
+fano.xaxis.axis_label = 'True Fano factor'
+fano.yaxis.axis_label = 'Estimated Fano factor'
+
 layout = bokeh.layouts.layout([[
   bokeh.layouts.widgetbox(*controls, width=300),
-  bokeh.layouts.gridplot([[log_mu, log_phi, logodds]]),
+  bokeh.layouts.gridplot([[log_mu, log_phi, logodds],
+                          [mean, var, fano]]),
 ]])
 
 doc = bokeh.io.curdoc()
