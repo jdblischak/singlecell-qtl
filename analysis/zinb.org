@@ -70,7 +70,7 @@
   #+CALL: ipython3(memory="6G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 44968702
+  : Submitted batch job 45235112
 
   #+NAME: zinb-imports
   #+BEGIN_SRC ipython
@@ -89,14 +89,14 @@
 
   #+BEGIN_SRC ipython
     %matplotlib inline
-    %config InlineBackend.figure_formats = set(['svg'])
+    %config InlineBackend.figure_formats = set(['retina'])
     import colorcet
     import matplotlib.pyplot as plt
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[2]:
+  # Out[3]:
   :END:
 
   #+NAME: tf-imports
@@ -706,6 +706,43 @@
   # Out[3]:
   :END:
 
+* Mean-variance relationship by individual
+
+  Read the estimated parameters.
+
+  #+BEGIN_SRC ipython
+    with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
+      params = pd.read_sql('select * from params;', conn)
+  #+END_SRC  
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[4]:
+  :END:
+
+  Plot the mean-variance relationship for one individual.
+
+  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/mean-var-rel.png
+    subset = params[params['ind'] == 'NA18501']
+    subset = subset[subset['mean'] > 0]
+    grid = np.linspace(subset['mean'].min(), subset['mean'].max(), 200)
+    plt.clf()
+    plt.gcf().set_size_inches(6, 6)
+    plt.scatter(subset['mean'], subset['var'] / subset['mean'], s=2, c='k')
+    for phi in np.linspace(0, 1, 5):
+      plt.plot(grid, (grid + np.square(grid) * phi) / (grid + 1e-8), label='{:.2f}'.format(phi), c=colorcet.cm['bkr'](phi), ls=':', lw=1)
+    plt.legend(title='Overdispersion')
+    plt.xlabel('Estimated mean')
+    plt.ylabel('Estimated Fano factor')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[36]:
+  : Text(0,0.5,'Estimated Fano factor')
+  [[file:figure/zinb.org/mean-var-rel.png]]
+  :END:
+
 * Per-gene dispersion
 
   The index of dispersion for observed data \(r_{ijk}\) at gene \(k\) is:
@@ -745,5 +782,57 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[2]:
+  # Out[37]:
+  :END:
+
+  Plot the mean-variance relationship over all genes, estimated using all of
+  the data and accounting for the fact that data came from different
+  individuals.
+
+  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/overall-mean-var-rel.png
+    subset = gene_params[gene_params[0] > 0]
+    subset.columns = ['mean', 'var']
+    lim = [subset['mean'].min(), subset['mean'].max()]
+    grid = np.linspace(*lim, num=200)
+    plt.clf()
+    plt.gcf().set_size_inches(6, 6)
+    plt.scatter(subset['mean'], subset['var'] / subset['mean'], s=2, c='k')
+    for phi in np.geomspace(.1, 2, 5):
+      plt.plot(grid, (grid + np.square(grid) * phi) / (grid + 1e-8), label='{:.2f}'.format(phi), c=colorcet.cm['bkr'](phi), ls=':', lw=1)
+    plt.legend(title='Overdispersion')
+    plt.xlim(lim)
+    plt.ylim(lim)
+    plt.xlabel('Estimated mean')
+    _ = plt.ylabel('Estimated Fano factor')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[72]:
+  [[file:figure/zinb.org/overall-mean-var-rel.png]]
+  :END:
+
+  Bin the data and plot the distribution by bin.
+
+  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/overall-mean-var-rel-by-quantile.png
+    n_bin = 8
+    subset['bin'] = pd.cut(subset['mean'], n_bin)
+    subset['fano'] = subset['var'] / subset['mean']
+    plt.clf()
+    plt.gcf().set_size_inches(5, 4)
+    for i, (k, g) in enumerate(subset.groupby('bin')):
+      if len(g) < 10:
+        plt.scatter((i + .5) * np.ones(g['fano'].shape[0]), g['fano'], c='k', s=4, label=k)
+      else:
+        plt.boxplot(g['fano'], positions=[i + .5], sym='.', widths=.25)
+    plt.xticks(np.arange(n_bin + 1), ['{:.2f}'.format(x) for x in np.linspace(0, 1, n_bin + 1)])
+    plt.xlim(0, n_bin)
+    plt.xlabel('Quantile of estimated mean')
+    _ = plt.ylabel('Estimated Fano factor')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[122]:
+  [[file:figure/zinb.org/overall-mean-var-rel-by-quantile.png]]
   :END:
