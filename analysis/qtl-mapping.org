@@ -76,7 +76,7 @@
 
   #+RESULTS: r-wrappers
   :RESULTS:
-  # Out[2]:
+  # Out[127]:
   :END:
 
   #+NAME: get-gene-info
@@ -91,7 +91,7 @@
 
   #+RESULTS: get-gene-info
   :RESULTS:
-  # Out[3]:
+  # Out[128]:
   :END:
 
   #+RESULTS:
@@ -145,7 +145,7 @@
 
   #+RESULTS: write-pheno-def
   :RESULTS:
-  # Out[4]:
+  # Out[129]:
   :END:
 
   #+NAME: tabix
@@ -229,7 +229,7 @@
 
   #+RESULTS: plot-approx-perm-def
   :RESULTS:
-  # Out[6]:
+  # Out[131]:
   :END:
 
   #+NAME: qqplot-def
@@ -252,7 +252,7 @@
 
   #+RESULTS: qqplot-def
   :RESULTS:
-  # Out[7]:
+  # Out[132]:
   :END:
 
   #+NAME: replication-tests-def
@@ -268,18 +268,27 @@
       header = ['NA{}'.format(x) for x in pd.read_table(dosages, nrows=1, header=0).columns[9:]]
       genotypes = tabix.open(dosages)
       X, Y = (common_qtls
-              .apply(lambda x: parse_vcf_dosage(next(genotypes.query(x['chr'], int(x['pos']) - 1, int(x['pos'])))), axis=1)
+              .apply(lambda x: parse_vcf_dosage(next(genotypes.query(x['chr'], int(x['var_start']) - 1, int(x['var_start'])))), axis=1)
               .rename(columns={i: ind for i, ind in enumerate(header)})
               .align(common_phenos, join='inner', axis=None))
       return X, Y
 
-    def replication_tests(X, Y):
+    def replication_tests(X, Y, C=None):
       """Return a DataFrame containing replication p-values
 
       X - centered dosage matrix (num_genes, num_individuals)
       Y - phenotype matrix (num_genes, num_individuals)
+      C - confounder matrix (num_confounders, num_individuals)
 
       """
+      p, n = X.shape
+      assert Y.shape == (p, n)
+      if C is not None:
+        assert C.shape[1] == n
+        C = np.array(C).T
+        C = C - C.mean(axis=0)
+        # Construct the annihilator matrix I - X X^+
+        M = np.eye(n) - C.dot(np.linalg.pinv(C))
       result = []
       _sf = st.chi2(1).sf
       for (_, x), (name, y) in zip(X.iterrows(), Y.iterrows()):
@@ -287,20 +296,44 @@
           print('Skipping {}'.format(name))
           continue
         x = x.values.copy().reshape(-1, 1)
-        y = y.values.copy().ravel()
         x -= x.mean()
+        y = y.values.copy().ravel()
         y -= y.mean()
+        if C is not None:
+          y = M.dot(y)
+          y -= y.mean()
         beta, rss, *_ = np.linalg.lstsq(x, y, rcond=-1)
         sigma2 = rss / y.shape[0]
         se = sigma2 / x.T.dot(x).ravel()
         pval = _sf(np.square(beta / se))
-        result.append({'gene': name, 'beta': beta[0], 'p': pval.ravel()[0]})
+        result.append({'gene': name, 'beta': beta[0], 'se': se[0], 'p': pval.ravel()[0]})
       return pd.DataFrame.from_dict(result)
+
+    def pairwise_replication(qtls, phenos, ticks):
+      repl_rate = np.ones((len(phenos), len(phenos)))
+      for i, ki in enumerate(phenos):
+        for j, kj in enumerate(phenos):
+          if i == j:
+            continue
+          q, p = qtls[ki][0], qtls[kj][1]
+          X, Y = extract_qtl_gene_pair(q[q['fdr_pass']], p,
+                                       dosages='/scratch/midway2/aksarkar/singlecell/reproduce-yang/YRI_SNPs_2_IPSC.txt.gen.gz')
+          if X.empty:
+            continue
+          replication = q.merge(
+            replication_tests(X, Y),
+            on='gene',
+            suffixes=['_1', '_2'])[['gene', 'id', 'beta_1', 'beta_2', 'p']]
+          replication['fdr_pass'] = bh(replication['p']) < .1
+          replication['replicated'] = replication.apply(lambda x: x['fdr_pass'] and x['beta_1'] * x['beta_2'] > 0, axis=1)
+          repl_rate[i, j] = replication['replicated'].sum() / replication.shape[0]
+      return pd.DataFrame(100 * repl_rate, columns=ticks, index=ticks)
   #+END_SRC
 
   #+RESULTS: replication-tests-def
   :RESULTS:
-  # Out[8]:
+  # Out[133]:
+  :END:
   :END:
 
 * Preliminaries
@@ -541,7 +574,18 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[149]:
+   # Out[19]:
+   :END:
+
+   Write out the summary stats with headers.
+
+   #+BEGIN_SRC ipython
+     bulk_qtls.to_csv('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/bulk.txt.gz', sep='\t', index=None, compression='gzip')
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[21]:
    :END:
 
    Compare ~qtltools~ to ~fastqtl~. The input files need to be modified.
@@ -2429,86 +2473,92 @@
   : Submitted batch job 45224360
 
 * QTL overlap
+** Replication rates
+
+  Read the QTLs and normalized expression matrices.
 
   #+BEGIN_SRC ipython
-    ticks = ['Bulk', 'Pooled', '$\log(\mu)$', 'ZI mean']
-    if 'p' in bulk_qtls:
-      # Important: this collides with the field we're going to add in
-      # replication_tests
-      del bulk_qtls['p']
-    phenos = [bulk_expr.iloc[:,5:], pooled_cpm, log_mu, mean]
-    qtls = [bulk_qtls, pooled_qtls, log_mu_qtls, mean_qtls]
-    repl_rate = np.ones((len(phenos), len(phenos)))
-    for i in range(len(qtls)):
-      for j in range(len(qtls)):
-        if i == j:
-          continue
-        X, Y = extract_qtl_gene_pair(
-          qtls[i][qtls[i]['fdr_pass']],
-          phenos[j],
-          dosages='/scratch/midway2/aksarkar/singlecell/reproduce-yang/YRI_SNPs_2_IPSC.txt.gen.gz')
-        replication = qtls[i].merge(
-          replication_tests(X, Y),
-          on='gene',
-          suffixes=['_1', '_2'])[['gene', 'id', 'beta_1', 'beta_2', 'p']]
-        replication['fdr_pass'] = bh(replication['p']) < .1
-        replication['replicated'] = replication.apply(lambda x: x['fdr_pass'] and x['beta_1'] * x['beta_2'] > 0, axis=1)
-        repl_rate[i, j] = replication['replicated'].sum() / replication.shape[0]
-    pd.options.display.float_format = '{:.3g}'.format
-    pd.DataFrame(100 * repl_rate, columns=ticks, index=ticks)
+    prefix = '/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/'
+    qtls = {pheno: (pd.read_table('{}/{}.txt.gz'.format(prefix, pheno), sep=' '),
+                    pd.read_table('{}/{}.bed.gz'.format(prefix, pheno)).set_index('pid').filter(like='NA', axis='columns'))
+            for pheno in ['pooled', 'log_mu', 'log_phi', 'mean', 'variance', 'fano']}
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[183]:
+  # Out[123]:
+  :END:
+
+  The bulk QTLs are in ~fastqtl~ format and need some munging.
+
+  #+BEGIN_SRC ipython
+    bulk_qtls = pd.read_table('{}/bulk.txt.gz'.format(prefix))
+    bulk_qtls['var_start'] = bulk_qtls['pos']
+    # Important: this collides with the field we're going to add in
+    # replication_tests
+    del bulk_qtls['p']
+    bulk_expr = pd.read_table('{}/bulk.bed.gz'.format(prefix)).set_index('pid').filter(like='NA', axis='columns')
+    bulk_expr.index = [x.split('.')[0] for x in bulk_expr.index]
+    qtls['bulk'] = (bulk_qtls, bulk_expr)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[124]:
+  :END:
+
+  Compute the gene-level FDR filter.
+
+  #+BEGIN_SRC ipython
+    for k in qtls:
+      qtls[k][0]['fdr_pass'] = bh(qtls[k][0]['p_beta']) < 0.1
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[136]:
+  :END:
+
+  Estimate replication rates for mean QTLs.
+
+  #+BEGIN_SRC ipython
+    pd.options.display.float_format = '{:.3g}'.format
+    pairwise_replication(qtls, phenos=['bulk', 'pooled', 'log_mu', 'mean'], ticks=['Bulk', 'Pooled', '$\log(\mu)$', 'ZI mean'])
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[88]:
   #+BEGIN_EXAMPLE
     Bulk  Pooled  $\log(\mu)$  ZI mean
     Bulk          100    80.1         77.2     77.1
-    Pooled       83.2     100          100     99.2
-    $\log(\mu)$  81.6      99          100      100
-    ZI mean      76.2    99.1          100      100
+    Pooled         82     100          100     99.6
+    $\log(\mu)$  80.6    99.5          100      100
+    ZI mean      80.1    99.5          100      100
   #+END_EXAMPLE
   :END:
 
+  Estimate the rate at which variance QTLs replicate as mean QTLs (and vice versa).
+
   #+BEGIN_SRC ipython
-    ticks = ['$\log(\mu)$', 'ZI mean', '$\log(\phi)$', 'ZI variance', 'ZI Fano']
-    phenos = [log_mu, mean, log_phi, variance, fano]
-    qtls = [log_mu_qtls, mean_qtls, log_phi_qtls, variance_qtls, fano_qtls]
-    overlap = np.zeros((len(phenos), len(phenos)))
-    for i in range(len(qtls)):
-      for j in range(len(qtls)):
-        if i == j:
-          overlap[i, j] = 1
-          continue
-        X, Y = extract_qtl_gene_pair(
-          qtls[i][qtls[i]['fdr_pass']],
-          phenos[j],
-          dosages='/scratch/midway2/aksarkar/singlecell/reproduce-yang/YRI_SNPs_2_IPSC.txt.gen.gz')
-        if not X.empty:
-          replication = qtls[i].merge(
-            replication_tests(X, Y),
-            on='gene',
-            suffixes=['_1', '_2'])[['gene', 'id', 'beta_1', 'beta_2', 'p']]
-          replication['fdr_pass'] = bh(replication['p']) < .1
-          replication['replicated'] = replication.apply(lambda x: x['fdr_pass'] and x['beta_1'] * x['beta_2'] > 0, axis=1)
-          overlap[i, j] = replication['replicated'].sum() / replication.shape[0]
-    pd.DataFrame(100 * overlap, columns=ticks, index=ticks)
+    pairwise_replication(qtls,
+                         phenos=['bulk', 'pooled', 'log_mu', 'mean', 'log_phi', 'variance', 'fano'],
+                         ticks=['Bulk', 'Pooled', '$\log(\mu)$', 'ZI mean', '$\log(\phi)$', 'ZI variance', 'ZI Fano'])
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[184]:
+  # Out[104]:
   #+BEGIN_EXAMPLE
     $\log(\mu)$  ZI mean  $\log(\phi)$  ZI variance  ZI Fano
-    $\log(\mu)$           100      100          49.5           98     80.8
-    ZI mean               100      100          44.8         99.1     77.6
-    $\log(\phi)$            0        0           100            0        0
-    ZI variance           100      100          83.9          100      100
-    ZI Fano               100     88.9           100          100      100
+    $\log(\mu)$           100      100          43.3         99.5     83.3
+    ZI mean               100      100          41.9          100     81.8
+    $\log(\phi)$          100      100           100          100      100
+    ZI variance           100      100          84.1          100      100
+    ZI Fano               100      100           100          100      100
   #+END_EXAMPLE
   :END:
 
-* Write out the QTLs
 
   #+BEGIN_SRC ipython
     with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
