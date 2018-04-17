@@ -15,12 +15,12 @@
   #+END_SRC
 
   #+RESULTS:
-  : 5
+  : 1
 
-  #+CALL: ipython3()
+  #+CALL: ipython3(memory="16G", venv="scqtl")
 
   #+RESULTS:
-  : Submitted batch job 40644784
+  : Submitted batch job 44915330
 
   #+NAME: imports
   #+BEGIN_SRC ipython
@@ -42,18 +42,31 @@
   :RESULTS:
   :END:
 
-  #+CALL: load-data-defs()
+  #+CALL: concordance-def()
 
   #+RESULTS:
   :RESULTS:
+  # Out[158]:
   :END:
 
-  #+CALL: load-data()
+* Read and QC the single cell counts
+
+  #+BEGIN_SRC ipython
+    annotations = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
+    keep_samples = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
+    keep_genes = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt', index_col=0, header=None)
+    annotations = annotations.loc[keep_samples.values.ravel()]
+  #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  : ((20327, 2261), (34608, 15))
+  # Out[4]:
   :END:
+
+  #+BEGIN_SRC ipython
+    umi = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', index_col=0)
+    umi = umi.loc[keep_genes.values.ravel(),keep_samples.values.ravel()]
+  #+END_SRC
 
 * Resample scRNA-Seq
 
