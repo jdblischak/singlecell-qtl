@@ -62,18 +62,20 @@ num_mols_slider = bokeh.models.widgets.Slider(title='Number of molecules', value
 log_mu_slider = bokeh.models.widgets.RangeSlider(title='log(μ)', value=(-12, -6), start=-12, end=-6, step=1)
 log_phi_slider = bokeh.models.widgets.RangeSlider(title='log(φ)', value=(-6, -6), start=-6, end=0, step=1)
 logodds_slider = bokeh.models.widgets.RangeSlider(title='logit(π)', value=(-3, -3), start=-3, end=3, step=1)
-controls = [num_samples_slider, num_mols_slider, log_mu_slider, log_phi_slider, logodds_slider]
+fold_slider = bokeh.models.widgets.Slider(title='Expected fold change by confounding', value=1, start=1, end=1.25, step=0.05)
+controls = [num_samples_slider, num_mols_slider, log_mu_slider, log_phi_slider, logodds_slider, fold_slider]
 
 def update(attr, old, new):
   global sim_data
-  args = [x.value for x in controls[:2]] + [round(endpoint) for x in controls[2:] for endpoint in x.value]
+  args = [x.value for x in controls[:2]] + [round(endpoint) for x in controls[2:-1] for endpoint in x.value] + [controls[-1].value, controls[-1].value]
   with sqlite3.connect(db) as conn:
     params = pd.read_sql(
       """select * from simulation 
       where num_samples == ? and num_mols == ? and 
       log_mu >= ? and log_mu <= ? and 
       log_phi >= ? and log_phi <= ? and 
-      logodds >= ? and logodds <= ?""",
+      logodds >= ? and logodds <= ?
+      and fold >= ? - 1e-8 and fold <= ? + 1e-8""",
       conn,
       params=args)
     params['true_mean'] = params['num_mols'] * np.exp(params['log_mu'])

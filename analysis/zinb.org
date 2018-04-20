@@ -70,7 +70,7 @@
   #+CALL: ipython3(memory="6G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 45449430
+  : Submitted batch job 45307417
 
   #+NAME: zinb-imports
   #+BEGIN_SRC ipython
@@ -92,7 +92,6 @@
     %config InlineBackend.figure_formats = set(['retina'])
     import colorcet
     import matplotlib.pyplot as plt
-    import sklearn.linear_model as sklm
   #+END_SRC
 
   #+RESULTS:
@@ -411,10 +410,17 @@
       lim = np.log(np.finfo(np.float64).resolution)
       return np.clip(sp.expit(x), lim, -lim)
 
-    def nb(theta, x, size):
-      """Return the per-data point log likelihood NB(x; theta, size)"""
-      mean, inv_disp = np.exp(theta)
+    def nb(theta, x, size, design=None):
+      """Return the per-data point log likelihood
+
+      x ~ Poisson(size .* design' * theta[2:] * exp(theta[0]) * u)
+      u ~ Gamma(exp(theta[1]), exp(theta[1]))
+
+      """
+      mean, inv_disp = np.exp(theta[:2])
       mean *= size
+      if design is not None:
+        mean *= np.exp(design.dot(theta[2:]))
       assert mean.shape == x.shape
       return (x * log(mean / inv_disp) -
               x * log(1 + mean / inv_disp) -
@@ -423,32 +429,37 @@
               sp.gammaln(inv_disp) -
               sp.gammaln(x + 1))
 
-    def _nb(theta, x, size):
+    def _nb(theta, x, size, design=None):
       """Return the mean negative log likelihood of x"""
-      return -nb(theta, x, size).mean()
+      return -nb(theta, x, size, design).mean()
 
-    def zinb(theta, x, size):
+    def zinb(theta, x, size, design=None):
       """Return the mean negative log likelihood of x"""
-      theta, logodds = theta[:2], theta[2]
-      case_non_zero = -np.log1p(np.exp(logodds)) + nb(theta, x, size)
+      logodds, theta = theta[0], theta[1:]
+      case_non_zero = -np.log1p(np.exp(logodds)) + nb(theta, x, size, design)
       case_zero = np.logaddexp(logodds - np.log1p(np.exp(logodds)), case_non_zero)
-      return -np.where(x < 1e-8, case_zero, case_non_zero).mean()
+      return -np.where(x < 1, case_zero, case_non_zero).mean()
 
-    def _fit_gene(chunk):
+    def _fit_gene(chunk, design=None):
       if chunk[:,0].sum() == 0:
         # Without stringent QC, we need to handle the case of all zero observations
         return [-np.inf, -np.inf, np.inf, 0, 0]
-      res0 = so.minimize(_nb, x0=[0, 0], args=(chunk[:,0], chunk[:,1]))
+      if design is None:
+        x0 = np.zeros(2)
+      else:
+        assert design.shape[0] == chunk.shape[0]
+        x0 = np.zeros(2 + design.shape[1])
+      res0 = so.minimize(_nb, x0=x0, args=(chunk[:,0], chunk[:,1], design))
       pi0 = (chunk[:,0] == 0).sum() / chunk.shape[0]
-      res = so.minimize(zinb, x0=list(res0.x) + [sp.logit(pi0 + 1e-8)], args=(chunk[:,0], chunk[:,1]))
+      res = so.minimize(zinb, x0=[sp.logit(pi0 + 1e-8)] + list(res0.x), args=(chunk[:,0], chunk[:,1], design))
       if res0.fun < res.fun:
         # This isn't a likelihood ratio test. Numerically, our implementation of
         # ZINB can't represent pi = 0, so we need to use a separate implementation
         # for it
-        log_mu, neg_log_phi = res0.x
+        log_mu, neg_log_phi, *_ = res0.x
         logit_pi = -np.inf
       else:
-        log_mu, neg_log_phi, logit_pi = res.x
+        logit_pi, log_mu, neg_log_phi, *_ = res.x
       mean_by_sample = chunk[:,1].ravel() * np.exp(log_mu)
       var_by_sample = mean_by_sample + np.square(mean_by_sample) * np.exp(-neg_log_phi)
       mean_by_ind = mean_by_sample.mean()
@@ -466,7 +477,7 @@
 
   #+RESULTS: np-zinb-impl
   :RESULTS:
-  # Out[20]:
+  # Out[28]:
   :END:
 
   Computing analytic SE runs into numerical problems.
@@ -505,9 +516,25 @@
 
   Check the parameter estimation on simulated data.
 
+  Assuming simulated confounders \(x\) are isotropic Gaussian, we can derive
+  the scale of \(\beta\) to achieve a specified fold-change in relative
+  abundance:
+
+  \[ x \sim N(0, 1) \]
+
+  Letting \(\tau\) denote precision:
+
+  \[ \beta \sim N(0, \tau) \]
+
+  \[ x\beta \sim N(0, 1 + \tau) \]
+
+  \[ \mathbb{E}[x\beta] = y = \exp\left(\frac{1}{2 (1 + \tau)}\right) \]
+
+  \[ \tau = \frac{1 - 2 \ln y}{2 \ln y} \]  
+
   #+NAME: sim-impl
   #+BEGIN_SRC ipython
-    def simulate(num_samples, size=None, log_mu=None, log_phi=None, logodds=None, seed=None):
+    def simulate(num_samples, size=None, log_mu=None, log_phi=None, logodds=None, seed=None, design=None, fold=None):
       if seed is None:
         seed = 0
       np.random.seed(seed)
@@ -521,24 +548,38 @@
         prob = np.random.uniform()
       else:
         prob = sp.expit(logodds)
+      if design is None:
+        design = np.random.normal(size=(num_samples, 1))
+      else:
+        assert design.shape[0] == num_samples
+      if fold is None or np.isclose(fold, 1):
+        beta = np.array([[0]])
+      else:
+        assert fold > 1
+        beta = np.random.normal(size=(design.shape[1], 1), scale=2 * np.log(fold) / (1 - 2 * np.log(fold)))
+
       n = np.exp(-log_phi)
-      p = 1 / (1 + size * np.exp(log_mu + log_phi))
+      p = 1 / (1 + size * np.exp(log_mu + design.dot(beta) + log_phi)).ravel()
       x = np.where(np.random.uniform(size=num_samples) < prob,
                    0,
                    np.random.negative_binomial(n=n, p=p, size=num_samples))
-      return np.vstack((x, size * np.ones(num_samples))).T
+      return np.vstack((x, size * np.ones(num_samples))).T, design
 
-    def evaluate(num_samples, num_mols, log_mu, log_phi, logodds, trial):
-      x = simulate(num_samples=num_samples, size=num_mols,
-                   log_mu=log_mu, log_phi=log_phi,
-                   logodds=logodds, seed=trial)
+    def batch_design_matrix(num_samples, num_batches):
+      """Return a matrix of binary indicators representing batch assignment"""
+      design = np.zeros((num_samples, num_batches))
+      design[np.arange(num_samples), np.random.choice(num_batches, size=num_samples)] = 1
+      return design
+
+    def evaluate(num_samples, num_mols, log_mu, log_phi, logodds, fold, trial):
+      x, design = simulate(num_samples=num_samples, size=num_mols,
+                           log_mu=log_mu, log_phi=log_phi,
+                           logodds=logodds, design=None, fold=fold, seed=trial)
       keys = ['num_samples', 'num_mols', 'log_mu', 'log_phi', 'logodds', 'trial',
-              'log_mu_hat', 'log_phi_hat', 'logodds_hat', 'mean', 'var']
-      result = [num_samples, num_mols, log_mu, log_phi, logodds, trial] + list(_fit_gene(x))
+              'fold', 'log_mu_hat', 'log_phi_hat', 'logodds_hat', 'mean', 'var']
+      result = [num_samples, num_mols, log_mu, log_phi, logodds, trial, fold] + list(_fit_gene(x, design))
       result = {k: v for k, v in zip(keys, result)}
-      # Important: follow edgeR here
-      eps = .5 / num_mols
-      log_cpm = np.log(x[:,0] + eps) - np.log(x[:,1] + 2 * eps) + 6 * np.log(10)
+      log_cpm = np.log(x[:,0] + 1) - np.log(x[:,1]) + 6 * np.log(10)
       result['mean_log_cpm'] = log_cpm.mean()
       result['var_log_cpm'] = log_cpm.var()
       return result
@@ -546,42 +587,133 @@
 
   #+RESULTS: sim-impl
   :RESULTS:
-  # Out[2]:
+  # Out[280]:
   :END:
 
-  #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/sim.py
+  Check the implementation actually worked.
+
+  #+BEGIN_SRC ipython
+    x, design = simulate(num_samples=1000, size=1e5, log_mu=-8, log_phi=-6, logodds=-3, seed=0, fold=1.3)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[265]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    _fit_gene(x)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[266]:
+  #+BEGIN_EXAMPLE
+    [-7.8374613012654155,
+    -0.9486405356911012,
+    -2.897129862156103,
+    39.46697174214084,
+    642.6904819352392]
+  #+END_EXAMPLE
+  :END:
+
+  #+BEGIN_SRC ipython
+    _fit_gene(x, design)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[267]:
+  #+BEGIN_EXAMPLE
+    [-8.010835294475278,
+    -5.361781894730521,
+    -2.8841721644494522,
+    33.18474128733248,
+    38.35229003613272]
+  #+END_EXAMPLE
+  :END:
+
+  #+BEGIN_SRC ipython
+    evaluate(num_samples=1000, num_mols=1e5, log_mu=-8, log_phi=-6, logodds=-3, fold=1.3, trial=0)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[281]:
+  #+BEGIN_EXAMPLE
+    {'fold': 1.3,
+    'log_mu': -8,
+    'log_mu_hat': -8.010835294475278,
+    'log_phi': -6,
+    'log_phi_hat': -5.361781894730521,
+    'logodds': -3,
+    'logodds_hat': -2.8841721644494522,
+    'mean': 33.18474128733248,
+    'mean_log_cpm': 5.612601676299008,
+    'num_mols': 100000.0,
+    'num_samples': 1000,
+    'trial': 0,
+    'var': 38.35229003613272,
+    'var_log_cpm': 1.0138767222629645}
+  #+END_EXAMPLE
+  :END:
+
+  Investigate what happens as the number of confounders increases.
+
+  #+BEGIN_SRC ipython
+    design = np.random.normal(size=(300, 20))
+    x, _ = simulate(num_samples=300, size=1e5, log_mu=-8, log_phi=-6, logodds=-3, seed=0, design=design, fold=1.1)
+    _fit_gene(x, design)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[322]:
+  #+BEGIN_EXAMPLE
+    [-8.00649125343069,
+    -6.410804905890429,
+    -2.99891159295469,
+    33.32921072894424,
+    35.15509338485383]
+  #+END_EXAMPLE
+  :END:
+
+  Run the simulation on 28 CPUs.
+
+  #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /scratch/midway2/aksarkar/singlecell/density-estimation/sim.py
     #!/usr/bin/env python3
     <<zinb-imports>>
     import multiprocessing as mp
     import sqlite3
     <<np-zinb-impl>>
     <<sim-impl>>
-    args = [(num_samples, num_mols, log_mu, log_phi, logodds, trial)
-            for num_samples in np.linspace(100, 1000, 10).astype(int)
-            for num_mols in 1e3 * np.linspace(100, 1000, 10).astype(int)
+    args = [(num_samples, num_mols, log_mu, log_phi, logodds, fold, trial)
+            for num_samples in np.linspace(100, 1000, 5).astype(int)
+            for num_mols in 1e3 * np.linspace(100, 1000, 5).astype(int)
             for log_mu in np.linspace(-12, -6, 7)
             for log_phi in np.linspace(-6, 0, 7)
             for logodds in np.linspace(-3, 3, 7)
+            for fold in np.linspace(1, 1.25, 6)
             for trial in range(10)]
     with mp.Pool() as pool:
       result = pd.DataFrame.from_dict(pool.starmap(evaluate, args))
     with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
       result.to_sql(name='simulation', con=conn, index=False, if_exists='replace')
+      conn.execute('create index ix_simulation on simulation(num_samples, num_mols);')
   #+END_SRC
 
   #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation/
-    sbatch --partition=broadwl --mem=4G --job-name sim -n1 -c28 --exclusive 
+    sbatch --partition=broadwl --mem=8G --job-name sim -n1 -c28 --exclusive --out sim.out
     #!/bin/bash
     source activate scqtl
-    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/sim.py
+    python /scratch/midway2/aksarkar/singlecell/density-estimation/sim.py
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 45352965
+  : Submitted batch job 45301353
 
   Use this to check the parameter estimation for a particular gene/individual.
 
-  #+NAME: extract-data-def
   #+BEGIN_SRC ipython
     def extract_data(ind, gene):
       with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
@@ -591,14 +723,9 @@
         return umi
   #+END_SRC
 
-  #+RESULTS: extract-data-def
-  :RESULTS:
-  # Out[141]:
-  :END:
-
   #+RESULTS:
   :RESULTS:
-  # Out[102]:
+  # Out[25]:
   :END:
 
   Shard the data to parallelize over nodes. During this pass, write the data
@@ -610,9 +737,15 @@
      not the sum of QC'ed counts
   2. We need to estimate relative abundance for all genes (to match bulk), not
      just those which passed QC
+  3. We need to recode categorical covariates as binary indicators. Although
+     over the entire data set the number of indicators (in particular,
+     ~experiment~) might be larger than the number of observations, for each
+     subproblem it will not be.
 
-  #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/shard-data.py
-    <<zinb-imports>>
+  Write the annotations to the database.
+
+  #+BEGIN_SRC ipython
+    keep_samples = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
     annotations = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
     annotations['sample'] = annotations.apply(lambda x: '{chip_id}.{experiment:08d}.{well}'.format(**dict(x)), axis=1)
     annotations['size'] = annotations['mol_hs']
@@ -620,9 +753,63 @@
     with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
       annotations.to_sql(name='annotation', con=conn, if_exists='replace')
       conn.execute('create index ix_annotation on annotation(chip_id, sample);')
+  #+END_SRC
 
-    keep_samples = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
+  #+RESULTS:
+  :RESULTS:
+  :END:
 
+  Recode categorical variables as binary indicators.
+
+  #+NAME: recode-impl
+  #+BEGIN_SRC ipython
+    def recode(annotations, key):
+      n = annotations.shape[0]
+      cat = sorted(set(annotations[key]))
+      onehot = np.zeros((n, len(cat)))
+      onehot[np.arange(n), annotations[key].apply(cat.index)] = 1
+      return onehot
+
+    def build_design_matrices(annotations, keys):
+      """Return dictionary mapping individuals to design matrices"""
+      design = [annotations.groupby('chip_id').apply(recode, k) for k in keys]
+      design = {k: np.concatenate([d.loc[k] for d in design], axis=1) for k in set(annotations['chip_id'])}
+      return design
+  #+END_SRC
+
+  #+RESULTS: recode-impl
+  :RESULTS:
+  # Out[32]:
+  :END:
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[341]:
+  :END:
+
+  Check that we will have enough data points to actually estimate effects:
+
+  #+BEGIN_SRC ipython
+    annotations[keep_samples.values.ravel()].groupby('chip_id').apply(lambda x: pd.Series(recode(x, 'experiment').shape)).describe()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[316]:
+  #+BEGIN_EXAMPLE
+    0          1
+    count   54.000000  54.000000
+    mean    96.685185   5.500000
+    std     40.056952   1.969101
+    min     19.000000   2.000000
+    25%     78.000000   4.000000
+    50%     88.500000   5.000000
+    75%    102.250000   6.750000
+    max    281.000000  14.000000
+  #+END_EXAMPLE
+  :END:
+
+  #+BEGIN_SRC ipython
     i = 0
     with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
       conn.execute('drop table if exists umi;')
@@ -642,20 +829,6 @@
         del chunk
       conn.execute('create index ix_umi on umi(gene, sample);')
   #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  :END:
-
-  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation/
-    sbatch --partition=broadwl --mem=4G --job-name shard
-    #!/bin/bash
-    source activate scqtl
-    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/shard-data.py
-  #+END_SRC
-
-  #+RESULTS:
-  : Submitted batch job 45497237
 
   Process each chunk in parallel.
 
@@ -677,36 +850,44 @@
        return breaks.ravel()
   #+END_SRC
 
-  #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/zinb.py
-     <<zinb-imports>>
-     import argparse
-     import gzip
-     import os
-     import multiprocessing as mp
-     import sqlite3
-     <<np-zinb-impl>>
-     <<process-chunk-impl>>
+  #+BEGIN_SRC ipython :eval never :tangle /scratch/midway2/aksarkar/singlecell/np-zinb.py :noweb tangle
+    <<zinb-imports>>
+    import argparse
+    import gzip
+    import os
+    import multiprocessing as mp
+    import sqlite3
+    <<np-zinb-impl>>
+    <<recode-impl>>
+    <<process-chunk-impl>>
 
-     with mp.Pool() as pool:
-       chunk = pd.read_table('/scratch/midway2/aksarkar/singlecell/density-estimation/chunk-{}.txt.gz'.format(os.getenv('SLURM_ARRAY_TASK_ID')))
-       breaks = compute_breaks(chunk, by_ind=True)
-       res = pool.map(_fit_gene, np.split(chunk[['value', 'size']].values, breaks[:-1]))
+    keep_samples = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
+    annotations = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
+    design = build_design_matrices(annotations[keep_samples.values.ravel()], ['batch', 'experiment'])
 
-     with gzip.open('/scratch/midway2/aksarkar/singlecell/density-estimation/result-{}.txt.gz'.format(os.getenv('SLURM_ARRAY_TASK_ID')), 'wt') as f:
-       for b in breaks:
-         gene, ind = chunk.iloc[b - 1][['gene', 'chip_id']]
-         print(gene, ind, *res.pop(0), file=f)
+    with mp.Pool() as pool:
+      chunk = pd.read_table('/scratch/midway2/aksarkar/singlecell/density-estimation/chunk-{}.txt.gz'.format(os.getenv('SLURM_ARRAY_TASK_ID')))
+      breaks = compute_breaks(chunk, by_ind=True)
+      res = pool.starmap(
+        _fit_gene,
+        zip(np.split(chunk[['value', 'size']].values, breaks[:-1]), 
+            [design[chunk.iloc[b - 1]['chip_id']] for b in breaks]))
+
+    with gzip.open('/scratch/midway2/aksarkar/singlecell/density-estimation/result-{}.txt.gz'.format(os.getenv('SLURM_ARRAY_TASK_ID')), 'wt') as f:
+      for b in breaks:
+        gene, ind = chunk.iloc[b - 1][['gene', 'chip_id']]
+        print(gene, ind, *res.pop(0), file=f)
   #+END_SRC
 
   #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation
-    sbatch --partition=broadwl --job-name="np-zinb" --mem=4G -a 0-20 -n1 -c28 --exclusive
+    sbatch --partition=broadwl --job-name="np-zinb" --mem=8G -a 20 -n1 -c28 --exclusive
     #!/bin/bash
     source activate scqtl
-    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/zinb.py
+    python /scratch/midway2/aksarkar/singlecell/np-zinb.py
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 45500146
+  : Submitted batch job 45303406
 
   Populate the database.
 
@@ -736,166 +917,30 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[3]:
+  # Out[4]:
   :END:
 
   Plot the mean-variance relationship for one individual.
 
-  #+NAME: plot-mean-var-def
-  #+BEGIN_SRC ipython
-    def plot_mean_var_by_gene(params, phi_hat=None, min_mean=5):
-      subset = params[params['mean'] > min_mean]
-      fano = subset['var'] / subset['mean']
-      lim = [0, 1.05 * subset['mean'].max()]
-      grid = np.linspace(*lim, num=200)
-      plt.clf()
-      plt.gcf().set_size_inches(4, 4)
-      plt.scatter(subset['mean'], fano, s=2, c='k')
-      if phi_hat is not None:
-        plt.plot(grid, (grid + np.square(grid) * phi_hat) / (grid + 1e-8), c='r', ls='--', lw=1)
-      else:
-        for phi in np.linspace(0, 1, 5):
-          plt.plot(grid, (grid + np.square(grid) * phi) / (grid + 1e-8), label='{:.2f}'.format(phi), c=colorcet.cm['inferno'](phi), ls='--', lw=1)
-        plt.legend(title='Overdispersion $\phi$')    
-      plt.xlim(lim)
-      plt.ylim(0, 1.05 * fano.max())
-      plt.xlabel('Estimated mean')
-      plt.ylabel('Estimated Fano factor')
-
-    def plot_mean_var_by_bin(params, n_bin=8, min_mean=5, equal_bins=True):
-      subset = params[params['mean'] > min_mean]
-      if equal_bins:
-        cut = pd.qcut
-        label = 'Quantile of estimated mean'
-      else:
-        cut = pd.cut
-        label = 'Percentile of range of estimated mean'
-      subset['bin'] = cut(subset['mean'], n_bin)
-      subset['fano'] = subset['var'] / subset['mean']
-      plt.clf()
-      plt.gcf().set_size_inches(5, 4)
-      for i, (k, g) in enumerate(subset.groupby('bin')):
-        if len(g) < 10:
-          plt.scatter((i + .5) * np.ones(g['fano'].shape[0]), g['fano'], c='k', s=4, label=k)
-        else:
-          res = plt.violinplot(g['fano'], positions=[i + .5], showextrema=True, showmedians=False, widths=.5)
-          for v in res['bodies']:
-            v.set_facecolor('.25')
-          res['cbars'].set_color('k')
-          res['cmins'].set_color('k')
-          res['cmaxes'].set_color('k')
-      plt.xticks(np.arange(n_bin + 1), ['{:.3f}'.format(x) for x in np.linspace(0, 1, n_bin + 1)])
-      plt.xlim(0, n_bin)
-      plt.xlabel(label)
-      _ = plt.ylabel('Estimated Fano factor')
-  #+END_SRC
-
-  #+RESULTS: plot-mean-var-def
-  :RESULTS:
-  # Out[206]:
-  :END:
-
-  Estimate a genome-wide dispersion parameter.
-
-  #+BEGIN_SRC ipython
-    subset = params[params['ind'] == 'NA18507']
-    subset = subset[subset['mean'] > 5]
-    phi_hat = sklm.LinearRegression(fit_intercept=False).fit(subset['mean'].values.reshape(-1, 1), subset['var'] / subset['mean'] - 1).coef_
-    phi_hat
+  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/mean-var-rel.png
+    subset = params[params['ind'] == 'NA18501']
+    subset = subset[subset['mean'] > 0]
+    grid = np.linspace(subset['mean'].min(), subset['mean'].max(), 200)
+    plt.clf()
+    plt.gcf().set_size_inches(6, 6)
+    plt.scatter(subset['mean'], subset['var'] / subset['mean'], s=2, c='k')
+    for phi in np.linspace(0, 1, 5):
+      plt.plot(grid, (grid + np.square(grid) * phi) / (grid + 1e-8), label='{:.2f}'.format(phi), c=colorcet.cm['bkr'](phi), ls=':', lw=1)
+    plt.legend(title='Overdispersion')
+    plt.xlabel('Estimated mean')
+    plt.ylabel('Estimated Fano factor')
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[8]:
-  : array([0.17258245])
-  :END:
-
-  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/mean-var-rel-NA18507.png
-    plot_mean_var_by_gene(params[params['ind'] == 'NA18507'], phi_hat=np.array([0.17258245]))
-    _ = plt.title('NA18507')
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[207]:
-  [[file:figure/zinb.org/mean-var-rel-NA18507.png]]
-  :END:
-
-  Plot the mean variance relationship by percentile (equal-sized bins).
-
-  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/mean-var-by-percentile-NA18507.png
-    plot_mean_var_by_bin(params[params['ind'] == 'NA18507'])
-    plt.title('NA18507')
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[84]:
-  : Text(0.5,1,'NA18507')
-  [[file:figure/zinb.org/mean-var-by-percentile-NA18507.png]]
-  :END:
-
-  Plot the mean variance relationship by binning the range of mean expression
-  (unequal bins)
-
-  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/mean-var-by-quantile-NA18507.png
-    plot_mean_var_by_bin(params[params['ind'] == 'NA18507'], equal_bins=False)
-    plt.title('NA18507')
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[85]:
-  : Text(0.5,1,'NA18507')
-  [[file:figure/zinb.org/mean-var-by-quantile-NA18507.png]]
-  :END:
-
-  Investigate the outlier gene.
-
-  #+BEGIN_SRC ipython
-    gene_info = pd.read_table('/project2/gilad/singlecell-qtl/genome-ensembl-release-75/hs.saf')
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[108]:
-  :END:
-
-  #+BEGIN_SRC ipython
-    fano_idxmax = params.groupby('ind').agg(lambda x: x.loc[x['fano'].idxmax()]['gene'])['gene'].value_counts().to_frame()
-    fano_idxmax
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[106]:
-  #+BEGIN_EXAMPLE
-    gene
-    ENSG00000110713    37
-    ENSG00000198886     7
-    ENSG00000198899     7
-    ENSG00000197061     1
-    ENSG00000206150     1
-    ENSG00000198727     1
-  #+END_EXAMPLE
-  :END:
-
-  #+BEGIN_SRC ipython
-    gene_info.groupby('GeneID').agg(lambda x: x.iloc[0]).merge(fano_idxmax, left_index=True, right_index=True)
-  #+END_SRC  
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[125]:
-  #+BEGIN_EXAMPLE
-    Chr     Start       End Strand      Name  gene
-    ENSG00000110713  hs11   3692313   3692646      -     NUP98    37
-    ENSG00000197061   hs6  26104104  26104518      +  HIST1H4C     1
-    ENSG00000198727  hsMT     14747     15887      +    MT-CYB     1
-    ENSG00000198886  hsMT     10760     12137      +    MT-ND4     7
-    ENSG00000198899  hsMT      8527      9207      +   MT-ATP6     7
-    ENSG00000206150  hs14  21500979  21502455      -   RNASE13     1
-  #+END_EXAMPLE
+  # Out[36]:
+  : Text(0,0.5,'Estimated Fano factor')
+  [[file:figure/zinb.org/mean-var-rel.png]]
   :END:
 
 * Per-gene dispersion
@@ -932,26 +977,12 @@
   #+BEGIN_SRC ipython
     with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
       params = pd.read_sql('select * from params;', conn)
-    gene_params = params.groupby('gene').apply(lambda x: pd.Series([x['mean'].mean(), (np.square(x['mean'] - x['mean'].mean()) + x['var']).mean()])).rename(columns={0: 'mean', 1: 'var'})
+    gene_params = params.groupby('gene').apply(lambda x: pd.Series([x['mean'].mean(), (np.square(x['mean'] - x['mean'].mean()) + x['var']).mean()]))
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[13]:
-  :END:
-
-  Estimate a genome-wide dispersion parameter.
-
-  #+BEGIN_SRC ipython
-    subset = gene_params[gene_params['mean'] > 5]
-    phi_hat = sklm.LinearRegression(fit_intercept=False).fit(subset['mean'].values.reshape(-1, 1), subset['var'] / subset['mean'] - 1).coef_
-    phi_hat
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[15]:
-  : array([0.24051697])
+  # Out[37]:
   :END:
 
   Plot the mean-variance relationship over all genes, estimated using all of
@@ -959,90 +990,49 @@
   individuals.
 
   #+BEGIN_SRC ipython :ipyfile figure/zinb.org/overall-mean-var-rel.png
-    plot_mean_var_by_gene(gene_params, phi_hat=np.array([0.24051697]))
-    _ = plt.title('Average over 53 individuals')
+    subset = gene_params[gene_params[0] > 0]
+    subset.columns = ['mean', 'var']
+    lim = [subset['mean'].min(), subset['mean'].max()]
+    grid = np.linspace(*lim, num=200)
+    plt.clf()
+    plt.gcf().set_size_inches(6, 6)
+    plt.scatter(subset['mean'], subset['var'] / subset['mean'], s=2, c='k')
+    for phi in np.geomspace(.1, 2, 5):
+      plt.plot(grid, (grid + np.square(grid) * phi) / (grid + 1e-8), label='{:.2f}'.format(phi), c=colorcet.cm['bkr'](phi), ls=':', lw=1)
+    plt.legend(title='Overdispersion')
+    plt.xlim(lim)
+    plt.ylim(lim)
+    plt.xlabel('Estimated mean')
+    _ = plt.ylabel('Estimated Fano factor')
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[208]:
+  # Out[72]:
   [[file:figure/zinb.org/overall-mean-var-rel.png]]
   :END:
 
   Bin the data and plot the distribution by bin.
 
   #+BEGIN_SRC ipython :ipyfile figure/zinb.org/overall-mean-var-rel-by-quantile.png
-    plot_mean_var_by_bin(gene_params)
+    n_bin = 8
+    subset['bin'] = pd.cut(subset['mean'], n_bin)
+    subset['fano'] = subset['var'] / subset['mean']
+    plt.clf()
+    plt.gcf().set_size_inches(5, 4)
+    for i, (k, g) in enumerate(subset.groupby('bin')):
+      if len(g) < 10:
+        plt.scatter((i + .5) * np.ones(g['fano'].shape[0]), g['fano'], c='k', s=4, label=k)
+      else:
+        plt.boxplot(g['fano'], positions=[i + .5], sym='.', widths=.25)
+    plt.xticks(np.arange(n_bin + 1), ['{:.2f}'.format(x) for x in np.linspace(0, 1, n_bin + 1)])
+    plt.xlim(0, n_bin)
+    plt.xlabel('Quantile of estimated mean')
+    _ = plt.ylabel('Estimated Fano factor')
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[86]:
+  # Out[122]:
   [[file:figure/zinb.org/overall-mean-var-rel-by-quantile.png]]
   :END:
-
-  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/overall-mean-var-rel-by-percentile.png
-    plot_mean_var_by_bin(gene_params, equal_bins=False)
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[87]:
-  [[file:figure/zinb.org/overall-mean-var-rel-by-percentile.png]]
-  :END:
-
-  Visualize the distribution of Fano factor.
-
-  #+BEGIN_SRC ipython
-    gene_params['fano'] = gene_params['var'] / gene_params['mean']
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[40]:
-  :END:
-
-  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/fano-factor-hist.png
-    plt.clf()
-    plt.hist(gene_params[gene_params['mean'] > 5]['fano'], color='k', bins=20)
-    plt.xlabel('Estimated Fano factor')
-    plt.ylabel('Number of genes')
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[88]:
-  : Text(0,0.5,'Number of genes')
-  [[file:figure/zinb.org/fano-factor-hist.png]]
-  :END:
-
-  Identify noisy genes by ordering with respect to estimated Fano factor.
-
-  #+BEGIN_SRC ipython
-    np.percentile(gene_params[gene_params['mean'] > 5]['fano'], [90, 95, 99])
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[116]:
-  : array([ 8.74266345, 13.2907511 , 31.59529237])
-  :END:
-
-  #+BEGIN_SRC ipython
-    gene_info = pd.read_table('/project2/gilad/singlecell-qtl/genome-ensembl-release-75/hs.saf').groupby('GeneID').agg(lambda x: x.iloc[0])  
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[29]:
-  :END:
-
-  #+BEGIN_SRC ipython
-    gene_params[np.logical_and(gene_params['mean'] > 5, gene_params['fano'] > 31.595)].merge(gene_info, left_index=True, right_index=True).sort_values('fano', ascending=False).loc[:,['Chr', 'Name', 'mean', 'var', 'fano']].to_csv('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/per-gene-fano.txt.gz', compression='gzip', sep='\t')
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[120]:
-  :END:
-

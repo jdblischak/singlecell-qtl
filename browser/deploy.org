@@ -7,35 +7,33 @@
   Get a local compute node.
 
   #+BEGIN_SRC sh :session midway2
-    srun -n1 --job-name bokeh --partition=broadwl --pty bash
+    srun -n1 -c28 --exclusive --partition=broadwl --pty bash
     cd /project2/mstephens/aksarkar/projects/singlecell-qtl/browser/
     source activate scqtl
   #+END_SRC
 
   #+RESULTS:
   : 
-  : srun: job 45367464 queued and waiting for resources
-  : srun: job 45367464 has been allocated resources
+  : srun: job 45302422 queued and waiting for resources
+  : srun: job 45302422 has been allocated resources
   : cd /project2/mstephens/aksarkar/projects/singlecell-qtl/browser/
-  : cd /project2/mstephens/aksarkar/projects/singl ecell-qtl/browser/
-  : source activate scqtl
+  : cd  /project2/mstephens/aksarkar/projects/singlecell-qtl/browser/
+  : sou rce activate scqtl
 
   (Re)start the browser
 
   #+BEGIN_SRC sh :session midway2
     pkill -u aksarkar bokeh
-    bokeh serve simulation --address $(hostname -i) --allow-websocket-origin=$(hostname -i):5006 >bokeh.log &
+    bokeh serve simulation fano-qtls --address $(hostname -i) --allow-websocket-origin=$(hostname -i):5006 >bokeh.log &
     echo "http://$(hostname -i):5006"
   #+END_SRC
 
   #+RESULTS:
   : pkill -u aksarkar bokeh
-  : (hostname -i) --allow-websocket-origin=$(hostname -i):5006 > bokeh.log
-  : bokeh serve simulation --address $(ho stname -i) --allow-websocket-origin=$(hostname -i):5006 >bokeh.log &
-  : [1] 44025
+  : bokeh serve simulation fano-qtls --address $(hostname -i) --allow-websocket-origin =$(hostname -i):5006 >bokeh.log &
+  : [1] 9742
   : echo "http://$(hostname -i):5006"
-  : echo 'org_babel_sh_eoe'
-  : http://10.50.221.2:5006
+  : http://10.50.221.144:5006
 
 * Production environment
 
