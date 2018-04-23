@@ -575,7 +575,7 @@
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 44935043
+  : Submitted batch job 45352965
 
   Use this to check the parameter estimation for a particular gene/individual.
 
@@ -717,30 +717,147 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[4]:
+  # Out[52]:
   :END:
 
   Plot the mean-variance relationship for one individual.
 
-  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/mean-var-rel.png
-    subset = params[params['ind'] == 'NA18501']
-    subset = subset[subset['mean'] > 0]
-    grid = np.linspace(subset['mean'].min(), subset['mean'].max(), 200)
-    plt.clf()
-    plt.gcf().set_size_inches(6, 6)
-    plt.scatter(subset['mean'], subset['var'] / subset['mean'], s=2, c='k')
-    for phi in np.linspace(0, 1, 5):
-      plt.plot(grid, (grid + np.square(grid) * phi) / (grid + 1e-8), label='{:.2f}'.format(phi), c=colorcet.cm['bkr'](phi), ls=':', lw=1)
-    plt.legend(title='Overdispersion')
-    plt.xlabel('Estimated mean')
-    plt.ylabel('Estimated Fano factor')
+  #+BEGIN_SRC ipython
+    def plot_mean_var_by_gene(params, min_mean=5):
+      subset = params[params['mean'] > min_mean]
+      lim = [0, 1.1 * subset['mean'].max()]
+      grid = np.linspace(*lim, num=200)
+      plt.clf()
+      plt.gcf().set_size_inches(6, 6)
+      plt.scatter(subset['mean'], subset['var'] / subset['mean'], s=2, c='k')
+      for phi in np.linspace(0, 1, 5):
+        plt.plot(grid, (grid + np.square(grid) * phi) / (grid + 1e-8), label='{:.2f}'.format(phi), c=colorcet.cm['inferno'](phi), ls='--', lw=1)
+      plt.legend(title='Overdispersion $\phi$')
+      plt.xlim(lim)
+      plt.ylim(lim)
+      plt.xlabel('Estimated mean')
+      plt.ylabel('Estimated Fano factor')
+
+    def plot_mean_var_by_bin(params, n_bin=8, min_mean=5, equal_bins=True):
+      subset = params[params['mean'] > min_mean]
+      if equal_bins:
+        cut = pd.qcut
+        label = 'Quantile of estimated mean'
+      else:
+        cut = pd.cut
+        label = 'Percentile of range of estimated mean'
+      subset['bin'] = cut(subset['mean'], n_bin)
+      subset['fano'] = subset['var'] / subset['mean']
+      plt.clf()
+      plt.gcf().set_size_inches(5, 4)
+      for i, (k, g) in enumerate(subset.groupby('bin')):
+        if len(g) < 10:
+          plt.scatter((i + .5) * np.ones(g['fano'].shape[0]), g['fano'], c='k', s=4, label=k)
+        else:
+          res = plt.violinplot(g['fano'], positions=[i + .5], showextrema=True, showmedians=False, widths=.5)
+          for v in res['bodies']:
+            v.set_facecolor('.25')
+          res['cbars'].set_color('k')
+          res['cmins'].set_color('k')
+          res['cmaxes'].set_color('k')
+      plt.xticks(np.arange(n_bin + 1), ['{:.3f}'.format(x) for x in np.linspace(0, 1, n_bin + 1)])
+      plt.xlim(0, n_bin)
+      plt.xlabel(label)
+      _ = plt.ylabel('Estimated Fano factor')
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[36]:
-  : Text(0,0.5,'Estimated Fano factor')
-  [[file:figure/zinb.org/mean-var-rel.png]]
+  # Out[83]:
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/mean-var-rel-NA18507.png
+    plot_mean_var_by_gene(params[params['ind'] == 'NA18507'])
+    plt.title('NA18507')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[77]:
+  : Text(0.5,1,'NA18507')
+  [[file:figure/zinb.org/mean-var-rel-NA18507.png]]
+  :END:
+
+  Plot the mean variance relationship by percentile (equal-sized bins).
+
+  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/mean-var-by-percentile-NA18507.png
+    plot_mean_var_by_bin(params[params['ind'] == 'NA18507'])
+    plt.title('NA18507')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[84]:
+  : Text(0.5,1,'NA18507')
+  [[file:figure/zinb.org/mean-var-by-percentile-NA18507.png]]
+  :END:
+
+  Plot the mean variance relationship by binning the range of mean expression
+  (unequal bins)
+
+  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/mean-var-by-quantile-NA18507.png
+    plot_mean_var_by_bin(params[params['ind'] == 'NA18507'], equal_bins=False)
+    plt.title('NA18507')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[85]:
+  : Text(0.5,1,'NA18507')
+  [[file:figure/zinb.org/mean-var-by-quantile-NA18507.png]]
+  :END:
+
+  Investigate the outlier gene.
+
+  #+BEGIN_SRC ipython
+    gene_info = pd.read_table('/project2/gilad/singlecell-qtl/genome-ensembl-release-75/hs.saf')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[108]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    fano_idxmax = params.groupby('ind').agg(lambda x: x.loc[x['fano'].idxmax()]['gene'])['gene'].value_counts().to_frame()
+    fano_idxmax
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[106]:
+  #+BEGIN_EXAMPLE
+    gene
+    ENSG00000110713    37
+    ENSG00000198886     7
+    ENSG00000198899     7
+    ENSG00000197061     1
+    ENSG00000206150     1
+    ENSG00000198727     1
+  #+END_EXAMPLE
+  :END:
+
+  #+BEGIN_SRC ipython
+    gene_info.groupby('GeneID').agg(lambda x: x.iloc[0]).merge(fano_idxmax, left_index=True, right_index=True)
+  #+END_SRC  
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[125]:
+  #+BEGIN_EXAMPLE
+    Chr     Start       End Strand      Name  gene
+    ENSG00000110713  hs11   3692313   3692646      -     NUP98    37
+    ENSG00000197061   hs6  26104104  26104518      +  HIST1H4C     1
+    ENSG00000198727  hsMT     14747     15887      +    MT-CYB     1
+    ENSG00000198886  hsMT     10760     12137      +    MT-ND4     7
+    ENSG00000198899  hsMT      8527      9207      +   MT-ATP6     7
+    ENSG00000206150  hs14  21500979  21502455      -   RNASE13     1
+  #+END_EXAMPLE
   :END:
 
 * Per-gene dispersion
@@ -777,12 +894,12 @@
   #+BEGIN_SRC ipython
     with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
       params = pd.read_sql('select * from params;', conn)
-    gene_params = params.groupby('gene').apply(lambda x: pd.Series([x['mean'].mean(), (np.square(x['mean'] - x['mean'].mean()) + x['var']).mean()]))
+    gene_params = params.groupby('gene').apply(lambda x: pd.Series([x['mean'].mean(), (np.square(x['mean'] - x['mean'].mean()) + x['var']).mean()])).rename(columns={0: 'mean', 1: 'var'})
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[37]:
+  # Out[25]:
   :END:
 
   Plot the mean-variance relationship over all genes, estimated using all of
@@ -790,49 +907,89 @@
   individuals.
 
   #+BEGIN_SRC ipython :ipyfile figure/zinb.org/overall-mean-var-rel.png
-    subset = gene_params[gene_params[0] > 0]
-    subset.columns = ['mean', 'var']
-    lim = [subset['mean'].min(), subset['mean'].max()]
-    grid = np.linspace(*lim, num=200)
-    plt.clf()
-    plt.gcf().set_size_inches(6, 6)
-    plt.scatter(subset['mean'], subset['var'] / subset['mean'], s=2, c='k')
-    for phi in np.geomspace(.1, 2, 5):
-      plt.plot(grid, (grid + np.square(grid) * phi) / (grid + 1e-8), label='{:.2f}'.format(phi), c=colorcet.cm['bkr'](phi), ls=':', lw=1)
-    plt.legend(title='Overdispersion')
-    plt.xlim(lim)
-    plt.ylim(lim)
-    plt.xlabel('Estimated mean')
-    _ = plt.ylabel('Estimated Fano factor')
+    plot_mean_var_by_gene(gene_params)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[72]:
+  # Out[131]:
   [[file:figure/zinb.org/overall-mean-var-rel.png]]
   :END:
 
   Bin the data and plot the distribution by bin.
 
   #+BEGIN_SRC ipython :ipyfile figure/zinb.org/overall-mean-var-rel-by-quantile.png
-    n_bin = 8
-    subset['bin'] = pd.cut(subset['mean'], n_bin)
-    subset['fano'] = subset['var'] / subset['mean']
-    plt.clf()
-    plt.gcf().set_size_inches(5, 4)
-    for i, (k, g) in enumerate(subset.groupby('bin')):
-      if len(g) < 10:
-        plt.scatter((i + .5) * np.ones(g['fano'].shape[0]), g['fano'], c='k', s=4, label=k)
-      else:
-        plt.boxplot(g['fano'], positions=[i + .5], sym='.', widths=.25)
-    plt.xticks(np.arange(n_bin + 1), ['{:.2f}'.format(x) for x in np.linspace(0, 1, n_bin + 1)])
-    plt.xlim(0, n_bin)
-    plt.xlabel('Quantile of estimated mean')
-    _ = plt.ylabel('Estimated Fano factor')
+    plot_mean_var_by_bin(gene_params)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[122]:
+  # Out[86]:
   [[file:figure/zinb.org/overall-mean-var-rel-by-quantile.png]]
   :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/overall-mean-var-rel-by-percentile.png
+    plot_mean_var_by_bin(gene_params, equal_bins=False)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[87]:
+  [[file:figure/zinb.org/overall-mean-var-rel-by-percentile.png]]
+  :END:
+
+  Visualize the distribution of Fano factor.
+
+  #+BEGIN_SRC ipython
+    gene_params['fano'] = gene_params['var'] / gene_params['mean']
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[40]:
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/fano-factor-hist.png
+    plt.clf()
+    plt.hist(gene_params[gene_params['mean'] > 5]['fano'], color='k', bins=20)
+    plt.xlabel('Estimated Fano factor')
+    plt.ylabel('Number of genes')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[88]:
+  : Text(0,0.5,'Number of genes')
+  [[file:figure/zinb.org/fano-factor-hist.png]]
+  :END:
+
+  Identify noisy genes by ordering with respect to estimated Fano factor.
+
+  #+BEGIN_SRC ipython
+    np.percentile(gene_params[gene_params['mean'] > 5]['fano'], [90, 95, 99])
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[116]:
+  : array([ 8.74266345, 13.2907511 , 31.59529237])
+  :END:
+
+  #+BEGIN_SRC ipython
+    gene_info = pd.read_table('/project2/gilad/singlecell-qtl/genome-ensembl-release-75/hs.saf').groupby('GeneID').agg(lambda x: x.iloc[0])  
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[29]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    gene_params[np.logical_and(gene_params['mean'] > 5, gene_params['fano'] > 31.595)].merge(gene_info, left_index=True, right_index=True).sort_values('fano', ascending=False).loc[:,['Chr', 'Name', 'mean', 'var', 'fano']].to_csv('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/per-gene-fano.txt.gz', compression='gzip', sep='\t')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[120]:
+  :END:
+
