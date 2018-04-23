@@ -1134,12 +1134,24 @@
 
 * Analysis using sample moments
 
-  The simplest possible way to estimate means/variances/dispersions to use as
-  quantitative phenotypes is to use the sample moments.
+  The most obvious way to estimate means/variances to use as quantitative
+  phenotypes is to use the sample moments of per cell log CPM.
 
-  Intuitively, the phenotypes defined this way will be confounded by
-  differential proportion of zeros between individuals, but we need to quantify
-  the resulting loss in power.
+  We can show mathematically that defining means like this could work, but
+  defining variances like this is unlikely to work. 
+
+  Fix one individual, one gene, and let \(r\) denote the observed count. Then,
+
+  \[ \log\mathrm{CPM} \propto \ln(r + \epsilon) - \ln\mathrm{const} \]
+
+  Let \(\mu = \mathbb{E}[r\,]\), \(\sigma^2 = \mathbb{V}[r\,]\), expand to
+  second-order, then take expectations over cells:
+
+  \[ \mathbb{E}[\,\ln (r + \epsilon)\,] \approx \ln(\mu + \epsilon) -
+   \frac{\sigma^2}{(\mu + \epsilon)^2} \]
+
+  \[ \mathbb{V}[\,\ln (r + \epsilon)\,] \approx \frac{2 \sigma^2}{(\mu +
+   \epsilon)^2} - \frac{\sigma^4}{(\mu + \epsilon)^4} \]
 
 ** Call eQTLs from pooled scRNA-Seq
 
@@ -2630,7 +2642,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[123]:
+  # Out[11]:
   :END:
 
   The bulk QTLs are in ~fastqtl~ format and need some munging.
@@ -2660,7 +2672,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[136]:
+  # Out[14]:
   :END:
 
   Estimate replication rates for mean QTLs.
@@ -2720,7 +2732,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[137]:
+  # Out[12]:
   :END:
 
   Investigate whether variance QTL \(p\)-values are correlated with relative
@@ -2735,7 +2747,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[138]:
+  # Out[15]:
   :END:
 
   Count how many variance QTLs have \(p < 10^{-2}\)
@@ -3037,7 +3049,7 @@
   Investigate whether variance QTL \(z\)-scores are correlated with pooled QTL
   \(z\)-scores.
 
-  #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/var-qtl-vs-log-mu.png
+  #+BEGIN_SRC ipython
     Xm, Ym = extract_qtl_gene_pair(variance_qtls[thresh_pass], qtls['pooled'][1], dosages='/scratch/midway2/aksarkar/singlecell/reproduce-yang/YRI_SNPs_2_IPSC.txt.gen.gz')
     Cm = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/pooled-covars.txt')
     Cm = Cm.align(Xm, axis='columns', join='inner')[0]
@@ -3047,8 +3059,23 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[171]:
+  # Out[21]:
   :END:
+
+  Compute the same in the other direction.
+
+  #+BEGIN_SRC ipython 
+    mean_qtl_stats = qtls['pooled'][0]
+    mean_qtl_stats = mean_qtl_stats[mean_qtl_stats['fdr_pass']]
+    X, Y = extract_qtl_gene_pair(mean_qtl_stats, qtls['pooled'][1], dosages='/scratch/midway2/aksarkar/singlecell/reproduce-yang/YRI_SNPs_2_IPSC.txt.gen.gz')
+    mean_qtl_stats['mean_beta'] = mean_qtl_stats['beta']
+    mean_qtl_stats['mean_se'] = bootstrap_se(X, Y, Cm)
+    mean_qtl_stats['mean_z'] = mean_qtl_stats['mean_beta'] / mean_qtl_stats['mean_se']
+    X, Y = extract_qtl_gene_pair(mean_qtl_stats, qtls['variance'][1], dosages='/scratch/midway2/aksarkar/singlecell/reproduce-yang/YRI_SNPs_2_IPSC.txt.gen.gz')
+    mean_qtl_stats['beta'] = replication_tests(X, Y, Cm).set_index('gene')['beta']
+    mean_qtl_stats['se'] = bootstrap_se(X, Y, Cm)
+    mean_qtl_stats['z'] = mean_qtl_stats['beta'] / mean_qtl_stats['se']
+  #+END_SRC
 
   #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/var-qtl-vs-mean-qtl.png
     lim = [-12, 12]

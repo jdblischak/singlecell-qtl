@@ -1,4 +1,4 @@
-1#+TITLE: Deploy scQTL browser
+#+TITLE: Deploy scQTL browser
 #+AUTHOR: Abhishek Sarkar
 #+PROPERTY: header-args:sh :eval never-export :results output
 
@@ -7,15 +7,15 @@
   Get a local compute node.
 
   #+BEGIN_SRC sh :session midway2
-    srun -n1 -c28 --exclusive --partition=broadwl --pty bash
+    srun -n1 -c28 --exclusive --job-name bokeh --partition=broadwl --pty bash
     cd /project2/mstephens/aksarkar/projects/singlecell-qtl/browser/
     source activate scqtl
   #+END_SRC
 
   #+RESULTS:
   : 
-  : srun: job 45062275 queued and waiting for resources
-  : srun: job 45062275 has been allocated resources
+  : srun: job 45352983 queued and waiting for resources
+  : srun: job 45352983 has been allocated resources
   : cd /project2/mstephens/aksarkar/projects/singlecell-qtl/browser/
   : cd  /project2/mstephens/aksarkar/projects/singlecell-qtl/browser/
   : sou rce activate scqtl
@@ -31,9 +31,9 @@
   #+RESULTS:
   : pkill -u aksarkar bokeh
   : bokeh serve simulation fano-qtls --address $(hostname -i) --allow-websocket-origin =$(hostname -i):5006 >bokeh.log &
-  : [1] 51996
+  : [1] 40255
   : echo "http://$(hostname -i):5006"
-  : http://10.50.221.2:5006
+  : http://10.50.222.2:5006
 
 * Production environment
 

@@ -27,6 +27,8 @@ sim_data = bokeh.models.ColumnDataSource(pd.DataFrame(columns=[
   'true_var',
   'fano',
   'true_fano',
+  'mean_log_cpm',
+  'var_log_cpm',
 ]))
 
 theoretical_data = bokeh.models.ColumnDataSource(pd.DataFrame(columns=[
@@ -53,7 +55,7 @@ controls = [num_samples_slider, num_mols_slider, log_mu_slider, log_phi_slider, 
 
 def update(attr, old, new):
   global sim_data
-  args = [x.value for x in controls[:2]] + [endpoint for x in controls[2:] for endpoint in x.value]
+  args = [x.value for x in controls[:2]] + [round(endpoint) for x in controls[2:] for endpoint in x.value]
   with sqlite3.connect(db) as conn:
     params = pd.read_sql(
       """select * from simulation 
@@ -128,10 +130,36 @@ fano.segment(source=theoretical_data, x0='true_fano0', y0='true_fano0', x1='true
 fano.xaxis.axis_label = 'True Fano factor'
 fano.yaxis.axis_label = 'Estimated Fano factor'
 
+mean_log_cpm = bokeh.plotting.figure(width=300, height=300, tools=tools)
+mean_log_cpm.scatter(source=sim_data, x='log_mu', y='mean_log_cpm', color='black', size=6)
+mean_log_cpm.xaxis.axis_label = 'True log(μ)'
+mean_log_cpm.yaxis.axis_label = 'Mean log(CPM + 1)'
+
+var_log_cpm = bokeh.plotting.figure(width=300, height=300, tools=tools)
+var_log_cpm.scatter(source=sim_data, x='log_mu', y='var_log_cpm', color='black', size=6)
+var_log_cpm.xaxis.axis_label = 'True log(μ)'
+var_log_cpm.yaxis.axis_label = 'Variance log(CPM + 1)'
+
+var_log_cpm2 = bokeh.plotting.figure(width=300, height=300, tools=tools)
+var_log_cpm2.scatter(source=sim_data, x='log_phi', y='var_log_cpm', color='black', size=6)
+var_log_cpm2.xaxis.axis_label = 'True log(φ)'
+var_log_cpm2.yaxis.axis_label = 'Variance log(CPM + 1)'
+
+zinb_params = bokeh.models.widgets.Panel(
+  child=bokeh.layouts.gridplot([[log_mu, log_phi, logodds]]),
+  title='ZINB parameters')
+zinb_phenos = bokeh.models.widgets.Panel(
+  child=bokeh.layouts.gridplot([[mean, var, fano]]),
+  title='ZINB phenotypes')
+log_cpm = bokeh.models.widgets.Panel(
+  child=bokeh.layouts.gridplot([[mean_log_cpm, var_log_cpm, var_log_cpm2]]),
+  title='log CPM')
+
 layout = bokeh.layouts.layout([[
   bokeh.layouts.widgetbox(*controls, width=300),
-  bokeh.layouts.gridplot([[log_mu, log_phi, logodds],
-                          [mean, var, fano]]),
+  bokeh.layouts.widgetbox(
+    bokeh.models.widgets.Tabs(tabs=[zinb_params, zinb_phenos, log_cpm]),
+    width=900),
 ]])
 
 doc = bokeh.io.curdoc()

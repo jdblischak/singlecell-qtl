@@ -70,7 +70,7 @@
   #+CALL: ipython3(memory="6G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 45235112
+  : Submitted batch job 45253767
 
   #+NAME: zinb-imports
   #+BEGIN_SRC ipython
@@ -96,7 +96,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[3]:
+  # Out[46]:
   :END:
 
   #+NAME: tf-imports
@@ -528,23 +528,24 @@
       return np.vstack((x, size * np.ones(num_samples))).T
 
     def evaluate(num_samples, num_mols, log_mu, log_phi, logodds, trial):
+      x = simulate(num_samples=num_samples, size=num_mols,
+                   log_mu=log_mu, log_phi=log_phi,
+                   logodds=logodds, seed=trial)
       keys = ['num_samples', 'num_mols', 'log_mu', 'log_phi', 'logodds', 'trial',
               'log_mu_hat', 'log_phi_hat', 'logodds_hat', 'mean', 'var']
-      result = _fit_gene(simulate(num_samples=num_samples, size=num_mols,
-                                  log_mu=log_mu, log_phi=log_phi,
-                                  logodds=logodds, seed=trial))
-      result = [num_samples, num_mols, log_mu, log_phi, logodds, trial] + list(result)
-      return {k: v for k, v in zip(keys, result)}
+      result = [num_samples, num_mols, log_mu, log_phi, logodds, trial] + list(_fit_gene(x))
+      result = {k: v for k, v in zip(keys, result)}
+      # Important: follow edgeR here
+      eps = .5 / num_mols
+      log_cpm = np.log(x[:,0] + eps) - np.log(x[:,1] + 2 * eps) + 6 * np.log(10)
+      result['mean_log_cpm'] = log_cpm.mean()
+      result['var_log_cpm'] = log_cpm.var()
+      return result
   #+END_SRC
 
   #+RESULTS: sim-impl
   :RESULTS:
-  # Out[4]:
-  :END:
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[4]:
+  # Out[15]:
   :END:
 
   #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /scratch/midway2/aksarkar/singlecell/density-estimation/sim.py
@@ -560,7 +561,7 @@
             for log_mu in np.linspace(-12, -6, 7)
             for log_phi in np.linspace(-6, 0, 7)
             for logodds in np.linspace(-3, 3, 7)
-            for trial in range(20)]
+            for trial in range(10)]
     with mp.Pool() as pool:
       result = pd.DataFrame.from_dict(pool.starmap(evaluate, args))
     with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
