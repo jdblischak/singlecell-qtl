@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-04-17 Tue 13:53 -->
+<!-- 2018-04-23 Mon 14:58 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mean/dispersion estimation</title>
@@ -486,13 +486,19 @@ Check the parameter estimation on simulated data.
   <span class="org-keyword">return</span> np.vstack((x, size * np.ones(num_samples))).T
 
 <span class="org-keyword">def</span> <span class="org-function-name">evaluate</span>(num_samples, num_mols, log_mu, log_phi, logodds, trial):
+  <span class="org-variable-name">x</span> = simulate(num_samples=num_samples, size=num_mols,
+               log_mu=log_mu, log_phi=log_phi,
+               logodds=logodds, seed=trial)
   <span class="org-variable-name">keys</span> = [<span class="org-string">'num_samples'</span>, <span class="org-string">'num_mols'</span>, <span class="org-string">'log_mu'</span>, <span class="org-string">'log_phi'</span>, <span class="org-string">'logodds'</span>, <span class="org-string">'trial'</span>,
           <span class="org-string">'log_mu_hat'</span>, <span class="org-string">'log_phi_hat'</span>, <span class="org-string">'logodds_hat'</span>, <span class="org-string">'mean'</span>, <span class="org-string">'var'</span>]
-  <span class="org-variable-name">result</span> = _fit_gene(simulate(num_samples=num_samples, size=num_mols,
-                              log_mu=log_mu, log_phi=log_phi,
-                              logodds=logodds, seed=trial))
-  <span class="org-variable-name">result</span> = [num_samples, num_mols, log_mu, log_phi, logodds, trial] + <span class="org-builtin">list</span>(result)
-  <span class="org-keyword">return</span> {k: v <span class="org-keyword">for</span> k, v <span class="org-keyword">in</span> <span class="org-builtin">zip</span>(keys, result)}
+  <span class="org-variable-name">result</span> = [num_samples, num_mols, log_mu, log_phi, logodds, trial] + <span class="org-builtin">list</span>(_fit_gene(x))
+  <span class="org-variable-name">result</span> = {k: v <span class="org-keyword">for</span> k, v <span class="org-keyword">in</span> <span class="org-builtin">zip</span>(keys, result)}
+  <span class="org-comment-delimiter"># </span><span class="org-comment">Important: follow edgeR here</span>
+  <span class="org-variable-name">eps</span> = .5 / num_mols
+  <span class="org-variable-name">log_cpm</span> = np.log(x[:,0] + eps) - np.log(x[:,1] + 2 * eps) + 6 * np.log(10)
+  <span class="org-variable-name">result</span>[<span class="org-string">'mean_log_cpm'</span>] = log_cpm.mean()
+  <span class="org-variable-name">result</span>[<span class="org-string">'var_log_cpm'</span>] = log_cpm.var()
+  <span class="org-keyword">return</span> result
 </pre>
 </div>
 
@@ -509,7 +515,7 @@ Check the parameter estimation on simulated data.
         <span class="org-keyword">for</span> log_mu <span class="org-keyword">in</span> np.linspace(-12, -6, 7)
         <span class="org-keyword">for</span> log_phi <span class="org-keyword">in</span> np.linspace(-6, 0, 7)
         <span class="org-keyword">for</span> logodds <span class="org-keyword">in</span> np.linspace(-3, 3, 7)
-        <span class="org-keyword">for</span> trial <span class="org-keyword">in</span> <span class="org-builtin">range</span>(20)]
+        <span class="org-keyword">for</span> trial <span class="org-keyword">in</span> <span class="org-builtin">range</span>(10)]
 <span class="org-keyword">with</span> mp.Pool() <span class="org-keyword">as</span> pool:
   <span class="org-variable-name">result</span> = pd.DataFrame.from_dict(pool.starmap(evaluate, args))
 <span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'</span>) <span class="org-keyword">as</span> conn:
@@ -526,7 +532,7 @@ python /scratch/midway2/aksarkar/singlecell/density-estimation/sim.py
 </div>
 
 <pre class="example">
-Submitted batch job 44935043
+Submitted batch job 45352965
 
 </pre>
 
@@ -684,29 +690,146 @@ Plot the mean-variance relationship for one individual.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">subset</span> = params[params[<span class="org-string">'ind'</span>] == <span class="org-string">'NA18501'</span>]
-<span class="org-variable-name">subset</span> = subset[subset[<span class="org-string">'mean'</span>] &gt; 0]
-<span class="org-variable-name">grid</span> = np.linspace(subset[<span class="org-string">'mean'</span>].<span class="org-builtin">min</span>(), subset[<span class="org-string">'mean'</span>].<span class="org-builtin">max</span>(), 200)
-plt.clf()
-plt.gcf().set_size_inches(6, 6)
-plt.scatter(subset[<span class="org-string">'mean'</span>], subset[<span class="org-string">'var'</span>] / subset[<span class="org-string">'mean'</span>], s=2, c=<span class="org-string">'k'</span>)
-<span class="org-keyword">for</span> phi <span class="org-keyword">in</span> np.linspace(0, 1, 5):
-  plt.plot(grid, (grid + np.square(grid) * phi) / (grid + 1e-8), label=<span class="org-string">'{:.2f}'</span>.<span class="org-builtin">format</span>(phi), c=colorcet.cm[<span class="org-string">'bkr'</span>](phi), ls=<span class="org-string">':'</span>, lw=1)
-plt.legend(title=<span class="org-string">'Overdispersion'</span>)
-plt.xlabel(<span class="org-string">'Estimated mean'</span>)
-plt.ylabel(<span class="org-string">'Estimated Fano factor'</span>)
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">plot_mean_var_by_gene</span>(params, min_mean=5):
+  <span class="org-variable-name">subset</span> = params[params[<span class="org-string">'mean'</span>] &gt; min_mean]
+  <span class="org-variable-name">lim</span> = [0, 1.1 * subset[<span class="org-string">'mean'</span>].<span class="org-builtin">max</span>()]
+  <span class="org-variable-name">grid</span> = np.linspace(*lim, num=200)
+  plt.clf()
+  plt.gcf().set_size_inches(6, 6)
+  plt.scatter(subset[<span class="org-string">'mean'</span>], subset[<span class="org-string">'var'</span>] / subset[<span class="org-string">'mean'</span>], s=2, c=<span class="org-string">'k'</span>)
+  <span class="org-keyword">for</span> phi <span class="org-keyword">in</span> np.linspace(0, 1, 5):
+    plt.plot(grid, (grid + np.square(grid) * phi) / (grid + 1e-8), label=<span class="org-string">'{:.2f}'</span>.<span class="org-builtin">format</span>(phi), c=colorcet.cm[<span class="org-string">'inferno'</span>](phi), ls=<span class="org-string">'--'</span>, lw=1)
+  plt.legend(title=<span class="org-string">'Overdispersion $\phi$'</span>)
+  plt.xlim(lim)
+  plt.ylim(lim)
+  plt.xlabel(<span class="org-string">'Estimated mean'</span>)
+  plt.ylabel(<span class="org-string">'Estimated Fano factor'</span>)
+
+<span class="org-keyword">def</span> <span class="org-function-name">plot_mean_var_by_bin</span>(params, n_bin=8, min_mean=5, equal_bins=<span class="org-constant">True</span>):
+  <span class="org-variable-name">subset</span> = params[params[<span class="org-string">'mean'</span>] &gt; min_mean]
+  <span class="org-keyword">if</span> equal_bins:
+    <span class="org-variable-name">cut</span> = pd.qcut
+    <span class="org-variable-name">label</span> = <span class="org-string">'Quantile of estimated mean'</span>
+  <span class="org-keyword">else</span>:
+    <span class="org-variable-name">cut</span> = pd.cut
+    <span class="org-variable-name">label</span> = <span class="org-string">'Percentile of range of estimated mean'</span>
+  <span class="org-variable-name">subset</span>[<span class="org-string">'bin'</span>] = cut(subset[<span class="org-string">'mean'</span>], n_bin)
+  <span class="org-variable-name">subset</span>[<span class="org-string">'fano'</span>] = subset[<span class="org-string">'var'</span>] / subset[<span class="org-string">'mean'</span>]
+  plt.clf()
+  plt.gcf().set_size_inches(5, 4)
+  <span class="org-keyword">for</span> i, (k, g) <span class="org-keyword">in</span> <span class="org-builtin">enumerate</span>(subset.groupby(<span class="org-string">'bin'</span>)):
+    <span class="org-keyword">if</span> <span class="org-builtin">len</span>(g) &lt; 10:
+      plt.scatter((i + .5) * np.ones(g[<span class="org-string">'fano'</span>].shape[0]), g[<span class="org-string">'fano'</span>], c=<span class="org-string">'k'</span>, s=4, label=k)
+    <span class="org-keyword">else</span>:
+      <span class="org-variable-name">res</span> = plt.violinplot(g[<span class="org-string">'fano'</span>], positions=[i + .5], showextrema=<span class="org-constant">True</span>, showmedians=<span class="org-constant">False</span>, widths=.5)
+      <span class="org-keyword">for</span> v <span class="org-keyword">in</span> res[<span class="org-string">'bodies'</span>]:
+        v.set_facecolor(<span class="org-string">'.25'</span>)
+      res[<span class="org-string">'cbars'</span>].set_color(<span class="org-string">'k'</span>)
+      res[<span class="org-string">'cmins'</span>].set_color(<span class="org-string">'k'</span>)
+      res[<span class="org-string">'cmaxes'</span>].set_color(<span class="org-string">'k'</span>)
+  plt.xticks(np.arange(n_bin + 1), [<span class="org-string">'{:.3f}'</span>.<span class="org-builtin">format</span>(x) <span class="org-keyword">for</span> x <span class="org-keyword">in</span> np.linspace(0, 1, n_bin + 1)])
+  plt.xlim(0, n_bin)
+  plt.xlabel(label)
+  <span class="org-variable-name">_</span> = plt.ylabel(<span class="org-string">'Estimated Fano factor'</span>)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plot_mean_var_by_gene(params[params[<span class="org-string">'ind'</span>] == <span class="org-string">'NA18507'</span>])
+plt.title(<span class="org-string">'NA18507'</span>)
 </pre>
 </div>
 
 <pre class="example">
-Text(0,0.5,'Estimated Fano factor')
+Text(0.5,1,'NA18507')
 
 </pre>
 
 <div class="figure">
-<p><img src="figure/zinb.org/mean-var-rel.png" alt="mean-var-rel.png">
+<p><img src="figure/zinb.org/mean-var-rel-NA18507.png" alt="mean-var-rel-NA18507.png">
 </p>
 </div>
+
+<p>
+Plot the mean variance relationship by percentile (equal-sized bins).
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plot_mean_var_by_bin(params[params[<span class="org-string">'ind'</span>] == <span class="org-string">'NA18507'</span>])
+plt.title(<span class="org-string">'NA18507'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0.5,1,'NA18507')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/zinb.org/mean-var-by-percentile-NA18507.png" alt="mean-var-by-percentile-NA18507.png">
+</p>
+</div>
+
+<p>
+Plot the mean variance relationship by binning the range of mean expression
+(unequal bins)
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plot_mean_var_by_bin(params[params[<span class="org-string">'ind'</span>] == <span class="org-string">'NA18507'</span>], equal_bins=<span class="org-constant">False</span>)
+plt.title(<span class="org-string">'NA18507'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0.5,1,'NA18507')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/zinb.org/mean-var-by-quantile-NA18507.png" alt="mean-var-by-quantile-NA18507.png">
+</p>
+</div>
+
+<p>
+Investigate the outlier gene.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">gene_info</span> = pd.read_table(<span class="org-string">'/project2/gilad/singlecell-qtl/genome-ensembl-release-75/hs.saf'</span>)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">fano_idxmax</span> = params.groupby(<span class="org-string">'ind'</span>).agg(<span class="org-keyword">lambda</span> x: x.loc[x[<span class="org-string">'fano'</span>].idxmax()][<span class="org-string">'gene'</span>])[<span class="org-string">'gene'</span>].value_counts().to_frame()
+fano_idxmax
+</pre>
+</div>
+
+<pre class="example">
+gene
+ENSG00000110713    37
+ENSG00000198886     7
+ENSG00000198899     7
+ENSG00000197061     1
+ENSG00000206150     1
+ENSG00000198727     1
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-ipython">gene_info.groupby(<span class="org-string">'GeneID'</span>).agg(<span class="org-keyword">lambda</span> x: x.iloc[0]).merge(fano_idxmax, left_index=<span class="org-constant">True</span>, right_index=<span class="org-constant">True</span>)
+</pre>
+</div>
+
+<pre class="example">
+Chr     Start       End Strand      Name  gene
+ENSG00000110713  hs11   3692313   3692646      -     NUP98    37
+ENSG00000197061   hs6  26104104  26104518      +  HIST1H4C     1
+ENSG00000198727  hsMT     14747     15887      +    MT-CYB     1
+ENSG00000198886  hsMT     10760     12137      +    MT-ND4     7
+ENSG00000198899  hsMT      8527      9207      +   MT-ATP6     7
+ENSG00000206150  hs14  21500979  21502455      -   RNASE13     1
+</pre>
 </div>
 </div>
 
@@ -771,7 +894,7 @@ excess zeros do not reflect biology.
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'</span>) <span class="org-keyword">as</span> conn:
   <span class="org-variable-name">params</span> = pd.read_sql(<span class="org-string">'select * from params;'</span>, conn)
-<span class="org-variable-name">gene_params</span> = params.groupby(<span class="org-string">'gene'</span>).<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: pd.Series([x[<span class="org-string">'mean'</span>].mean(), (np.square(x[<span class="org-string">'mean'</span>] - x[<span class="org-string">'mean'</span>].mean()) + x[<span class="org-string">'var'</span>]).mean()]))
+<span class="org-variable-name">gene_params</span> = params.groupby(<span class="org-string">'gene'</span>).<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: pd.Series([x[<span class="org-string">'mean'</span>].mean(), (np.square(x[<span class="org-string">'mean'</span>] - x[<span class="org-string">'mean'</span>].mean()) + x[<span class="org-string">'var'</span>]).mean()])).rename(columns={0: <span class="org-string">'mean'</span>, 1: <span class="org-string">'var'</span>})
 </pre>
 </div>
 
@@ -782,20 +905,7 @@ individuals.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">subset</span> = gene_params[gene_params[0] &gt; 0]
-<span class="org-variable-name">subset.columns</span> = [<span class="org-string">'mean'</span>, <span class="org-string">'var'</span>]
-<span class="org-variable-name">lim</span> = [subset[<span class="org-string">'mean'</span>].<span class="org-builtin">min</span>(), subset[<span class="org-string">'mean'</span>].<span class="org-builtin">max</span>()]
-<span class="org-variable-name">grid</span> = np.linspace(*lim, num=200)
-plt.clf()
-plt.gcf().set_size_inches(6, 6)
-plt.scatter(subset[<span class="org-string">'mean'</span>], subset[<span class="org-string">'var'</span>] / subset[<span class="org-string">'mean'</span>], s=2, c=<span class="org-string">'k'</span>)
-<span class="org-keyword">for</span> phi <span class="org-keyword">in</span> np.geomspace(.1, 2, 5):
-  plt.plot(grid, (grid + np.square(grid) * phi) / (grid + 1e-8), label=<span class="org-string">'{:.2f}'</span>.<span class="org-builtin">format</span>(phi), c=colorcet.cm[<span class="org-string">'bkr'</span>](phi), ls=<span class="org-string">':'</span>, lw=1)
-plt.legend(title=<span class="org-string">'Overdispersion'</span>)
-plt.xlim(lim)
-plt.ylim(lim)
-plt.xlabel(<span class="org-string">'Estimated mean'</span>)
-<span class="org-variable-name">_</span> = plt.ylabel(<span class="org-string">'Estimated Fano factor'</span>)
+<pre class="src src-ipython">plot_mean_var_by_gene(gene_params)
 </pre>
 </div>
 
@@ -810,20 +920,7 @@ Bin the data and plot the distribution by bin.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">n_bin</span> = 8
-<span class="org-variable-name">subset</span>[<span class="org-string">'bin'</span>] = pd.cut(subset[<span class="org-string">'mean'</span>], n_bin)
-<span class="org-variable-name">subset</span>[<span class="org-string">'fano'</span>] = subset[<span class="org-string">'var'</span>] / subset[<span class="org-string">'mean'</span>]
-plt.clf()
-plt.gcf().set_size_inches(5, 4)
-<span class="org-keyword">for</span> i, (k, g) <span class="org-keyword">in</span> <span class="org-builtin">enumerate</span>(subset.groupby(<span class="org-string">'bin'</span>)):
-  <span class="org-keyword">if</span> <span class="org-builtin">len</span>(g) &lt; 10:
-    plt.scatter((i + .5) * np.ones(g[<span class="org-string">'fano'</span>].shape[0]), g[<span class="org-string">'fano'</span>], c=<span class="org-string">'k'</span>, s=4, label=k)
-  <span class="org-keyword">else</span>:
-    plt.boxplot(g[<span class="org-string">'fano'</span>], positions=[i + .5], sym=<span class="org-string">'.'</span>, widths=.25)
-plt.xticks(np.arange(n_bin + 1), [<span class="org-string">'{:.2f}'</span>.<span class="org-builtin">format</span>(x) <span class="org-keyword">for</span> x <span class="org-keyword">in</span> np.linspace(0, 1, n_bin + 1)])
-plt.xlim(0, n_bin)
-plt.xlabel(<span class="org-string">'Quantile of estimated mean'</span>)
-<span class="org-variable-name">_</span> = plt.ylabel(<span class="org-string">'Estimated Fano factor'</span>)
+<pre class="src src-ipython">plot_mean_var_by_bin(gene_params)
 </pre>
 </div>
 
@@ -832,12 +929,74 @@ plt.xlabel(<span class="org-string">'Quantile of estimated mean'</span>)
 <p><img src="figure/zinb.org/overall-mean-var-rel-by-quantile.png" alt="overall-mean-var-rel-by-quantile.png">
 </p>
 </div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plot_mean_var_by_bin(gene_params, equal_bins=<span class="org-constant">False</span>)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/zinb.org/overall-mean-var-rel-by-percentile.png" alt="overall-mean-var-rel-by-percentile.png">
+</p>
+</div>
+
+<p>
+Visualize the distribution of Fano factor.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">gene_params</span>[<span class="org-string">'fano'</span>] = gene_params[<span class="org-string">'var'</span>] / gene_params[<span class="org-string">'mean'</span>]
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.hist(gene_params[gene_params[<span class="org-string">'mean'</span>] &gt; 5][<span class="org-string">'fano'</span>], color=<span class="org-string">'k'</span>, bins=20)
+plt.xlabel(<span class="org-string">'Estimated Fano factor'</span>)
+plt.ylabel(<span class="org-string">'Number of genes'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0,0.5,'Number of genes')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/zinb.org/fano-factor-hist.png" alt="fano-factor-hist.png">
+</p>
+</div>
+
+<p>
+Identify noisy genes by ordering with respect to estimated Fano factor.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">np.percentile(gene_params[gene_params[<span class="org-string">'mean'</span>] &gt; 5][<span class="org-string">'fano'</span>], [90, 95, 99])
+</pre>
+</div>
+
+<pre class="example">
+array([ 8.74266345, 13.2907511 , 31.59529237])
+
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">gene_info</span> = pd.read_table(<span class="org-string">'/project2/gilad/singlecell-qtl/genome-ensembl-release-75/hs.saf'</span>).groupby(<span class="org-string">'GeneID'</span>).agg(<span class="org-keyword">lambda</span> x: x.iloc[0])  
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">gene_params[np.logical_and(gene_params[<span class="org-string">'mean'</span>] &gt; 5, gene_params[<span class="org-string">'fano'</span>] &gt; 31.595)].merge(gene_info, left_index=<span class="org-constant">True</span>, right_index=<span class="org-constant">True</span>).sort_values(<span class="org-string">'fano'</span>, ascending=<span class="org-constant">False</span>).loc[:,[<span class="org-string">'Chr'</span>, <span class="org-string">'Name'</span>, <span class="org-string">'mean'</span>, <span class="org-string">'var'</span>, <span class="org-string">'fano'</span>]].to_csv(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/per-gene-fano.txt.gz'</span>, compression=<span class="org-string">'gzip'</span>, sep=<span class="org-string">'\t'</span>)
+</pre>
+</div>
 </div>
 </div>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-04-17 Tue 13:53</p>
+<p class="date">Created: 2018-04-23 Mon 14:58</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>

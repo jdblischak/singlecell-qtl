@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-04-11 Wed 13:33 -->
+<!-- 2018-04-20 Fri 16:34 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Single cell/bulk RNA-Seq concordance</title>
@@ -636,12 +636,30 @@ Sorry, your browser does not support SVG.</object>
 <object type="image/svg+xml" data="figure/sc-vs-bulk.org/vs-sc-mean/NA18505.svg" class="org-svg">
 Sorry, your browser does not support SVG.</object>
 </p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">corr</span> = pd.DataFrame.from_dict({k: pd.Series(st.spearmanr(log_mu.loc[keep_genes.values.ravel(), k], bulk_log_rho.loc[keep_genes.values.ravel(), k])) <span class="org-keyword">for</span> k <span class="org-keyword">in</span> bulk_log_rho.columns &amp; log_mu.columns}).T
+corr.describe()
+</pre>
+</div>
+
+<pre class="example">
+0     1
+count  49.000000  49.0
+mean    0.766546   0.0
+std     0.021359   0.0
+min     0.688310   0.0
+25%     0.757449   0.0
+50%     0.769228   0.0
+75%     0.780939   0.0
+max     0.795472   0.0
+</pre>
 </div>
 </div>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-04-11 Wed 13:33</p>
+<p class="date">Created: 2018-04-20 Fri 16:34</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
