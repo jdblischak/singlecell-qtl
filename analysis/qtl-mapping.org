@@ -27,7 +27,7 @@
   #+CALL: ipython3(memory="16G", venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 45224115
+  : Submitted batch job 45268702
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -58,7 +58,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[126]:
+  # Out[1]:
   :END:
 
 * Implementation
@@ -81,7 +81,7 @@
 
   #+RESULTS: r-wrappers
   :RESULTS:
-  # Out[127]:
+  # Out[2]:
   :END:
 
   #+NAME: get-gene-info
@@ -96,7 +96,7 @@
 
   #+RESULTS: get-gene-info
   :RESULTS:
-  # Out[128]:
+  # Out[3]:
   :END:
 
   #+RESULTS:
@@ -150,7 +150,7 @@
 
   #+RESULTS: write-pheno-def
   :RESULTS:
-  # Out[129]:
+  # Out[4]:
   :END:
 
   #+NAME: tabix
@@ -220,7 +220,7 @@
 
   #+RESULTS: read-qtltools-def
   :RESULTS:
-  # Out[143]:
+  # Out[5]:
   :END:
 
   #+RESULTS:
@@ -241,7 +241,7 @@
 
   #+RESULTS: plot-approx-perm-def
   :RESULTS:
-  # Out[131]:
+  # Out[6]:
   :END:
 
   #+NAME: qqplot-def
@@ -264,7 +264,7 @@
 
   #+RESULTS: qqplot-def
   :RESULTS:
-  # Out[132]:
+  # Out[7]:
   :END:
 
   #+NAME: replication-tests-def
@@ -344,7 +344,7 @@
 
   #+RESULTS: replication-tests-def
   :RESULTS:
-  # Out[133]:
+  # Out[8]:
   :END:
 
   #+NAME: bootstrap-def
@@ -363,7 +363,7 @@
 
   #+RESULTS: bootstrap-def
   :RESULTS:
-  # Out[134]:
+  # Out[9]:
   :END:
 
   #+NAME: bootstrap-betahat-se-def
@@ -425,7 +425,7 @@
 
   #+RESULTS: bootstrap-betahat-se-def
   :RESULTS:
-  # Out[135]:
+  # Out[10]:
   :END:
 
 * Preliminaries
@@ -1079,6 +1079,58 @@
    # Out[146]:
    : 1020
    :END:
+
+** Reprocess YRI dosages
+
+   We have two individuals which weren't used in Banovich et al 2018, so we
+   don't have their genotypes. Reprocess the IMPUTE2 output to get the correct
+   dosage matrix.
+
+   #+BEGIN_SRC sh :eval never
+     rsync -nva -f '+ */' -f '+ *.impute2.gz' -f '+ YRI_samples.txt' -f '- *' ./ aksarkar@midway2.rcc.uchicago.edu:/scratch/midway2/aksarkar/singlecell/scqtl-mapping/
+   #+END_SRC
+
+   #+BEGIN_SRC ipython :eval never :tangle /scratch/midway2/aksarkar/singlecell/scqtl-mapping/reprocess-dosage.py
+     import glob
+     import gzip
+     import numpy as np
+     import pandas as pd
+     import sqlite3
+
+     def convert_impute2_vcf(file, mask, chrom, outfile, min_maf=0.05):
+       for line in file:
+         record = line.split()
+         posterior = np.array([float(x) for x in record[5:]])
+         dose = posterior.reshape(-1, 3).dot(np.arange(3))[mask]
+         if min_maf <= dose.mean() / 2 <= 1 - min_maf:
+           print(chrom, record[2], '{}.{}.{}'.format(record[1], chrom, record[2]),
+                 record[3], record[4], '.', '.', '.', 'DS',
+                 ,*['{:.3f}'.format(x) for x in dose], sep='\t', file=outfile)
+
+     samples = pd.read_table('YRI_samples.txt', header=None, sep=' ')
+     with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
+       keep = pd.read_sql('select chip_id from annotation group by chip_id having count(*) >= 50;', conn)
+     mask = samples[0].isin(keep['chip_id']).values
+     assert mask.sum() == 53
+     with gzip.open('yri-120-dosages.vcf.gz', 'wt') as f:
+       print('##fileformat=VCFv4.2', file=f)
+       print('##FORMAT=<ID=DS,Number=1,Type=Float>', file=f)
+       print('#CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 'INFO', 'FORMAT', *samples[0][mask], sep='\t', file=f)
+       for c in range(1, 23):
+         with gzip.open('chr{}.hg19.impute2.gz'.format(c), 'rt') as g:
+           convert_impute2_vcf(g, mask, 'chr{}'.format(c), outfile=f)
+   #+END_SRC
+
+
+   #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
+     sbatch --partition=mstephens
+     #!/bin/bash
+     source activate scqtl
+     python reprocess-dosage.py
+   #+END_SRC
+
+   #+RESULTS:
+   : Submitted batch job 45277139
 
 * Analysis using sample moments
 
