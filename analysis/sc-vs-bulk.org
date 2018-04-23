@@ -20,7 +20,7 @@
   #+CALL: ipython3(memory="16G", venv="scqtl")
 
   #+RESULTS:
-  : Submitted batch job 44915330
+  : Submitted batch job 45317182
 
   #+BEGIN_SRC ipython
     import colorcet
@@ -56,7 +56,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[4]:
+  # Out[11]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -350,7 +350,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[6]:
+  # Out[2]:
   :END:
 
   Under [[file:zinb.org][our assumed model]], the parameter \(\mu\) is proportional to relative
@@ -368,7 +368,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[7]:
+  # Out[3]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -404,3 +404,24 @@
   file:figure/sc-vs-bulk.org/vs-sc-mean/NA18501.svg
   file:figure/sc-vs-bulk.org/vs-sc-mean/NA18502.svg
   file:figure/sc-vs-bulk.org/vs-sc-mean/NA18505.svg
+
+  #+BEGIN_SRC ipython
+    corr = pd.DataFrame.from_dict({k: pd.Series(st.spearmanr(log_mu.loc[keep_genes.values.ravel(), k], bulk_log_rho.loc[keep_genes.values.ravel(), k])) for k in bulk_log_rho.columns & log_mu.columns}).T
+    corr.describe()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[23]:
+  #+BEGIN_EXAMPLE
+    0     1
+    count  49.000000  49.0
+    mean    0.766546   0.0
+    std     0.021359   0.0
+    min     0.688310   0.0
+    25%     0.757449   0.0
+    50%     0.769228   0.0
+    75%     0.780939   0.0
+    max     0.795472   0.0
+  #+END_EXAMPLE
+  :END:
