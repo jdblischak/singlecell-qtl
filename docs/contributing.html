@@ -25,8 +25,8 @@
 <link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
 <script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
 <script src="site_libs/navigation-1.1/tabsets.js"></script>
-<link href="site_libs/highlightjs-1.1/textmate.css" rel="stylesheet" />
-<script src="site_libs/highlightjs-1.1/highlight.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
 <link href="site_libs/font-awesome-4.5.0/css/font-awesome.min.css" rel="stylesheet" />
 
 <style type="text/css">code{white-space: pre;}</style>
@@ -36,10 +36,12 @@
   }
 </style>
 <script type="text/javascript">
-if (window.hljs && document.readyState && document.readyState === "complete") {
-   window.setTimeout(function() {
-      hljs.initHighlighting();
-   }, 0);
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
 }
 </script>
 
@@ -319,15 +321,15 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2018-01-29</p>
+<p><strong>Last updated:</strong> 2018-04-24</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> f6b7f76</p>
-<section id="initial-setup" class="level2">
+<p><strong>Code version:</strong> b9d9f0a</p>
+<div id="initial-setup" class="section level2">
 <h2>Initial setup</h2>
 <p>The initial setup only has to be performed once for each computer that you use.</p>
 <p>To ensure all contributors are using the same computational environment, we use <a href="https://conda.io/docs/">conda</a> to manage software dependencies (made possible by the <a href="https://bioconda.github.io">bioconda</a> and <a href="https://conda-forge.org/">conda-forge</a> projects). Please complete the following steps to replicate the computing environment. Note that this is only guaranteed to work on a Linux-64 based architecture, but in theory should be able to work on macOS as well. All commands shown below are intended to be run in a Bash shell from the root of the project directory.</p>
-<ol type="1">
+<ol style="list-style-type: decimal">
 <li><p>Install Git and register for an account on GitHub</p></li>
 <li>Download and install <a href="https://conda.io/miniconda.html">Miniconda3</a>
 <ul>
@@ -339,23 +341,41 @@ shared across the workflowr files. -->
 <li>Run <code>source ~/.bash_profile</code> on macOS or <code>source ~/.bashrc</code> on Linux to update <code>PATH</code></li>
 <li>Run <code>which conda</code> to confirm that <code>conda</code> was installed</li>
 </ul></li>
-<li><p>Clone this repository (or your personal fork) <code>git clone https://github.com/jdblischak/singlecell-qtl.git  cd singlecell-qtl</code></p></li>
-<li><p>Create the conda environment “scqtl” using <code>environment.yaml</code> <code>conda env create --file environment.yaml</code></p></li>
-<li><p>To use the conda environment, you must first activate it by running <code>source activate scqtl</code>. This will override your default settings for R, Python, and various other software packages. When you are done working on this project, you can either logout of the current session or deactivate the environment. <code># Activate conda environment scqtl  source activate scqtl  # Deactivate conda environment  source deactivate</code></p></li>
-<li><p>Initialize <a href="https://git-lfs.github.com/">git-lfs</a> and download the latest version of large data files <code>git lfs install  git lfs pull</code></p></li>
+<li><p>Configure conda channels</p>
+<pre><code>echo &quot;\
+channels:
+  - jdblischak
+  - bioconda
+  - conda-forge
+  - defaults
+default_channels:
+  - https://repo.continuum.io/pkgs/free&quot; &gt; ~/.condarc</code></pre></li>
+<li><p>Clone this repository (or your personal fork)</p>
+<pre><code>git clone https://github.com/jdblischak/singlecell-qtl.git
+cd singlecell-qtl</code></pre></li>
+<li><p>Create the conda environment &quot;scqtl&quot; using <code>environment.yaml</code></p>
+<pre><code>conda env create --file environment.yaml</code></pre></li>
+<li><p>To use the conda environment, you must first activate it by running <code>source activate scqtl</code>. This will override your default settings for R, Python, and various other software packages. When you are done working on this project, you can either logout of the current session or deactivate the environment.</p>
+<pre><code># Activate conda environment scqtl
+source activate scqtl
+# Deactivate conda environment
+source deactivate</code></pre></li>
+<li><p>Initialize <a href="https://git-lfs.github.com/">git-lfs</a> and download the latest version of large data files</p>
+<pre><code>git lfs install
+git lfs pull</code></pre></li>
 </ol>
-<p><strong>Warning:</strong> If you are using RStudio, you need to ensure that it recognizes your conda environment. If you launch RStudio by clicking on an icon, it doesn’t use the current environment you have configured in your shell. On a Linux-based system, the solution is to launch RStudio directly from the shell with <code>rstudio</code>. On macOS, running <code>open -a rstudio .</code> from the shell causes RStudio to recognize most of the environment variables, but strangely it does not set the correct library path to the conda R packages. Suggestions for how to fix this are welcome.</p>
-</section>
-<section id="regular-setup" class="level2">
+<p><strong>Warning:</strong> If you are using RStudio, you need to ensure that it recognizes your conda environment. If you launch RStudio by clicking on an icon, it doesn't use the current environment you have configured in your shell. On a Linux-based system, the solution is to launch RStudio directly from the shell with <code>rstudio</code>. On macOS, running <code>open -a rstudio .</code> from the shell causes RStudio to recognize most of the environment variables, but strangely it does not set the correct library path to the conda R packages. Suggestions for how to fix this are welcome.</p>
+</div>
+<div id="regular-setup" class="section level2">
 <h2>Regular setup</h2>
 <p>Once you have performed the <a href="#initial-setup">initial setup</a> on your computer, the regular setup you have to perform each time you want to work on the project is much quicker. Navigate to the singlecell-qtl directory, activate the conda environment, and pull the latest changes from the GitHub repository.</p>
 <pre><code>cd singlecell-qtl
 source activate scqtl
 git pull</code></pre>
-<p>If there are updates to <code>environment.yaml</code>, you can update the “scqtl” conda environment. You may want to do this occasionally just to be sure you have all the software you need.</p>
+<p>If there are updates to <code>environment.yaml</code>, you can update the &quot;scqtl&quot; conda environment. You may want to do this occasionally just to be sure you have all the software you need.</p>
 <pre><code>conda env update --file environment.yaml</code></pre>
-</section>
-<section id="bioinformatics-pipeline" class="level2">
+</div>
+<div id="bioinformatics-pipeline" class="section level2">
 <h2>Bioinformatics pipeline</h2>
 <p>The main steps of the bioinformatics pipeline are:</p>
 <ul>
@@ -367,10 +387,10 @@ git pull</code></pre>
 <li>The identity of the single cells is determined with <a href="http://genome.sph.umich.edu/wiki/VerifyBamID">verifyBamID</a></li>
 </ul>
 <p>The pipeline is implemented with <a href="https://snakemake.readthedocs.io/en/stable/">Snakemake</a>. The <a href="https://github.com/jdblischak/singlecell-qtl/blob/master/Snakefile">Snakefile</a> controls this process, ensuring that output files are updated when upstream files are changed. Options for the pipeline are set in <a href="https://github.com/jdblischak/singlecell-qtl/blob/master/config.yaml">config.yaml</a>, options for submission to Slurm are set in <a href="https://github.com/jdblischak/singlecell-qtl/blob/master/cluster.json">cluster.json</a>, the Bash script for executing Snakemake is in <a href="https://github.com/jdblischak/singlecell-qtl/blob/master/submit-snakemake.sh">submit-snakemake.sh</a>, and the Slurm sbatch file for submitting the pipeline is <a href="https://github.com/jdblischak/singlecell-qtl/blob/master/snakemake.sbatch">snakemake.sbatch</a>.</p>
-</section>
-<section id="using-expressionset-objects" class="level2">
+</div>
+<div id="using-expressionset-objects" class="section level2">
 <h2>Using ExpressionSet objects</h2>
-<p>The processed data for each C1 chip is stored in its own RDS file, a binary format for storing R objects. The RDS file contains an <a href="https://www.bioconductor.org/packages/release/bioc/vignettes/Biobase/inst/doc/ExpressionSetIntroduction.pdf">ExpressionSet</a> object. The ExpressionSet class stores the RNA-seq counts along with metadata on the samples, features (e.g. genes), and experimental details.</p>
+<p>The processed data for each C1 chip is stored in its own RDS file, a binary format for storing R objects. The RDS file contains an <a href="https://www.bioconductor.org/packages/release/bioc/vignettes/Biobase/inst/doc/ExpressionSetIntroduction.pdf">ExpressionSet</a> object. The ExpressionSet class stores the RNA-seq counts along with metadata on the samples, features (e.g. genes), and experimental details.</p>
 <p>To import the data, use the R function <code>readRDS()</code>. Because the ExpressionSet class is defined in the Bioconductor package Biobase, it will be loaded the first time you access the loaded ExpressionSet object. To avoid the long startup message that the Biobase package prints, here it is loaded prior to importing the object.</p>
 <pre class="r"><code>suppressPackageStartupMessages(library(&quot;Biobase&quot;))
 eset &lt;- readRDS(&quot;../data/eset/03162017.rds&quot;)</code></pre>
@@ -493,16 +513,16 @@ batch1 &lt;- Reduce(combine, Map(readRDS, fname))
 dim(batch1)</code></pre>
 <pre><code>Features  Samples 
    54792      960 </code></pre>
-<p>To read in the entire data set, use the combined ExpressionSet object (it’s much faster to load just one serialized data file).</p>
+<p>To read in the entire data set, use the combined ExpressionSet object (it's much faster to load just one serialized data file).</p>
 <pre class="r"><code>eset_total &lt;- readRDS(&quot;../data/eset.rds&quot;)
 dim(eset_total)</code></pre>
 <pre><code>Features  Samples 
-   54792     4992 </code></pre>
+   54792     7200 </code></pre>
 <p>To learn more about the data that can be stored in an ExpressionSet object and methods to access the data, please see the help pages for ExpressionSet and its parent class eSet.</p>
 <pre class="r"><code>?ExpressionSet
 ?eSet</code></pre>
-</section>
-<section id="using-combined-data-files" class="level2">
+</div>
+<div id="using-combined-data-files" class="section level2">
 <h2>Using combined data files</h2>
 <p>For convenience, the combined data are available in single files.</p>
 <p>The annotation for all the single cells is in <a href="https://github.com/jdblischak/singlecell-qtl/blob/master/data/scqtl-annotation.txt">data/scqtl-annotation.txt</a>. The description of the annotation columns is in <a href="https://github.com/jdblischak/singlecell-qtl/blob/master/data/scqtl-annotation-description.txt">data/scqtl-annotation-description.txt</a>.</p>
@@ -520,18 +540,18 @@ counts &lt;- data.frame(fread(&quot;zcat ../data/scqtl-counts.txt.gz&quot;), row
 <pre><code>
 Read 49.2% of 20327 rows
 Read 98.4% of 20327 rows
-Read 20327 rows and 4993 (of 4993) columns from 0.193 GB file in 00:00:07</code></pre>
+Read 20327 rows and 7201 (of 7201) columns from 0.279 GB file in 00:00:10</code></pre>
 <pre class="r"><code>dim(counts)</code></pre>
-<pre><code>[1] 20327  4992</code></pre>
+<pre><code>[1] 20327  7200</code></pre>
 <pre class="r"><code>counts[1:5, 1:2]</code></pre>
-<pre><code>                NA19098.03162017.A01 NA18505.03162017.A02
-ENSG00000000003                    0                    3
+<pre><code>                NA19210.02192018.A01 NA18913.02192018.A02
+ENSG00000000003                    1                    1
 ENSG00000000005                    0                    0
-ENSG00000000419                    0                    3
-ENSG00000000457                    1                    0
-ENSG00000000460                    0                    2</code></pre>
-</section>
-<section id="data-analysis-workflow" class="level2">
+ENSG00000000419                    1                    0
+ENSG00000000457                    0                    0
+ENSG00000000460                    0                    0</code></pre>
+</div>
+<div id="data-analysis-workflow" class="section level2">
 <h2>Data analysis workflow</h2>
 <p>The data analysis is organized using the R package <a href="https://github.com/jdblischak/workflowr">workflowr</a>. Here are the basics:</p>
 <pre class="r"><code># Create a new analysis file using the workflowr
@@ -542,21 +562,27 @@ wflow_build()
 wflow_publish(&quot;analysis/new.Rmd&quot;, &quot;Add a new analysis&quot;)</code></pre>
 <p>Ideally <code>wflow_publish()</code> will be run using the conda environment scqtl so that the final results are always generated using the same versions of the software. If you are using RStudio, you may need to open R from the command line to execute <code>wflow_publish()</code> in the conda environment.</p>
 <p>More information on workflowr can be found in the <a href="https://jdblischak.github.io/workflowr/">online documentation</a>.</p>
-</section>
-<section id="adding-large-files-to-the-git-repo" class="level2">
+</div>
+<div id="adding-large-files-to-the-git-repo" class="section level2">
 <h2>Adding large files to the Git repo</h2>
 <p>Since we use <a href="https://git-lfs.github.com/">Git LFS</a>, we can version large binary files with Git without worrying about the size of the Git repo. Before you do anything with large files, make sure you have activated the conda environment to ensure that you have Git LFS installed.</p>
-<ol type="1">
-<li><p>Activate the conda environment: <code>source activate scqtl</code></p></li>
-<li><p>Check the currently tracked file extensions: <code>git lfs track</code></p></li>
-<li><p>If the file extension is not yet being tracked, you first need to track it. For example, if you wanted to use Git LFS with files that end in the extension <code>.xyz</code>, you would run the following: <code>git lfs track &quot;*.xyz&quot;  git add .gitattributes</code></p></li>
-<li><p>Once the file extension is being tracked, add and commit the file like any other file (you need to specify the <code>-f</code> flag for “force” because the directory <code>data/</code> is ignored by default to prevent accidentally committing a large file): <code>git add -f data/filename.xyz  git commit</code></p></li>
-<li><p>Before pushing to GitHub, confirm that the large file was properly committed by running <code>git log --stat</code>. The file that was committed should only be a few lines long because it is a plain text file with a pointer to the version of the large file on GitHub’s servers.</p></li>
+<ol style="list-style-type: decimal">
+<li><p>Activate the conda environment:</p>
+<pre><code>source activate scqtl</code></pre></li>
+<li><p>Check the currently tracked file extensions:</p>
+<pre><code>git lfs track</code></pre></li>
+<li><p>If the file extension is not yet being tracked, you first need to track it. For example, if you wanted to use Git LFS with files that end in the extension <code>.xyz</code>, you would run the following:</p>
+<pre><code>git lfs track &quot;*.xyz&quot;
+git add .gitattributes</code></pre></li>
+<li><p>Once the file extension is being tracked, add and commit the file like any other file (you need to specify the <code>-f</code> flag for &quot;force&quot; because the directory <code>data/</code> is ignored by default to prevent accidentally committing a large file):</p>
+<pre><code>git add -f data/filename.xyz
+git commit</code></pre></li>
+<li><p>Before pushing to GitHub, confirm that the large file was properly committed by running <code>git log --stat</code>. The file that was committed should only be a few lines long because it is a plain text file with a pointer to the version of the large file on GitHub's servers.</p></li>
 </ol>
-</section>
-<section id="installation-of-r-packages-outside-of-conda-environment" class="level2">
+</div>
+<div id="installation-of-r-packages-outside-of-conda-environment" class="section level2">
 <h2>Installation of R packages outside of conda environment</h2>
-<p>There may be situations where you cannot access the R packages installed in the conda environment (e.g. running RStudio on macOS, or RStudio Server). The code below installs the necessary R packages from <a href="https://cran.r-project.org/">CRAN</a>, <a href="https://bioconductor.org">Bioconductor</a>, and <a href="https://github.com">GitHub</a>.</p>
+<p>There may be situations where you cannot access the R packages installed in the conda environment (e.g. running RStudio on macOS, or RStudio Server). The code below installs the necessary R packages from <a href="https://cran.r-project.org/">CRAN</a>, <a href="https://bioconductor.org">Bioconductor</a>, and <a href="https://github.com">GitHub</a>.</p>
 <p>Install R packages from <a href="https://cran.r-project.org/">CRAN</a>:</p>
 <pre class="r"><code>install.packages(&quot;cowplot&quot;, &quot;data.table&quot;, &quot;devtools&quot;, &quot;dplyr&quot;, &quot;ggplot2&quot;,
                  &quot;readr&quot;, &quot;rmarkdown&quot;, &quot;stringr&quot;, &quot;testit&quot;, &quot;tidyr&quot;)</code></pre>
@@ -565,37 +591,61 @@ wflow_publish(&quot;analysis/new.Rmd&quot;, &quot;Add a new analysis&quot;)</cod
 biocLite(c(&quot;Biobase&quot;, &quot;biomaRt&quot;, &quot;edgeR&quot;))</code></pre>
 <p>Install R packages from <a href="https://github.com">GitHub</a>:</p>
 <pre class="r"><code>devtools::install_github(&quot;jdblischak/workflowr&quot;)</code></pre>
-</section>
-<section id="tips-and-tricks" class="level2">
+</div>
+<div id="tips-and-tricks" class="section level2">
 <h2>Tips and tricks</h2>
-<section id="enable-bash-auto-completion-for-git-on-macos" class="level3">
+<div id="enable-bash-auto-completion-for-git-on-macos" class="section level3">
 <h3>Enable Bash auto-completion for Git on macOS</h3>
-<p>Manually typing <code>git pull origin master</code> and other long Git commands is a pain. To enable <a href="https://git-scm.com/book/en/v2/Appendix-A:-Git-in-Other-Environments-Git-in-Bash">Bash auto-completion</a> (i.e. tab-completion) for Git on macOS, follow these <a href="http://www.codethatmatters.com/2010/01/git-autocomplete-in-mac-os-x/">steps</a>:</p>
-<ol type="1">
-<li><p>Download the Bash completion script: <code>curl -L https://raw.github.com/git/git/master/contrib/completion/git-completion.bash &gt; ~/git-completion.bash</code></p></li>
-<li><p>Add the following line to your .bash_profile: <code>source ~/git-completion.bash</code></p></li>
-<li><p>Re-run your .bash_profile: <code>source ~/.bash_profile</code></p></li>
+<p>Manually typing <code>git pull origin master</code> and other long Git commands is a pain. To enable <a href="https://git-scm.com/book/en/v2/Appendix-A:-Git-in-Other-Environments-Git-in-Bash">Bash auto-completion</a> (i.e. tab-completion) for Git on macOS, follow these <a href="http://www.codethatmatters.com/2010/01/git-autocomplete-in-mac-os-x/">steps</a>:</p>
+<ol style="list-style-type: decimal">
+<li><p>Download the Bash completion script:</p>
+<pre><code>curl -L https://raw.github.com/git/git/master/contrib/completion/git-completion.bash &gt; ~/git-completion.bash</code></pre></li>
+<li><p>Add the following line to your .bash_profile:</p>
+<pre><code>source ~/git-completion.bash</code></pre></li>
+<li><p>Re-run your .bash_profile:</p>
+<pre><code>source ~/.bash_profile</code></pre></li>
 </ol>
-</section>
-<section id="install-git-lfs-locally" class="level3">
+</div>
+<div id="install-git-lfs-locally" class="section level3">
 <h3>Install git-lfs locally</h3>
-<p>The <a href="#initial-setup">Initial setup instructions</a> install git-lfs using conda. Therefore you need to have the conda environment active (<code>source activate scqtl</code>) whenever you run a Git command, which ensures that the large files are always handled properly by Git. Since it can be easy to forget to first activate the conda environment, a safety measure would be to install git-lfs on your local machine (i.e. outside of the conda environment). This will ensure that git-lfs is always available even when you forget to activate the conda environment.</p>
+<p>The <a href="#initial-setup">Initial setup instructions</a> install git-lfs using conda. Therefore you need to have the conda environment active (<code>source activate scqtl</code>) whenever you run a Git command, which ensures that the large files are always handled properly by Git. Since it can be easy to forget to first activate the conda environment, a safety measure would be to install git-lfs on your local machine (i.e. outside of the conda environment). This will ensure that git-lfs is always available even when you forget to activate the conda environment.</p>
 <p>There are multiple <a href="https://github.com/git-lfs/git-lfs#getting-started">methods</a> to install git-lfs. Below are instructions to download a pre-built binary.</p>
-<ol type="1">
-<li><p>Download the software: <code>cd ~/Downloads  # 64-bit macOS:  curl -OL https://github.com/git-lfs/git-lfs/releases/download/v2.3.0/git-lfs-darwin-amd64-2.3.0.tar.gz  # 64-bit Linux:  curl -OL https://github.com/git-lfs/git-lfs/releases/download/v2.3.0/git-lfs-linux-amd64-2.3.0.tar.gz</code></p></li>
-<li><p>Extract the software and copy the executable files into <code>~/bin</code> (note: you can put it anywhere you like, but this is a conventional place to put executable files): <code>mkdir -p ~/bin  tar xzf git-lfs-*.tar.gz  cd git-lfs-2.3.0/  cp git-lfs install.sh ~/bin</code></p></li>
-<li><p>Add <code>~/bin</code> to your <code>PATH</code> by adding the following line to your <code>~/.bash_profile</code> (macOS) or <code>.bashrc</code> (Linux): <code>export PATH=&quot;~/bin:$PATH&quot;</code> Note that <code>~/bin</code> is already included in <code>PATH</code> by default on at least some Linux distributions.</p></li>
-<li><p>Update <code>PATH</code>: <code># macOS  source ~/.bash_profile  # Linux  source ~/.bashrc</code></p></li>
-<li><p>Just to be safe, run the git-lfs install script (this modifies the file <code>~/.gitconfig</code>). This is unnecessary if you have already gone through the <a href="#initial-setup">Initial setup instructions</a> on this machine, but it doesn’t hurt to run it again: <code>git lfs install</code></p></li>
-<li><p>To confirm that you have git-lfs installed locally, run <code>which git-lfs</code>. This should point to <code>~/bin/git-lfs</code> and not your conda environment. Also run <code>cat ~/.gitconfig</code>. It should contain the following (it will also likely have additional lines): <code>[filter &quot;lfs&quot;]          clean = git-lfs clean -- %f          smudge = git-lfs smudge -- %f          process = git-lfs filter-process          required = true</code></p></li>
+<ol style="list-style-type: decimal">
+<li><p>Download the software:</p>
+<pre><code>cd ~/Downloads
+# 64-bit macOS:
+curl -OL https://github.com/git-lfs/git-lfs/releases/download/v2.3.0/git-lfs-darwin-amd64-2.3.0.tar.gz
+# 64-bit Linux:
+curl -OL https://github.com/git-lfs/git-lfs/releases/download/v2.3.0/git-lfs-linux-amd64-2.3.0.tar.gz</code></pre></li>
+<li><p>Extract the software and copy the executable files into <code>~/bin</code> (note: you can put it anywhere you like, but this is a conventional place to put executable files):</p>
+<pre><code>mkdir -p ~/bin
+tar xzf git-lfs-*.tar.gz
+cd git-lfs-2.3.0/
+cp git-lfs install.sh ~/bin</code></pre></li>
+<li><p>Add <code>~/bin</code> to your <code>PATH</code> by adding the following line to your <code>~/.bash_profile</code> (macOS) or <code>.bashrc</code> (Linux):</p>
+<pre><code>export PATH=&quot;~/bin:$PATH&quot;</code></pre>
+<p>Note that <code>~/bin</code> is already included in <code>PATH</code> by default on at least some Linux distributions.</p></li>
+<li><p>Update <code>PATH</code>:</p>
+<pre><code># macOS
+source ~/.bash_profile
+# Linux
+source ~/.bashrc</code></pre></li>
+<li><p>Just to be safe, run the git-lfs install script (this modifies the file <code>~/.gitconfig</code>). This is unnecessary if you have already gone through the <a href="#initial-setup">Initial setup instructions</a> on this machine, but it doesn't hurt to run it again:</p>
+<pre><code>git lfs install</code></pre></li>
+<li><p>To confirm that you have git-lfs installed locally, run <code>which git-lfs</code>. This should point to <code>~/bin/git-lfs</code> and not your conda environment. Also run <code>cat ~/.gitconfig</code>. It should contain the following (it will also likely have additional lines):</p>
+<pre><code>[filter &quot;lfs&quot;]
+        clean = git-lfs clean -- %f
+        smudge = git-lfs smudge -- %f
+        process = git-lfs filter-process
+        required = true</code></pre></li>
 </ol>
-</section>
-<section id="upgrade-rstudio" class="level3">
+</div>
+<div id="upgrade-rstudio" class="section level3">
 <h3>Upgrade RStudio</h3>
 <p>RStudio has had some major updates with its 1.0 release. If you are using a version less than 1.0 (check by clicking <code>Help</code> -&gt; <code>About RStudio</code>), you should strongly consider <a href="https://www.rstudio.com/products/rstudio/download/#download">upgrading</a>. The most noticeable change for our workflow is that it has built-in support for R Markdown websites. Thus if you click the <code>Knit</code> button for an R Markdown file in the workflowr project, it will recognize the settings in the file <code>analysis/_site.yml</code> and save the output HTML in <code>docs/</code>.</p>
-<p>One annoying new feature you will notice is that the chunks of R Markdown documents appear inline in the document instead of being executed in the R console. To restore the previous setting, go to <code>Tools</code> -&gt; <code>Global Options...</code> -&gt; <code>R Markdown</code> and unselect “Show output inline for all R Markdown documents”.</p>
-</section>
-<section id="open-rstudio-from-the-terminal" class="level3">
+<p>One annoying new feature you will notice is that the chunks of R Markdown documents appear inline in the document instead of being executed in the R console. To restore the previous setting, go to <code>Tools</code> -&gt; <code>Global Options...</code> -&gt; <code>R Markdown</code> and unselect &quot;Show output inline for all R Markdown documents&quot;.</p>
+</div>
+<div id="open-rstudio-from-the-terminal" class="section level3">
 <h3>Open RStudio from the Terminal</h3>
 <p>On macOS and Linux systems you can run RStudio from a terminal and specify which working directory to startup within. Additionally, on Linux systems if you run RStudio from a terminal and specify no command line argument then RStudio will startup using the current working directory of the terminal.</p>
 <p>For example, on macOS you could use the following commands to open RStudio (respectively) in the <code>~/projects/foo</code> directory or the current working directory:</p>
@@ -604,17 +654,17 @@ $ open -a RStudio .</code></pre>
 <p>On Linux you would use the following commands (note that no <code>.</code> is necessary in the second invocation):</p>
 <pre><code>$ rstudio ~/projects/foo
 $ rstudio</code></pre>
-</section>
-</section>
-<section id="faq" class="level2">
+</div>
+</div>
+<div id="faq" class="section level2">
 <h2>FAQ</h2>
-<section id="why-does-git-keep-asking-for-my-password-repeatedly" class="level3">
+<div id="why-does-git-keep-asking-for-my-password-repeatedly" class="section level3">
 <h3>Why does Git keep asking for my password repeatedly?</h3>
 <p>We use <a href="https://git-lfs.github.com/">git-lfs</a> to version control large files. To push updated versions of these large files requires authentication of the https server where they are stored, and this must be done for each file separately! To reduce the number of times you have to manually enter your password, enable <a href="https://help.github.com/articles/caching-your-github-password-in-git/">caching of your GitHub password</a>:</p>
 <pre><code>git config --global credential.helper cache</code></pre>
-</section>
-</section>
-<section id="session-information" class="level2">
+</div>
+</div>
+<div id="session-information" class="section level2">
 <h2>Session information</h2>
 <!-- Insert the session information into the document -->
 <pre class="r"><code>sessionInfo()</code></pre>
@@ -635,7 +685,7 @@ locale:
 [11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
 
 attached base packages:
-[1] parallel  methods   stats     graphics  grDevices utils     datasets 
+[1] parallel  stats     graphics  grDevices utils     datasets  methods  
 [8] base     
 
 other attached packages:
@@ -644,9 +694,9 @@ other attached packages:
 loaded via a namespace (and not attached):
  [1] Rcpp_0.12.13    digest_0.6.12   rprojroot_1.2   backports_1.0.5
  [5] git2r_0.19.0    magrittr_1.5    evaluate_0.10.1 stringi_1.1.2  
- [9] rmarkdown_1.6   tools_3.4.1     stringr_1.2.0   yaml_2.1.14    
-[13] compiler_3.4.1  htmltools_0.3.6 knitr_1.16     </code></pre>
-</section>
+ [9] rmarkdown_1.8   tools_3.4.1     stringr_1.2.0   yaml_2.1.14    
+[13] compiler_3.4.1  htmltools_0.3.6 knitr_1.20     </code></pre>
+</div>
 
 <hr>
 <p>
