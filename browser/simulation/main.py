@@ -103,7 +103,7 @@ def update(attr, old, new):
     cpm_vs_mu_data.data = bokeh.models.ColumnDataSource.from_df(pd.DataFrame({
       'log_mu': mean_grid,
       'mean': np.log(mu + eps) - np.log(params['num_mols'].iloc[0] + 2 * eps) + 6 * np.log(10),
-      'var': 
+      'var': 1 / mu + np.exp(params['log_phi']).mean()
     }))
 
 for c in controls:

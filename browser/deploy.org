@@ -7,7 +7,7 @@
   Get a local compute node.
 
   #+BEGIN_SRC sh :session midway2
-    srun -n1 -c28 --exclusive --job-name bokeh --partition=broadwl --pty bash
+    srun -n1 --job-name bokeh --partition=broadwl --pty bash
     cd /project2/mstephens/aksarkar/projects/singlecell-qtl/browser/
     source activate scqtl
   #+END_SRC
@@ -32,9 +32,10 @@
   : pkill -u aksarkar bokeh
   : (hostname -i) --allow-websocket-origin=$(hostname -i):5006 > bokeh.log
   : bokeh serve simulation --address $(ho stname -i) --allow-websocket-origin=$(hostname -i):5006 >bokeh.log &
-  : [8] 44294
+  : [1] 44025
   : echo "http://$(hostname -i):5006"
-  : http://10.50.221.27:5006
+  : echo 'org_babel_sh_eoe'
+  : http://10.50.221.2:5006
 
 * Production environment
 
