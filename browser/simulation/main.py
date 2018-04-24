@@ -46,6 +46,17 @@ theoretical_data = bokeh.models.ColumnDataSource(pd.DataFrame(columns=[
   'true_fano1',
 ]))
 
+# This needs to be separate because it has different dimension
+cpm_vs_mu_data = bokeh.models.ColumnDataSource(pd.DataFrame(columns=[
+  'log_mu',
+  'mean',
+  'var',
+]))
+cpm_vs_phi_data = bokeh.models.ColumnDataSource(pd.DataFrame(columns=[
+  'log_phi',
+  'var',
+]))
+
 num_samples_slider = bokeh.models.widgets.Slider(title='Number of samples', value=100, start=100, end=1000, step=225)
 num_mols_slider = bokeh.models.widgets.Slider(title='Number of molecules', value=100e3, start=100e3, end=1000e3, step=225e3)
 log_mu_slider = bokeh.models.widgets.RangeSlider(title='log(μ)', value=(-12, -6), start=-12, end=-6, step=1)
@@ -85,6 +96,15 @@ def update(attr, old, new):
         'true_fano0': params['true_fano'].min(),
         'true_fano1': params['true_fano'].max(),
       }, index=[0]))
+
+    eps = .5 / params['num_mols'].iloc[0]
+    mean_grid = np.linspace(-12, -6, 100)
+    mu = params['num_mols'].iloc[0] * np.exp(mean_grid)
+    cpm_vs_mu_data.data = bokeh.models.ColumnDataSource.from_df(pd.DataFrame({
+      'log_mu': mean_grid,
+      'mean': np.log(mu + eps) - np.log(params['num_mols'].iloc[0] + 2 * eps) + 6 * np.log(10),
+      'var': 
+    }))
 
 for c in controls:
   c.on_change('value', update)
@@ -132,18 +152,20 @@ fano.yaxis.axis_label = 'Estimated Fano factor'
 
 mean_log_cpm = bokeh.plotting.figure(width=300, height=300, tools=tools)
 mean_log_cpm.scatter(source=sim_data, x='log_mu', y='mean_log_cpm', color='black', size=6)
+mean_log_cpm.line(source=cpm_vs_mu_data, x='log_mu', y='mean')
 mean_log_cpm.xaxis.axis_label = 'True log(μ)'
-mean_log_cpm.yaxis.axis_label = 'Mean log(CPM + 1)'
+mean_log_cpm.yaxis.axis_label = 'Mean log CPM'
 
 var_log_cpm = bokeh.plotting.figure(width=300, height=300, tools=tools)
 var_log_cpm.scatter(source=sim_data, x='log_mu', y='var_log_cpm', color='black', size=6)
+var_log_cpm.line(source=cpm_vs_mu_data, x='log_mu', y='var')
 var_log_cpm.xaxis.axis_label = 'True log(μ)'
-var_log_cpm.yaxis.axis_label = 'Variance log(CPM + 1)'
+var_log_cpm.yaxis.axis_label = 'Variance log CPM'
 
 var_log_cpm2 = bokeh.plotting.figure(width=300, height=300, tools=tools)
 var_log_cpm2.scatter(source=sim_data, x='log_phi', y='var_log_cpm', color='black', size=6)
 var_log_cpm2.xaxis.axis_label = 'True log(φ)'
-var_log_cpm2.yaxis.axis_label = 'Variance log(CPM + 1)'
+var_log_cpm2.yaxis.axis_label = 'Variance log CPM'
 
 zinb_params = bokeh.models.widgets.Panel(
   child=bokeh.layouts.gridplot([[log_mu, log_phi, logodds]]),

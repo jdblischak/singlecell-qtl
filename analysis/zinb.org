@@ -70,7 +70,7 @@
   #+CALL: ipython3(memory="6G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 45253767
+  : Submitted batch job 45367537
 
   #+NAME: zinb-imports
   #+BEGIN_SRC ipython
@@ -465,7 +465,7 @@
 
   #+RESULTS: np-zinb-impl
   :RESULTS:
-  # Out[3]:
+  # Out[20]:
   :END:
 
   Computing analytic SE runs into numerical problems.
@@ -545,7 +545,7 @@
 
   #+RESULTS: sim-impl
   :RESULTS:
-  # Out[15]:
+  # Out[2]:
   :END:
 
   #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /scratch/midway2/aksarkar/singlecell/density-estimation/sim.py

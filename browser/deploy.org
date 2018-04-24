@@ -14,26 +14,27 @@
 
   #+RESULTS:
   : 
-  : srun: job 45352983 queued and waiting for resources
-  : srun: job 45352983 has been allocated resources
+  : srun: job 45367464 queued and waiting for resources
+  : srun: job 45367464 has been allocated resources
   : cd /project2/mstephens/aksarkar/projects/singlecell-qtl/browser/
-  : cd  /project2/mstephens/aksarkar/projects/singlecell-qtl/browser/
-  : sou rce activate scqtl
+  : cd /project2/mstephens/aksarkar/projects/singl ecell-qtl/browser/
+  : source activate scqtl
 
   (Re)start the browser
 
   #+BEGIN_SRC sh :session midway2
     pkill -u aksarkar bokeh
-    bokeh serve simulation fano-qtls --address $(hostname -i) --allow-websocket-origin=$(hostname -i):5006 >bokeh.log &
+    bokeh serve simulation --address $(hostname -i) --allow-websocket-origin=$(hostname -i):5006 >bokeh.log &
     echo "http://$(hostname -i):5006"
   #+END_SRC
 
   #+RESULTS:
   : pkill -u aksarkar bokeh
-  : bokeh serve simulation fano-qtls --address $(hostname -i) --allow-websocket-origin =$(hostname -i):5006 >bokeh.log &
-  : [1] 40255
+  : (hostname -i) --allow-websocket-origin=$(hostname -i):5006 > bokeh.log
+  : bokeh serve simulation --address $(ho stname -i) --allow-websocket-origin=$(hostname -i):5006 >bokeh.log &
+  : [8] 44294
   : echo "http://$(hostname -i):5006"
-  : http://10.50.222.2:5006
+  : http://10.50.221.27:5006
 
 * Production environment
 
