@@ -47,6 +47,18 @@ project directory.
     * Run `source ~/.bash_profile` on macOS or `source ~/.bashrc` on Linux to update `PATH`
     * Run `which conda` to confirm that `conda` was installed
 
+1. Configure conda channels
+    ```
+    echo "\
+    channels:
+      - jdblischak
+      - bioconda
+      - conda-forge
+      - defaults
+    default_channels:
+      - https://repo.continuum.io/pkgs/free" > ~/.condarc
+    ```
+
 1. Clone this repository (or your personal fork)
     ```
     git clone https://github.com/jdblischak/singlecell-qtl.git

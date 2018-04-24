@@ -4,6 +4,7 @@ channels:
 - bioconda
 - conda-forge
 - defaults
+- anaconda
 dependencies:
 - bcftools
 - bioconductor-annotationdbi
@@ -113,7 +114,7 @@ dependencies:
 - openblas
 - openssl
 - pandas
-- pandoc
+- pandoc=1.19.2
 - pandocfilters
 - pango
 - paramiko
@@ -191,7 +192,7 @@ dependencies:
 - r-iterators
 - r-jsonlite
 - r-kernsmooth
-- r-knitr
+- r-knitr=1.20
 - r-labeling
 - r-lattice
 - r-lazyeval
@@ -227,7 +228,7 @@ dependencies:
 - r-readr
 - r-reshape2
 - r-rlang
-- r-rmarkdown
+- r-rmarkdown=1.8
 - r-rprojroot
 - r-rsqlite
 - r-rstudioapi
