@@ -70,7 +70,7 @@
   #+CALL: ipython3(memory="6G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 45367537
+  : Submitted batch job 45374297
 
   #+NAME: zinb-imports
   #+BEGIN_SRC ipython
@@ -92,11 +92,12 @@
     %config InlineBackend.figure_formats = set(['retina'])
     import colorcet
     import matplotlib.pyplot as plt
+    import sklearn.linear_model as sklm
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[46]:
+  # Out[2]:
   :END:
 
   #+NAME: tf-imports
@@ -591,7 +592,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[74]:
+  # Out[102]:
   :END:
 
   Shard the data to parallelize over nodes. During this pass, write the data
@@ -724,16 +725,19 @@
   Plot the mean-variance relationship for one individual.
 
   #+BEGIN_SRC ipython
-    def plot_mean_var_by_gene(params, min_mean=5):
+    def plot_mean_var_by_gene(params, phi_hat=None, min_mean=5):
       subset = params[params['mean'] > min_mean]
       lim = [0, 1.1 * subset['mean'].max()]
       grid = np.linspace(*lim, num=200)
       plt.clf()
       plt.gcf().set_size_inches(6, 6)
       plt.scatter(subset['mean'], subset['var'] / subset['mean'], s=2, c='k')
-      for phi in np.linspace(0, 1, 5):
-        plt.plot(grid, (grid + np.square(grid) * phi) / (grid + 1e-8), label='{:.2f}'.format(phi), c=colorcet.cm['inferno'](phi), ls='--', lw=1)
-      plt.legend(title='Overdispersion $\phi$')
+      if phi_hat is not None:
+        plt.plot(grid, (grid + np.square(grid) * phi_hat) / (grid + 1e-8), c='r', ls='--', lw=1)
+      else:
+        for phi in np.linspace(0, 1, 5):
+          plt.plot(grid, (grid + np.square(grid) * phi) / (grid + 1e-8), label='{:.2f}'.format(phi), c=colorcet.cm['inferno'](phi), ls='--', lw=1)
+        plt.legend(title='Overdispersion $\phi$')    
       plt.xlim(lim)
       plt.ylim(lim)
       plt.xlabel('Estimated mean')
@@ -769,7 +773,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[83]:
+  # Out[16]:
   :END:
 
   #+BEGIN_SRC ipython :ipyfile figure/zinb.org/mean-var-rel-NA18507.png
@@ -900,7 +904,21 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[25]:
+  # Out[3]:
+  :END:
+
+  Estimate a genome-wide dispersion parameter.
+
+  #+BEGIN_SRC ipython
+    subset = gene_params[gene_params['mean'] > 5]
+    phi_hat = sklm.LinearRegression(fit_intercept=False).fit(subset['mean'].values.reshape(-1, 1), subset['var'] / subset['mean'] - 1).coef_
+    phi_hat
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[21]:
+  : array([0.24051697])
   :END:
 
   Plot the mean-variance relationship over all genes, estimated using all of
@@ -908,12 +926,12 @@
   individuals.
 
   #+BEGIN_SRC ipython :ipyfile figure/zinb.org/overall-mean-var-rel.png
-    plot_mean_var_by_gene(gene_params)
+    plot_mean_var_by_gene(gene_params, phi_hat=phi_hat)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[131]:
+  # Out[19]:
   [[file:figure/zinb.org/overall-mean-var-rel.png]]
   :END:
 
