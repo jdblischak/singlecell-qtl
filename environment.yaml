@@ -3,8 +3,12 @@ channels:
 - jdblischak
 - bioconda
 - conda-forge
-- defaults
+- https://repo.anaconda.com/pkgs/free/linux-64
+- https://repo.anaconda.com/pkgs/free/noarch
+- https://repo.anaconda.com/pkgs/pro/linux-64
+- https://repo.anaconda.com/pkgs/pro/noarch
 - anaconda
+- nodefaults
 dependencies:
 - bcftools
 - bioconductor-annotationdbi

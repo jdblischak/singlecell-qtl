@@ -47,18 +47,6 @@ project directory.
     * Run `source ~/.bash_profile` on macOS or `source ~/.bashrc` on Linux to update `PATH`
     * Run `which conda` to confirm that `conda` was installed
 
-1. Configure conda channels
-    ```
-    echo "\
-    channels:
-      - jdblischak
-      - bioconda
-      - conda-forge
-      - defaults
-    default_channels:
-      - https://repo.continuum.io/pkgs/free" > ~/.condarc
-    ```
-
 1. Clone this repository (or your personal fork)
     ```
     git clone https://github.com/jdblischak/singlecell-qtl.git
@@ -431,6 +419,41 @@ hurt to run it again:
 	        process = git-lfs filter-process
 	        required = true
     ```
+
+### Configure conda channels
+
+Updating the entire "scqtl" conda environment is time-consuming because it
+contains so many packages. This is prohibitive, especially if you only want to
+test out a new package. Thus instead of adding the package to `environment.yaml`
+and updating the entire environment, you can install just that new package
+directly from the Terminal:
+
+```
+source activate scqtl
+conda install pkgname
+```
+
+If you know the channel the package is in, you can specify it with `-c`, for
+example `-c bioconda`. However, this can get tedious if the package has multiple
+dependencies across multiple channels, which requires specifying each channel
+with `-c`. To automatically search the conda channels in the exact same order as
+specified in `environment.yaml`, run the code below to create the file
+`~/.condarc`:
+
+```
+echo "\
+channels:
+  - jdblischak
+  - bioconda
+  - conda-forge
+  - defaults
+  - anaconda
+default_channels:
+  - https://repo.anaconda.com/pkgs/free
+  - https://repo.anaconda.com/pkgs/pro" > ~/.condarc
+```
+
+And now you can run `conda install` without the `-c` flag.
 
 ### Upgrade RStudio
 
