@@ -83,6 +83,8 @@ chr_hs = config["chr_hs"]
 
 chips = config["batch1"] + config["batch2"] + config["batch3"] + \
         config["batch4"] + config["batch5"] + config["batch6"]
+# Some chips are repeated in batch6, so remove duplicates
+chips = sorted(list(set(chips)))
 rows = config["rows"]
 cols = config["cols"]
 
