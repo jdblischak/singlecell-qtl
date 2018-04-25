@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-04-23 Mon 14:58 -->
+<!-- 2018-04-25 Wed 14:51 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mean/dispersion estimation</title>
@@ -690,16 +690,19 @@ Plot the mean-variance relationship for one individual.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">plot_mean_var_by_gene</span>(params, min_mean=5):
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">plot_mean_var_by_gene</span>(params, phi_hat=<span class="org-constant">None</span>, min_mean=5):
   <span class="org-variable-name">subset</span> = params[params[<span class="org-string">'mean'</span>] &gt; min_mean]
   <span class="org-variable-name">lim</span> = [0, 1.1 * subset[<span class="org-string">'mean'</span>].<span class="org-builtin">max</span>()]
   <span class="org-variable-name">grid</span> = np.linspace(*lim, num=200)
   plt.clf()
   plt.gcf().set_size_inches(6, 6)
   plt.scatter(subset[<span class="org-string">'mean'</span>], subset[<span class="org-string">'var'</span>] / subset[<span class="org-string">'mean'</span>], s=2, c=<span class="org-string">'k'</span>)
-  <span class="org-keyword">for</span> phi <span class="org-keyword">in</span> np.linspace(0, 1, 5):
-    plt.plot(grid, (grid + np.square(grid) * phi) / (grid + 1e-8), label=<span class="org-string">'{:.2f}'</span>.<span class="org-builtin">format</span>(phi), c=colorcet.cm[<span class="org-string">'inferno'</span>](phi), ls=<span class="org-string">'--'</span>, lw=1)
-  plt.legend(title=<span class="org-string">'Overdispersion $\phi$'</span>)
+  <span class="org-keyword">if</span> phi_hat <span class="org-keyword">is</span> <span class="org-keyword">not</span> <span class="org-constant">None</span>:
+    plt.plot(grid, (grid + np.square(grid) * phi_hat) / (grid + 1e-8), c=<span class="org-string">'r'</span>, ls=<span class="org-string">'--'</span>, lw=1)
+  <span class="org-keyword">else</span>:
+    <span class="org-keyword">for</span> phi <span class="org-keyword">in</span> np.linspace(0, 1, 5):
+      plt.plot(grid, (grid + np.square(grid) * phi) / (grid + 1e-8), label=<span class="org-string">'{:.2f}'</span>.<span class="org-builtin">format</span>(phi), c=colorcet.cm[<span class="org-string">'inferno'</span>](phi), ls=<span class="org-string">'--'</span>, lw=1)
+    plt.legend(title=<span class="org-string">'Overdispersion $\phi$'</span>)    
   plt.xlim(lim)
   plt.ylim(lim)
   plt.xlabel(<span class="org-string">'Estimated mean'</span>)
@@ -899,13 +902,29 @@ excess zeros do not reflect biology.
 </div>
 
 <p>
+Estimate a genome-wide dispersion parameter.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">subset</span> = gene_params[gene_params[<span class="org-string">'mean'</span>] &gt; 5]
+<span class="org-variable-name">phi_hat</span> = sklm.LinearRegression(fit_intercept=<span class="org-constant">False</span>).fit(subset[<span class="org-string">'mean'</span>].values.reshape(-1, 1), subset[<span class="org-string">'var'</span>] / subset[<span class="org-string">'mean'</span>] - 1).coef_
+phi_hat
+</pre>
+</div>
+
+<pre class="example">
+array([0.24051697])
+
+</pre>
+
+<p>
 Plot the mean-variance relationship over all genes, estimated using all of
 the data and accounting for the fact that data came from different
 individuals.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython">plot_mean_var_by_gene(gene_params)
+<pre class="src src-ipython">plot_mean_var_by_gene(gene_params, phi_hat=phi_hat)
 </pre>
 </div>
 
@@ -996,7 +1015,7 @@ array([ 8.74266345, 13.2907511 , 31.59529237])
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-04-23 Mon 14:58</p>
+<p class="date">Created: 2018-04-25 Wed 14:51</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
