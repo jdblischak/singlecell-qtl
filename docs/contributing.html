@@ -321,10 +321,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2018-04-24</p>
+<p><strong>Last updated:</strong> 2018-04-25</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> b9d9f0a</p>
+<p><strong>Code version:</strong> 3e5a366</p>
 <div id="initial-setup" class="section level2">
 <h2>Initial setup</h2>
 <p>The initial setup only has to be performed once for each computer that you use.</p>
@@ -341,15 +341,6 @@ shared across the workflowr files. -->
 <li>Run <code>source ~/.bash_profile</code> on macOS or <code>source ~/.bashrc</code> on Linux to update <code>PATH</code></li>
 <li>Run <code>which conda</code> to confirm that <code>conda</code> was installed</li>
 </ul></li>
-<li><p>Configure conda channels</p>
-<pre><code>echo &quot;\
-channels:
-  - jdblischak
-  - bioconda
-  - conda-forge
-  - defaults
-default_channels:
-  - https://repo.continuum.io/pkgs/free&quot; &gt; ~/.condarc</code></pre></li>
 <li><p>Clone this repository (or your personal fork)</p>
 <pre><code>git clone https://github.com/jdblischak/singlecell-qtl.git
 cd singlecell-qtl</code></pre></li>
@@ -639,6 +630,24 @@ source ~/.bashrc</code></pre></li>
         process = git-lfs filter-process
         required = true</code></pre></li>
 </ol>
+</div>
+<div id="configure-conda-channels" class="section level3">
+<h3>Configure conda channels</h3>
+<p>Updating the entire &quot;scqtl&quot; conda environment is time-consuming because it contains so many packages. This is prohibitive, especially if you only want to test out a new package. Thus instead of adding the package to <code>environment.yaml</code> and updating the entire environment, you can install just that new package directly from the Terminal:</p>
+<pre><code>source activate scqtl
+conda install pkgname</code></pre>
+<p>If you know the channel the package is in, you can specify it with <code>-c</code>, for example <code>-c bioconda</code>. However, this can get tedious if the package has multiple dependencies across multiple channels, which requires specifying each channel with <code>-c</code>. To automatically search the conda channels in the exact same order as specified in <code>environment.yaml</code>, run the code below to create the file <code>~/.condarc</code>:</p>
+<pre><code>echo &quot;\
+channels:
+  - jdblischak
+  - bioconda
+  - conda-forge
+  - defaults
+  - anaconda
+default_channels:
+  - https://repo.anaconda.com/pkgs/free
+  - https://repo.anaconda.com/pkgs/pro&quot; &gt; ~/.condarc</code></pre>
+<p>And now you can run <code>conda install</code> without the <code>-c</code> flag.</p>
 </div>
 <div id="upgrade-rstudio" class="section level3">
 <h3>Upgrade RStudio</h3>
