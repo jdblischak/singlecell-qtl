@@ -70,7 +70,7 @@
   #+CALL: ipython3(memory="6G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 45374297
+  : Submitted batch job 45419579
 
   #+NAME: zinb-imports
   #+BEGIN_SRC ipython
@@ -724,22 +724,23 @@
 
   Plot the mean-variance relationship for one individual.
 
+  #+NAME: plot-mean-var-def
   #+BEGIN_SRC ipython
     def plot_mean_var_by_gene(params, phi_hat=None, min_mean=5):
       subset = params[params['mean'] > min_mean]
       lim = [0, 1.1 * subset['mean'].max()]
       grid = np.linspace(*lim, num=200)
       plt.clf()
-      plt.gcf().set_size_inches(6, 6)
+      plt.gcf().set_size_inches(4, 4)
       plt.scatter(subset['mean'], subset['var'] / subset['mean'], s=2, c='k')
       if phi_hat is not None:
         plt.plot(grid, (grid + np.square(grid) * phi_hat) / (grid + 1e-8), c='r', ls='--', lw=1)
       else:
         for phi in np.linspace(0, 1, 5):
           plt.plot(grid, (grid + np.square(grid) * phi) / (grid + 1e-8), label='{:.2f}'.format(phi), c=colorcet.cm['inferno'](phi), ls='--', lw=1)
+        plt.ylim(lim)
         plt.legend(title='Overdispersion $\phi$')    
       plt.xlim(lim)
-      plt.ylim(lim)
       plt.xlabel('Estimated mean')
       plt.ylabel('Estimated Fano factor')
 
@@ -770,6 +771,11 @@
       plt.xlabel(label)
       _ = plt.ylabel('Estimated Fano factor')
   #+END_SRC
+
+  #+RESULTS: plot-mean-var-def
+  :RESULTS:
+  # Out[7]:
+  :END:
 
   #+RESULTS:
   :RESULTS:
@@ -917,7 +923,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[21]:
+  # Out[4]:
   : array([0.24051697])
   :END:
 
@@ -931,7 +937,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[19]:
+  # Out[8]:
   [[file:figure/zinb.org/overall-mean-var-rel.png]]
   :END:
 
