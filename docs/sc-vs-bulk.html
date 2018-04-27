@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-04-25 Wed 14:51 -->
+<!-- 2018-04-27 Fri 15:55 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Single cell/bulk RNA-Seq concordance</title>
@@ -601,6 +601,33 @@ abundance.
 </pre>
 </div>
 
+<p>
+Estimate the Spearman correlation between single cell and bulk for genes
+which survive QC and have relative abundance \(< 10^{-15}\) in both data sets.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">S</span>, <span class="org-variable-name">T</span> = bulk_log_rho.loc[keep_genes.values.ravel()].mask(bulk_log_rho &lt; np.log(1e-15)).align(log_mu.loc[keep_genes.values.ravel()].mask(log_mu &lt; np.log(1e-15)), join=<span class="org-string">'inner'</span>)
+pd.Series([st.mstats.spearmanr(S[k], T[k]).correlation <span class="org-keyword">for</span> k <span class="org-keyword">in</span> S]).describe()
+</pre>
+</div>
+
+<pre class="example">
+count    49.000000
+mean      0.767447
+std       0.022018
+min       0.688958
+25%       0.758455
+50%       0.770411
+75%       0.783731
+max       0.800085
+dtype: float64
+</pre>
+
+<p>
+Plot the concordance.
+</p>
+
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">plot_concordance_rho</span>(bulk, sc, output_dir):
   <span class="org-variable-name">bulk</span>, <span class="org-variable-name">sc</span> = bulk.align(sc, axis=1, join=<span class="org-string">'inner'</span>)
@@ -622,8 +649,8 @@ abundance.
 
 <div class="org-src-container">
 <pre class="src src-ipython">plot_concordance_rho(
-  bulk_log_rho,
-  log_mu,
+  S,
+  T,
   <span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/vs-sc-mean'</span>)
 </pre>
 </div>
@@ -637,29 +664,48 @@ Sorry, your browser does not support SVG.</object>
 Sorry, your browser does not support SVG.</object>
 </p>
 
+<p>
+Look at the distribution of absolute differences.
+</p>
+
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">corr</span> = pd.DataFrame.from_dict({k: pd.Series(st.spearmanr(log_mu.loc[keep_genes.values.ravel(), k], bulk_log_rho.loc[keep_genes.values.ravel(), k])) <span class="org-keyword">for</span> k <span class="org-keyword">in</span> bulk_log_rho.columns &amp; log_mu.columns}).T
-corr.describe()
+<pre class="src src-ipython"><span class="org-variable-name">S</span>, <span class="org-variable-name">T</span> = bulk_log_rho.align(log_mu, join=<span class="org-string">'inner'</span>)
+<span class="org-variable-name">diff</span> = <span class="org-builtin">abs</span>(S - T)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">pd.Series((~np.isfinite(diff)).<span class="org-builtin">sum</span>(axis=0) / diff.shape[0]).describe()
 </pre>
 </div>
 
 <pre class="example">
-0     1
-count  49.000000  49.0
-mean    0.766546   0.0
-std     0.021359   0.0
-min     0.688310   0.0
-25%     0.757449   0.0
-50%     0.769228   0.0
-75%     0.780939   0.0
-max     0.795472   0.0
+count    49.000000
+mean      0.232770
+std       0.019747
+min       0.188665
+25%       0.223004
+50%       0.233581
+75%       0.247454
+max       0.273921
+dtype: float64
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-ipython">np.nanpercentile(diff.mask(~np.isfinite(diff)), [90, 95, 99, 99.5, 99.9])
+</pre>
+</div>
+
+<pre class="example">
+array([2.22150587, 3.03904554, 4.87481989, 5.54950021, 6.94873559])
+
 </pre>
 </div>
 </div>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-04-25 Wed 14:51</p>
+<p class="date">Created: 2018-04-27 Fri 15:55</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
