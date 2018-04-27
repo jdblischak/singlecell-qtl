@@ -70,7 +70,7 @@
   #+CALL: ipython3(memory="6G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 45419579
+  : Submitted batch job 45449430
 
   #+NAME: zinb-imports
   #+BEGIN_SRC ipython
@@ -581,6 +581,7 @@
 
   Use this to check the parameter estimation for a particular gene/individual.
 
+  #+NAME: extract-data-def
   #+BEGIN_SRC ipython
     def extract_data(ind, gene):
       with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
@@ -589,6 +590,11 @@
         umi.sample == annotation.sample;""", con=conn, params=(ind, gene))
         return umi
   #+END_SRC
+
+  #+RESULTS: extract-data-def
+  :RESULTS:
+  # Out[141]:
+  :END:
 
   #+RESULTS:
   :RESULTS:
@@ -719,7 +725,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[52]:
+  # Out[3]:
   :END:
 
   Plot the mean-variance relationship for one individual.
@@ -728,19 +734,20 @@
   #+BEGIN_SRC ipython
     def plot_mean_var_by_gene(params, phi_hat=None, min_mean=5):
       subset = params[params['mean'] > min_mean]
-      lim = [0, 1.1 * subset['mean'].max()]
+      fano = subset['var'] / subset['mean']
+      lim = [0, 1.05 * subset['mean'].max()]
       grid = np.linspace(*lim, num=200)
       plt.clf()
       plt.gcf().set_size_inches(4, 4)
-      plt.scatter(subset['mean'], subset['var'] / subset['mean'], s=2, c='k')
+      plt.scatter(subset['mean'], fano, s=2, c='k')
       if phi_hat is not None:
         plt.plot(grid, (grid + np.square(grid) * phi_hat) / (grid + 1e-8), c='r', ls='--', lw=1)
       else:
         for phi in np.linspace(0, 1, 5):
           plt.plot(grid, (grid + np.square(grid) * phi) / (grid + 1e-8), label='{:.2f}'.format(phi), c=colorcet.cm['inferno'](phi), ls='--', lw=1)
-        plt.ylim(lim)
         plt.legend(title='Overdispersion $\phi$')    
       plt.xlim(lim)
+      plt.ylim(0, 1.05 * fano.max())
       plt.xlabel('Estimated mean')
       plt.ylabel('Estimated Fano factor')
 
@@ -774,23 +781,32 @@
 
   #+RESULTS: plot-mean-var-def
   :RESULTS:
-  # Out[7]:
+  # Out[206]:
   :END:
 
-  #+RESULTS:
-  :RESULTS:
-  # Out[16]:
-  :END:
+  Estimate a genome-wide dispersion parameter.
 
-  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/mean-var-rel-NA18507.png
-    plot_mean_var_by_gene(params[params['ind'] == 'NA18507'])
-    plt.title('NA18507')
+  #+BEGIN_SRC ipython
+    subset = params[params['ind'] == 'NA18507']
+    subset = subset[subset['mean'] > 5]
+    phi_hat = sklm.LinearRegression(fit_intercept=False).fit(subset['mean'].values.reshape(-1, 1), subset['var'] / subset['mean'] - 1).coef_
+    phi_hat
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[77]:
-  : Text(0.5,1,'NA18507')
+  # Out[8]:
+  : array([0.17258245])
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/mean-var-rel-NA18507.png
+    plot_mean_var_by_gene(params[params['ind'] == 'NA18507'], phi_hat=np.array([0.17258245]))
+    _ = plt.title('NA18507')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[207]:
   [[file:figure/zinb.org/mean-var-rel-NA18507.png]]
   :END:
 
@@ -910,7 +926,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[3]:
+  # Out[13]:
   :END:
 
   Estimate a genome-wide dispersion parameter.
@@ -923,7 +939,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[4]:
+  # Out[15]:
   : array([0.24051697])
   :END:
 
@@ -932,12 +948,13 @@
   individuals.
 
   #+BEGIN_SRC ipython :ipyfile figure/zinb.org/overall-mean-var-rel.png
-    plot_mean_var_by_gene(gene_params, phi_hat=phi_hat)
+    plot_mean_var_by_gene(gene_params, phi_hat=np.array([0.24051697]))
+    _ = plt.title('Average over 53 individuals')
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[8]:
+  # Out[208]:
   [[file:figure/zinb.org/overall-mean-var-rel.png]]
   :END:
 
