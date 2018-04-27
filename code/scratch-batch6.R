@@ -20,6 +20,15 @@ out <- x %>%
 
 # Confirm the leading zero was added properly now that we have dates from Oct
 stopifnot(out$experiment %>% sort %>% unique %>% nchar == 8)
+# Confirm 4 individuals specified per chip (summarize will throw error because
+# it expects `unique` will reduce to a single value)
+individuals <- out %>%
+  group_by(experiment) %>%
+  select(experiment, starts_with("individual")) %>%
+  summarize(i1 = unique(individual.1),
+            i2 = unique(individual.2),
+            i3 = unique(individual.3),
+            i4 = unique(individual.4))
 
 dir.create("../data/lab-info", showWarnings = FALSE)
 
