@@ -11,9 +11,10 @@
 * Setup                                                            :noexport:
 
   #+BEGIN_SRC emacs-lisp
+    (org-babel-lob-ingest "zinb.org")
     (org-babel-lob-ingest "/home/aksarkar/.emacs.d/org-templates/library.org")
   #+END_SRC
-
+  
   #+RESULTS:
   : 1
 
@@ -40,7 +41,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[1]:
+  # Out[16]:
   :END:
 
 * Read the data
@@ -56,7 +57,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[11]:
+  # Out[39]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -121,7 +122,7 @@
 
   #+RESULTS: concordance-def
   :RESULTS:
-  # Out[5]:
+  # Out[53]:
   :END:
 
   #+RESULTS:
@@ -350,7 +351,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[2]:
+  # Out[17]:
   :END:
 
   Under [[file:zinb.org][our assumed model]], the parameter \(\mu\) is proportional to relative
@@ -368,8 +369,34 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[3]:
+  # Out[18]:
   :END:
+
+  Estimate the Spearman correlation between single cell and bulk for genes
+  which survive QC and have relative abundance \(< 10^{-15}\) in both data sets.
+
+  #+BEGIN_SRC ipython
+    S, T = bulk_log_rho.loc[keep_genes.values.ravel()].mask(bulk_log_rho < np.log(1e-15)).align(log_mu.loc[keep_genes.values.ravel()].mask(log_mu < np.log(1e-15)), join='inner')
+    pd.Series([st.mstats.spearmanr(S[k], T[k]).correlation for k in S]).describe()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[51]:
+  #+BEGIN_EXAMPLE
+    count    49.000000
+    mean      0.767447
+    std       0.022018
+    min       0.688958
+    25%       0.758455
+    50%       0.770411
+    75%       0.783731
+    max       0.800085
+    dtype: float64
+  #+END_EXAMPLE
+  :END:
+
+  Plot the concordance.
 
   #+BEGIN_SRC ipython
     def plot_concordance_rho(bulk, sc, output_dir):
@@ -391,13 +418,13 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[8]:
+  # Out[54]:
   :END:
 
   #+BEGIN_SRC ipython :results none
     plot_concordance_rho(
-      bulk_log_rho,
-      log_mu,
+      S,
+      T,
       '/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/vs-sc-mean')
   #+END_SRC
 
@@ -405,23 +432,45 @@
   file:figure/sc-vs-bulk.org/vs-sc-mean/NA18502.svg
   file:figure/sc-vs-bulk.org/vs-sc-mean/NA18505.svg
 
+  Look at the distribution of absolute differences.
+
   #+BEGIN_SRC ipython
-    corr = pd.DataFrame.from_dict({k: pd.Series(st.spearmanr(log_mu.loc[keep_genes.values.ravel(), k], bulk_log_rho.loc[keep_genes.values.ravel(), k])) for k in bulk_log_rho.columns & log_mu.columns}).T
-    corr.describe()
+    S, T = bulk_log_rho.align(log_mu, join='inner')
+    diff = abs(S - T)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[23]:
+  # Out[172]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    pd.Series((~np.isfinite(diff)).sum(axis=0) / diff.shape[0]).describe()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[195]:
   #+BEGIN_EXAMPLE
-    0     1
-    count  49.000000  49.0
-    mean    0.766546   0.0
-    std     0.021359   0.0
-    min     0.688310   0.0
-    25%     0.757449   0.0
-    50%     0.769228   0.0
-    75%     0.780939   0.0
-    max     0.795472   0.0
+    count    49.000000
+    mean      0.232770
+    std       0.019747
+    min       0.188665
+    25%       0.223004
+    50%       0.233581
+    75%       0.247454
+    max       0.273921
+    dtype: float64
   #+END_EXAMPLE
   :END:
+
+  #+BEGIN_SRC ipython
+    np.nanpercentile(diff.mask(~np.isfinite(diff)), [90, 95, 99, 99.5, 99.9])
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[196]:
+  : array([2.22150587, 3.03904554, 4.87481989, 5.54950021, 6.94873559])
+  :END:
+
