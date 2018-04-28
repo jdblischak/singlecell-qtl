@@ -70,7 +70,7 @@
   #+CALL: ipython3(memory="6G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 45307417
+  : Submitted batch job 45503474
 
   #+NAME: zinb-imports
   #+BEGIN_SRC ipython
@@ -410,18 +410,33 @@
       lim = np.log(np.finfo(np.float64).resolution)
       return np.clip(sp.expit(x), lim, -lim)
 
-    def nb(theta, x, size, design=None):
+    def nb(theta, x, size, onehot, design=None):
       """Return the per-data point log likelihood
 
-      x ~ Poisson(size .* design' * theta[2:] * exp(theta[0]) * u)
-      u ~ Gamma(exp(theta[1]), exp(theta[1]))
+      x ~ Poisson(size .* design' * theta[2 * m:k] * exp(onehot * theta[:m]) * u)
+      u ~ Gamma(exp(onehot * theta[m:2 * m]), exp(onehot * theta[m:2 * m]))
+
+      theta - (2 * m + k, 1)
+      x - (n, 1)
+      size - (n, 1)
+      onehot - (n, m)
+      design - (n, k)
 
       """
-      mean, inv_disp = np.exp(theta[:2])
-      mean *= size
+      n, m = onehot.shape
+      assert x.shape == (n,)
+      assert size.shape == (n,)
       if design is not None:
-        mean *= np.exp(design.dot(theta[2:]))
-      assert mean.shape == x.shape
+        assert design.shape[0] == n
+        assert theta.shape == (2 * m + design.shape[1],)
+      else:
+        assert theta.shape == (2 * m,)
+      mean = size * onehot.dot(np.exp(theta[:m]))
+      if design is not None:
+        mean *= np.exp(design.dot(theta[2 * m:]))
+      assert mean.shape == (n,)
+      inv_disp = onehot.dot(np.exp(theta[m:2 * m]))
+      assert inv_disp.shape == (n,)
       return (x * log(mean / inv_disp) -
               x * log(1 + mean / inv_disp) -
               inv_disp * log(1 + mean / inv_disp) +
@@ -429,42 +444,45 @@
               sp.gammaln(inv_disp) -
               sp.gammaln(x + 1))
 
-    def _nb(theta, x, size, design=None):
+    def _nb(theta, x, size, onehot, design=None):
       """Return the mean negative log likelihood of x"""
-      return -nb(theta, x, size, design).mean()
+      return -nb(theta, x, size, onehot, design).mean()
 
-    def zinb(theta, x, size, design=None):
+    def zinb(theta, x, size, onehot, design=None):
       """Return the mean negative log likelihood of x"""
-      logodds, theta = theta[0], theta[1:]
-      case_non_zero = -np.log1p(np.exp(logodds)) + nb(theta, x, size, design)
-      case_zero = np.logaddexp(logodds - np.log1p(np.exp(logodds)), case_non_zero)
+      n, m = onehot.shape
+      logodds, theta = theta[:m], theta[m:]
+      case_non_zero = -np.log1p(np.exp(onehot.dot(logodds))) + nb(theta, x, size, onehot, design)
+      case_zero = np.logaddexp(onehot.dot(logodds - np.log1p(np.exp(logodds))), case_non_zero)
       return -np.where(x < 1, case_zero, case_non_zero).mean()
 
-    def _fit_gene(chunk, design=None):
-      if chunk[:,0].sum() == 0:
-        # Without stringent QC, we need to handle the case of all zero observations
-        return [-np.inf, -np.inf, np.inf, 0, 0]
+    def _fit_gene(chunk, onehot, design=None):
+      n, m = onehot.shape
+      assert chunk.shape[0] == n
       if design is None:
-        x0 = np.zeros(2)
+        x0 = np.zeros(2 * m)
       else:
-        assert design.shape[0] == chunk.shape[0]
-        x0 = np.zeros(2 + design.shape[1])
-      res0 = so.minimize(_nb, x0=x0, args=(chunk[:,0], chunk[:,1], design))
-      pi0 = (chunk[:,0] == 0).sum() / chunk.shape[0]
-      res = so.minimize(zinb, x0=[sp.logit(pi0 + 1e-8)] + list(res0.x), args=(chunk[:,0], chunk[:,1], design))
+        assert design.shape[0] == n
+        x0 = np.zeros(2 * m + design.shape[1])
+      res0 = so.minimize(_nb, x0=x0, args=(chunk[:,0], chunk[:,1], onehot, design))
+      res = so.minimize(zinb, x0=list(np.zeros(m)) + list(res0.x), args=(chunk[:,0], chunk[:,1], onehot, design))
       if res0.fun < res.fun:
         # This isn't a likelihood ratio test. Numerically, our implementation of
         # ZINB can't represent pi = 0, so we need to use a separate implementation
         # for it
-        log_mu, neg_log_phi, *_ = res0.x
-        logit_pi = -np.inf
+        log_mu = res0.x[:m]
+        neg_log_phi = res0.x[m:]
+        logit_pi = np.zeros(m)
+        np.fill(logit_pi, -np.inf)
       else:
-        logit_pi, log_mu, neg_log_phi, *_ = res.x
-      mean_by_sample = chunk[:,1].ravel() * np.exp(log_mu)
-      var_by_sample = mean_by_sample + np.square(mean_by_sample) * np.exp(-neg_log_phi)
-      mean_by_ind = mean_by_sample.mean()
-      var_by_ind = (np.square(mean_by_sample - mean_by_ind) + var_by_sample).mean()
-      return [log_mu, -neg_log_phi, logit_pi, mean_by_ind, var_by_ind]
+        logit_pi = res.x[:m]
+        log_mu = res.x[m:2 * m]
+        neg_log_phi = res.x[2 * m:3 * m]
+      # mean_by_sample = chunk[:,1].ravel() * np.exp(log_mu)
+      # var_by_sample = mean_by_sample + np.square(mean_by_sample) * np.exp(-neg_log_phi)
+      # mean_by_ind = mean_by_sample.mean()
+      # var_by_ind = (np.square(mean_by_sample - mean_by_ind) + var_by_sample).mean()
+      return [log_mu, -neg_log_phi, logit_pi]
 
     def fit_gene(chunk, bootstraps=100):
       orig = _fit_gene(chunk)
@@ -477,7 +495,7 @@
 
   #+RESULTS: np-zinb-impl
   :RESULTS:
-  # Out[28]:
+  # Out[95]:
   :END:
 
   Computing analytic SE runs into numerical problems.
@@ -587,49 +605,139 @@
 
   #+RESULTS: sim-impl
   :RESULTS:
-  # Out[280]:
+  # Out[4]:
   :END:
 
   Check the implementation actually worked.
 
   #+BEGIN_SRC ipython
-    x, design = simulate(num_samples=1000, size=1e5, log_mu=-8, log_phi=-6, logodds=-3, seed=0, fold=1.3)
+    x1, design1 = simulate(num_samples=1000, size=1e5, log_mu=-8, log_phi=-6, logodds=-3, seed=0, design=batch_design_matrix(1000, 2), fold=1.1)
+    x2, design2 = simulate(num_samples=1000, size=1e5, log_mu=-9, log_phi=-6, logodds=-3, seed=0, design=batch_design_matrix(1000, 2), fold=1.1)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[265]:
+  # Out[70]:
   :END:
 
   #+BEGIN_SRC ipython
-    _fit_gene(x)
+    x = np.vstack((x1, x2))
+    design = np.vstack((design1, design2))
+    onehot = np.zeros((2000, 2))
+    onehot[:1000,0] = 1
+    onehot[1000:,1] = 1
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[266]:
+  # Out[71]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    so.minimize(_nb, np.zeros(6), (x[:,0], x[:,1], onehot, (design - design.mean(axis=0, keepdims=True))))
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[79]:
   #+BEGIN_EXAMPLE
-    [-7.8374613012654155,
-    -0.9486405356911012,
-    -2.897129862156103,
-    39.46697174214084,
-    642.6904819352392]
+    fun: 3.7686684938959005
+    hess_inv: array([[ 3.02723427e-01,  1.22915239e-03,  1.84289227e-02,
+    2.93100089e-02, -6.63234230e-03,  6.61572779e-03],
+    [ 1.22915239e-03,  2.73646868e-01,  6.42487198e-03,
+    -4.08994234e-02, -7.95095115e-03,  7.91377926e-03],
+    [ 1.84289227e-02,  6.42487198e-03,  8.33094819e+00,
+    -7.79790706e-01,  4.84845340e-03, -4.59546608e-03],
+    [ 2.93100089e-02, -4.08994234e-02, -7.79790706e-01,
+    1.95037075e+01, -3.76704122e-02,  3.67948000e-02],
+    [-6.63234230e-03, -7.95095115e-03,  4.84845340e-03,
+    -3.76704122e-02,  6.46465026e-01,  3.53473194e-01],
+    [ 6.61572779e-03,  7.91377926e-03, -4.59546608e-03,
+    3.67948000e-02,  3.53473194e-01,  6.46589099e-01]])
+    jac: array([-4.76837158e-07,  8.34465027e-07,  1.04308128e-06,  5.66244125e-07,
+    6.25848770e-07, -5.96046448e-07])
+    message: 'Optimization terminated successfully.'
+    nfev: 256
+    nit: 29
+    njev: 32
+    status: 0
+    success: True
+    x: array([-7.79083337, -8.78481628,  2.07143452,  2.62530472,  0.16955185,
+    -0.16940769])
   #+END_EXAMPLE
   :END:
 
   #+BEGIN_SRC ipython
-    _fit_gene(x, design)
+    so.minimize(zinb, np.zeros(8), (x[:,0], x[:,1], onehot, design - design.mean(axis=0)))
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[267]:
+  # Out[81]:
   #+BEGIN_EXAMPLE
-    [-8.010835294475278,
-    -5.361781894730521,
-    -2.8841721644494522,
-    33.18474128733248,
-    38.35229003613272]
+    fun: 3.105741745890472
+    hess_inv: array([[ 5.08820548e+01,  8.74220734e+00, -1.68903895e-01,
+    1.66457190e-02,  2.89163844e-02,  3.40963270e-02,
+    3.24767620e-01, -2.33640476e-01],
+    [ 8.74220734e+00,  6.65068244e+01,  3.82097806e-01,
+    -1.47080994e-01, -4.70784156e-02, -7.84243963e-02,
+    -4.73011471e-01,  3.94491154e-01],
+    [-1.68903895e-01,  3.82097806e-01,  1.93116093e-02,
+    -8.04764776e-03, -1.35830866e-03, -5.12425983e-03,
+    -4.73973226e-03,  7.88081551e-03],
+    [ 1.66457190e-02, -1.47080994e-01, -8.04764776e-03,
+    1.00989361e-02,  7.84247844e-04,  1.15902651e-03,
+    7.16368270e-03, -7.71106773e-03],
+    [ 2.89163844e-02, -4.70784156e-02, -1.35830866e-03,
+    7.84247844e-04,  1.81836102e-04,  1.68098188e-04,
+    1.64798846e-03, -1.36859055e-03],
+    [ 3.40963270e-02, -7.84243963e-02, -5.12425983e-03,
+    1.15902651e-03,  1.68098188e-04,  2.33714394e-03,
+    -1.53924411e-03, -2.56078906e-04],
+    [ 3.24767620e-01, -4.73011471e-01, -4.73973226e-03,
+    7.16368270e-03,  1.64798846e-03, -1.53924411e-03,
+    2.59333378e-02, -1.84444994e-02],
+    [-2.33640476e-01,  3.94491154e-01,  7.88081551e-03,
+    -7.71106773e-03, -1.36859055e-03, -2.56078906e-04,
+    -1.84444994e-02,  1.45653412e-02]])
+    jac: array([-1.20401382e-04, -1.87456608e-05,  9.00000334e-03, -5.87096810e-03,
+    1.34749979e-01,  1.42499804e-02,  9.74801183e-03, -2.13730633e-02])
+    message: 'Desired error not necessarily achieved due to precision loss.'
+    nfev: 1952
+    nit: 45
+    njev: 194
+    status: 2
+    success: False
+    x: array([-3.08430801, -3.0794722 , -7.74672959, -8.73971707, 15.09696903,
+    14.1405654 ,  0.17131679, -0.16199749])
+  #+END_EXAMPLE
+  :END:
+
+  #+BEGIN_SRC ipython
+    _fit_gene(x, onehot)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[97]:
+  #+BEGIN_EXAMPLE
+    [array([-7.72759538, -8.72909025]),
+    array([-3.54105403, -3.6325234 ]),
+    array([-3.07857253, -3.07861532])]
+  #+END_EXAMPLE
+  :END:
+
+  #+BEGIN_SRC ipython
+    _fit_gene(x, onehot, design - design.mean(axis=0))
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[99]:
+  #+BEGIN_EXAMPLE
+    [array([-7.7459195 , -8.73946677]),
+    array([-6.84852201, -7.45249071]),
+    array([-3.07855232, -3.07858144])]
   #+END_EXAMPLE
   :END:
 
