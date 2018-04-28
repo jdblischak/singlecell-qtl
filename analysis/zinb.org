@@ -478,11 +478,11 @@
         logit_pi = res.x[:m]
         log_mu = res.x[m:2 * m]
         neg_log_phi = res.x[2 * m:3 * m]
-      # mean_by_sample = chunk[:,1].ravel() * np.exp(log_mu)
-      # var_by_sample = mean_by_sample + np.square(mean_by_sample) * np.exp(-neg_log_phi)
-      # mean_by_ind = mean_by_sample.mean()
-      # var_by_ind = (np.square(mean_by_sample - mean_by_ind) + var_by_sample).mean()
-      return [log_mu, -neg_log_phi, logit_pi]
+      mean_by_sample = chunk[:,1] * onehot.dot(np.exp(log_mu))
+      var_by_sample = mean_by_sample + np.square(mean_by_sample) * onehot.dot(np.exp(-neg_log_phi))
+      mean_by_ind = np.ma.masked_equal(onehot * mean_by_sample.reshape(-1, 1), 0).mean(axis=0).compressed()
+      var_by_ind = np.ma.masked_equal(onehot * (np.square(mean_by_sample - onehot.dot(mean_by_ind)) + var_by_sample).reshape(-1, 1), 0).mean(axis=0).compressed()
+      return [log_mu, -neg_log_phi, logit_pi, mean_by_ind, var_by_ind]
 
     def fit_gene(chunk, bootstraps=100):
       orig = _fit_gene(chunk)
@@ -495,7 +495,7 @@
 
   #+RESULTS: np-zinb-impl
   :RESULTS:
-  # Out[95]:
+  # Out[142]:
   :END:
 
   Computing analytic SE runs into numerical problems.
@@ -719,11 +719,13 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[97]:
+  # Out[143]:
   #+BEGIN_EXAMPLE
     [array([-7.72759538, -8.72909025]),
     array([-3.54105403, -3.6325234 ]),
-    array([-3.07857253, -3.07861532])]
+    array([-3.07857253, -3.07861532]),
+    array([44.05020827, 16.18095952]),
+    array([100.28896459,  23.10602166])]
   #+END_EXAMPLE
   :END:
 
@@ -733,11 +735,13 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[99]:
+  # Out[144]:
   #+BEGIN_EXAMPLE
     [array([-7.7459195 , -8.73946677]),
     array([-6.84852201, -7.45249071]),
-    array([-3.07855232, -3.07858144])]
+    array([-3.07855232, -3.07858144]),
+    array([43.25037785, 16.01392566]),
+    array([45.23512183, 16.16266301])]
   #+END_EXAMPLE
   :END:
 
