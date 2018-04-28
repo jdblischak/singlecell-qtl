@@ -549,7 +549,7 @@
   # Out[2]:
   :END:
 
-  #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /scratch/midway2/aksarkar/singlecell/density-estimation/sim.py
+  #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/sim.py
     #!/usr/bin/env python3
     <<zinb-imports>>
     import multiprocessing as mp
@@ -557,8 +557,8 @@
     <<np-zinb-impl>>
     <<sim-impl>>
     args = [(num_samples, num_mols, log_mu, log_phi, logodds, trial)
-            for num_samples in np.linspace(100, 1000, 5).astype(int)
-            for num_mols in 1e3 * np.linspace(100, 1000, 5).astype(int)
+            for num_samples in np.linspace(100, 1000, 10).astype(int)
+            for num_mols in 1e3 * np.linspace(100, 1000, 10).astype(int)
             for log_mu in np.linspace(-12, -6, 7)
             for log_phi in np.linspace(-6, 0, 7)
             for logodds in np.linspace(-3, 3, 7)
@@ -573,7 +573,7 @@
     sbatch --partition=broadwl --mem=4G --job-name sim -n1 -c28 --exclusive 
     #!/bin/bash
     source activate scqtl
-    python /scratch/midway2/aksarkar/singlecell/density-estimation/sim.py
+    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/sim.py
   #+END_SRC
 
   #+RESULTS:
@@ -611,7 +611,8 @@
   2. We need to estimate relative abundance for all genes (to match bulk), not
      just those which passed QC
 
-  #+BEGIN_SRC ipython :async t
+  #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/shard-data.py
+    <<zinb-imports>>
     annotations = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
     annotations['sample'] = annotations.apply(lambda x: '{chip_id}.{experiment:08d}.{well}'.format(**dict(x)), axis=1)
     annotations['size'] = annotations['mol_hs']
@@ -646,6 +647,16 @@
   :RESULTS:
   :END:
 
+  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation/
+    sbatch --partition=broadwl --mem=4G --job-name shard
+    #!/bin/bash
+    source activate scqtl
+    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/shard-data.py
+  #+END_SRC
+
+  #+RESULTS:
+  : Submitted batch job 45497237
+
   Process each chunk in parallel.
 
   #+NAME: process-chunk-impl
@@ -666,7 +677,7 @@
        return breaks.ravel()
   #+END_SRC
 
-  #+BEGIN_SRC ipython :eval never :tangle /scratch/midway2/aksarkar/singlecell/np-zinb.py :noweb tangle
+  #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/zinb.py
      <<zinb-imports>>
      import argparse
      import gzip
@@ -679,7 +690,7 @@
      with mp.Pool() as pool:
        chunk = pd.read_table('/scratch/midway2/aksarkar/singlecell/density-estimation/chunk-{}.txt.gz'.format(os.getenv('SLURM_ARRAY_TASK_ID')))
        breaks = compute_breaks(chunk, by_ind=True)
-       res = pool.map(fit_gene, np.split(chunk[['value', 'size']].values, breaks[:-1]))
+       res = pool.map(_fit_gene, np.split(chunk[['value', 'size']].values, breaks[:-1]))
 
      with gzip.open('/scratch/midway2/aksarkar/singlecell/density-estimation/result-{}.txt.gz'.format(os.getenv('SLURM_ARRAY_TASK_ID')), 'wt') as f:
        for b in breaks:
@@ -691,11 +702,11 @@
     sbatch --partition=broadwl --job-name="np-zinb" --mem=4G -a 0-20 -n1 -c28 --exclusive
     #!/bin/bash
     source activate scqtl
-    python /scratch/midway2/aksarkar/singlecell/np-zinb.py
+    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/zinb.py
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 44962891
+  : Submitted batch job 45500146
 
   Populate the database.
 
