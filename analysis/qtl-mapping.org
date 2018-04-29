@@ -28,7 +28,7 @@
   #+CALL: ipython3(memory="16G", venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 45391548
+  : Submitted batch job 45523151
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -41,6 +41,7 @@
     import os.path
     import pandas as pd
     import pathlib
+    import pickle
     import rpy2.robjects.packages
     import rpy2.robjects.pandas2ri
     import rpy2.robjects.numpy2ri
@@ -61,7 +62,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[252]:
+  # Out[1]:
   :END:
 
 * Implementation
@@ -99,7 +100,7 @@
 
   #+RESULTS: get-gene-info
   :RESULTS:
-  # Out[3]:
+  # Out[22]:
   :END:
 
   #+RESULTS:
@@ -3236,7 +3237,6 @@
    [[file:figure/qtl-mapping.org/mean-qtl-vs-var-qtl.png]]
    :END:
 
-
 ** Predicting mean QTLs from variance QTLs
 
    As we change the threshold for calling mean (variance) QTLs, track the
@@ -3601,10 +3601,21 @@
    # Out[310]:
    :END:
 
+   Read the estimated mixture weights.
+
+   #+BEGIN_SRC ipython
+     with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
+       pihat = pd.read_sql('select * from pihat', conn, index_col='index')
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[9]:
+   :END:
+
    Write out the intermediate representation of the mash result.
 
    #+BEGIN_SRC ipython
-     import pickle
      with open('mash-result.pkl', 'wb') as f:
        pickle.dump(mash_result, f)
    #+END_SRC
@@ -3614,16 +3625,58 @@
    # Out[390]:
    :END:
 
-   Get the index of the significant effects (lfsr < 0.01) for each gene with
-   at least 50% probability of independent variance effect.
+   Read the intermediate representation.
 
    #+BEGIN_SRC ipython
-     lfsr_pass = {k: set(np.where(np.array(ashr.get_lfsr(mash_result[k])) < 0.01)[0]) for k in pihat[pihat['singletons_1'] > 0.5].index}
+     with open('mash-result.pkl', 'rb') as f:
+       mash_result = pickle.load(f)
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[397]:
+   # Out[2]:
+   :END:
+
+   Get the index of the significant variance effects (lfsr < 0.01) for each gene with
+   at least 50% probability of independent variance effect.
+
+   #+BEGIN_SRC ipython
+     lfsr_pass = {k: set(np.where(np.array(ashr.get_lfsr(mash_result[k]))[:,0] < 0.01)[0]) for k in pihat[pihat['singletons_1'] > 0.5].index}
+     lfsr_pass
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[53]:
+   #+BEGIN_EXAMPLE
+     {'ENSG00000115216': {340},
+     'ENSG00000130511': {308, 416},
+     'ENSG00000136111': {201, 203, 221, 222, 223, 226, 340},
+     'ENSG00000137693': {435, 437, 441, 469, 471, 493, 514},
+     'ENSG00000137806': set(),
+     'ENSG00000160908': {20},
+     'ENSG00000165724': {284, 300, 401}}
+   #+END_EXAMPLE
+   :END:
+
+   Get the index of significant mean effects.
+
+   #+BEGIN_SRC ipython
+     {k: set(np.where(np.array(ashr.get_lfsr(mash_result[k]))[:,1] < 0.01)[0]) for k in pihat[pihat['singletons_1'] > 0.5].index}
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[54]:
+   #+BEGIN_EXAMPLE
+     {'ENSG00000115216': set(),
+     'ENSG00000130511': set(),
+     'ENSG00000136111': set(),
+     'ENSG00000137693': set(),
+     'ENSG00000137806': set(),
+     'ENSG00000160908': set(),
+     'ENSG00000165724': set()}
+   #+END_EXAMPLE
    :END:
 
    Get the posterior mean/SD of effect sizes for the significant effects
@@ -3632,3 +3685,41 @@
      pm = {k: np.array(ashr.get_pm(mash_result[k]))[list(v)] for k, v in lfsr_pass.items()}
      psd = {k: np.array(ashr.get_psd(mash_result[k]))[list(v)] for k, v in lfsr_pass.items()}
    #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[13]:
+   :END:
+
+   #+BEGIN_SRC ipython
+     pd.DataFrame({(k, i): x for k, v in pm.items() for i, x in enumerate(v)}).T.reset_index(level=1).merge(gene_info, left_index=True, right_index=True)[['name', 0, 1]]
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[44]:
+   #+BEGIN_EXAMPLE
+     name         0             1
+     ENSG00000115216    NRBP1 -2.427975 -2.270890e+00
+     ENSG00000130511    SSBP4 -1.579683 -2.744471e-07
+     ENSG00000130511    SSBP4  1.483698  1.508718e-08
+     ENSG00000136111   TBC1D4  2.372016  1.864664e-02
+     ENSG00000136111   TBC1D4  2.253524  4.302107e-02
+     ENSG00000136111   TBC1D4  2.245763  4.341879e-02
+     ENSG00000136111   TBC1D4 -2.355357 -3.712438e-02
+     ENSG00000136111   TBC1D4  2.372399  1.863625e-02
+     ENSG00000136111   TBC1D4  2.372399  1.863625e-02
+     ENSG00000136111   TBC1D4  2.250662  7.966738e-01
+     ENSG00000137693     YAP1 -2.246535 -1.635846e+00
+     ENSG00000137693     YAP1 -1.645791 -2.700489e-01
+     ENSG00000137693     YAP1 -2.705856 -2.509745e+00
+     ENSG00000137693     YAP1 -2.704099 -2.507859e+00
+     ENSG00000137693     YAP1 -2.704099 -2.507859e+00
+     ENSG00000137693     YAP1 -2.707856 -2.508698e+00
+     ENSG00000137693     YAP1 -2.704309 -2.507921e+00
+     ENSG00000160908   ZNF394  2.408043  6.497491e-10
+     ENSG00000165724  ZMYND19  1.430033  3.673143e-08
+     ENSG00000165724  ZMYND19  1.430205  3.674549e-08
+     ENSG00000165724  ZMYND19  1.571328  7.284712e-07
+   #+END_EXAMPLE
+   :END:
