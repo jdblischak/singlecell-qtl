@@ -84,7 +84,7 @@
 
   #+RESULTS: zinb-imports
   :RESULTS:
-  # Out[1]:
+  # Out[142]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -459,11 +459,13 @@
     def _fit_gene(chunk, onehot, design=None):
       n, m = onehot.shape
       assert chunk.shape[0] == n
-      if design is None:
-        x0 = np.zeros(2 * m)
-      else:
+      # We need to take care here to initialize mu=-inf for all zero observations
+      x0 = np.log((onehot * chunk[:,:1]).sum(axis=0) / onehot.sum(axis=0)) - np.log(np.ma.masked_values(onehot, 0) * chunk[:,1:]).mean(axis=0).compressed()
+      x0 = np.hstack((x0, np.zeros(m)))
+      if design is not None:
         assert design.shape[0] == n
-        x0 = np.zeros(2 * m + design.shape[1])
+        design -= design.mean(axis=0)
+        x0 = np.hstack((x0, np.zeros(design.shape[1])))
       res0 = so.minimize(_nb, x0=x0, args=(chunk[:,0], chunk[:,1], onehot, design))
       res = so.minimize(zinb, x0=list(np.zeros(m)) + list(res0.x), args=(chunk[:,0], chunk[:,1], onehot, design))
       if res0.fun < res.fun:
@@ -473,15 +475,15 @@
         log_mu = res0.x[:m]
         neg_log_phi = res0.x[m:]
         logit_pi = np.zeros(m)
-        np.fill(logit_pi, -np.inf)
+        logit_pi.fill(-np.inf)
       else:
         logit_pi = res.x[:m]
         log_mu = res.x[m:2 * m]
         neg_log_phi = res.x[2 * m:3 * m]
       mean_by_sample = chunk[:,1] * onehot.dot(np.exp(log_mu))
       var_by_sample = mean_by_sample + np.square(mean_by_sample) * onehot.dot(np.exp(-neg_log_phi))
-      mean_by_ind = np.ma.masked_equal(onehot * mean_by_sample.reshape(-1, 1), 0).mean(axis=0).compressed()
-      var_by_ind = np.ma.masked_equal(onehot * (np.square(mean_by_sample - onehot.dot(mean_by_ind)) + var_by_sample).reshape(-1, 1), 0).mean(axis=0).compressed()
+      mean_by_ind = np.ma.masked_equal(onehot * mean_by_sample.reshape(-1, 1), 0).mean(axis=0).filled(0)
+      var_by_ind = np.ma.masked_equal(onehot * (np.square(mean_by_sample - onehot.dot(mean_by_ind)) + var_by_sample).reshape(-1, 1), 0).mean(axis=0).filled(0)
       return [log_mu, -neg_log_phi, logit_pi, mean_by_ind, var_by_ind]
 
     def fit_gene(chunk, bootstraps=100):
@@ -495,7 +497,7 @@
 
   #+RESULTS: np-zinb-impl
   :RESULTS:
-  # Out[142]:
+  # Out[254]:
   :END:
 
   Computing analytic SE runs into numerical problems.
@@ -593,9 +595,10 @@
       x, design = simulate(num_samples=num_samples, size=num_mols,
                            log_mu=log_mu, log_phi=log_phi,
                            logodds=logodds, design=None, fold=fold, seed=trial)
+      onehot = np.ones((num_samples, 1))
       keys = ['num_samples', 'num_mols', 'log_mu', 'log_phi', 'logodds', 'trial',
               'fold', 'log_mu_hat', 'log_phi_hat', 'logodds_hat', 'mean', 'var']
-      result = [num_samples, num_mols, log_mu, log_phi, logodds, trial, fold] + list(_fit_gene(x, design))
+      result = [num_samples, num_mols, log_mu, log_phi, logodds, trial, fold] + list(_fit_gene(x, onehot, design))
       result = {k: v for k, v in zip(keys, result)}
       log_cpm = np.log(x[:,0] + 1) - np.log(x[:,1]) + 6 * np.log(10)
       result['mean_log_cpm'] = log_cpm.mean()
@@ -605,7 +608,7 @@
 
   #+RESULTS: sim-impl
   :RESULTS:
-  # Out[4]:
+  # Out[270]:
   :END:
 
   Check the implementation actually worked.
@@ -617,7 +620,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[70]:
+  # Out[258]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -630,40 +633,40 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[71]:
+  # Out[259]:
   :END:
 
   #+BEGIN_SRC ipython
-    so.minimize(_nb, np.zeros(6), (x[:,0], x[:,1], onehot, (design - design.mean(axis=0, keepdims=True))))
+    so.minimize(_nb, np.zeros(6), (x[:,0], x[:,1], onehot, design - design.mean(axis=0)))
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[79]:
+  # Out[260]:
   #+BEGIN_EXAMPLE
-    fun: 3.7686684938959005
-    hess_inv: array([[ 3.02723427e-01,  1.22915239e-03,  1.84289227e-02,
-    2.93100089e-02, -6.63234230e-03,  6.61572779e-03],
-    [ 1.22915239e-03,  2.73646868e-01,  6.42487198e-03,
-    -4.08994234e-02, -7.95095115e-03,  7.91377926e-03],
-    [ 1.84289227e-02,  6.42487198e-03,  8.33094819e+00,
-    -7.79790706e-01,  4.84845340e-03, -4.59546608e-03],
-    [ 2.93100089e-02, -4.08994234e-02, -7.79790706e-01,
-    1.95037075e+01, -3.76704122e-02,  3.67948000e-02],
-    [-6.63234230e-03, -7.95095115e-03,  4.84845340e-03,
-    -3.76704122e-02,  6.46465026e-01,  3.53473194e-01],
-    [ 6.61572779e-03,  7.91377926e-03, -4.59546608e-03,
-    3.67948000e-02,  3.53473194e-01,  6.46589099e-01]])
-    jac: array([-4.76837158e-07,  8.34465027e-07,  1.04308128e-06,  5.66244125e-07,
-    6.25848770e-07, -5.96046448e-07])
+    fun: 3.7693708861600173
+    hess_inv: array([[ 2.95492914e-01, -2.26820271e-02, -6.88886930e-02,
+    3.66568258e-02, -1.35008739e-02,  1.33990791e-02],
+    [-2.26820271e-02,  2.76704513e-01,  4.55879587e-03,
+    6.39326308e-02, -2.03557128e-02,  2.03675939e-02],
+    [-6.88886930e-02,  4.55879587e-03,  8.40491928e+00,
+    3.47009715e-01,  1.14991770e-02, -1.17004131e-02],
+    [ 3.66568258e-02,  6.39326308e-02,  3.47009715e-01,
+    1.93344347e+01, -8.18164095e-03,  6.19982324e-03],
+    [-1.35008739e-02, -2.03557128e-02,  1.14991770e-02,
+    -8.18164095e-03,  6.45950264e-01,  3.54059802e-01],
+    [ 1.33990791e-02,  2.03675939e-02, -1.17004131e-02,
+    6.19982324e-03,  3.54059802e-01,  6.45930363e-01]])
+    jac: array([ 6.82473183e-06,  8.34465027e-06,  1.07288361e-06,  8.34465027e-07,
+    3.75509262e-06, -4.08291817e-06])
     message: 'Optimization terminated successfully.'
-    nfev: 256
-    nit: 29
-    njev: 32
+    nfev: 280
+    nit: 30
+    njev: 35
     status: 0
     success: True
-    x: array([-7.79083337, -8.78481628,  2.07143452,  2.62530472,  0.16955185,
-    -0.16940769])
+    x: array([-7.79891405, -8.79063513,  2.05714587,  2.56621654,  0.16492975,
+    -0.16494031])
   #+END_EXAMPLE
   :END:
 
@@ -673,43 +676,43 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[81]:
+  # Out[261]:
   #+BEGIN_EXAMPLE
-    fun: 3.105741745890472
-    hess_inv: array([[ 5.08820548e+01,  8.74220734e+00, -1.68903895e-01,
-    1.66457190e-02,  2.89163844e-02,  3.40963270e-02,
-    3.24767620e-01, -2.33640476e-01],
-    [ 8.74220734e+00,  6.65068244e+01,  3.82097806e-01,
-    -1.47080994e-01, -4.70784156e-02, -7.84243963e-02,
-    -4.73011471e-01,  3.94491154e-01],
-    [-1.68903895e-01,  3.82097806e-01,  1.93116093e-02,
-    -8.04764776e-03, -1.35830866e-03, -5.12425983e-03,
-    -4.73973226e-03,  7.88081551e-03],
-    [ 1.66457190e-02, -1.47080994e-01, -8.04764776e-03,
-    1.00989361e-02,  7.84247844e-04,  1.15902651e-03,
-    7.16368270e-03, -7.71106773e-03],
-    [ 2.89163844e-02, -4.70784156e-02, -1.35830866e-03,
-    7.84247844e-04,  1.81836102e-04,  1.68098188e-04,
-    1.64798846e-03, -1.36859055e-03],
-    [ 3.40963270e-02, -7.84243963e-02, -5.12425983e-03,
-    1.15902651e-03,  1.68098188e-04,  2.33714394e-03,
-    -1.53924411e-03, -2.56078906e-04],
-    [ 3.24767620e-01, -4.73011471e-01, -4.73973226e-03,
-    7.16368270e-03,  1.64798846e-03, -1.53924411e-03,
-    2.59333378e-02, -1.84444994e-02],
-    [-2.33640476e-01,  3.94491154e-01,  7.88081551e-03,
-    -7.71106773e-03, -1.36859055e-03, -2.56078906e-04,
-    -1.84444994e-02,  1.45653412e-02]])
-    jac: array([-1.20401382e-04, -1.87456608e-05,  9.00000334e-03, -5.87096810e-03,
-    1.34749979e-01,  1.42499804e-02,  9.74801183e-03, -2.13730633e-02])
+    fun: 3.1120455141161147
+    hess_inv: array([[ 3.91509877e+01, -6.82255452e+00,  3.56651927e-03,
+    -3.60544664e-03,  1.89769061e-03, -3.67396633e-05,
+    -5.05335375e-03,  2.07017842e-03],
+    [-6.82255452e+00,  3.63677578e+01, -2.89665006e-03,
+    1.89766982e-03, -1.15515147e-03,  1.19995032e-04,
+    4.03751660e-03, -1.28881738e-03],
+    [ 3.56651927e-03, -2.89665006e-03,  1.00060484e-05,
+    -4.75805864e-06, -1.52866758e-06, -9.78212511e-07,
+    -7.93108063e-09, -9.33841063e-06],
+    [-3.60544664e-03,  1.89766982e-03, -4.75805864e-06,
+    9.43027846e-06, -1.92946942e-08, -1.76906831e-07,
+    -3.04179309e-07,  5.35291550e-06],
+    [ 1.89769061e-03, -1.15515147e-03, -1.52866758e-06,
+    -1.92946942e-08,  2.96476652e-06,  1.16116940e-06,
+    -4.91977746e-06,  2.37359794e-06],
+    [-3.67396633e-05,  1.19995032e-04, -9.78212511e-07,
+    -1.76906831e-07,  1.16116940e-06,  1.48628846e-06,
+    -1.36236523e-06,  7.97280863e-07],
+    [-5.05335375e-03,  4.03751660e-03, -7.93108063e-09,
+    -3.04179309e-07, -4.91977746e-06, -1.36236523e-06,
+    1.60495775e-05, -3.42044027e-06],
+    [ 2.07017842e-03, -1.28881738e-03, -9.33841063e-06,
+    5.35291550e-06,  2.37359794e-06,  7.97280863e-07,
+    -3.42044027e-06,  1.96937195e-05]])
+    jac: array([-2.98023224e-07,  7.15255737e-07,  9.99987125e-04, -3.08364630e-04,
+    5.21874428e-03,  7.71874189e-03,  1.99797750e-03,  9.57250595e-05])
     message: 'Desired error not necessarily achieved due to precision loss.'
-    nfev: 1952
-    nit: 45
-    njev: 194
+    nfev: 1942
+    nit: 80
+    njev: 193
     status: 2
     success: False
-    x: array([-3.08430801, -3.0794722 , -7.74672959, -8.73971707, 15.09696903,
-    14.1405654 ,  0.17131679, -0.16199749])
+    x: array([-3.07858135, -3.07854889, -7.75387174, -8.74631249, 12.91019024,
+    13.26839552,  0.04538458, -0.28914969])
   #+END_EXAMPLE
   :END:
 
@@ -719,54 +722,126 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[143]:
+  # Out[262]:
   #+BEGIN_EXAMPLE
-    [array([-7.72759538, -8.72909025]),
-    array([-3.54105403, -3.6325234 ]),
-    array([-3.07857253, -3.07861532]),
-    array([44.05020827, 16.18095952]),
-    array([100.28896459,  23.10602166])]
+    [array([-7.74001987, -8.73200364]),
+    array([-3.50778747, -3.59795896]),
+    array([-3.07854886, -3.07859407]),
+    array([43.50629319, 16.13388663]),
+    array([100.22044275,  23.26084595])]
   #+END_EXAMPLE
   :END:
 
   #+BEGIN_SRC ipython
-    _fit_gene(x, onehot, design - design.mean(axis=0))
+    _fit_gene(x, onehot, design)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[144]:
+  # Out[263]:
   #+BEGIN_EXAMPLE
-    [array([-7.7459195 , -8.73946677]),
-    array([-6.84852201, -7.45249071]),
-    array([-3.07855232, -3.07858144]),
-    array([43.25037785, 16.01392566]),
-    array([45.23512183, 16.16266301])]
+    [array([-7.75374851, -8.74604202]),
+    array([-6.72224875, -6.76463141]),
+    array([-3.08324086, -3.07316665]),
+    array([42.9130922, 15.9089754]),
+    array([45.12998187, 16.20101539])]
+  #+END_EXAMPLE
+  :END:
+
+  Check what happens on all zero data.
+
+  #+BEGIN_SRC ipython
+    x = np.concatenate((np.zeros((1000, 1)), 1e5 * np.ones((1000, 1))), axis=1)
+    onehot = np.ones((1000, 1))
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[264]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    np.log((onehot * x[:,:1]).sum(axis=0) / onehot.sum(axis=0)) - np.log(np.ma.masked_values(onehot, 0) * x[:,1:]).mean(axis=0).compressed()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[265]:
+  : array([-inf])
+  :END:
+
+  #+BEGIN_SRC ipython
+    so.minimize(_nb, x0=(-np.inf, 0), args=(x[:,0], x[:,1], onehot))
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[266]:
+  #+BEGIN_EXAMPLE
+    fun: 9.999999889225288e-09
+    hess_inv: array([[1, 0],
+    [0, 1]])
+    jac: array([0.00000000e+00, 1.00000003e-08])
+    message: 'Optimization terminated successfully.'
+    nfev: 4
+    nit: 0
+    njev: 1
+    status: 0
+    success: True
+    x: array([-inf,   0.])
   #+END_EXAMPLE
   :END:
 
   #+BEGIN_SRC ipython
-    evaluate(num_samples=1000, num_mols=1e5, log_mu=-8, log_phi=-6, logodds=-3, fold=1.3, trial=0)
+    _fit_gene(x, onehot)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[281]:
+  # Out[267]:
+  : [array([-inf]), array([-0.]), array([0.]), array([0.]), array([0.])]
+  :END:
+
+  #+BEGIN_SRC ipython
+    _fit_gene(x, onehot, design)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[163]:
   #+BEGIN_EXAMPLE
-    {'fold': 1.3,
+    [array([-7.75254245, -8.74529525]),
+    array([-7.38635243, -6.45950176]),
+    array([-3.07849171, -3.07866706]),
+    array([42.9648789 , 15.92086032]),
+    array([44.10874472, 16.3176927 ])]
+  #+END_EXAMPLE
+  :END:
+
+  Check the end-to-end evaluation.
+
+  #+BEGIN_SRC ipython
+    evaluate(num_samples=1000, num_mols=1e5, log_mu=-8, log_phi=-6, logodds=-3, fold=1.1, trial=0)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[269]:
+  #+BEGIN_EXAMPLE
+    {'fold': 1.1,
     'log_mu': -8,
-    'log_mu_hat': -8.010835294475278,
+    'log_mu_hat': array([-8.00785373]),
     'log_phi': -6,
-    'log_phi_hat': -5.361781894730521,
+    'log_phi_hat': array([-5.52468537]),
     'logodds': -3,
-    'logodds_hat': -2.8841721644494522,
-    'mean': 33.18474128733248,
-    'mean_log_cpm': 5.612601676299008,
+    'logodds_hat': array([-2.88298067]),
+    'mean': array([33.28383137]),
+    'mean_log_cpm': 5.635841618437168,
     'num_mols': 100000.0,
     'num_samples': 1000,
     'trial': 0,
-    'var': 38.35229003613272,
-    'var_log_cpm': 1.0138767222629645}
+    'var': array([37.70081974]),
+    'var_log_cpm': 0.6708102759540933}
   #+END_EXAMPLE
   :END:
 
@@ -792,8 +867,7 @@
 
   Run the simulation on 28 CPUs.
 
-  #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /scratch/midway2/aksarkar/singlecell/density-estimation/sim.py
-    #!/usr/bin/env python3
+  #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/sim.py
     <<zinb-imports>>
     import multiprocessing as mp
     import sqlite3
@@ -818,11 +892,11 @@
     sbatch --partition=broadwl --mem=8G --job-name sim -n1 -c28 --exclusive --out sim.out
     #!/bin/bash
     source activate scqtl
-    python /scratch/midway2/aksarkar/singlecell/density-estimation/sim.py
+    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/sim.py
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 45301353
+  : Submitted batch job 45526302
 
   Use this to check the parameter estimation for a particular gene/individual.
 
