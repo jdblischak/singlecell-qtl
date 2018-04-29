@@ -41,7 +41,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[16]:
+  # Out[67]:
   :END:
 
 * Read the data
@@ -57,7 +57,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[39]:
+  # Out[117]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -92,9 +92,6 @@
       if 'gridsize' not in kwargs:
         kwargs['gridsize'] = 40
       hexes = plt.hexbin(merged['x'], merged['y'], cmap=colorcet.cm['blues'], extent=lim + lim, **kwargs)
-      cb = plt.colorbar()
-      cb.set_label('Number of genes')
-      plt.plot(lim, lim, color='red')
       ax = plt.gca()
       if lim is None:
         ax.set_xlim([merged['x'].min(), merged['x'].max()])
@@ -102,6 +99,10 @@
       else:
         ax.set_xlim(lim)
         ax.set_ylim(lim)
+      ax.set_aspect('equal')
+      cb = plt.colorbar()
+      cb.set_label('Number of genes')
+      plt.plot(lim, lim, color='red')
       plt.title(title)
       if xlabel is None:
         xlabel = 'scRNA-Seq $\log_2(\mathrm{CPM} + 1) $'
@@ -122,7 +123,7 @@
 
   #+RESULTS: concordance-def
   :RESULTS:
-  # Out[53]:
+  # Out[132]:
   :END:
 
   #+RESULTS:
@@ -351,7 +352,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[17]:
+  # Out[68]:
   :END:
 
   Under [[file:zinb.org][our assumed model]], the parameter \(\mu\) is proportional to relative
@@ -369,7 +370,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[18]:
+  # Out[69]:
   :END:
 
   Estimate the Spearman correlation between single cell and bulk for genes
@@ -382,16 +383,16 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[51]:
+  # Out[118]:
   #+BEGIN_EXAMPLE
     count    49.000000
-    mean      0.767447
-    std       0.022018
-    min       0.688958
-    25%       0.758455
-    50%       0.770411
-    75%       0.783731
-    max       0.800085
+    mean      0.767534
+    std       0.022014
+    min       0.689212
+    25%       0.758545
+    50%       0.770475
+    75%       0.783815
+    max       0.800187
     dtype: float64
   #+END_EXAMPLE
   :END:
@@ -402,23 +403,21 @@
     def plot_concordance_rho(bulk, sc, output_dir):
       bulk, sc = bulk.align(sc, axis=1, join='inner')
       for k in bulk:
-        y = bulk[k].to_frame()
-        y = y.mask(~np.isfinite(y)).dropna()
-        x = sc[k].to_frame()
-        x = x.mask(np.logical_or(~np.isfinite(x), x < y.min().min())).dropna()
+        y = bulk[k].dropna().to_frame()
+        x = sc[k].dropna().to_frame()
         plot_concordance(
           x=x,
           y=y,
-          lim=[y.min().min(), y.max().max()],
           title=k,
-          xlabel='Single cell log relative abundance',
-          ylabel='Bulk log relative abundance',
+          gridsize=20,
+          xlabel='Single cell ln relative abundance',
+          ylabel='Bulk ln relative abundance',
           filename='{}/{}.svg'.format(output_dir, k))
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[54]:
+  # Out[134]:
   :END:
 
   #+BEGIN_SRC ipython :results none
@@ -428,9 +427,8 @@
       '/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/vs-sc-mean')
   #+END_SRC
 
-  file:figure/sc-vs-bulk.org/vs-sc-mean/NA18501.svg
-  file:figure/sc-vs-bulk.org/vs-sc-mean/NA18502.svg
-  file:figure/sc-vs-bulk.org/vs-sc-mean/NA18505.svg
+  file:figure/sc-vs-bulk.org/vs-sc-mean/NA18507.svg
+  file:figure/sc-vs-bulk.org/vs-sc-mean/NA18522.svg
 
   Look at the distribution of absolute differences.
 
@@ -441,7 +439,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[172]:
+  # Out[70]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -474,3 +472,44 @@
   : array([2.22150587, 3.03904554, 4.87481989, 5.54950021, 6.94873559])
   :END:
 
+  Look at genes only detected in one assay.
+
+  #+BEGIN_SRC ipython
+    T.mask(np.logical_or(np.isfinite(S), T < np.log(1e-15))).describe().T['count'].describe() / 20327
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[104]:
+  #+BEGIN_EXAMPLE
+    count    0.002411
+    mean     0.058715
+    std      0.017627
+    min      0.030354
+    25%      0.046933
+    50%      0.054706
+    75%      0.069759
+    max      0.096768
+    Name: count, dtype: float64
+  #+END_EXAMPLE
+  :END:
+
+  #+BEGIN_SRC ipython
+    S.mask(np.logical_or(np.isfinite(T), S < np.log(1e-15))).describe().T['count'].describe() / 20327
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[105]:
+  #+BEGIN_EXAMPLE
+    count    0.002411
+    mean     0.070953
+    std      0.016495
+    min      0.037143
+    25%      0.057461
+    50%      0.073498
+    75%      0.080189
+    max      0.108378
+    Name: count, dtype: float64
+  #+END_EXAMPLE
+  :END:
