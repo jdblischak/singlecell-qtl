@@ -62,7 +62,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[1]:
+  # Out[55]:
   :END:
 
 * Implementation
@@ -85,7 +85,7 @@
 
   #+RESULTS: r-wrappers
   :RESULTS:
-  # Out[2]:
+  # Out[56]:
   :END:
 
   #+NAME: get-gene-info
@@ -100,7 +100,7 @@
 
   #+RESULTS: get-gene-info
   :RESULTS:
-  # Out[22]:
+  # Out[57]:
   :END:
 
   #+RESULTS:
@@ -154,7 +154,7 @@
 
   #+RESULTS: write-pheno-def
   :RESULTS:
-  # Out[4]:
+  # Out[58]:
   :END:
 
   #+NAME: tabix
@@ -224,7 +224,7 @@
 
   #+RESULTS: read-qtltools-def
   :RESULTS:
-  # Out[5]:
+  # Out[59]:
   :END:
 
   #+RESULTS:
@@ -245,7 +245,7 @@
 
   #+RESULTS: plot-approx-perm-def
   :RESULTS:
-  # Out[6]:
+  # Out[60]:
   :END:
 
   #+NAME: qqplot-def
@@ -268,7 +268,7 @@
 
   #+RESULTS: qqplot-def
   :RESULTS:
-  # Out[7]:
+  # Out[61]:
   :END:
 
   #+NAME: replication-tests-def
@@ -353,7 +353,7 @@
 
   #+RESULTS: replication-tests-def
   :RESULTS:
-  # Out[179]:
+  # Out[62]:
   :END:
 
   #+NAME: bootstrap-def
@@ -372,7 +372,7 @@
 
   #+RESULTS: bootstrap-def
   :RESULTS:
-  # Out[9]:
+  # Out[63]:
   :END:
 
   #+NAME: bootstrap-betahat-se-def
@@ -434,7 +434,7 @@
 
   #+RESULTS: bootstrap-betahat-se-def
   :RESULTS:
-  # Out[10]:
+  # Out[64]:
   :END:
 
 * Preliminaries
@@ -3339,7 +3339,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[266]:
+   # Out[65]:
    :END:
 
    Check our \(z\)-scores against inverse CDF-derived \(z\)-scores.
@@ -3407,210 +3407,38 @@
    Read the results
 
    #+BEGIN_SRC ipython
-    nominal_pooled_qtl_stats = read_nominal_pass('/scratch/midway2/aksarkar/singlecell/scqtl-mapping/pooled-fdr-pass-nominal.txt')
+     nominal_pooled_qtl_stats = read_nominal_pass('/scratch/midway2/aksarkar/singlecell/scqtl-mapping/pooled-fdr-pass-nominal.txt')
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[270]:
+   # Out[66]:
+   :END:
+
+   Prepare the summary statistics for ~mash~ EB estimation.
+
+   #+BEGIN_SRC ipython
+     Z = nominal_var_qtl_stats.merge(nominal_pooled_qtl_stats, on=['gene', 'id']).set_index(['gene', 'id'])[['z_x', 'z_y']]
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[195]:
    :END:
 
    Run two-condition ~mash~.
 
    #+BEGIN_SRC ipython
-    Z = nominal_var_qtl_stats.merge(nominal_pooled_qtl_stats, on=['gene', 'id']).set_index(['gene', 'id']).filter(like='z', axis='columns')
-    mash_result = {}
-    for k, g in Z.groupby(level=0):
-      data = mashr.mash_set_data(numpy2ri(g.values), numpy2ri(np.ones(g.shape)))
-      V = mashr.estimate_null_correlation(data)
-      data = mashr.mash_set_data(numpy2ri(g.values), numpy2ri(np.ones(g.shape)), V=V)
-      U = mashr.cov_canonical(data)
-      mash_result[k] = mashr.mash(data, U, verbose=False)
+     data = mashr.mash_set_data(numpy2ri(Z_sub.values), numpy2ri(np.ones(Z_sub.shape)))
+     V = mashr.estimate_null_correlation(data)
+     data = mashr.mash_set_data(numpy2ri(Z_sub.values), numpy2ri(np.ones(Z_sub.shape)), V=V)
+     U = mashr.cov_canonical(data)
+     mash_result = mashr.mash(data, U, verbose=False)
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[293]:
-   :END:
-
-   Recover the estimated mixture weights.
-
-   #+BEGIN_SRC ipython
-    pihat = pd.DataFrame.from_dict({k: np.array(mashr.get_estimated_pi(v)) for k, v in mash_result.items()}).T
-    pihat.columns = ['pointmass'] + list(U.names)
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[295]:
-   :END:
-
-   Look at the distribution of mixture weights over all genes.
-
-   #+BEGIN_SRC ipython
-    pihat.describe()
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[299]:
-   #+BEGIN_EXAMPLE
-     pointmass  identity  singletons_1  singletons_2  equal_effects  \
-     count        258       258           258           258            258
-     mean       0.367  0.000363        0.0705        0.0272          0.469
-     std        0.266   0.00473         0.153        0.0912          0.288
-     min       0.0124  2.44e-19             0             0              0
-     25%        0.142  8.23e-11       3.1e-10      3.09e-10          0.236
-     50%        0.292  8.64e-10      7.43e-09      3.11e-09          0.491
-     75%        0.558  8.91e-09        0.0421      6.88e-08          0.709
-     max            1    0.0734         0.825         0.701          0.988
-
-     simple_het_1  simple_het_2  simple_het_3
-     count           258           258           258
-     mean       0.000135         0.002         0.064
-     std         0.00217        0.0322         0.152
-     min        2.44e-19      2.44e-19             0
-     25%        8.46e-11      1.24e-10      2.78e-10
-     50%        7.08e-10      1.09e-09      1.42e-08
-     75%        7.25e-09      6.43e-09        0.0436
-     max          0.0348         0.517          0.91
-   #+END_EXAMPLE
-   :END:
-
-   Rank genes by posterior probability of a unique variance effect.
-
-   #+BEGIN_SRC ipython :results output html
-     print(pihat[pihat['singletons_1'] > 0.5].sort_values('singletons_1', ascending=False).merge(gene_info[['name']], left_index=True, right_index=True).to_html(classes='table'))
-   #+END_SRC
-
-   #+RESULTS:
-   #+BEGIN_EXPORT html
-   <table border="1" class="dataframe table">
-     <thead>
-       <tr style="text-align: right;">
-         <th></th>
-         <th>pointmass</th>
-         <th>identity</th>
-         <th>singletons_1</th>
-         <th>singletons_2</th>
-         <th>equal_effects</th>
-         <th>simple_het_1</th>
-         <th>simple_het_2</th>
-         <th>simple_het_3</th>
-         <th>name</th>
-       </tr>
-     </thead>
-     <tbody>
-       <tr>
-         <th>ENSG00000130511</th>
-         <td>0.175</td>
-         <td>2.76e-09</td>
-         <td>0.825</td>
-         <td>6.29e-11</td>
-         <td>2.09e-11</td>
-         <td>2.65e-10</td>
-         <td>1.21e-10</td>
-         <td>2.77e-09</td>
-         <td>SSBP4</td>
-       </tr>
-       <tr>
-         <th>ENSG00000160908</th>
-         <td>0.202</td>
-         <td>2.67e-11</td>
-         <td>0.798</td>
-         <td>3.33e-10</td>
-         <td>0</td>
-         <td>2.08e-10</td>
-         <td>3.27e-10</td>
-         <td>8.52e-11</td>
-         <td>ZNF394</td>
-       </tr>
-       <tr>
-         <th>ENSG00000137693</th>
-         <td>0.154</td>
-         <td>9.95e-10</td>
-         <td>0.756</td>
-         <td>1.38e-09</td>
-         <td>0.0902</td>
-         <td>5.55e-10</td>
-         <td>1.86e-09</td>
-         <td>4.23e-10</td>
-         <td>YAP1</td>
-       </tr>
-       <tr>
-         <th>ENSG00000165724</th>
-         <td>0.332</td>
-         <td>9.47e-10</td>
-         <td>0.668</td>
-         <td>2.27e-09</td>
-         <td>2e-09</td>
-         <td>8.34e-10</td>
-         <td>1.59e-09</td>
-         <td>4.63e-09</td>
-         <td>ZMYND19</td>
-       </tr>
-       <tr>
-         <th>ENSG00000115216</th>
-         <td>0.155</td>
-         <td>9.19e-11</td>
-         <td>0.638</td>
-         <td>9.22e-11</td>
-         <td>0.207</td>
-         <td>1.29e-10</td>
-         <td>5.28e-11</td>
-         <td>3.66e-12</td>
-         <td>NRBP1</td>
-       </tr>
-       <tr>
-         <th>ENSG00000137806</th>
-         <td>0.285</td>
-         <td>1.05e-10</td>
-         <td>0.627</td>
-         <td>9.98e-10</td>
-         <td>0.0873</td>
-         <td>2.05e-08</td>
-         <td>1.16e-11</td>
-         <td>2.75e-10</td>
-         <td>NDUFAF1</td>
-       </tr>
-       <tr>
-         <th>ENSG00000136111</th>
-         <td>0.221</td>
-         <td>4.05e-09</td>
-         <td>0.543</td>
-         <td>2.77e-08</td>
-         <td>0.237</td>
-         <td>1.02e-08</td>
-         <td>5.09e-08</td>
-         <td>1.11e-08</td>
-         <td>TBC1D4</td>
-       </tr>
-     </tbody>
-   </table>
-   #+END_EXPORT
-
-   Write out the estimated posterior mixture weights.
-
-   #+BEGIN_SRC ipython
-     with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
-       pihat.to_sql('pihat', conn)
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[310]:
-   :END:
-
-   Read the estimated mixture weights.
-
-   #+BEGIN_SRC ipython
-     with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
-       pihat = pd.read_sql('select * from pihat', conn, index_col='index')
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[9]:
+   # Out[196]:
    :END:
 
    Write out the intermediate representation of the mash result.
@@ -3622,7 +3450,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[390]:
+   # Out[197]:
    :END:
 
    Read the intermediate representation.
@@ -3637,89 +3465,39 @@
    # Out[2]:
    :END:
 
-   Get the index of the significant variance effects (lfsr < 0.01) for each gene with
-   at least 50% probability of independent variance effect.
+   Recover the estimated mixture weights.
 
    #+BEGIN_SRC ipython
-     lfsr_pass = {k: set(np.where(np.array(ashr.get_lfsr(mash_result[k]))[:,0] < 0.01)[0]) for k in pihat[pihat['singletons_1'] > 0.5].index}
-     lfsr_pass
+     {k: v for k, v in zip(['pointmass'] + list(U.names),
+                           np.array(mashr.get_estimated_pi(mash_result)))}
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[53]:
+   # Out[198]:
    #+BEGIN_EXAMPLE
-     {'ENSG00000115216': {340},
-     'ENSG00000130511': {308, 416},
-     'ENSG00000136111': {201, 203, 221, 222, 223, 226, 340},
-     'ENSG00000137693': {435, 437, 441, 469, 471, 493, 514},
-     'ENSG00000137806': set(),
-     'ENSG00000160908': {20},
-     'ENSG00000165724': {284, 300, 401}}
+     {'equal_effects': 0.6304740345396695,
+     'identity': 3.222654477200791e-07,
+     'pointmass': 0.2799479785087344,
+     'simple_het_1': 3.3854982953530273e-07,
+     'simple_het_2': 3.6256921592961205e-07,
+     'simple_het_3': 0.08957557566393076,
+     'singletons_1': 1.10893521460435e-06,
+     'singletons_2': 2.7896795759335475e-07}
    #+END_EXAMPLE
    :END:
 
-   Get the index of significant mean effects.
+   Recover the estimated sharing of effects.
 
    #+BEGIN_SRC ipython
-     {k: set(np.where(np.array(ashr.get_lfsr(mash_result[k]))[:,1] < 0.01)[0]) for k in pihat[pihat['singletons_1'] > 0.5].index}
+     np.array(mashr.get_pairwise_sharing(mash_result))
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[54]:
+   # Out[203]:
    #+BEGIN_EXAMPLE
-     {'ENSG00000115216': set(),
-     'ENSG00000130511': set(),
-     'ENSG00000136111': set(),
-     'ENSG00000137693': set(),
-     'ENSG00000137806': set(),
-     'ENSG00000160908': set(),
-     'ENSG00000165724': set()}
-   #+END_EXAMPLE
-   :END:
-
-   Get the posterior mean/SD of effect sizes for the significant effects
-
-   #+BEGIN_SRC ipython
-     pm = {k: np.array(ashr.get_pm(mash_result[k]))[list(v)] for k, v in lfsr_pass.items()}
-     psd = {k: np.array(ashr.get_psd(mash_result[k]))[list(v)] for k, v in lfsr_pass.items()}
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[13]:
-   :END:
-
-   #+BEGIN_SRC ipython
-     pd.DataFrame({(k, i): x for k, v in pm.items() for i, x in enumerate(v)}).T.reset_index(level=1).merge(gene_info, left_index=True, right_index=True)[['name', 0, 1]]
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[44]:
-   #+BEGIN_EXAMPLE
-     name         0             1
-     ENSG00000115216    NRBP1 -2.427975 -2.270890e+00
-     ENSG00000130511    SSBP4 -1.579683 -2.744471e-07
-     ENSG00000130511    SSBP4  1.483698  1.508718e-08
-     ENSG00000136111   TBC1D4  2.372016  1.864664e-02
-     ENSG00000136111   TBC1D4  2.253524  4.302107e-02
-     ENSG00000136111   TBC1D4  2.245763  4.341879e-02
-     ENSG00000136111   TBC1D4 -2.355357 -3.712438e-02
-     ENSG00000136111   TBC1D4  2.372399  1.863625e-02
-     ENSG00000136111   TBC1D4  2.372399  1.863625e-02
-     ENSG00000136111   TBC1D4  2.250662  7.966738e-01
-     ENSG00000137693     YAP1 -2.246535 -1.635846e+00
-     ENSG00000137693     YAP1 -1.645791 -2.700489e-01
-     ENSG00000137693     YAP1 -2.705856 -2.509745e+00
-     ENSG00000137693     YAP1 -2.704099 -2.507859e+00
-     ENSG00000137693     YAP1 -2.704099 -2.507859e+00
-     ENSG00000137693     YAP1 -2.707856 -2.508698e+00
-     ENSG00000137693     YAP1 -2.704309 -2.507921e+00
-     ENSG00000160908   ZNF394  2.408043  6.497491e-10
-     ENSG00000165724  ZMYND19  1.430033  3.673143e-08
-     ENSG00000165724  ZMYND19  1.430205  3.674549e-08
-     ENSG00000165724  ZMYND19  1.571328  7.284712e-07
+     array([[1.        , 0.96786156],
+     [0.96786156, 1.        ]])
    #+END_EXAMPLE
    :END:
