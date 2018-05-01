@@ -70,7 +70,7 @@
   #+CALL: ipython3(memory="6G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 45503474
+  : Submitted batch job 45588216
 
   #+NAME: zinb-imports
   #+BEGIN_SRC ipython
@@ -84,7 +84,7 @@
 
   #+RESULTS: zinb-imports
   :RESULTS:
-  # Out[142]:
+  # Out[1]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -399,7 +399,7 @@
 
   Optimize the negative log-likelihood.
 
-  #+NAME: np-zinb-impl
+  #+NAME: np-zinb-impl2
   #+BEGIN_SRC ipython
     def log(x):
       """Numerically safe log"""
@@ -473,7 +473,7 @@
         # ZINB can't represent pi = 0, so we need to use a separate implementation
         # for it
         log_mu = res0.x[:m]
-        neg_log_phi = res0.x[m:]
+        neg_log_phi = res0.x[m:2 * m]
         logit_pi = np.zeros(m)
         logit_pi.fill(-np.inf)
       else:
@@ -497,7 +497,7 @@
 
   #+RESULTS: np-zinb-impl
   :RESULTS:
-  # Out[254]:
+  # Out[4]:
   :END:
 
   Computing analytic SE runs into numerical problems.
@@ -552,7 +552,7 @@
 
   \[ \tau = \frac{1 - 2 \ln y}{2 \ln y} \]  
 
-  #+NAME: sim-impl
+  #+NAME: sim-impl2
   #+BEGIN_SRC ipython
     def simulate(num_samples, size=None, log_mu=None, log_phi=None, logodds=None, seed=None, design=None, fold=None):
       if seed is None:
@@ -598,17 +598,18 @@
       onehot = np.ones((num_samples, 1))
       keys = ['num_samples', 'num_mols', 'log_mu', 'log_phi', 'logodds', 'trial',
               'fold', 'log_mu_hat', 'log_phi_hat', 'logodds_hat', 'mean', 'var']
-      result = [num_samples, num_mols, log_mu, log_phi, logodds, trial, fold] + list(_fit_gene(x, onehot, design))
+      result = [num_samples, num_mols, log_mu, log_phi, logodds, trial, fold] + [param[0] for param in _fit_gene(x, onehot, design)]
       result = {k: v for k, v in zip(keys, result)}
-      log_cpm = np.log(x[:,0] + 1) - np.log(x[:,1]) + 6 * np.log(10)
+      eps = .5 / num_mols
+      log_cpm = (np.log(np.ma.masked_values(x[:,0], 0) + eps) - np.log(x[:,1] + 2 * eps) + 6 * np.log(10)).compressed()
       result['mean_log_cpm'] = log_cpm.mean()
       result['var_log_cpm'] = log_cpm.var()
       return result
   #+END_SRC
 
-  #+RESULTS: sim-impl
+  #+RESULTS: sim-impl2
   :RESULTS:
-  # Out[270]:
+  # Out[31]:
   :END:
 
   Check the implementation actually worked.
@@ -620,7 +621,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[258]:
+  # Out[6]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -633,7 +634,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[259]:
+  # Out[7]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -738,13 +739,13 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[263]:
+  # Out[8]:
   #+BEGIN_EXAMPLE
-    [array([-7.75374851, -8.74604202]),
-    array([-6.72224875, -6.76463141]),
-    array([-3.08324086, -3.07316665]),
-    array([42.9130922, 15.9089754]),
-    array([45.12998187, 16.20101539])]
+    [array([-7.74986202, -8.7418084 ]),
+    array([-6.82644387, -6.09474886]),
+    array([-3.0785687 , -3.07861418]),
+    array([43.08019804, 15.97647082]),
+    array([45.09331255, 16.55197158])]
   #+END_EXAMPLE
   :END:
 
@@ -821,28 +822,37 @@
   Check the end-to-end evaluation.
 
   #+BEGIN_SRC ipython
-    evaluate(num_samples=1000, num_mols=1e5, log_mu=-8, log_phi=-6, logodds=-3, fold=1.1, trial=0)
+    evaluate(num_samples=100, num_mols=1e5, log_mu=-8, log_phi=-6, logodds=-3, fold=1.1, trial=0)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[269]:
+  # Out[32]:
   #+BEGIN_EXAMPLE
     {'fold': 1.1,
     'log_mu': -8,
-    'log_mu_hat': array([-8.00785373]),
+    'log_mu_hat': -7.980952099176061,
     'log_phi': -6,
-    'log_phi_hat': array([-5.52468537]),
+    'log_phi_hat': -5.681342153408702,
     'logodds': -3,
-    'logodds_hat': array([-2.88298067]),
-    'mean': array([33.28383137]),
-    'mean_log_cpm': 5.635841618437168,
+    'logodds_hat': -2.7515411255776483,
+    'mean': 34.19137317124226,
+    'mean_log_cpm': 5.8224834413816415,
     'num_mols': 100000.0,
-    'num_samples': 1000,
+    'num_samples': 100,
     'trial': 0,
-    'var': array([37.70081974]),
-    'var_log_cpm': 0.6708102759540933}
+    'var': 38.1766412350187,
+    'var_log_cpm': 0.23075096605184894}
   #+END_EXAMPLE
+  :END:
+
+  #+BEGIN_SRC ipython :results output
+    %timeit evaluate(num_samples=5000, num_mols=1e5, log_mu=-8, log_phi=-6, logodds=-3, fold=1.1, trial=0)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  1.41 s ± 449 µs per loop (mean ± std. dev. of 7 runs, 1 loop each)
   :END:
 
   Investigate what happens as the number of confounders increases.
@@ -871,8 +881,8 @@
     <<zinb-imports>>
     import multiprocessing as mp
     import sqlite3
-    <<np-zinb-impl>>
-    <<sim-impl>>
+    <<np-zinb-impl2>>
+    <<sim-impl2>>
     args = [(num_samples, num_mols, log_mu, log_phi, logodds, fold, trial)
             for num_samples in np.linspace(100, 1000, 5).astype(int)
             for num_mols in 1e3 * np.linspace(100, 1000, 5).astype(int)
@@ -896,7 +906,7 @@
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 45526302
+  : Submitted batch job 45559291
 
   Use this to check the parameter estimation for a particular gene/individual.
 
@@ -930,19 +940,21 @@
 
   Write the annotations to the database.
 
+  #+NAME: write-annotation-impl
   #+BEGIN_SRC ipython
     keep_samples = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
     annotations = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
     annotations['sample'] = annotations.apply(lambda x: '{chip_id}.{experiment:08d}.{well}'.format(**dict(x)), axis=1)
     annotations['size'] = annotations['mol_hs']
-    annotations = annotations[['sample', 'chip_id', 'size']]
+    annotations = annotations.loc[keep_samples.values.ravel(), ['sample', 'chip_id', 'size']]
     with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
       annotations.to_sql(name='annotation', con=conn, if_exists='replace')
       conn.execute('create index ix_annotation on annotation(chip_id, sample);')
   #+END_SRC
 
-  #+RESULTS:
+  #+RESULTS: write-annotation-impl
   :RESULTS:
+  # Out[51]:
   :END:
 
   Recode categorical variables as binary indicators.
@@ -965,12 +977,7 @@
 
   #+RESULTS: recode-impl
   :RESULTS:
-  # Out[32]:
-  :END:
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[341]:
+  # Out[33]:
   :END:
 
   Check that we will have enough data points to actually estimate effects:
@@ -995,7 +1002,9 @@
   #+END_EXAMPLE
   :END:
 
-  #+BEGIN_SRC ipython
+  #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/shard.py
+    <<zinb-imports>>
+    <<write-annotation-impl>>
     i = 0
     with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
       conn.execute('drop table if exists umi;')
@@ -1016,64 +1025,84 @@
       conn.execute('create index ix_umi on umi(gene, sample);')
   #+END_SRC
 
+  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation/
+    sbatch --partition=broadwl --mem=8G --job-name shard --out shard.out
+    #!/bin/bash
+    source activate scqtl
+    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/shard.py
+  #+END_SRC
+
+  #+RESULTS:
+  : Submitted batch job 45561618
+
   Process each chunk in parallel.
 
   #+NAME: process-chunk-impl
-  #+BEGIN_SRC ipython :eval never
-     def compute_breaks(chunk, by_ind=False):
-       # Each subproblem has fixed size, so we can just split on integer indices
-       # (instead of grouping)
-       num_genes = len(set(chunk['gene']))
-       num_samples = len(set(chunk['sample']))
-       breaks = num_samples * np.arange(num_genes).reshape(-1, 1)
-       if by_ind:
-         num_samples_per_ind = chunk.iloc[:num_samples]['chip_id'].value_counts().sort_index().values
-         # This can't be written += because of broadcasting
-         breaks = breaks + np.cumsum(num_samples_per_ind).reshape(1, -1)
-       else:
-         # We need to get the right end point of each subproblem (exclusive)
-         breaks += num_samples
-       return breaks.ravel()
+  #+BEGIN_SRC ipython
+    def compute_breaks(chunk, by_ind=False):
+      # Each subproblem has fixed size, so we can just split on integer indices
+      # (instead of grouping)
+      num_genes = len(set(chunk['gene']))
+      num_samples = len(set(chunk['sample']))
+      breaks = num_samples * np.arange(num_genes).reshape(-1, 1)
+      if by_ind:
+        num_samples_per_ind = chunk.iloc[:num_samples]['chip_id'].value_counts().sort_index().values
+        # This can't be written += because of broadcasting
+        breaks = breaks + np.cumsum(num_samples_per_ind).reshape(1, -1)
+      else:
+        # We need to get the right end point of each subproblem (exclusive)
+        breaks += num_samples
+      return breaks.ravel()
   #+END_SRC
 
-  #+BEGIN_SRC ipython :eval never :tangle /scratch/midway2/aksarkar/singlecell/np-zinb.py :noweb tangle
+  #+RESULTS: process-chunk-impl
+  :RESULTS:
+  # Out[40]:
+  :END:
+
+  #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/zinb.py
     <<zinb-imports>>
     import argparse
     import gzip
     import os
     import multiprocessing as mp
     import sqlite3
-    <<np-zinb-impl>>
+    <<np-zinb-impl2>>
     <<recode-impl>>
     <<process-chunk-impl>>
 
     keep_samples = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
     annotations = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
-    design = build_design_matrices(annotations[keep_samples.values.ravel()], ['batch', 'experiment'])
+    annotations = annotations[keep_samples.values.ravel()]
+
+    onehot = recode(annotations, 'chip_id')
+    design = np.concatenate([recode(annotations, k) for k in ('batch', 'experiment')], axis=1)
 
     with mp.Pool() as pool:
       chunk = pd.read_table('/scratch/midway2/aksarkar/singlecell/density-estimation/chunk-{}.txt.gz'.format(os.getenv('SLURM_ARRAY_TASK_ID')))
-      breaks = compute_breaks(chunk, by_ind=True)
+      breaks = compute_breaks(chunk)
       res = pool.starmap(
         _fit_gene,
-        zip(np.split(chunk[['value', 'size']].values, breaks[:-1]), 
-            [design[chunk.iloc[b - 1]['chip_id']] for b in breaks]))
+        zip(np.split(chunk[['value', 'size']].values, breaks[:-1]),
+            (onehot for b in breaks),
+            (design for b in breaks)))
 
     with gzip.open('/scratch/midway2/aksarkar/singlecell/density-estimation/result-{}.txt.gz'.format(os.getenv('SLURM_ARRAY_TASK_ID')), 'wt') as f:
-      for b in breaks:
-        gene, ind = chunk.iloc[b - 1][['gene', 'chip_id']]
-        print(gene, ind, *res.pop(0), file=f)
+      for b, est in zip(breaks, res):
+        gene = chunk.iloc[b - 1]['gene']
+        for ind, record in zip(sorted(set(annotations['chip_id'])), zip(*est)):
+          print(gene, ind, *record, sep='\t', file=f)
   #+END_SRC
 
   #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation
-    sbatch --partition=broadwl --job-name="np-zinb" --mem=8G -a 20 -n1 -c28 --exclusive
+    sbatch --partition=broadwl --job-name="np-zinb" --mem=8G -a 0-20 -n1 -c28 --exclusive
     #!/bin/bash
     source activate scqtl
-    python /scratch/midway2/aksarkar/singlecell/np-zinb.py
+    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/zinb.py
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 45303406
+  : Submitted batch job 45588176
 
   Populate the database.
 
