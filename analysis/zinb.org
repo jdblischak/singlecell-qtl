@@ -70,7 +70,7 @@
   #+CALL: ipython3(memory="6G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 45588216
+  : Submitted batch job 45639549
 
   #+NAME: zinb-imports
   #+BEGIN_SRC ipython
@@ -129,7 +129,7 @@
   #+END_EXAMPLE
   :END:
 
-* Tensorflow implementation                                        :noexport:
+* Tensorflow implementation
 
   We optimize all of the parameters together, using one-hot encoding to map
   parameters to data points. This makes inference more amenable to running on
@@ -138,7 +138,7 @@
   Use ~tensorflow~ to automatically differentiate the negative log likelihood and
   perform gradient descent.
 
-  #+NAME: zinb-impl
+  #+NAME: tf-zinb-impl
   #+BEGIN_SRC ipython :eval never
     def sigmoid(x):
       """Numerically safe sigmoid"""
@@ -174,11 +174,115 @@
       logodds - dropout log odds
 
       """
-      case_zero = log(sigmoid(-logodds) + sigmoid(logodds) * tf.exp(nb_llik(x, mean, inv_disp)))
+      # Important identities:
+      # log(x + y) = log(x) + softplus(y - x)
+      # log(sigmoid(x)) = -softplus(-x)
+      case_zero = -tf.nn.softplus(-logodds) + tf.nn.softplus(nb_llik(x, mean, inv_disp) + tf.nn.softplus(-logodds))
       case_non_zero = -tf.nn.softplus(logodds) + nb_llik(x, mean, inv_disp)
       return tf.where(tf.less(x, 1e-8), case_zero, case_non_zero)
 
-    def fit(umi, onehot, size_factor, gene_dropout=False, ind_dropout=False, learning_rate=1e-2, max_epochs=1000):
+    # https://github.com/junfengwen/AMSGrad/blob/a00e3f4bcb3ba16b2fe67c75dd8643670bded0c9/optimizers.py
+
+    from tensorflow.python.framework import ops
+    from tensorflow.python.ops import control_flow_ops
+    from tensorflow.python.ops import math_ops
+    from tensorflow.python.ops import gen_math_ops
+    from tensorflow.python.ops import variable_scope
+    from tensorflow.python.training import optimizer
+
+    class AMSGrad(optimizer.Optimizer):
+      """The AMSGrad algorithm in the paper
+
+      Reddi, Kale, Kumar, On the Convergence of Adam and Beyond, ICLR 2018
+
+      https://openreview.net/forum?id=ryQu7f-RZ
+
+      """
+      def __init__(self, learning_rate=0.001, beta1=0.9, beta2=0.999,
+                   epsilon=1e-8, use_locking=False, name="AMSGrad"):
+        super(AMSGrad, self).__init__(use_locking, name)
+        self._lr = learning_rate
+        self._beta1 = beta1
+        self._beta2 = beta2
+        self._epsilon = epsilon
+
+        self._lr_t = None
+        self._beta1_t = None
+        self._beta2_t = None
+        self._epsilon_t = None
+
+        self._beta1_power = None
+        self._beta2_power = None
+
+      def _create_slots(self, var_list):
+
+        first_var = min(var_list, key=lambda x: x.name)
+
+        create_new = self._beta1_power is None
+
+        if create_new:
+          with ops.colocate_with(first_var):
+            self._beta1_power = variable_scope.variable(self._beta1,
+                                                        name="beta1_power",
+                                                        trainable=False)
+            self._beta2_power = variable_scope.variable(self._beta2,
+                                                        name="beta2_power",
+                                                        trainable=False)
+        # Create slots for the first and second moments.
+        for v in var_list:
+          # first moment est
+          self._zeros_slot(v, "first_mom", self._name)
+          # second moment est
+          self._zeros_slot(v, "second_mom", self._name)
+          self._zeros_slot(v, "second_mom_max", self._name)
+
+      def _prepare(self):
+        self._lr_t = ops.convert_to_tensor(self._lr)
+        self._beta1_t = ops.convert_to_tensor(self._beta1)
+        self._beta2_t = ops.convert_to_tensor(self._beta2)
+        self._epsilon_t = ops.convert_to_tensor(self._epsilon)
+        self._one_minus_beta1 = ops.convert_to_tensor(1. - self._beta1)
+        self._one_minus_beta2 = ops.convert_to_tensor(1. - self._beta2)
+
+      def _apply_dense(self, grad, var):
+        # bias-corrected learning rate
+        lr = self._lr_t * math_ops.sqrt(1. - self._beta2_power) / (1. - self._beta1_power)
+        first_mom = self.get_slot(var, "first_mom")
+        second_mom = self.get_slot(var, "second_mom")
+        second_mom_max = self.get_slot(var, "second_mom_max")
+        first_update = first_mom.assign(self._beta1_t * first_mom +
+                                        self._one_minus_beta1 * grad,
+                                        use_locking=self._use_locking)
+        second_update = second_mom.assign(self._beta2_t * second_mom +
+                                          self._one_minus_beta2 * math_ops.square(grad),
+                                          use_locking=self._use_locking)
+        # AMSGrad compared to ADAM
+        second_max_update = second_mom_max.assign(gen_math_ops.maximum(second_mom_max,
+                                                                       second_update))
+        var_update = var.assign_sub(lr * first_update / (math_ops.sqrt(second_max_update) +
+                                                         self._epsilon_t),
+                                    use_locking=self._use_locking)
+        return control_flow_ops.group(*[var_update, first_update,
+                                        second_update, second_max_update])
+
+      def _apply_sparse(self, grad, var):
+        # just a copy of the dense case, not properly implemented yet
+        return self._apply_dense(grad, var)
+
+      def _finish(self, update_ops, name_scope):
+        # Update the power accumulators.
+        with ops.control_dependencies(update_ops):
+          with ops.colocate_with(self._beta1_power):
+            update_beta1 = self._beta1_power.assign(
+              self._beta1_power * self._beta1,
+              use_locking=self._use_locking)
+            update_beta2 = self._beta2_power.assign(
+              self._beta2_power * self._beta2_t,
+              use_locking=self._use_locking)
+        return control_flow_ops.group(*update_ops + [update_beta1, update_beta2],
+                                      name=name_scope)
+
+    def fit(umi, onehot, size_factor, design, gene_dropout=False, ind_dropout=False, learning_rate=1e-2, max_epochs=1000):
       """Return estimated log mean and log dispersion. 
 
       If fitting a zero-inflated model, additionally return dropout log odds.
@@ -186,10 +290,9 @@
       umi - count matrix (n x p; float32)
       onehot - mapping of individuals to cells (m x n; float32)
       size_factor - size factor vector (n x 1; float32)
+      design - confounder matrix (n x q; float32)
       gene_dropout - fit one dropout parameter per gene
       ind_dropout - fit one dropout parameter per individual
-      init_log_mean - initial value for estimated log mean (m x p; float32)
-      init_log_disp - initial value for estimated log dispersion (m x p; float32)
 
       If ind_dropout is True, gene_dropout must be True, otherwise raises
       ArgumentError.
@@ -203,6 +306,7 @@
       """
       n, p = umi.shape
       _, m = onehot.shape
+      _, k = design.shape
 
       params = locals()
       graph = tf.Graph()
@@ -210,9 +314,11 @@
         size_factor = tf.Variable(size_factor, trainable=False)
         umi = tf.Variable(umi, trainable=False)
         onehot = tf.Variable(onehot, trainable=False)
+        design = tf.Variable(design, trainable=False)
 
         mean = tf.exp(tf.Variable(tf.zeros([m, p])))
         inv_disp = tf.exp(tf.Variable(tf.zeros([m, p])))
+        beta = tf.Variable(tf.zeros([k, p]))
 
         if gene_dropout:
           if ind_dropout:
@@ -222,16 +328,16 @@
             dropout_params = tf.Variable(tf.zeros([1, p]))
             dropout = dropout_params
           llik = tf.reduce_mean(
-            zinb_llik(umi, size_factor * tf.matmul(onehot, mean),
+            zinb_llik(umi, size_factor * tf.matmul(onehot, mean) * tf.exp(tf.matmul(design, beta)),
                       tf.matmul(onehot, inv_disp), dropout))
         elif ind_dropout:
           raise ValueError('Cannot specify individual-specific dropout without gene-specific dropout')
         else:
           llik = tf.reduce_mean(
-            nb_llik(umi, size_factor * tf.matmul(onehot, mean),
+            nb_llik(umi, size_factor * tf.matmul(onehot, mean) * tf.exp(tf.matmul(design, beta)),
                     tf.matmul(onehot, inv_disp)))
 
-        train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(-llik)
+        train = AMSGrad(learning_rate=learning_rate).minimize(-llik)
         opt = [tf.log(mean), -tf.log(inv_disp)]
         if gene_dropout:
           opt.append(dropout_params)
@@ -251,149 +357,109 @@
   :RESULTS:
   :END:
 
-** Read the data
-
-   Read the QC'ed data.
-
-   #+CALL: read-data-qc()
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[61]:
-   :END:
-
-   Onehot-encode the samples.
-
-   #+NAME: onehot-qc
-   #+BEGIN_SRC ipython
-    individuals = sorted(annotations['chip_id'].unique())
-    onehot = np.zeros((umi.shape[1], len(individuals)), dtype=np.float32)
-    onehot[np.arange(onehot.shape[0]),annotations['chip_id'].apply(lambda x: individuals.index(x))] = 1
-    onehot = pd.DataFrame(onehot, columns=individuals, index=umi.columns)
-    onehot.shape
-   #+END_SRC
-
-   #+RESULTS: onehot-qc
-   :RESULTS:
-   # Out[5]:
-   : (4995, 54)
-   :END:
-
-   Check that one-hot encoding is OK:
-
-   #+BEGIN_SRC ipython :async t
-    for _ in range(100):
-      gene = np.random.choice(umi.index)
-      ind = np.random.choice(individuals)
-      idx = individuals.index(ind)
-      assert (umi.loc[gene, (annotations['chip_id'] == ind).values] == 
-              umi.loc[gene, onehot.dot(np.eye(onehot.shape[1])[idx]).astype(bool)]).all()
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[5]:
-   :END:
-
-** Fit NB
-
-   Estimate means and dispersions assuming no dropout.
-
-   #+BEGIN_SRC ipython :eval never :tangle tensorflow-nb.py :noweb tangle
-    <<zinb-imports>>
-    <<tf-imports>>
-    <<zinb-impl>>
-    <<read-data-qc>>
-    <<onehot-qc>>
-    mean, dispersion = fit(
-      umi=umi.values.T.astype(np.float32),
-      onehot=onehot.values.astype(np.float32),
-      size_factor=umi.agg(np.sum).astype(np.float32).values.reshape(-1, 1),
-      learning_rate=1e-2,
-      max_epochs=8000)
-    pd.DataFrame(mean.T, index=umi.index, columns=onehot.columns).to_csv('/scratch/midway2/aksarkar/singlecell/mean2.txt.gz', sep=' ', compression='gzip')
-    pd.DataFrame(dispersion.T, index=umi.index, columns=onehot.columns).to_csv('/scratch/midway2/aksarkar/singlecell/dispersion2.txt.gz', sep=' ', compression='gzip')
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   :END:
-
-   #+BEGIN_SRC sh :eval never-export :exports none
-    sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --time=60 --job-name=tfnb --output=tfnb.out --error=tfnb.err
-    #!/bin/bash
-    source activate scqtl
-    python tensorflow-nb.py
-   #+END_SRC
-
-   #+RESULTS:
-   : Submitted batch job 43884214
-
-** Fit ZINB
-
-   Estimate the parameters of the zero-inflated model assuming dropout per gene.
-
-   #+BEGIN_SRC ipython :eval never :tangle zinb.py :noweb tangle
-    <<zinb-imports>>
-    <<tf-imports>>
-    <<zinb-impl>>
-    <<read-data-qc>>
-    <<onehot-qc>>
-    mean, dispersion, dropout = fit(
-      umi=umi.values.T.astype(np.float32),
-      onehot=onehot.values.astype(np.float32),
-      size_factor=umi.agg(np.sum).astype(np.float32).values.reshape(-1, 1),
-      gene_dropout=True,
-      learning_rate=1e-2,
-      max_epochs=8000)
-    pd.DataFrame(mean.T, index=umi.index, columns=onehot.columns).to_csv('/scratch/midway2/aksarkar/singlecell/zi-mean.txt.gz', sep=' ', compression='gzip')
-    pd.DataFrame(dispersion.T, index=umi.index, columns=onehot.columns).to_csv('/scratch/midway2/aksarkar/singlecell/zi-dispersion.txt.gz', sep=' ', compression='gzip')
-    pd.DataFrame(dropout.T, index=umi.index).to_csv('/scratch/midway2/aksarkar/singlecell/zi-dropout.txt.gz', sep=' ', compression='gzip')
-   #+END_SRC
-
-   #+BEGIN_SRC sh :eval never-export :exports none
-    sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --time=150 --job-name=zinb --output=zinb.out --error=zinb.err
-    #!/bin/bash
-    source activate scqtl
-    python zinb.py
-   #+END_SRC
-
-   #+RESULTS:
-   : Submitted batch job 43966390
-
 ** Fit ZINB2
 
    Estimate the parameters of the zero-inflated model assuming dropout per
    individual and gene.
 
-   #+BEGIN_SRC ipython :eval never :tangle zinb2.py :noweb tangle
-    <<zinb-imports>>
-    <<tf-imports>>
-    <<zinb-impl>>
-    <<read-data-qc>>
-    <<onehot-qc>>
-    mean, dispersion, dropout = fit(
-      umi=umi.values.T.astype(np.float32),
-      onehot=onehot.values.astype(np.float32),
-      size_factor=umi.agg(np.sum).astype(np.float32).values.reshape(-1, 1),
-      gene_dropout=True,
-      ind_dropout=True,
-      learning_rate=1e-2,
-      max_epochs=8000)
-    pd.DataFrame(mean.T, index=umi.index, columns=onehot.columns).to_csv('/scratch/midway2/aksarkar/singlecell/zi2-mean.txt.gz', sep=' ', compression='gzip')
-    pd.DataFrame(dispersion.T, index=umi.index, columns=onehot.columns).to_csv('/scratch/midway2/aksarkar/singlecell/zi2-dispersion.txt.gz', sep=' ', compression='gzip')
-    pd.DataFrame(dropout.T, index=umi.index, columns=onehot.columns).to_csv('/scratch/midway2/aksarkar/singlecell/zi2-dropout.txt.gz', sep=' ', compression='gzip')
+   #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb.py
+     <<zinb-imports>>
+     <<tf-imports>>
+     <<tf-zinb-impl>>
+     <<recode-impl>>
+     <<read-data-qc>>
+     onehot = recode(annotations, 'chip_id')
+     design = recode(annotations, 'experiment')
+     design -= design.mean(axis=0)
+     mean, dispersion, dropout = fit(
+       umi=umi.head(n=100).values.T.astype(np.float32),
+       onehot=onehot.astype(np.float32),
+       design=np.zeros((onehot.shape[0], 1)).astype(np.float32),
+       size_factor=annotations['mol_hs'].astype(np.float32).values.reshape(-1, 1),
+       gene_dropout=True,
+       ind_dropout=True,
+       learning_rate=5e-2,
+       max_epochs=8000)
+
+     index = umi.index[:100]
+     header = sorted(set(annotations['chip_id']))
+     pd.DataFrame(mean.T, index=index, columns=header).to_csv('zi2-log-mu.txt.gz', sep=' ', compression='gzip')
+     pd.DataFrame(dispersion.T, index=index, columns=header).to_csv('zi2-log-phi.txt.gz', sep=' ', compression='gzip')
+     pd.DataFrame(dropout.T, index=index, columns=header).to_csv('zi2-logodds.txt.gz', sep=' ', compression='gzip')
    #+END_SRC
 
-   #+BEGIN_SRC sh :eval never-export :exports none
-    sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --time=120 --job-name=zinb2 --output=zinb2.out --error=zinb2.err
-    #!/bin/bash
-    source activate scqtl
-    python zinb2.py
+   #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation/
+     sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --time=120 --job-name=zinb2 --output=zinb2.out
+     #!/bin/bash
+     source activate scqtl
+     python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb.py
    #+END_SRC
 
    #+RESULTS:
-   : Submitted batch job 43910744
+   : Submitted batch job 45649498
+
+** Simulation
+
+   #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-sim.py
+     <<zinb-imports>>
+     <<tf-imports>>
+     <<sim-impl2>>
+     <<tf-zinb-impl>>
+
+     def evaluate(num_samples, num_mols, num_trials=10):
+       # This will be reset inside the simulation to generate counts, but we need to
+       # fix it to get one design matrix for all the simulated genes
+       np.random.seed(1000)
+       design = np.random.normal(size=(num_samples * num_trials, 1))
+       args = [(num_samples * num_trials, num_mols, log_mu, log_phi, logodds, None, design, fold)
+               for log_mu in np.linspace(-12, -6, 7)
+               for log_phi in np.linspace(-6, 0, 7)
+               for logodds in np.linspace(-3, 3, 7)
+               for fold in np.linspace(1, 1.25, 6)]
+       umi = np.concatenate([simulate(*a)[0][:,:1] for a in args], axis=1)
+       onehot = np.zeros((num_samples * num_trials, num_trials))
+       onehot[np.arange(onehot.shape[0]), np.arange(onehot.shape[0]) // num_samples] = 1
+
+       log_mu, log_phi, logodds = fit(
+         umi=umi.astype(np.float32),
+         onehot=onehot.astype(np.float32),
+         design=design.astype(np.float32),
+         size_factor=num_mols * np.ones((num_samples * num_trials, 1)).astype(np.float32),
+         gene_dropout=True,
+         ind_dropout=True,
+         learning_rate=5e-2,
+         max_epochs=4000)
+       result = pd.DataFrame(
+         [(num_samples, num_mols, log_mu, log_phi, logodds, fold, trial)
+          for log_mu in np.linspace(-12, -6, 7)
+          for log_phi in np.linspace(-6, 0, 7)
+          for logodds in np.linspace(-3, 3, 7)
+          for fold in np.linspace(1, 1.25, 6)
+          for trial in range(num_trials)],
+         columns=['num_samples', 'num_mols', 'log_mu', 'log_phi', 'logodds', 'fold', 'trial'])
+       result['log_mu_hat'] = log_mu.ravel()
+       result['log_phi_hat'] = log_phi.ravel()
+       result['logodds_hat'] = logodds.ravel()
+       result['mean'] = result['num_mols'] * np.exp(result['log_mu_hat'])
+       result['var'] = result['mean'] + np.square(result['mean']) * np.exp(result['log_phi_hat'])
+       result['mean_log_cpm'] = 0
+       result['var_log_cpm'] = 0
+       return result
+
+     res = evaluate(100, 1e5)
+     with sqlite3.connect("/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser2.db") as conn:
+       res.to_sql('simulation', conn, index=False, if_exists='replace')
+   #+END_SRC
+
+   #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation/
+     sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --job-name=tf-sim --output=sim.out
+     #!/bin/bash
+     source activate scqtl
+     python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-sim.py
+   #+END_SRC
+
+   #+RESULTS:
+   : Submitted batch job 45676203
 
 * numpy/scipy implementation
 
@@ -410,7 +476,7 @@
       lim = np.log(np.finfo(np.float64).resolution)
       return np.clip(sp.expit(x), lim, -lim)
 
-    def nb(theta, x, size, onehot, design=None):
+    def nb(theta, x, size, onehot, design):
       """Return the per-data point log likelihood
 
       x ~ Poisson(size .* design' * theta[2 * m:k] * exp(onehot * theta[:m]) * u)
@@ -426,14 +492,9 @@
       n, m = onehot.shape
       assert x.shape == (n,)
       assert size.shape == (n,)
-      if design is not None:
-        assert design.shape[0] == n
-        assert theta.shape == (2 * m + design.shape[1],)
-      else:
-        assert theta.shape == (2 * m,)
-      mean = size * onehot.dot(np.exp(theta[:m]))
-      if design is not None:
-        mean *= np.exp(design.dot(theta[2 * m:]))
+      assert design.shape[0] == n
+      assert theta.shape == (2 * m + design.shape[1],)
+      mean = size * np.exp(onehot.dot(theta[:m]) + design.dot(theta[2 * m:]))
       assert mean.shape == (n,)
       inv_disp = onehot.dot(np.exp(theta[m:2 * m]))
       assert inv_disp.shape == (n,)
@@ -495,6 +556,11 @@
       return orig + list(se.ravel())
   #+END_SRC
 
+  #+RESULTS: np-zinb-impl2
+  :RESULTS:
+  # Out[26]:
+  :END:
+
   #+RESULTS: np-zinb-impl
   :RESULTS:
   # Out[4]:
@@ -533,6 +599,8 @@
   :RESULTS:
   # Out[92]:
   :END:
+
+** Simulation
 
   Check the parameter estimation on simulated data.
 
@@ -967,17 +1035,11 @@
       onehot = np.zeros((n, len(cat)))
       onehot[np.arange(n), annotations[key].apply(cat.index)] = 1
       return onehot
-
-    def build_design_matrices(annotations, keys):
-      """Return dictionary mapping individuals to design matrices"""
-      design = [annotations.groupby('chip_id').apply(recode, k) for k in keys]
-      design = {k: np.concatenate([d.loc[k] for d in design], axis=1) for k in set(annotations['chip_id'])}
-      return design
   #+END_SRC
 
   #+RESULTS: recode-impl
   :RESULTS:
-  # Out[33]:
+  # Out[7]:
   :END:
 
   Check that we will have enough data points to actually estimate effects:
@@ -1001,6 +1063,21 @@
     max    281.000000  14.000000
   #+END_EXAMPLE
   :END:
+
+  Show that ~batch~ is a linear combination of ~experiment~.
+
+  #+BEGIN_SRC ipython
+    design = np.concatenate([recode(annotations, k) for k in ('batch', 'experiment')], axis=1)
+    u, d, v = np.linalg.svd(design)
+    design.shape[1] - (d > 1e-2).sum()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[33]:
+  : 6
+  :END:
+
 
   #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/shard.py
     <<zinb-imports>>

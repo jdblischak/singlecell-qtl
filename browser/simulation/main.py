@@ -9,7 +9,7 @@ import scipy.stats as st
 import scipy.special as sp
 import sqlite3
 
-db = '/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'
+db = '/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser2.db'
 
 sim_data = bokeh.models.ColumnDataSource(pd.DataFrame(columns=[
   'log_mu',
