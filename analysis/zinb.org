@@ -140,14 +140,6 @@
 
   #+NAME: tf-zinb-impl
   #+BEGIN_SRC ipython :eval never
-    def sigmoid(x):
-      """Numerically safe sigmoid"""
-      return tf.clip_by_value(tf.sigmoid(x), -13, 13)
-
-    def log(x):
-      """Numerically safe log"""
-      return tf.log(x + 1e-8)
-
     def nb_llik(x, mean, inv_disp):
       """Log likelihood of x distributed as NB
 
@@ -157,14 +149,14 @@
       inv_disp - inverse dispersion (> 0)
 
       """
-      return (x * log(mean / inv_disp) -
-              x * log(1 + mean / inv_disp) -
-              inv_disp * log(1 + mean / inv_disp) +
+      return (x * tf.log(mean / inv_disp) -
+              x * tf.log(1 + mean / inv_disp) -
+              inv_disp * tf.log(1 + mean / inv_disp) +
               tf.lgamma(x + inv_disp) -
               tf.lgamma(inv_disp) -
               tf.lgamma(x + 1))
 
-    def zinb_llik(x, mean, inv_disp, logodds, eps=1e-8):
+    def zinb_llik(x, mean, inv_disp, logodds):
       """Log likelihood of x distributed as ZINB
 
       See Hilbe 2012, eq. 11.12, 11.13
@@ -179,7 +171,7 @@
       # log(sigmoid(x)) = -softplus(-x)
       case_zero = -tf.nn.softplus(-logodds) + tf.nn.softplus(nb_llik(x, mean, inv_disp) + tf.nn.softplus(-logodds))
       case_non_zero = -tf.nn.softplus(logodds) + nb_llik(x, mean, inv_disp)
-      return tf.where(tf.less(x, 1e-8), case_zero, case_non_zero)
+      return tf.where(tf.less(x, 1), case_zero, case_non_zero)
 
     # https://github.com/junfengwen/AMSGrad/blob/a00e3f4bcb3ba16b2fe67c75dd8643670bded0c9/optimizers.py
 
@@ -348,7 +340,7 @@
             _, update = sess.run([train, llik])
             if not np.isfinite(update):
               raise tf.train.NanLossDuringTrainingError
-            if not i % 100:
+            if not i % 500:
               print(i, update)
           return sess.run(opt)
   #+END_SRC
@@ -372,16 +364,16 @@
      design = recode(annotations, 'experiment')
      design -= design.mean(axis=0)
      mean, dispersion, dropout = fit(
-       umi=umi.head(n=100).values.T.astype(np.float32),
+       umi=umi.values.T.astype(np.float32),
        onehot=onehot.astype(np.float32),
        design=np.zeros((onehot.shape[0], 1)).astype(np.float32),
        size_factor=annotations['mol_hs'].astype(np.float32).values.reshape(-1, 1),
        gene_dropout=True,
        ind_dropout=True,
        learning_rate=5e-2,
-       max_epochs=8000)
+       max_epochs=4000)
 
-     index = umi.index[:100]
+     index = umi.index
      header = sorted(set(annotations['chip_id']))
      pd.DataFrame(mean.T, index=index, columns=header).to_csv('zi2-log-mu.txt.gz', sep=' ', compression='gzip')
      pd.DataFrame(dispersion.T, index=index, columns=header).to_csv('zi2-log-phi.txt.gz', sep=' ', compression='gzip')
@@ -396,7 +388,7 @@
    #+END_SRC
 
    #+RESULTS:
-   : Submitted batch job 45649498
+   : Submitted batch job 45734893
 
 ** Simulation
 
@@ -411,6 +403,7 @@
        # fix it to get one design matrix for all the simulated genes
        np.random.seed(1000)
        design = np.random.normal(size=(num_samples * num_trials, 1))
+       # def simulate(num_samples, size=None, log_mu=None, log_phi=None, logodds=None, seed=None, design=None, fold=None):
        args = [(num_samples * num_trials, num_mols, log_mu, log_phi, logodds, None, design, fold)
                for log_mu in np.linspace(-12, -6, 7)
                for log_phi in np.linspace(-6, 0, 7)
@@ -430,36 +423,37 @@
          learning_rate=5e-2,
          max_epochs=4000)
        result = pd.DataFrame(
-         [(num_samples, num_mols, log_mu, log_phi, logodds, fold, trial)
-          for log_mu in np.linspace(-12, -6, 7)
-          for log_phi in np.linspace(-6, 0, 7)
-          for logodds in np.linspace(-3, 3, 7)
-          for fold in np.linspace(1, 1.25, 6)
+         [(a[0] // num_trials, int(a[1]), int(a[2]), int(a[3]), int(a[4]), a[-1], trial)
+          for a in args
           for trial in range(num_trials)],
          columns=['num_samples', 'num_mols', 'log_mu', 'log_phi', 'logodds', 'fold', 'trial'])
-       result['log_mu_hat'] = log_mu.ravel()
-       result['log_phi_hat'] = log_phi.ravel()
-       result['logodds_hat'] = logodds.ravel()
+       # Important: the results need to be transposed before flattening
+       result['log_mu_hat'] = log_mu.ravel(order='F')
+       result['log_phi_hat'] = log_phi.ravel(order='F')
+       result['logodds_hat'] = logodds.ravel(order='F')
        result['mean'] = result['num_mols'] * np.exp(result['log_mu_hat'])
        result['var'] = result['mean'] + np.square(result['mean']) * np.exp(result['log_phi_hat'])
-       result['mean_log_cpm'] = 0
-       result['var_log_cpm'] = 0
+       log_cpm = np.log(np.ma.masked_values(umi.reshape(num_trials, -1, umi.shape[-1]), 0)) - np.log(num_mols) + 6 * np.log(10)
+       result['mean_log_cpm'] = log_cpm.mean(axis=1).ravel(order='F')
+       result['var_log_cpm'] = log_cpm.var(axis=1).ravel(order='F')
        return result
 
-     res = evaluate(100, 1e5)
+     res = pd.concat([evaluate(num_samples, num_mols)
+                      for num_samples in np.linspace(100, 1000, 5).astype(int)
+                      for num_mols in 1e3 * np.linspace(100, 1000, 5).astype(int)])
      with sqlite3.connect("/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser2.db") as conn:
        res.to_sql('simulation', conn, index=False, if_exists='replace')
    #+END_SRC
 
    #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation/
-     sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --job-name=tf-sim --output=sim.out
+     sbatch --partition=gpu --gres=gpu:1 --mem=16G --job-name=tf-sim --output=sim.out
      #!/bin/bash
      source activate scqtl
      python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-sim.py
    #+END_SRC
 
    #+RESULTS:
-   : Submitted batch job 45676203
+   : Submitted batch job 45713922
 
 * numpy/scipy implementation
 

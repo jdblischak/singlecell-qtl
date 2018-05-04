@@ -119,14 +119,14 @@ tools = []
 log_mu = bokeh.plotting.figure(width=300, height=300, tools=tools)
 log_mu.scatter(source=sim_data, x='log_mu', y='log_mu_hat', color='black', size=6)
 log_mu.segment(source=theoretical_data, x0='log_mu0', y0='log_mu0', x1='log_mu1', y1='log_mu1', line_width=1)
-log_mu.xaxis.axis_label = 'True log(μ)'
-log_mu.yaxis.axis_label = 'Estimated log(μ)'
+log_mu.xaxis.axis_label = 'True ln(μ)'
+log_mu.yaxis.axis_label = 'Estimated ln(μ)'
 
 log_phi = bokeh.plotting.figure(width=300, height=300, tools=tools)
 log_phi.scatter(source=sim_data, x='log_phi', y='log_phi_hat', color='black', size=6)
 log_phi.segment(source=theoretical_data, x0='log_phi0', y0='log_phi0', x1='log_phi1', y1='log_phi1', line_width=1)
-log_phi.xaxis.axis_label = 'True log(φ)'
-log_phi.yaxis.axis_label = 'Estimated log(φ)'
+log_phi.xaxis.axis_label = 'True ln(φ)'
+log_phi.yaxis.axis_label = 'Estimated ln(φ)'
 
 logodds = bokeh.plotting.figure(width=300, height=300, tools=tools)
 logodds.scatter(source=sim_data, x='logodds', y='logodds_hat', color='black', size=6)
@@ -155,18 +155,18 @@ fano.yaxis.axis_label = 'Estimated Fano factor'
 mean_log_cpm = bokeh.plotting.figure(width=300, height=300, tools=tools)
 mean_log_cpm.scatter(source=sim_data, x='log_mu', y='mean_log_cpm', color='black', size=6)
 mean_log_cpm.line(source=cpm_vs_mu_data, x='log_mu', y='mean')
-mean_log_cpm.xaxis.axis_label = 'True log(μ)'
+mean_log_cpm.xaxis.axis_label = 'True ln(μ)'
 mean_log_cpm.yaxis.axis_label = 'Mean log CPM'
 
 var_log_cpm = bokeh.plotting.figure(width=300, height=300, tools=tools)
 var_log_cpm.scatter(source=sim_data, x='log_mu', y='var_log_cpm', color='black', size=6)
 var_log_cpm.line(source=cpm_vs_mu_data, x='log_mu', y='var')
-var_log_cpm.xaxis.axis_label = 'True log(μ)'
+var_log_cpm.xaxis.axis_label = 'True ln(μ)'
 var_log_cpm.yaxis.axis_label = 'Variance log CPM'
 
 var_log_cpm2 = bokeh.plotting.figure(width=300, height=300, tools=tools)
 var_log_cpm2.scatter(source=sim_data, x='log_phi', y='var_log_cpm', color='black', size=6)
-var_log_cpm2.xaxis.axis_label = 'True log(φ)'
+var_log_cpm2.xaxis.axis_label = 'True ln(φ)'
 var_log_cpm2.yaxis.axis_label = 'Variance log CPM'
 
 zinb_params = bokeh.models.widgets.Panel(
