@@ -70,7 +70,7 @@
   #+CALL: ipython3(memory="6G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 45639549
+  : Submitted batch job 45770475
 
   #+NAME: zinb-imports
   #+BEGIN_SRC ipython
@@ -381,14 +381,28 @@
    #+END_SRC
 
    #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation/
-     sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --time=120 --job-name=zinb2 --output=zinb2.out
+     sbatch --partition=gpu --gres=gpu:1 --mem=16G --time=120 --job-name=zinb2 --output=zinb2.out
      #!/bin/bash
      source activate scqtl
      python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb.py
    #+END_SRC
 
    #+RESULTS:
-   : Submitted batch job 45734893
+   : Submitted batch job 45736175
+
+   #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation/
+     sbatch --partition=broadwl
+     #!/bin/bash
+     cat >.rsync-filter <<EOF
+     + */
+     + zi2*.txt.gz
+     - *
+     EOF
+     rsync -FFau . /project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/
+   #+END_SRC
+
+   #+RESULTS:
+   : Submitted batch job 45770500
 
 ** Simulation
 
@@ -1190,6 +1204,77 @@
   #+RESULTS:
   :RESULTS:
   # Out[3]:
+  :END:
+
+* Parameter distributions
+
+  The simulation reveals the method has undesirable behavior when the
+  proportion of zeros is too large and mean is too small.
+
+  Read the estimated parameters.
+
+  #+BEGIN_SRC ipython
+    log_mu = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/without-cell-cycle/zi2-log-mu.txt.gz', index_col=0, sep=' ')
+    log_phi = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/without-cell-cycle/zi2-log-phi.txt.gz', index_col=0, sep=' ')
+    logodds = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/without-cell-cycle/zi2-logodds.txt.gz', sep=' ', index_col=0)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[34]:
+  :END:
+
+  Look at the joint distribution.
+
+  #+BEGIN_SRC ipython
+    J = (log_mu.agg(np.mean, axis=1).to_frame()
+         .merge(log_phi.agg(np.mean, axis=1).to_frame(), left_index=True, right_index=True)
+         .rename(columns={'0_x': 'log_mu', '0_y': 'log_phi'})
+         .merge(logodds.agg(np.mean, axis=1).to_frame(), left_index=True, right_index=True)
+         .rename(columns={0: 'logodds'}))
+    J.head()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[36]:
+  #+BEGIN_EXAMPLE
+    log_mu   log_phi   logodds
+    gene
+    ENSG00000000003  -9.441596 -2.501993 -7.015090
+    ENSG00000000419  -9.906777 -2.812004 -6.547979
+    ENSG00000000457 -11.986061 -1.406747  0.337841
+    ENSG00000000460 -11.033319 -2.387189 -2.911735
+    ENSG00000001036 -11.051643 -2.351120 -2.723858
+  #+END_EXAMPLE
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/joint-distribution.png
+    plt.clf()
+    plt.gcf().set_size_inches(9, 9)
+    fig, ax = plt.subplots(2, 2, gridspec_kw={'width_ratios': [0.5, 0.5], 'height_ratios': [0.5, 0.5]})
+
+    ax[0][0].scatter(J['log_mu'], J['log_phi'], c='k', s=2, alpha=0.25)
+    ax[0][0].set_xlabel('$\ln(\mu)$')
+    ax[0][0].set_ylabel('$\ln(\phi)$')
+
+    ax[1][0].scatter(J['log_mu'], J['logodds'], c='k', s=2, alpha=0.25)
+    ax[1][0].set_xlabel('$\ln(\mu)$')
+    ax[1][0].set_ylabel('$\mathrm{logit}(\pi)$')
+
+    ax[0][1].scatter(J['logodds'], J['log_phi'], c='k', s=2, alpha=0.25)
+    ax[0][1].set_xlabel('$\mathrm{logit}(\pi)$')
+    ax[0][1].set_ylabel('$\ln(\phi)$')
+
+    ax[1][1].axis('off')
+
+    fig.tight_layout()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[61]:
+  [[file:figure/zinb.org/joint-distribution.png]]
   :END:
 
 * Mean-variance relationship by individual
