@@ -11,7 +11,6 @@
 * Setup                                                            :noexport:
 
   #+BEGIN_SRC emacs-lisp
-    (org-babel-lob-ingest "zinb.org")
     (org-babel-lob-ingest "/home/aksarkar/.emacs.d/org-templates/library.org")
   #+END_SRC
   
@@ -24,8 +23,10 @@
   : Submitted batch job 45772162
 
   #+BEGIN_SRC ipython
+    %config InlineBackend.figure_formats = set(['svg'])
+
     import colorcet
-    import itertools
+    import itertools as it
     import matplotlib.pyplot as plt
     import numpy as np
     import pandas as pd
@@ -36,7 +37,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[1]:
+  # Out[108]:
   :END:
 
 * Implementation
@@ -84,7 +85,7 @@
 
   #+RESULTS: concordance-def
   :RESULTS:
-  # Out[2]:
+  # Out[97]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -103,7 +104,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[3]:
+  # Out[98]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -125,7 +126,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[4]:
+  # Out[99]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -146,7 +147,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[5]:
+  # Out[100]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -170,7 +171,17 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[133]:
+  # Out[101]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    def mask(df):
+      return ~np.isfinite(df)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[103]:
   :END:
 
 * Read the data
@@ -234,9 +245,6 @@
   :END:
 
   #+BEGIN_SRC ipython
-    def mask(df):
-      return ~np.isfinite(df)
-
     S, T = (bulk_log_rho.loc[keep_genes.values.ravel()]
             .mask(mask)
             .align(sc_log_rho.loc[keep_genes.values.ravel()]
@@ -615,7 +623,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[98]:
+  # Out[157]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -823,7 +831,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[131]:
+  # Out[158]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -888,6 +896,26 @@
   #+END_EXAMPLE
   :END:
 
+  #+BEGIN_SRC ipython
+    pd.Series([st.mstats.spearmanr(S[i], T[i]).correlation for i in S]).describe()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[159]:
+  #+BEGIN_EXAMPLE
+    count    53.000000
+    mean      0.998627
+    std       0.000324
+    min       0.997574
+    25%       0.998491
+    50%       0.998607
+    75%       0.998778
+    max       0.999402
+    dtype: float64
+  #+END_EXAMPLE
+  :END:
+
   #+BEGIN_SRC ipython :results none
     plot_concordance_rho(
       S,
@@ -896,6 +924,84 @@
       ylabel='Pooled ln relative abundance',
       output_dir='/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/zinb-vs-pooled')
   #+END_SRC
+
+  Look at \((1 - \pi) \mu\).
+
+  #+BEGIN_SRC ipython
+    logodds = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/without-cell-cycle/zi2-logodds.txt.gz', sep=' ', index_col=0)
+    corrected_log_mu = pd.read_table('/scratch/midway2/aksarkar/singlecell/density-estimation/without-cell-cycle/zi2-log-mu.txt.gz', sep=' ', index_col=0)
+    corrected_log_mu *= sp.expit(logodds)
+    corrected_log_mu -= sp.logsumexp(corrected_log_mu)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[148]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    S, T = (bulk_log_rho.loc[keep_genes.values.ravel()]
+            .mask(mask)
+            .align(corrected_log_mu.mask(mask), join='inner'))
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[149]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    pd.Series([st.mstats.spearmanr(S[i], T[i]).correlation for i in S]).describe()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[150]:
+  #+BEGIN_EXAMPLE
+    count    50.000000
+    mean      0.737392
+    std       0.026686
+    min       0.662447
+    25%       0.723944
+    50%       0.743025
+    75%       0.755475
+    max       0.781169
+    dtype: float64
+  #+END_EXAMPLE
+  :END:
+
+  #+BEGIN_SRC ipython
+    S, T = (sc_log_rho.loc[keep_genes.values.ravel()]
+            .mask(mask)
+            .align(corrected_log_mu.mask(mask), join='inner'))
+    del S["NA18507"]
+    del T["NA18507"]
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[155]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    pd.Series([st.mstats.spearmanr(S[i], T[i]).correlation for i in S]).describe()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[156]:
+  #+BEGIN_EXAMPLE
+    count    53.000000
+    mean      0.960098
+    std       0.009965
+    min       0.929497
+    25%       0.953466
+    50%       0.960169
+    75%       0.967074
+    max       0.976472
+    dtype: float64
+  #+END_EXAMPLE
+  :END:
 
 * Plot bulk vs. pooled subsets
 
@@ -937,3 +1043,89 @@
   file:figure/sc-vs-bulk.org/subsets/NA18507-50.svg
   file:figure/sc-vs-bulk.org/subsets/NA18507-100.svg
 
+* Chu et al hESC
+
+  [[https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4989499/][Chu et al 2016]] profiled hESC using single cell and matched bulk RNA-Seq
+  ([[https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE75748][GSE75748]]). Analyze their data analagously to understand whether the
+  correlation we observe is anomalous.
+
+  #+BEGIN_SRC sh :session chu :dir /scratch/midway2/aksarkar/singlecell/hesc/
+    curl -sO --ftp-pasv ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE75nnn/GSE75748/suppl/GSE75748_bulk_cell_type_ec.csv.gz
+  #+END_SRC
+
+  #+RESULTS:
+
+  #+BEGIN_SRC sh :session chu
+    curl -sO --ftp-pasv ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE75nnn/GSE75748/suppl/GSE75748_sc_cell_type_ec.csv.gz
+  #+END_SRC
+
+  #+RESULTS:
+
+  #+BEGIN_SRC ipython
+    chu_bulk_tpm = pd.read_table('/scratch/midway2/aksarkar/singlecell/hesc/GSE75748_bulk_cell_type_ec.csv.gz', sep=',', index_col=0)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[33]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    T = np.log(chu_bulk_tpm) - np.log(chu_bulk_tpm.sum(axis=0))
+    R = pd.DataFrame([(i, j, st.mstats.spearmanr(T[i], T[j]).correlation) for i, j in it.combinations(sorted(T.columns), 2)])
+    M = R.pivot(index=0, columns=1, values=2).T
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[77]:
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/sc-vs-bulk.org/hesc/chu-et-al-bulk-corr.svg
+    plt.clf()
+    plt.imshow(M, cmap=colorcet.cm['kr'])
+    cb = plt.colorbar()
+    cb.set_label('Spearman correlation')
+    plt.gca().set_aspect('equal')
+    plt.xticks(range(M.shape[0]), M.columns, rotation=90)
+    _ = plt.yticks(range(M.shape[1]), M.index)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[109]:
+  [[file:figure/sc-vs-bulk.org/hesc/chu-et-al-bulk-corr.svg]]
+  :END:
+
+  #+BEGIN_SRC ipython
+    chu_sc_tpm = pd.read_table('/scratch/midway2/aksarkar/singlecell/hesc/GSE75748_sc_cell_type_ec.csv.gz', sep=',', index_col=0)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[38]:
+  :END:
+
+  #+BEGIN_SRC ipython :results none
+    for k in ('H1', 'H9', 'DEC', 'EC', 'HFF', 'NPC', 'TB'):
+      bulk_rho = chu_bulk_tpm.filter(like=k, axis='columns').agg(np.mean, axis=1)
+      bulk_rho = np.log(bulk_rho) - np.log(bulk_rho.sum(axis=0))
+      sc_rho = chu_sc_tpm.filter(like=k, axis='columns').agg(np.mean, axis=1)
+      sc_rho = np.log(sc_rho) - np.log(sc_rho.sum(axis=0))
+      x = sc_rho.mask(mask).dropna().to_frame()
+      y = bulk_rho.mask(mask).dropna().to_frame()
+      plot_concordance(
+        x=x,
+        y=y,
+        title=k,
+        gridsize=20,
+        filename='/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/hesc/{}.svg'.format(k),
+        xlabel='Single cell ln relative abundance',
+        ylabel='Bulk ln relative abundance',
+      )
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[95]:
+  :END:
