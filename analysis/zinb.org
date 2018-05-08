@@ -70,7 +70,7 @@
   #+CALL: ipython3(memory="6G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 45770475
+  : Submitted batch job 45793308
 
   #+NAME: zinb-imports
   #+BEGIN_SRC ipython
@@ -354,6 +354,7 @@
    Estimate the parameters of the zero-inflated model assuming dropout per
    individual and gene.
 
+   #+NAME: tf-zinb.py
    #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb.py
      <<zinb-imports>>
      <<tf-imports>>
@@ -361,8 +362,19 @@
      <<recode-impl>>
      <<read-data-qc>>
      onehot = recode(annotations, 'chip_id')
-     design = recode(annotations, 'experiment')
+     # These explain most PVE of circular pseudotime (ref. Joyce Hsiao)
+     cell_cycle_genes = [
+       'ENSG00000094804', # CDC6
+       'ENSG00000170312', # CDK1
+       'ENSG00000175063', # UBE2C
+       'ENSG00000131747', # TOP2A
+       'ENSG00000197061', # HIST1H4C
+     ]
+     cell_cycle = (umi.loc[cell_cycle_genes].values / annotations['mol_hs'].values).reshape(-1, 5)
+     chip = recode(annotations, 'experiment')
+     design = np.concatenate([chip, cell_cycle], axis=1)
      design -= design.mean(axis=0)
+     design /= design.std(axis=0)
      mean, dispersion, dropout = fit(
        umi=umi.values.T.astype(np.float32),
        onehot=onehot.astype(np.float32),
@@ -381,14 +393,14 @@
    #+END_SRC
 
    #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation/
-     sbatch --partition=gpu --gres=gpu:1 --mem=16G --time=120 --job-name=zinb2 --output=zinb2.out
+     sbatch --partition=gpu --gres=gpu:1 --mem=16G --time=60 --job-name=zinb2 --output=zinb2.out
      #!/bin/bash
      source activate scqtl
      python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb.py
    #+END_SRC
 
    #+RESULTS:
-   : Submitted batch job 45736175
+   : Submitted batch job 45796717
 
    #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation/
      sbatch --partition=broadwl
@@ -402,7 +414,7 @@
    #+END_SRC
 
    #+RESULTS:
-   : Submitted batch job 45770500
+   : Submitted batch job 45796357
 
 ** Simulation
 
@@ -1275,6 +1287,95 @@
   :RESULTS:
   # Out[61]:
   [[file:figure/zinb.org/joint-distribution.png]]
+  :END:
+
+* Effect of confounding
+
+  Estimate proportion of variance explained by confounders by estimating the
+  average reduction in heterogeneity (residual variance).
+
+  #+BEGIN_SRC ipython
+    log_phi0 = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/without-confounders/zi2-log-phi.txt.gz', index_col=0, sep=' ')
+    log_phi1 = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/without-cell-cycle/zi2-log-phi.txt.gz', index_col=0, sep=' ')
+    log_phi2 = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/with-cell-cycle-genes/zi2-log-phi.txt.gz', index_col=0, sep=' ')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[22]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    1 - (log_phi1 / log_phi0).mean().mean()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[23]:
+  : 0.4349981749938848
+  :END:
+
+  #+BEGIN_SRC ipython
+    1 - (log_phi2 / log_phi1).mean().mean()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[24]:
+  : 0.0
+  :END:
+
+  Estimate how much the mean changes due to confounding.
+
+  #+BEGIN_SRC ipython
+    log_mu0 = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/without-confounders/zi2-log-mu.txt.gz', index_col=0, sep=' ')
+    log_mu1 = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/without-cell-cycle/zi2-log-mu.txt.gz', index_col=0, sep=' ')
+    log_mu2 = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/with-cell-cycle-genes/zi2-log-mu.txt.gz', index_col=0, sep=' ')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[26]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    np.exp(log_mu0 - log_mu1).describe().loc['mean'].describe()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[27]:
+  #+BEGIN_EXAMPLE
+    count    54.000000
+    mean      1.334900
+    std       0.070728
+    min       1.195521
+    25%       1.280344
+    50%       1.343722
+    75%       1.370947
+    max       1.509227
+    Name: mean, dtype: float64
+  #+END_EXAMPLE
+  :END:
+
+  #+BEGIN_SRC ipython
+    np.exp(log_mu1 - log_mu2).describe().loc['mean'].describe()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[28]:
+  #+BEGIN_EXAMPLE
+    count    54.0
+    mean      1.0
+    std       0.0
+    min       1.0
+    25%       1.0
+    50%       1.0
+    75%       1.0
+    max       1.0
+    Name: mean, dtype: float64
+  #+END_EXAMPLE
   :END:
 
 * Mean-variance relationship by individual
