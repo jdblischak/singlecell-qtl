@@ -9,7 +9,7 @@ import scipy.stats as st
 import scipy.special as sp
 import sqlite3
 
-db = '/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser2.db'
+db = '/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'
 
 sim_data = bokeh.models.ColumnDataSource(pd.DataFrame(columns=[
   'log_mu',
@@ -63,6 +63,7 @@ log_mu_slider = bokeh.models.widgets.RangeSlider(title='log(μ)', value=(-12, -6
 log_phi_slider = bokeh.models.widgets.RangeSlider(title='log(φ)', value=(-6, -6), start=-6, end=0, step=1)
 logodds_slider = bokeh.models.widgets.RangeSlider(title='logit(π)', value=(-3, -3), start=-3, end=3, step=1)
 fold_slider = bokeh.models.widgets.Slider(title='Expected fold change by confounding', value=1, start=1, end=1.25, step=0.05)
+algorithm = bokeh.models.widgets.RadioButtonGroup(labels=['BFGS', 'AMSGrad'], active=0)
 controls = [num_samples_slider, num_mols_slider, log_mu_slider, log_phi_slider, logodds_slider, fold_slider]
 
 def update(attr, old, new):
@@ -110,6 +111,16 @@ def update(attr, old, new):
 
 for c in controls:
   c.on_change('value', update)
+
+def update_algo(attr):
+  global db
+  keys = ['', '2']
+  selected = algorithm.active
+  if selected is not None:
+    db = '/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser{}.db'.format(keys[selected])
+    update(None, None, None)
+
+algorithm.on_click(update_algo)
 
 # Initialize the view here
 update(None, None, None)
@@ -180,7 +191,7 @@ log_cpm = bokeh.models.widgets.Panel(
   title='log CPM')
 
 layout = bokeh.layouts.layout([[
-  bokeh.layouts.widgetbox(*controls, width=300),
+  bokeh.layouts.widgetbox(*(controls + [algorithm]), width=300),
   bokeh.layouts.widgetbox(
     bokeh.models.widgets.Tabs(tabs=[zinb_params, zinb_phenos, log_cpm]),
     width=900),
