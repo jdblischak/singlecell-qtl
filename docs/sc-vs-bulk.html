@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-04-27 Fri 15:55 -->
+<!-- 2018-05-08 Tue 14:21 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Single cell/bulk RNA-Seq concordance</title>
@@ -265,40 +265,9 @@ is to qualitatively assess our ability to call QTLs from scRNA-Seq.
 </div>
 </div>
 
-<div id="outline-container-orgb4fa085" class="outline-2">
-<h2 id="orgb4fa085">Read the data</h2>
-<div class="outline-text-2" id="text-orgb4fa085">
-<p>
-Read and QC the single cell counts.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">annotations</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
-<span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
-<span class="org-variable-name">keep_genes</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
-<span class="org-variable-name">annotations</span> = annotations.loc[keep_samples.values.ravel()]
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">umi</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>, index_col=0)
-<span class="org-variable-name">umi</span> = umi.loc[keep_genes.values.ravel(),keep_samples.values.ravel()]
-</pre>
-</div>
-
-<p>
-Our preliminary investigation into concordance between single cell log CPM
-and bulk log RPKM did not give good results. Therefore, we <a href="kallisto.html">re-processed the
-iPSC bulk RNA-Seq</a> using <code>kallisto</code>. Read the TPM matrix.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">bulk_log_tpm</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/kallisto/bulk-ipsc-tpm.txt.gz'</span>, header=<span class="org-constant">None</span>, sep=<span class="org-string">' '</span>)
-<span class="org-variable-name">bulk_log_tpm</span> = np.log(bulk_log_tpm.pivot(columns=0, index=1, values=2) + 1) / np.log(2)
-<span class="org-variable-name">bulk_log_tpm.index</span> = [x.split(<span class="org-string">'.'</span>)[0] <span class="org-keyword">for</span> x <span class="org-keyword">in</span> bulk_log_tpm.index]
-</pre>
-</div>
-
+<div id="outline-container-orgb960850" class="outline-2">
+<h2 id="orgb960850">Implementation</h2>
+<div class="outline-text-2" id="text-orgb960850">
 <div class="org-src-container">
 <pre class="src src-ipython" id="org4837198"><span class="org-keyword">def</span> <span class="org-function-name">plot_concordance</span>(x, y, title, filename, xlabel=<span class="org-constant">None</span>, ylabel=<span class="org-constant">None</span>, lim=<span class="org-constant">None</span>, **kwargs):
   <span class="org-doc">"""Plot hexbin of concordance"""</span>
@@ -310,9 +279,6 @@ iPSC bulk RNA-Seq</a> using <code>kallisto</code>. Read the TPM matrix.
   <span class="org-keyword">if</span> <span class="org-string">'gridsize'</span> <span class="org-keyword">not</span> <span class="org-keyword">in</span> kwargs:
     <span class="org-variable-name">kwargs</span>[<span class="org-string">'gridsize'</span>] = 40
   <span class="org-variable-name">hexes</span> = plt.hexbin(merged[<span class="org-string">'x'</span>], merged[<span class="org-string">'y'</span>], cmap=colorcet.cm[<span class="org-string">'blues'</span>], extent=lim + lim, **kwargs)
-  <span class="org-variable-name">cb</span> = plt.colorbar()
-  cb.set_label(<span class="org-string">'Number of genes'</span>)
-  plt.plot(lim, lim, color=<span class="org-string">'red'</span>)
   <span class="org-variable-name">ax</span> = plt.gca()
   <span class="org-keyword">if</span> lim <span class="org-keyword">is</span> <span class="org-constant">None</span>:
     ax.set_xlim([merged[<span class="org-string">'x'</span>].<span class="org-builtin">min</span>(), merged[<span class="org-string">'x'</span>].<span class="org-builtin">max</span>()])
@@ -320,6 +286,10 @@ iPSC bulk RNA-Seq</a> using <code>kallisto</code>. Read the TPM matrix.
   <span class="org-keyword">else</span>:
     ax.set_xlim(lim)
     ax.set_ylim(lim)
+  ax.set_aspect(<span class="org-string">'equal'</span>)
+  <span class="org-variable-name">cb</span> = plt.colorbar()
+  cb.set_label(<span class="org-string">'Number of genes'</span>)
+  plt.plot(lim, lim, color=<span class="org-string">'red'</span>)
   plt.title(title)
   <span class="org-keyword">if</span> xlabel <span class="org-keyword">is</span> <span class="org-constant">None</span>:
     <span class="org-variable-name">xlabel</span> = <span class="org-string">'scRNA-Seq $\log_2(\mathrm{CPM} + 1) $'</span>
@@ -338,12 +308,7 @@ iPSC bulk RNA-Seq</a> using <code>kallisto</code>. Read the TPM matrix.
   <span class="org-keyword">return</span> cpm
 </pre>
 </div>
-</div>
-</div>
 
-<div id="outline-container-orgde778c2" class="outline-2">
-<h2 id="orgde778c2">Plot bulk vs. pooled single cells</h2>
-<div class="outline-text-2" id="text-orgde778c2">
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">plot_concordance_by_individual</span>(umi, annotations, bulk, output_dir):
   <span class="org-variable-name">bulk</span>, <span class="org-variable-name">pooled_cpm</span> = bulk.align(
@@ -358,125 +323,6 @@ iPSC bulk RNA-Seq</a> using <code>kallisto</code>. Read the TPM matrix.
       filename=<span class="org-string">'{}/{}.svg'</span>.<span class="org-builtin">format</span>(output_dir, k))
 </pre>
 </div>
-
-<div class="org-src-container">
-<pre class="src src-ipython">plot_concordance_by_individual(
-  umi,
-  annotations,
-  bulk_log_tpm,
-  <span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/normed'</span>)
-</pre>
-</div>
-
-<p>
-Plot several examples.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">np.random.seed(0)
-<span class="org-keyword">for</span> k <span class="org-keyword">in</span> np.random.choice(annotations[<span class="org-string">'chip_id'</span>].unique(), 4):
-  <span class="org-keyword">print</span>(<span class="org-string">'file:figure/sc-vs-bulk.org/normed/{}.svg'</span>.<span class="org-builtin">format</span>(k))
-</pre>
-</div>
-
-<p>
-<object type="image/svg+xml" data="figure/sc-vs-bulk.org/normed/NA19130.svg" class="org-svg">
-Sorry, your browser does not support SVG.</object>
-<object type="image/svg+xml" data="figure/sc-vs-bulk.org/normed/NA19102.svg" class="org-svg">
-Sorry, your browser does not support SVG.</object>
-<object type="image/svg+xml" data="figure/sc-vs-bulk.org/normed/NA19143.svg" class="org-svg">
-Sorry, your browser does not support SVG.</object>
-<object type="image/svg+xml" data="figure/sc-vs-bulk.org/normed/NA19098.svg" class="org-svg">
-Sorry, your browser does not support SVG.</object>
-</p>
-
-<p>
-Regress log CPM on log TPM per individual.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">log_cpm</span> = cpm(umi.groupby(by=annotations[<span class="org-string">'chip_id'</span>].values, axis=1).agg(np.<span class="org-builtin">sum</span>),
-              size=annotations.groupby(<span class="org-string">'chip_id'</span>)[<span class="org-string">'mol_hs'</span>].agg(np.<span class="org-builtin">sum</span>), log2=<span class="org-constant">True</span>)
-
-<span class="org-variable-name">models</span> = []
-<span class="org-keyword">for</span> k <span class="org-keyword">in</span> log_cpm:
-  <span class="org-keyword">if</span> k <span class="org-keyword">in</span> bulk_log_tpm:
-    <span class="org-variable-name">y</span>, <span class="org-variable-name">x</span> = log_cpm[k].align(bulk_log_tpm[k], join=<span class="org-string">'inner'</span>)
-    <span class="org-variable-name">m</span> = sklm.LinearRegression(fit_intercept=<span class="org-constant">True</span>).fit(x.values.reshape(-1, 1), y)
-    models.append({<span class="org-string">'ind'</span>: k, <span class="org-string">'coef_'</span>: m.coef_[0], <span class="org-string">'intercept_'</span>: m.intercept_, <span class="org-string">'score'</span>: m.score(x.values.reshape(-1, 1), y)})
-<span class="org-variable-name">models</span> = pd.DataFrame.from_dict(models).set_index(<span class="org-string">'ind'</span>)
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython">models.sort_values(<span class="org-string">'score'</span>, ascending=<span class="org-constant">False</span>)
-</pre>
-</div>
-
-<pre class="example">
-coef_  intercept_     score
-ind
-NA19209  0.732135    0.621440  0.708942
-NA18870  0.723933    0.639626  0.702726
-NA19101  0.729250    0.821881  0.694528
-NA18511  0.707770    0.595565  0.693847
-NA18912  0.688394    0.829654  0.692485
-NA18520  0.731075    0.540232  0.685123
-NA18502  0.712065    0.709610  0.681293
-NA19127  0.713962    0.681134  0.680976
-NA18856  0.734898    0.524328  0.680601
-NA19225  0.679871    0.987852  0.680592
-NA19116  0.713121    0.788535  0.679035
-NA18505  0.684536    0.776815  0.677933
-NA18862  0.696277    0.826739  0.677919
-NA19190  0.712649    0.631736  0.677498
-NA18859  0.701953    0.727513  0.677474
-NA18858  0.725889    0.689016  0.674898
-NA19204  0.713031    0.618002  0.673072
-NA19128  0.713168    0.659729  0.672981
-NA19210  0.705317    0.620322  0.671795
-NA18852  0.725955    0.547926  0.671536
-NA18489  0.698290    0.886555  0.670849
-NA19160  0.717357    0.639725  0.670532
-NA18853  0.679031    0.844840  0.668854
-NA19207  0.724029    0.594377  0.667087
-NA19102  0.720588    0.552334  0.665105
-NA18501  0.686617    0.784491  0.664648
-NA19140  0.685028    0.794710  0.664363
-NA19257  0.668304    0.932599  0.664279
-NA19143  0.711429    0.596842  0.661830
-NA19152  0.696553    0.801533  0.659410
-NA19099  0.721284    0.652934  0.658266
-NA19153  0.708352    0.790061  0.657488
-NA19108  0.691788    0.722956  0.654361
-NA18913  0.713234    0.619717  0.652851
-NA18517  0.671620    0.830685  0.649466
-NA19093  0.720266    0.673872  0.646884
-NA18519  0.715715    0.727332  0.645861
-NA19206  0.701227    0.721929  0.644383
-NA19114  0.671593    1.001002  0.643536
-NA18855  0.708293    0.735871  0.642197
-NA19130  0.699075    0.643755  0.641843
-NA19098  0.696567    0.798366  0.641485
-NA19193  0.704863    0.794734  0.640733
-NA18907  0.715533    0.630487  0.639015
-NA18508  0.659032    0.924178  0.631646
-NA18522  0.686510    0.881811  0.631580
-NA19144  0.663290    1.017565  0.631238
-NA18507  0.641305    1.306322  0.630363
-NA19159  0.712498    0.504794  0.628940
-NA18498  0.695710    0.710972  0.624978
-</pre>
-</div>
-</div>
-
-<div id="outline-container-org7ed7f24" class="outline-2">
-<h2 id="org7ed7f24">Plot bulk vs. pooled subsets</h2>
-<div class="outline-text-2" id="text-org7ed7f24">
-<p>
-Plot concordance between bulk vs pools of single cells, focusing on genes
-which have log-transformed expression at least 1 in both assays.
-</p>
 
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">plot_concordance_by_num_cells</span>(individual, umi, annotations, bulk_tpm, output_dir):
@@ -495,6 +341,856 @@ which have log-transformed expression at least 1 in both assays.
       gridsize=20)
 </pre>
 </div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">plot_concordance_pooled_subsets</span>(individual, umi, annotations, output_dir):
+  <span class="org-variable-name">umi</span> = umi.loc[:,(annotations[<span class="org-string">'chip_id'</span>] == individual).values]
+  <span class="org-keyword">for</span> num_cells <span class="org-keyword">in</span> [1, 10, 50, 100]:
+    <span class="org-variable-name">sample</span> = umi.sample(n=2 * num_cells, axis=1)
+    <span class="org-variable-name">pool1</span> = cpm(sample.iloc[:,:num_cells].<span class="org-builtin">sum</span>(axis=1).to_frame(), log2=<span class="org-constant">True</span>)
+    <span class="org-variable-name">pool2</span> = cpm(sample.iloc[:,num_cells:].<span class="org-builtin">sum</span>(axis=1).to_frame(), log2=<span class="org-constant">True</span>)
+    plot_concordance(
+      x=pool1,
+      y=pool2,
+      title=<span class="org-string">'{}, {} cell{}'</span>.<span class="org-builtin">format</span>(individual, num_cells, <span class="org-string">'s'</span> <span class="org-keyword">if</span> num_cells &gt; 1 <span class="org-keyword">else</span> <span class="org-string">''</span>),
+      filename=<span class="org-string">'{}/{}-{}.svg'</span>.<span class="org-builtin">format</span>(output_dir, individual, num_cells),
+      ylabel=<span class="org-string">'scRNA-Seq $\log_2(\mathrm{CPM} + 1)$'</span>,
+      gridsize=15)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">plot_concordance_rho</span>(bulk, sc, output_dir, **kwargs):
+  <span class="org-keyword">if</span> <span class="org-string">'xlabel'</span> <span class="org-keyword">not</span> <span class="org-keyword">in</span> kwargs:
+    <span class="org-variable-name">kwargs</span>[<span class="org-string">'xlabel'</span>] = <span class="org-string">'Single cell ln relative abundance'</span>
+  <span class="org-keyword">if</span> <span class="org-string">'ylabel'</span> <span class="org-keyword">not</span> <span class="org-keyword">in</span> kwargs:
+    <span class="org-variable-name">kwargs</span>[<span class="org-string">'ylabel'</span>] = <span class="org-string">'Bulk ln relative abundance'</span>
+  <span class="org-variable-name">bulk</span>, <span class="org-variable-name">sc</span> = bulk.align(sc, axis=1, join=<span class="org-string">'inner'</span>)
+  <span class="org-keyword">for</span> k <span class="org-keyword">in</span> bulk:
+    <span class="org-variable-name">y</span> = bulk[k].dropna().to_frame()
+    <span class="org-variable-name">x</span> = sc[k].dropna().to_frame()
+    plot_concordance(
+      x=x,
+      y=y,
+      title=k,
+      gridsize=20,
+      **kwargs,
+      filename=<span class="org-string">'{}/{}.svg'</span>.<span class="org-builtin">format</span>(output_dir, k))
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">mask</span>(df):
+  <span class="org-keyword">return</span> ~np.isfinite(df)
+</pre>
+</div>
+</div>
+</div>
+
+<div id="outline-container-orgb4fa085" class="outline-2">
+<h2 id="orgb4fa085">Read the data</h2>
+<div class="outline-text-2" id="text-orgb4fa085">
+<p>
+Read the QC files.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">annotations</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
+<span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
+<span class="org-variable-name">keep_genes</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
+<span class="org-variable-name">annotations</span> = annotations.loc[keep_samples.values.ravel()]
+</pre>
+</div>
+
+<p>
+Read the UMI matrix.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">umi</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>, index_col=0)
+<span class="org-variable-name">umi</span> = umi.loc[:,keep_samples.values.ravel()]
+</pre>
+</div>
+
+<p>
+The only quantity which is directly comparable between bulk and scRNA-Seq is
+relative abundance (Pachter 2011). Therefore, we <a href="kallisto.html">re-processed the iPSC bulk
+RNA-Seq</a> using <code>kallisto</code>. 
+</p>
+
+<p>
+<b>Important:</b> we need to quantify relative abundance with respect to exactly
+the same set of genes as the single cell data.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">bulk_tpm</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/kallisto/bulk-ipsc-tpm.txt.gz'</span>, header=<span class="org-constant">None</span>, sep=<span class="org-string">' '</span>).pivot(columns=0, index=1, values=2)
+<span class="org-variable-name">bulk_log_rho</span> = np.log(bulk_tpm) - np.log(bulk_tpm.<span class="org-builtin">sum</span>(axis=0))
+</pre>
+</div>
+</div>
+</div>
+
+<div id="outline-container-orgde778c2" class="outline-2">
+<h2 id="orgde778c2">Plot bulk vs. pooled single cells</h2>
+<div class="outline-text-2" id="text-orgde778c2">
+<p>
+Pool the single cells and estimate log CPM. We assume this is proportional to
+relative abundance (we assume UMIs really do directly count molecules).
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">sc_log_cpm</span> = np.log(umi.groupby(annotations[<span class="org-string">'chip_id'</span>].values, axis=1).agg(np.<span class="org-builtin">sum</span>)) - np.log(annotations.groupby(<span class="org-string">'chip_id'</span>)[<span class="org-string">'mol_hs'</span>].agg(np.<span class="org-builtin">sum</span>)) + 6 * np.log(10)
+<span class="org-variable-name">sc_log_rho</span> = sc_log_cpm - sp.logsumexp(sc_log_cpm, axis=0)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">S</span>, <span class="org-variable-name">T</span> = (bulk_log_rho.loc[keep_genes.values.ravel()]
+        .mask(mask)
+        .align(sc_log_rho.loc[keep_genes.values.ravel()]
+               .mask(mask), join=<span class="org-string">'inner'</span>))
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plot_concordance_rho(
+  S,
+  T,
+  <span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/pooled/'</span>)
+</pre>
+</div>
+
+<p>
+Plot the individual with the most cells, and the fewest cells.
+</p>
+
+<p>
+<object type="image/svg+xml" data="figure/sc-vs-bulk.org/pooled/NA18507.svg" class="org-svg">
+Sorry, your browser does not support SVG.</object>
+<object type="image/svg+xml" data="figure/sc-vs-bulk.org/pooled/NA18522.svg" class="org-svg">
+Sorry, your browser does not support SVG.</object>
+</p>
+
+<p>
+Look at the distribution of absolute differences.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">S</span>, <span class="org-variable-name">T</span> = bulk_log_rho.align(sc_log_rho, join=<span class="org-string">'inner'</span>)
+<span class="org-variable-name">diff</span> = <span class="org-builtin">abs</span>(S - T)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">np.nanpercentile(diff.mask(~np.isfinite(diff)), [90, 95, 99, 99.5, 99.9])
+</pre>
+</div>
+
+<pre class="example">
+array([1.96847244, 2.66536247, 4.26461767, 4.87070071, 6.14664319])
+
+</pre>
+
+<p>
+Look at pathway enrichment for genes only detected in bulk.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">bulk_only</span> = <span class="org-builtin">set</span>([x <span class="org-keyword">for</span> k <span class="org-keyword">in</span> T <span class="org-keyword">for</span> x <span class="org-keyword">in</span> pd.Series(T[k].mask(np.isfinite(S[k])).dropna().index)])
+</pre>
+</div>
+
+<pre class="example">
+Annotation Cluster 1	Enrichment Score: 6.163250777011418
+Category	Term	Count	%	PValue	Genes	List Total	Pop Hits	Pop Total	Fold Enrichment	Bonferroni	Benjamini	FDR
+INTERPRO	IPR018064:Metallothionein, vertebrate, metal binding site	6	5.9405940594059405	5.214809864836233E-10	ENSG00000125144, ENSG00000169715, ENSG00000125148, ENSG00000205358, ENSG00000187193, ENSG00000198417	79	11	18559	128.14039125431532	8.343695168111509E-8	8.343695168111509E-8	6.296819954343391E-7
+UP_SEQ_FEATURE	region of interest:Alpha	6	5.9405940594059405	1.0452172113872762E-9	ENSG00000125144, ENSG00000169715, ENSG00000125148, ENSG00000205358, ENSG00000187193, ENSG00000198417	80	13	20063	115.74807692307692	2.4144515486934637E-7	2.4144515486934637E-7	1.3409402699338102E-6
+UP_SEQ_FEATURE	region of interest:Beta	6	5.9405940594059405	1.0452172113872762E-9	ENSG00000125144, ENSG00000169715, ENSG00000125148, ENSG00000205358, ENSG00000187193, ENSG00000198417	80	13	20063	115.74807692307692	2.4144515486934637E-7	2.4144515486934637E-7	1.3409402699338102E-6
+UP_SEQ_FEATURE	metal ion-binding site:Divalent metal cation; cluster A	6	5.9405940594059405	1.6208966909643656E-9	ENSG00000125144, ENSG00000169715, ENSG00000125148, ENSG00000205358, ENSG00000187193, ENSG00000198417	80	14	20063	107.48035714285714	3.744270538064143E-7	1.8721354444473093E-7	2.0794964750159295E-6
+UP_SEQ_FEATURE	metal ion-binding site:Divalent metal cation; cluster B	6	5.9405940594059405	1.6208966909643656E-9	ENSG00000125144, ENSG00000169715, ENSG00000125148, ENSG00000205358, ENSG00000187193, ENSG00000198417	80	14	20063	107.48035714285714	3.744270538064143E-7	1.8721354444473093E-7	2.0794964750159295E-6
+INTERPRO	IPR003019:Metallothionein superfamily, eukaryotic	6	5.9405940594059405	2.2376038114295356E-9	ENSG00000125144, ENSG00000169715, ENSG00000125148, ENSG00000205358, ENSG00000187193, ENSG00000198417	79	14	18559	100.68173598553346	3.580165393035628E-7	1.7900828563899296E-7	2.7018795867306267E-6
+INTERPRO	IPR000006:Metallothionein, vertebrate	6	5.9405940594059405	2.2376038114295356E-9	ENSG00000125144, ENSG00000169715, ENSG00000125148, ENSG00000205358, ENSG00000187193, ENSG00000198417	79	14	18559	100.68173598553346	3.580165393035628E-7	1.7900828563899296E-7	2.7018795867306267E-6
+INTERPRO	IPR023587:Metallothionein domain, vertebrate	6	5.9405940594059405	2.2376038114295356E-9	ENSG00000125144, ENSG00000169715, ENSG00000125148, ENSG00000205358, ENSG00000187193, ENSG00000198417	79	14	18559	100.68173598553346	3.580165393035628E-7	1.7900828563899296E-7	2.7018795867306267E-6
+INTERPRO	IPR017854:Metallothionein domain	6	5.9405940594059405	2.2376038114295356E-9	ENSG00000125144, ENSG00000169715, ENSG00000125148, ENSG00000205358, ENSG00000187193, ENSG00000198417	79	14	18559	100.68173598553346	3.580165393035628E-7	1.7900828563899296E-7	2.7018795867306267E-6
+UP_KEYWORDS	Metal-thiolate cluster	6	5.9405940594059405	3.848645320957292E-9	ENSG00000125144, ENSG00000169715, ENSG00000125148, ENSG00000205358, ENSG00000187193, ENSG00000198417	97	14	20581	90.93225331369662	5.272642669140737E-7	5.272642669140737E-7	4.523761099051171E-6
+GOTERM_BP_DIRECT	GO:0045926~negative regulation of growth	6	5.9405940594059405	1.6056085205036586E-8	ENSG00000125144, ENSG00000169715, ENSG00000125148, ENSG00000205358, ENSG00000187193, ENSG00000198417	75	19	16792	70.70315789473685	6.727477139589766E-6	6.727477139589766E-6	2.2546318878546856E-5
+GOTERM_BP_DIRECT	GO:0071294~cellular response to zinc ion	6	5.9405940594059405	1.6056085205036586E-8	ENSG00000125144, ENSG00000169715, ENSG00000125148, ENSG00000205358, ENSG00000187193, ENSG00000198417	75	19	16792	70.70315789473685	6.727477139589766E-6	6.727477139589766E-6	2.2546318878546856E-5
+UP_KEYWORDS	Cadmium	5	4.9504950495049505	5.5012039998665416E-8	ENSG00000125144, ENSG00000169715, ENSG00000205358, ENSG00000187193, ENSG00000198417	97	9	20581	117.87514318442153	7.536621291603929E-6	3.7683177458447403E-6	6.466204057753444E-5
+KEGG_PATHWAY	hsa04978:Mineral absorption	6	5.9405940594059405	6.197865698893864E-7	ENSG00000125144, ENSG00000169715, ENSG00000125148, ENSG00000205358, ENSG00000187193, ENSG00000198417	27	46	6910	33.38164251207729	3.1608625294388126E-5	3.1608625294388126E-5	5.995777879075348E-4
+GOTERM_BP_DIRECT	GO:0071276~cellular response to cadmium ion	5	4.9504950495049505	7.917968157631074E-7	ENSG00000125144, ENSG00000169715, ENSG00000205358, ENSG00000187193, ENSG00000198417	75	17	16792	65.85098039215686	3.317079698986758E-4	1.6586774100302293E-4	0.0011118534141041359
+UP_KEYWORDS	Copper	5	4.9504950495049505	2.4203238770349687E-4	ENSG00000125144, ENSG00000169715, ENSG00000205358, ENSG00000187193, ENSG00000198417	97	65	20581	16.321173671689134	0.03261860473945333	0.008256340267242868	0.2841189120846299
+GOTERM_MF_DIRECT	GO:0046872~metal ion binding	13	12.871287128712872	0.12273080737129344	ENSG00000152977, ENSG00000125144, ENSG00000169715, ENSG00000153266, ENSG00000198105, ENSG00000125148, ENSG00000177932, ENSG00000215397, ENSG00000259332, ENSG00000205358, ENSG00000187193, ENSG00000121691, ENSG00000198417	69	2069	16881	1.5372055393279678	0.9999998290722704	0.7894858696046019	77.70573642627673
+GOTERM_MF_DIRECT	GO:0008270~zinc ion binding	8	7.920792079207921	0.18975529795362245	ENSG00000125144, ENSG00000169715, ENSG00000125148, ENSG00000205358, ENSG00000187193, ENSG00000165188, ENSG00000247746, ENSG00000198417	69	1169	16881	1.6742663740841297	0.9999999999866547	0.8758984183433024	91.03468733803763
+GOTERM_CC_DIRECT	GO:0048471~perinuclear region of cytoplasm	6	5.9405940594059405	0.19285594142887852	ENSG00000125144, ENSG00000169715, ENSG00000125148, ENSG00000205358, ENSG00000187193, ENSG00000198417	91	621	18224	1.934915326219674	0.9999999919695161	0.9759592316379472	90.12891148150037
+UP_KEYWORDS	Zinc	13	12.871287128712872	0.41448076703181924	ENSG00000152977, ENSG00000125144, ENSG00000169715, ENSG00000153266, ENSG00000198105, ENSG00000125148, ENSG00000177932, ENSG00000215397, ENSG00000205358, ENSG00000187193, ENSG00000165188, ENSG00000247746, ENSG00000198417	97	2348	20581	1.1747352429793287	1.0	0.9829889947051305	99.81480020819157
+UP_KEYWORDS	Metal-binding	15	14.85148514851485	0.8237195669856142	ENSG00000125144, ENSG00000198105, ENSG00000125148, ENSG00000205358, ENSG00000187193, ENSG00000198417, ENSG00000152977, ENSG00000169715, ENSG00000153266, ENSG00000177932, ENSG00000215397, ENSG00000259332, ENSG00000121691, ENSG00000165188, ENSG00000247746	97	3640	20581	0.8743485895547751	1.0	0.9992576564560991	99.99999986203825
+
+Annotation Cluster 2	Enrichment Score: 3.484819795455531
+Category	Term	Count	%	PValue	Genes	List Total	Pop Hits	Pop Total	Fold Enrichment	Bonferroni	Benjamini	FDR
+INTERPRO	IPR001152:Thymosin beta-4	4	3.9603960396039604	7.098533109747709E-7	ENSG00000034510, ENSG00000205542, ENSG00000154620, ENSG00000158164	79	5	18559	187.93924050632913	1.1357012050017268E-4	3.785814005408117E-5	8.571359595421768E-4
+SMART	SM00152:THY	4	3.9603960396039604	7.766657663469284E-7	ENSG00000034510, ENSG00000205542, ENSG00000154620, ENSG00000158164	45	5	10057	178.79111111111112	2.873623162158445E-5	2.873623162158445E-5	6.973781416896863E-4
+PIR_SUPERFAMILY	PIRSF001828:thymosin beta	4	3.9603960396039604	2.7080998708248916E-6	ENSG00000034510, ENSG00000205542, ENSG00000154620, ENSG00000158164	13	5	1692	104.12307692307694	2.708066868917225E-5	2.708066868917225E-5	0.0016261217555713081
+GOTERM_BP_DIRECT	GO:0042989~sequestering of actin monomers	4	3.9603960396039604	9.642416279102543E-6	ENSG00000034510, ENSG00000205542, ENSG00000154620, ENSG00000158164	75	10	16792	89.55733333333333	0.004032041304637524	0.0013458241984475316	0.013539249589888946
+GOTERM_MF_DIRECT	GO:0003785~actin monomer binding	4	3.9603960396039604	1.5210285357647118E-4	ENSG00000034510, ENSG00000205542, ENSG00000154620, ENSG00000158164	69	26	16881	37.63879598662207	0.017938766106036064	0.017938766106036064	0.1742005540888658
+GOTERM_CC_DIRECT	GO:0031941~filamentous actin	4	3.9603960396039604	4.7367184906870326E-4	ENSG00000034510, ENSG00000205542, ENSG00000154620, ENSG00000158164	91	31	18224	25.840482098546616	0.04038125481188837	0.04038125481188837	0.5107377212681841
+GOTERM_BP_DIRECT	GO:0007015~actin filament organization	4	3.9603960396039604	0.0039404588803159685	ENSG00000034510, ENSG00000205542, ENSG00000154620, ENSG00000158164	75	72	16792	12.43851851851852	0.8087767706624795	0.21048033854212067	5.393322740309592
+UP_KEYWORDS	Actin-binding	5	4.9504950495049505	0.0394339844994075	ENSG00000034510, ENSG00000147481, ENSG00000205542, ENSG00000154620, ENSG00000158164	97	274	20581	3.871811272480999	0.9959614191508189	0.5449776981781902	37.680777033965654
+GOTERM_BP_DIRECT	GO:0030036~actin cytoskeleton organization	3	2.9702970297029703	0.11220693889642849	ENSG00000034510, ENSG00000205542, ENSG00000158164	75	130	16792	5.166769230769231	1.0	0.9373656872217728	81.19896543130287
+UP_KEYWORDS	Cytoskeleton	5	4.9504950495049505	0.7843259865566969	ENSG00000034510, ENSG00000147481, ENSG00000205542, ENSG00000154620, ENSG00000158164	97	1138	20581	0.9322287246571123	1.0	0.9985945289079377	99.99999852310495
+
+Annotation Cluster 3	Enrichment Score: 1.7811609652286242
+Category	Term	Count	%	PValue	Genes	List Total	Pop Hits	Pop Total	Fold Enrichment	Bonferroni	Benjamini	FDR
+SMART	SM00389:HOX	8	7.920792079207921	9.417302516012567E-5	ENSG00000184302, ENSG00000109132, ENSG00000164853, ENSG00000119547, ENSG00000170561, ENSG00000205922, ENSG00000138083, ENSG00000164093	45	250	10057	7.151644444444445	0.003478501955001434	0.0017407661108270744	0.08452766486343188
+INTERPRO	IPR001356:Homeodomain	8	7.920792079207921	1.0044839918367324E-4	ENSG00000184302, ENSG00000109132, ENSG00000164853, ENSG00000119547, ENSG00000170561, ENSG00000205922, ENSG00000138083, ENSG00000164093	79	256	18559	7.341376582278481	0.015944076888024683	0.0040100758644506795	0.12122279079956888
+UP_SEQ_FEATURE	DNA-binding region:Homeobox	7	6.9306930693069315	1.0745524652182817E-4	ENSG00000184302, ENSG00000109132, ENSG00000164853, ENSG00000119547, ENSG00000205922, ENSG00000138083, ENSG00000164093	80	191	20063	9.191164921465969	0.02451792636356398	0.008240359123208085	0.13776994804843845
+UP_KEYWORDS	Homeobox	8	7.920792079207921	2.273035742769636E-4	ENSG00000184302, ENSG00000109132, ENSG00000164853, ENSG00000119547, ENSG00000170561, ENSG00000205922, ENSG00000138083, ENSG00000164093	97	262	20581	6.478633823876604	0.030664146783657475	0.010327675965698613	0.26685006254048016
+GOTERM_BP_DIRECT	GO:0006366~transcription from RNA polymerase II promoter	10	9.900990099009901	4.090749986540058E-4	ENSG00000152977, ENSG00000129514, ENSG00000184302, ENSG00000109132, ENSG00000153266, ENSG00000119547, ENSG00000205922, ENSG00000138083, ENSG00000164093, ENSG00000054598	75	513	16792	4.364392462638077	0.15754707376630528	0.028168569886196426	0.5729025901226814
+INTERPRO	IPR009057:Homeodomain-like	8	7.920792079207921	5.261429021979469E-4	ENSG00000184302, ENSG00000109132, ENSG00000164853, ENSG00000119547, ENSG00000170561, ENSG00000205922, ENSG00000138083, ENSG00000164093	79	336	18559	5.59342977697408	0.08075722475289715	0.01669998667646322	0.6334635185275994
+GOTERM_MF_DIRECT	GO:0001077~transcriptional activator activity, RNA polymerase II core promoter proximal region sequence-specific binding	6	5.9405940594059405	0.002608319419483337	ENSG00000152977, ENSG00000129514, ENSG00000109132, ENSG00000119547, ENSG00000205922, ENSG00000164093	69	236	16881	6.219970523212969	0.2671362793302654	0.1439254000557343	2.949180047116129
+UP_SEQ_FEATURE	compositionally biased region:Poly-Ala	7	6.9306930693069315	0.00518825052735661	ENSG00000152977, ENSG00000109132, ENSG00000119547, ENSG00000138083, ENSG00000054598, ENSG00000171450, ENSG00000163508	80	404	20063	4.3453279702970296	0.6992890245264455	0.25947910072369085	6.455682440417276
+UP_KEYWORDS	DNA-binding	19	18.81188118811881	0.0061751724814120695	ENSG00000129514, ENSG00000184302, ENSG00000164853, ENSG00000067048, ENSG00000198105, ENSG00000170561, ENSG00000205922, ENSG00000138083, ENSG00000164093, ENSG00000152977, ENSG00000109132, ENSG00000188375, ENSG00000153266, ENSG00000119547, ENSG00000177932, ENSG00000197061, ENSG00000215397, ENSG00000054598, ENSG00000163508	97	2050	20581	1.9665023887352275	0.5719954819022799	0.15610255752991076	7.022162963087153
+GOTERM_BP_DIRECT	GO:0007420~brain development	5	4.9504950495049505	0.00987285598589564	ENSG00000152977, ENSG00000053438, ENSG00000138083, ENSG00000054598, ENSG00000163508	75	190	16792	5.891929824561403	0.9843499743231441	0.36992744676798917	13.00554505004673
+GOTERM_BP_DIRECT	GO:0045944~positive regulation of transcription from RNA polymerase II promoter	11	10.891089108910892	0.01060386709098585	ENSG00000152977, ENSG00000129514, ENSG00000184302, ENSG00000109132, ENSG00000153266, ENSG00000119547, ENSG00000205922, ENSG00000138083, ENSG00000164093, ENSG00000054598, ENSG00000163508	75	981	16792	2.5105266734624534	0.9885153598169162	0.36024787175300976	13.90312024253032
+UP_SEQ_FEATURE	compositionally biased region:Poly-Gly	5	4.9504950495049505	0.028203027199206778	ENSG00000109132, ENSG00000119547, ENSG00000138083, ENSG00000054598, ENSG00000163508	80	292	20063	4.294306506849315	0.9986511918732182	0.7333202527794147	30.72078907690975
+GOTERM_MF_DIRECT	GO:0000981~RNA polymerase II transcription factor activity, sequence-specific DNA binding	4	3.9603960396039604	0.03168704614824783	ENSG00000129514, ENSG00000184302, ENSG00000138083, ENSG00000054598	69	171	16881	5.722857869310959	0.9783292834625844	0.7212010778222342	30.862537573604364
+UP_KEYWORDS	Developmental protein	10	9.900990099009901	0.03297928048143198	ENSG00000152977, ENSG00000129514, ENSG00000184302, ENSG00000109132, ENSG00000153266, ENSG00000164853, ENSG00000053438, ENSG00000138083, ENSG00000164093, ENSG00000163508	97	949	20581	2.2357772152998816	0.9898911492926898	0.5350028435318056	32.57673990320743
+GOTERM_MF_DIRECT	GO:0003677~DNA binding	13	12.871287128712872	0.03398271598877738	ENSG00000184302, ENSG00000129514, ENSG00000164853, ENSG00000067048, ENSG00000198105, ENSG00000205922, ENSG00000138083, ENSG00000164093, ENSG00000177932, ENSG00000197061, ENSG00000215397, ENSG00000054598, ENSG00000163508	69	1674	16881	1.8999272765051167	0.9836618555842146	0.6424797192945351	32.718143656703056
+INTERPRO	IPR017970:Homeobox, conserved site	4	3.9603960396039604	0.04596070918167841	ENSG00000109132, ENSG00000164853, ENSG00000170561, ENSG00000164093	79	190	18559	4.94576948700866	0.9994622235937994	0.7148323276503672	43.341501655162176
+GOTERM_MF_DIRECT	GO:0000977~RNA polymerase II regulatory region sequence-specific DNA binding	4	3.9603960396039604	0.05156656275239971	ENSG00000109132, ENSG00000205922, ENSG00000054598, ENSG00000163508	69	208	16881	4.704849498327759	0.9981642397951731	0.7163627995115522	45.49275378977236
+GOTERM_MF_DIRECT	GO:0000978~RNA polymerase II core promoter proximal region sequence-specific DNA binding	5	4.9504950495049505	0.054849155170871446	ENSG00000152977, ENSG00000109132, ENSG00000153266, ENSG00000119547, ENSG00000164093	69	355	16881	3.445805266380894	0.9987848382314719	0.673332685025507	47.616359931448414
+GOTERM_MF_DIRECT	GO:0003700~transcription factor activity, sequence-specific DNA binding	7	6.9306930693069315	0.18959031696019613	ENSG00000152977, ENSG00000129514, ENSG00000177932, ENSG00000138083, ENSG00000164093, ENSG00000054598, ENSG00000163508	69	961	16881	1.782065782925395	0.9999999999863274	0.8971154894254747	91.01374122380184
+UP_KEYWORDS	Activator	6	5.9405940594059405	0.19590645201033402	ENSG00000152977, ENSG00000129514, ENSG00000109132, ENSG00000119547, ENSG00000205922, ENSG00000163508	97	661	20581	1.9259478765382037	0.9999999999998936	0.8995206058743108	92.29171287120641
+GOTERM_BP_DIRECT	GO:0045893~positive regulation of transcription, DNA-templated	4	3.9603960396039604	0.3971154565879258	ENSG00000152977, ENSG00000143869, ENSG00000054598, ENSG00000163508	75	515	16792	1.7389773462783173	1.0	0.9999587761988841	99.91796526374138
+UP_KEYWORDS	Transcription regulation	13	12.871287128712872	0.40500487412843467	ENSG00000129514, ENSG00000164853, ENSG00000198105, ENSG00000205922, ENSG00000138083, ENSG00000152977, ENSG00000109132, ENSG00000119547, ENSG00000153266, ENSG00000177932, ENSG00000215397, ENSG00000054598, ENSG00000163508	97	2332	20581	1.1827951760357907	1.0	0.9847649688241881	99.77633739079752
+UP_KEYWORDS	Transcription	13	12.871287128712872	0.44414461678326184	ENSG00000129514, ENSG00000164853, ENSG00000198105, ENSG00000205922, ENSG00000138083, ENSG00000152977, ENSG00000109132, ENSG00000119547, ENSG00000153266, ENSG00000177932, ENSG00000215397, ENSG00000054598, ENSG00000163508	97	2398	20581	1.1502411803650807	1.0	0.9820944180997002	99.89948309755069
+UP_KEYWORDS	Nucleus	25	24.752475247524753	0.5820328536133491	ENSG00000164853, ENSG00000253626, ENSG00000253506, ENSG00000159182, ENSG00000152977, ENSG00000109132, ENSG00000188375, ENSG00000147481, ENSG00000177932, ENSG00000197061, ENSG00000215397, ENSG00000054598, ENSG00000129514, ENSG00000184302, ENSG00000067048, ENSG00000198105, ENSG00000205922, ENSG00000170561, ENSG00000138083, ENSG00000250254, ENSG00000164093, ENSG00000182195, ENSG00000119547, ENSG00000153266, ENSG00000163508	97	5244	20581	1.0115143865940062	1.0	0.9956273086940396	99.99647757087135
+GOTERM_BP_DIRECT	GO:0030154~cell differentiation	3	2.9702970297029703	0.6080833739283924	ENSG00000152977, ENSG00000119547, ENSG00000205922	75	462	16792	1.453852813852814	1.0	0.9999995136278385	99.99980612003067
+UP_KEYWORDS	Disease mutation	9	8.91089108910891	0.9204249405761661	ENSG00000152977, ENSG00000184302, ENSG00000109132, ENSG00000124172, ENSG00000138083, ENSG00000168878, ENSG00000164093, ENSG00000054598, ENSG00000248099	97	2550	20581	0.7488538508186781	1.0	0.9999149050236531	99.99999999998799
+
+Annotation Cluster 4	Enrichment Score: 1.165498308323919
+Category	Term	Count	%	PValue	Genes	List Total	Pop Hits	Pop Total	Fold Enrichment	Bonferroni	Benjamini	FDR
+GOTERM_BP_DIRECT	GO:0006413~translational initiation	6	5.9405940594059405	3.446046051185818E-4	ENSG00000067048, ENSG00000198692, ENSG00000129824, ENSG00000198918, ENSG00000229117, ENSG00000205609	75	137	16792	9.805547445255476	0.1344708403894822	0.03545959319361591	0.4828157254203713
+GOTERM_CC_DIRECT	GO:0022625~cytosolic large ribosomal subunit	3	2.9702970297029703	0.04452488666483783	ENSG00000198918, ENSG00000229117, ENSG00000163923	91	68	18224	8.835164835164836	0.9809854506297719	0.8621067464658695	38.874961529405915
+UP_KEYWORDS	Ribosomal protein	4	3.9603960396039604	0.055666091991101146	ENSG00000129824, ENSG00000198918, ENSG00000229117, ENSG00000163923	97	185	20581	4.58757314015046	0.9996089745535879	0.6250048700776605	48.99391263132687
+GOTERM_MF_DIRECT	GO:0003735~structural constituent of ribosome	4	3.9603960396039604	0.06034723008605642	ENSG00000129824, ENSG00000198918, ENSG00000229117, ENSG00000163923	69	222	16881	4.408147277712495	0.9993930954418766	0.6038222785369594	51.00471832879968
+GOTERM_BP_DIRECT	GO:0006614~SRP-dependent cotranslational protein targeting to membrane	3	2.9702970297029703	0.06460194328297483	ENSG00000129824, ENSG00000198918, ENSG00000229117	75	94	16792	7.145531914893617	0.9999999999992961	0.8838033244845918	60.850545022072836
+GOTERM_MF_DIRECT	GO:0003723~RNA binding	6	5.9405940594059405	0.06925428571255729	ENSG00000067048, ENSG00000129824, ENSG00000198918, ENSG00000229117, ENSG00000163923, ENSG00000178997	69	547	16881	2.6835704633971864	0.9998046135816214	0.6128518819827384	56.07177294869783
+GOTERM_BP_DIRECT	GO:0019083~viral transcription	3	2.9702970297029703	0.0874042522465415	ENSG00000129824, ENSG00000198918, ENSG00000229117	75	112	16792	5.997142857142857	1.0	0.922295808229385	72.31651234196252
+KEGG_PATHWAY	hsa03010:Ribosome	3	2.9702970297029703	0.09197141519874578	ENSG00000129824, ENSG00000198918, ENSG00000229117	27	136	6910	5.645424836601307	0.9927041560195942	0.8060490790853818	60.67613480771449
+GOTERM_BP_DIRECT	GO:0000184~nuclear-transcribed mRNA catabolic process, nonsense-mediated decay	3	2.9702970297029703	0.09683692108179212	ENSG00000129824, ENSG00000198918, ENSG00000229117	75	119	16792	5.64436974789916	1.0	0.9305572806891955	76.07463661943554
+GOTERM_BP_DIRECT	GO:0006412~translation	4	3.9603960396039604	0.10082618317693195	ENSG00000129824, ENSG00000198918, ENSG00000229117, ENSG00000163923	75	253	16792	3.539815546772069	1.0	0.927158013883527	77.51659768922529
+UP_KEYWORDS	Ribonucleoprotein	4	3.9603960396039604	0.16041445057926768	ENSG00000129824, ENSG00000198918, ENSG00000229117, ENSG00000163923	97	296	20581	2.867233212594037	0.9999999999604725	0.8641452261285151	87.1930135274217
+GOTERM_BP_DIRECT	GO:0006364~rRNA processing	3	2.9702970297029703	0.24311129519341956	ENSG00000129824, ENSG00000198918, ENSG00000229117	75	214	16792	3.138691588785047	1.0	0.9978504982777531	97.9985714847756
+GOTERM_CC_DIRECT	GO:0005829~cytosol	7	6.9306930693069315	0.9995612834920512	ENSG00000226784, ENSG00000125148, ENSG00000129824, ENSG00000198918, ENSG00000229117, ENSG00000154620, ENSG00000121691	91	3315	18224	0.42287968441814594	1.0	1.0	100.0
+
+Annotation Cluster 5	Enrichment Score: 0.820211096675127
+Category	Term	Count	%	PValue	Genes	List Total	Pop Hits	Pop Total	Fold Enrichment	Bonferroni	Benjamini	FDR
+GOTERM_MF_DIRECT	GO:0043565~sequence-specific DNA binding	6	5.9405940594059405	0.0575036128572627	ENSG00000129514, ENSG00000164853, ENSG00000170561, ENSG00000164093, ENSG00000054598, ENSG00000163508	69	518	16881	2.833808964243747	0.999130471945484	0.6346115628640061	49.27807833492119
+GOTERM_MF_DIRECT	GO:0003700~transcription factor activity, sequence-specific DNA binding	7	6.9306930693069315	0.18959031696019613	ENSG00000152977, ENSG00000129514, ENSG00000177932, ENSG00000138083, ENSG00000164093, ENSG00000054598, ENSG00000163508	69	961	16881	1.782065782925395	0.9999999999863274	0.8971154894254747	91.01374122380184
+GOTERM_MF_DIRECT	GO:0008134~transcription factor binding	3	2.9702970297029703	0.31758166829967777	ENSG00000129514, ENSG00000164093, ENSG00000054598	69	284	16881	2.5843539497856707	1.0	0.9697360578283208	98.74714487738314
+
+Annotation Cluster 6	Enrichment Score: 0.508309881872388
+Category	Term	Count	%	PValue	Genes	List Total	Pop Hits	Pop Total	Fold Enrichment	Bonferroni	Benjamini	FDR
+INTERPRO	IPR002110:Ankyrin repeat	3	2.9702970297029703	0.29082448887491896	ENSG00000222038, ENSG00000163046, ENSG00000196834	79	255	18559	2.763812360387193	1.0	0.9989646799915811	98.42286358849252
+SMART	SM00248:ANK	3	2.9702970297029703	0.2975318758729139	ENSG00000222038, ENSG00000163046, ENSG00000196834	45	249	10057	2.692637215528782	0.9999978856103895	0.9871650256415595	95.80398991675298
+INTERPRO	IPR020683:Ankyrin repeat-containing domain	3	2.9702970297029703	0.30637168905164147	ENSG00000222038, ENSG00000163046, ENSG00000196834	79	265	18559	2.6595175543348457	1.0	0.9985017380546117	98.79322761229355
+UP_KEYWORDS	ANK repeat	3	2.9702970297029703	0.3494196849000245	ENSG00000222038, ENSG00000163046, ENSG00000196834	97	264	20581	2.411082474226804	1.0	0.9748006629928797	99.36098921844489
+
+Annotation Cluster 7	Enrichment Score: 0.354336784895891
+Category	Term	Count	%	PValue	Genes	List Total	Pop Hits	Pop Total	Fold Enrichment	Bonferroni	Benjamini	FDR
+UP_SEQ_FEATURE	zinc finger region:C2H2-type 4	5	4.9504950495049505	0.20136843576824753	ENSG00000152977, ENSG00000153266, ENSG00000198105, ENSG00000177932, ENSG00000215397	80	588	20063	2.132546768707483	1.0	0.9998260841655876	94.41306218498366
+UP_SEQ_FEATURE	zinc finger region:C2H2-type 3	5	4.9504950495049505	0.24137654936132147	ENSG00000152977, ENSG00000153266, ENSG00000198105, ENSG00000177932, ENSG00000215397	80	636	20063	1.9715998427672958	1.0	0.9998901331440954	97.1105095588215
+INTERPRO	IPR013087:Zinc finger C2H2-type/integrase DNA-binding domain	5	4.9504950495049505	0.3509812706610015	ENSG00000152977, ENSG00000153266, ENSG00000198105, ENSG00000177932, ENSG00000215397	79	712	18559	1.649747546579434	1.0	0.999008904105432	99.45921000508513
+UP_SEQ_FEATURE	zinc finger region:C2H2-type 5	4	3.9603960396039604	0.3687510325334959	ENSG00000152977, ENSG00000153266, ENSG00000198105, ENSG00000177932	80	550	20063	1.823909090909091	1.0	0.9999925558095984	99.72665248783586
+INTERPRO	IPR015880:Zinc finger, C2H2-like	5	4.9504950495049505	0.3990477278010214	ENSG00000152977, ENSG00000153266, ENSG00000198105, ENSG00000177932, ENSG00000215397	79	762	18559	1.5414963952290774	1.0	0.999393086210869	99.78644025284262
+UP_KEYWORDS	Transcription regulation	13	12.871287128712872	0.40500487412843467	ENSG00000129514, ENSG00000164853, ENSG00000198105, ENSG00000205922, ENSG00000138083, ENSG00000152977, ENSG00000109132, ENSG00000119547, ENSG00000153266, ENSG00000177932, ENSG00000215397, ENSG00000054598, ENSG00000163508	97	2332	20581	1.1827951760357907	1.0	0.9847649688241881	99.77633739079752
+UP_KEYWORDS	Zinc	13	12.871287128712872	0.41448076703181924	ENSG00000152977, ENSG00000125144, ENSG00000169715, ENSG00000153266, ENSG00000198105, ENSG00000125148, ENSG00000177932, ENSG00000215397, ENSG00000205358, ENSG00000187193, ENSG00000165188, ENSG00000247746, ENSG00000198417	97	2348	20581	1.1747352429793287	1.0	0.9829889947051305	99.81480020819157
+SMART	SM00355:ZnF_C2H2	5	4.9504950495049505	0.4300934117849453	ENSG00000152977, ENSG00000153266, ENSG00000198105, ENSG00000177932, ENSG00000215397	45	762	10057	1.4664625255176436	0.9999999990779891	0.994489588687009	99.35831314673327
+INTERPRO	IPR007087:Zinc finger, C2H2	5	4.9504950495049505	0.4343150143180009	ENSG00000152977, ENSG00000153266, ENSG00000198105, ENSG00000177932, ENSG00000215397	79	799	18559	1.4701129576527623	1.0	0.9994976627786998	99.89711105742633
+UP_SEQ_FEATURE	zinc finger region:C2H2-type 2	4	3.9603960396039604	0.4378369016202355	ENSG00000153266, ENSG00000198105, ENSG00000177932, ENSG00000215397	80	615	20063	1.631138211382114	1.0	0.9999983334439706	99.93821123573167
+UP_KEYWORDS	Transcription	13	12.871287128712872	0.44414461678326184	ENSG00000129514, ENSG00000164853, ENSG00000198105, ENSG00000205922, ENSG00000138083, ENSG00000152977, ENSG00000109132, ENSG00000119547, ENSG00000153266, ENSG00000177932, ENSG00000215397, ENSG00000054598, ENSG00000163508	97	2398	20581	1.1502411803650807	1.0	0.9820944180997002	99.89948309755069
+UP_SEQ_FEATURE	zinc finger region:C2H2-type 6	3	2.9702970297029703	0.590458495161822	ENSG00000153266, ENSG00000198105, ENSG00000177932	80	501	20063	1.5017215568862274	1.0	0.9999999655860128	99.99893817056615
+UP_SEQ_FEATURE	zinc finger region:C2H2-type 1	3	2.9702970297029703	0.6455180669053127	ENSG00000153266, ENSG00000177932, ENSG00000215397	80	554	20063	1.3580550541516245	1.0	0.999999962991393	99.99983342537078
+UP_KEYWORDS	Zinc-finger	7	6.9306930693069315	0.8479589820363391	ENSG00000152977, ENSG00000153266, ENSG00000198105, ENSG00000177932, ENSG00000215397, ENSG00000165188, ENSG00000247746	97	1781	20581	0.8339285817651383	1.0	0.9994944279023904	99.99999997575446
+GOTERM_BP_DIRECT	GO:0006351~transcription, DNA-templated	5	4.9504950495049505	0.9785388522558911	ENSG00000164853, ENSG00000198105, ENSG00000177932, ENSG00000215397, ENSG00000163508	75	1955	16792	0.572617220801364	1.0	1.0	100.0
+
+Annotation Cluster 8	Enrichment Score: 0.06711873232279976
+Category	Term	Count	%	PValue	Genes	List Total	Pop Hits	Pop Total	Fold Enrichment	Bonferroni	Benjamini	FDR
+GOTERM_CC_DIRECT	GO:0005615~extracellular space	9	8.91089108910891	0.3473712675240062	ENSG00000165246, ENSG00000222038, ENSG00000198918, ENSG00000096088, ENSG00000196834, ENSG00000270136, ENSG00000143869, ENSG00000121691, ENSG00000168878	91	1347	18224	1.3380650529871019	0.9999999999999999	0.995027606334708	99.00691145271703
+UP_SEQ_FEATURE	disulfide bond	7	6.9306930693069315	0.9799768322289583	ENSG00000165246, ENSG00000180974, ENSG00000096088, ENSG00000143869, ENSG00000164241, ENSG00000168878, ENSG00000248099	80	2917	20063	0.6018212204319506	1.0	1.0	100.0
+UP_KEYWORDS	Disulfide bond	8	7.920792079207921	0.9979253382713639	ENSG00000165246, ENSG00000180974, ENSG00000096088, ENSG00000270136, ENSG00000143869, ENSG00000164241, ENSG00000168878, ENSG00000248099	97	3434	20581	0.4942929708374112	1.0	0.999999993214293	100.0
+UP_SEQ_FEATURE	signal peptide	6	5.9405940594059405	0.9982749748270936	ENSG00000179542, ENSG00000165246, ENSG00000096088, ENSG00000143869, ENSG00000168878, ENSG00000248099	80	3346	20063	0.4497086072922893	1.0	1.0	100.0
+UP_KEYWORDS	Signal	9	8.91089108910891	0.9995774779340586	ENSG00000179542, ENSG00000214194, ENSG00000165246, ENSG00000096088, ENSG00000270136, ENSG00000143869, ENSG00000168878, ENSG00000243317, ENSG00000248099	97	4160	20581	0.459033009516257	1.0	0.9999999998538799	100.0
+UP_SEQ_FEATURE	glycosylation site:N-linked (GlcNAc...)	5	4.9504950495049505	0.9999874126486624	ENSG00000179542, ENSG00000165246, ENSG00000180974, ENSG00000143869, ENSG00000168878	80	4234	20063	0.2961590694378838	1.0	1.0	100.0
+UP_KEYWORDS	Glycoprotein	5	4.9504950495049505	0.9999998667567829	ENSG00000179542, ENSG00000165246, ENSG00000180974, ENSG00000143869, ENSG00000168878	97	4551	20581	0.23310839126780789	1.0	1.0	100.0
+
+Annotation Cluster 9	Enrichment Score: 0.014705889178132312
+Category	Term	Count	%	PValue	Genes	List Total	Pop Hits	Pop Total	Fold Enrichment	Bonferroni	Benjamini	FDR
+GOTERM_MF_DIRECT	GO:0005524~ATP binding	4	3.9603960396039604	0.9471714074328096	ENSG00000067048, ENSG00000254598, ENSG00000259332, ENSG00000197142	69	1495	16881	0.6545877562890795	1.0	0.9999999988516262	99.99999999999977
+UP_KEYWORDS	ATP-binding	4	3.9603960396039604	0.9617258940215971	ENSG00000067048, ENSG00000254598, ENSG00000259332, ENSG00000197142	97	1391	20581	0.6101373335210891	1.0	0.9999922196380046	100.0
+UP_KEYWORDS	Nucleotide-binding	4	3.9603960396039604	0.9917505356146884	ENSG00000067048, ENSG00000254598, ENSG00000259332, ENSG00000197142	97	1788	20581	0.4746650061117646	1.0	0.9999997700488767	100.0
+
+Annotation Cluster 10	Enrichment Score: 0.01422812959020817
+Category	Term	Count	%	PValue	Genes	List Total	Pop Hits	Pop Total	Fold Enrichment	Bonferroni	Benjamini	FDR
+UP_SEQ_FEATURE	transmembrane region	16	15.841584158415841	0.9235699422433608	ENSG00000171840, ENSG00000127540, ENSG00000198133, ENSG00000139370, ENSG00000170091, ENSG00000086159, ENSG00000180638, ENSG00000197142, ENSG00000178449, ENSG00000228474, ENSG00000179542, ENSG00000180974, ENSG00000165246, ENSG00000165188, ENSG00000166002, ENSG00000205670	80	5056	20063	0.7936313291139241	1.0	0.9999999999999999	99.99999999999953
+UP_KEYWORDS	Transmembrane helix	20	19.801980198019802	0.9664300899010495	ENSG00000171840, ENSG00000127540, ENSG00000198133, ENSG00000139370, ENSG00000205639, ENSG00000170091, ENSG00000086159, ENSG00000180638, ENSG00000197142, ENSG00000178449, ENSG00000228474, ENSG00000179542, ENSG00000214194, ENSG00000180974, ENSG00000165246, ENSG00000270136, ENSG00000165188, ENSG00000243317, ENSG00000166002, ENSG00000205670	97	5634	20581	0.7531958030953453	1.0	0.9999910591386459	100.0
+UP_KEYWORDS	Transmembrane	20	19.801980198019802	0.9677227406188967	ENSG00000171840, ENSG00000127540, ENSG00000198133, ENSG00000139370, ENSG00000205639, ENSG00000170091, ENSG00000086159, ENSG00000180638, ENSG00000197142, ENSG00000178449, ENSG00000228474, ENSG00000179542, ENSG00000214194, ENSG00000180974, ENSG00000165246, ENSG00000270136, ENSG00000165188, ENSG00000243317, ENSG00000166002, ENSG00000205670	97	5651	20581	0.7509299512721953	1.0	0.9999895880346041	100.0
+UP_SEQ_FEATURE	topological domain:Extracellular	7	6.9306930693069315	0.9713553106975322	ENSG00000171840, ENSG00000179542, ENSG00000165246, ENSG00000198133, ENSG00000180974, ENSG00000086159, ENSG00000180638	80	2787	20063	0.6298932543954072	1.0	1.0	100.0
+UP_SEQ_FEATURE	topological domain:Cytoplasmic	9	8.91089108910891	0.9727885778326631	ENSG00000171840, ENSG00000179542, ENSG00000165246, ENSG00000198133, ENSG00000180974, ENSG00000170091, ENSG00000086159, ENSG00000180638, ENSG00000197142	80	3456	20063	0.6530924479166668	1.0	1.0	100.0
+GOTERM_CC_DIRECT	GO:0016021~integral component of membrane	18	17.82178217821782	0.9855047988667748	ENSG00000171840, ENSG00000127540, ENSG00000198133, ENSG00000139370, ENSG00000205639, ENSG00000170091, ENSG00000086159, ENSG00000180638, ENSG00000197142, ENSG00000178449, ENSG00000228474, ENSG00000179542, ENSG00000214194, ENSG00000180974, ENSG00000165188, ENSG00000243317, ENSG00000166002, ENSG00000205670	91	5163	18224	0.6981885052774071	1.0	0.9999999999999534	100.0
+UP_KEYWORDS	Membrane	26	25.742574257425744	0.9884542831964291	ENSG00000171840, ENSG00000198133, ENSG00000170091, ENSG00000253626, ENSG00000180638, ENSG00000197142, ENSG00000228474, ENSG00000179542, ENSG00000180389, ENSG00000124172, ENSG00000110934, ENSG00000165188, ENSG00000243317, ENSG00000166002, ENSG00000176533, ENSG00000127540, ENSG00000139370, ENSG00000205639, ENSG00000086159, ENSG00000178449, ENSG00000214194, ENSG00000165246, ENSG00000180974, ENSG00000270136, ENSG00000171450, ENSG00000205670	97	7494	20581	0.7361297973086373	1.0	0.9999995215886112	100.0
+
+</pre>
+
+<p>
+Look at genes only detected in single cell.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-builtin">set</span>(x <span class="org-keyword">for</span> k <span class="org-keyword">in</span> S <span class="org-keyword">for</span> x <span class="org-keyword">in</span> pd.Series(S[k].mask(np.isfinite(T[k])).dropna().index))
+</pre>
+</div>
+
+<pre class="example">
+{'ENSG00000000457',
+'ENSG00000050438',
+'ENSG00000053438',
+'ENSG00000099617',
+'ENSG00000102743',
+'ENSG00000109618',
+'ENSG00000111087',
+'ENSG00000112357',
+'ENSG00000120690',
+'ENSG00000127080',
+'ENSG00000128283',
+'ENSG00000136213',
+'ENSG00000137502',
+'ENSG00000143869',
+'ENSG00000149541',
+'ENSG00000162188',
+'ENSG00000165879',
+'ENSG00000173401',
+'ENSG00000181481',
+'ENSG00000184302',
+'ENSG00000185818',
+'ENSG00000197818',
+'ENSG00000213380'}
+</pre>
+
+<p>
+Look at pathway enrichments for genes detected only in single cell.
+</p>
+
+<pre class="example">
+Annotation Cluster 1	Enrichment Score: 0.16470559032620852
+Category	Term	Count	%	PValue	Genes	List Total	Pop Hits	Pop Total	Fold Enrichment	Bonferroni	Benjamini	FDR
+GOTERM_BP_DIRECT	GO:0045944~positive regulation of transcription from RNA polymerase II promoter	3	13.043478260869565	0.3277257959734531	ENSG00000111087, ENSG00000184302, ENSG00000120690	21	981	16792	2.4453181884374544	1.0	0.9999999999888005	98.99989403807203
+UP_KEYWORDS	DNA-binding	3	13.043478260869565	0.6331696404915614	ENSG00000111087, ENSG00000184302, ENSG00000120690	22	2050	20581	1.3690243902439023	1.0	0.9988514746581159	99.99771774457302
+GOTERM_CC_DIRECT	GO:0005654~nucleoplasm	3	13.043478260869565	0.852891320214584	ENSG00000111087, ENSG00000120690, ENSG00000127080	22	2784	18224	0.8926332288401253	1.0	0.9999966100403458	99.99999864269819
+GOTERM_CC_DIRECT	GO:0005634~nucleus	5	21.73913043478261	0.9101247789696545	ENSG00000111087, ENSG00000184302, ENSG00000109618, ENSG00000120690, ENSG00000127080	22	5415	18224	0.7648787039368757	1.0	0.9999990374355104	99.99999998711735
+UP_KEYWORDS	Nucleus	4	17.391304347826086	0.9320660841557977	ENSG00000111087, ENSG00000184302, ENSG00000120690, ENSG00000127080	22	5244	20581	0.7135774218154081	1.0	0.9999972758163257	99.99999999996426
+
+Annotation Cluster 2	Enrichment Score: 0.13876944094888757
+Category	Term	Count	%	PValue	Genes	List Total	Pop Hits	Pop Total	Fold Enrichment	Bonferroni	Benjamini	FDR
+UP_KEYWORDS	Membrane	10	43.47826086956522	0.3432466422296966	ENSG00000137502, ENSG00000102743, ENSG00000050438, ENSG00000099617, ENSG00000128283, ENSG00000149541, ENSG00000162188, ENSG00000197818, ENSG00000185818, ENSG00000213380	22	7494	20581	1.2483319989324793	0.9999999999999983	0.9772688861660149	98.86760814991567
+UP_SEQ_FEATURE	transmembrane region	5	21.73913043478261	0.8140386056324314	ENSG00000102743, ENSG00000050438, ENSG00000149541, ENSG00000197818, ENSG00000185818	22	5056	20063	0.9018537830840045	1.0	0.9999999999999997	99.99999861987743
+UP_KEYWORDS	Transmembrane helix	5	21.73913043478261	0.8670386049310165	ENSG00000102743, ENSG00000050438, ENSG00000149541, ENSG00000197818, ENSG00000185818	22	5634	20581	0.8302271920482783	1.0	0.99999148614062	99.99999995415865
+UP_KEYWORDS	Transmembrane	5	21.73913043478261	0.8687936796993484	ENSG00000102743, ENSG00000050438, ENSG00000149541, ENSG00000197818, ENSG00000185818	22	5651	20581	0.8277296053795788	1.0	0.9999827433821622	99.99999996021165
+GOTERM_CC_DIRECT	GO:0016021~integral component of membrane	4	17.391304347826086	0.9614936232995246	ENSG00000102743, ENSG00000149541, ENSG00000197818, ENSG00000185818	22	5163	18224	0.6417692321236773	1.0	0.9999999410477701	99.99999999999572
+
+Annotation Cluster 3	Enrichment Score: 0.10814451882692515
+Category	Term	Count	%	PValue	Genes	List Total	Pop Hits	Pop Total	Fold Enrichment	Bonferroni	Benjamini	FDR
+GOTERM_CC_DIRECT	GO:0005576~extracellular region	3	13.043478260869565	0.5650202328331935	ENSG00000099617, ENSG00000143869, ENSG00000173401	22	1610	18224	1.5435347261434218	1.0	0.9995280289945352	99.96172821785414
+UP_SEQ_FEATURE	signal peptide	3	13.043478260869565	0.8873328320761085	ENSG00000099617, ENSG00000143869, ENSG00000173401	22	3346	20063	0.8176520132587077	1.0	0.9999999999999631	99.99999999371153
+UP_KEYWORDS	Signal	3	13.043478260869565	0.9449653686711603	ENSG00000099617, ENSG00000143869, ENSG00000173401	22	4160	20581	0.674639423076923	1.0	0.9999978479008454	99.99999999999622
+
+Annotation Cluster 4	Enrichment Score: 0.06705635298464693
+Category	Term	Count	%	PValue	Genes	List Total	Pop Hits	Pop Total	Fold Enrichment	Bonferroni	Benjamini	FDR
+UP_KEYWORDS	Disulfide bond	4	17.391304347826086	0.7052904766215429	ENSG00000050438, ENSG00000099617, ENSG00000143869, ENSG00000149541	22	3434	20581	1.0896913220733837	1.0	0.9995057831808567	99.99977860872981
+UP_SEQ_FEATURE	disulfide bond	3	13.043478260869565	0.8313843498748016	ENSG00000099617, ENSG00000143869, ENSG00000149541	22	2917	20063	0.9379032006731698	1.0	0.9999999999999281	99.99999951871355
+UP_SEQ_FEATURE	glycosylation site:N-linked (GlcNAc...)	3	13.043478260869565	0.9544875159034373	ENSG00000099617, ENSG00000143869, ENSG00000149541	22	4234	20063	0.6461652424099282	1.0	1.0	99.99999999999963
+UP_KEYWORDS	Glycoprotein	3	13.043478260869565	0.963461735118086	ENSG00000099617, ENSG00000143869, ENSG00000149541	22	4551	20581	0.616677653263019	1.0	0.9999984894709725	99.99999999999996
+
+</pre>
+
+<p>
+Compute the Spearman correlation of relative abundance between all pairs of
+bulk samples.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">R</span> = pd.Series([st.mstats.spearmanr(S[i], S[j]).correlation <span class="org-keyword">for</span> i, j <span class="org-keyword">in</span> itertools.combinations(S.columns, 2)])
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">R.describe()
+</pre>
+</div>
+
+<pre class="example">
+count    1225.000000
+mean        0.975116
+std         0.008525
+min         0.941480
+25%         0.969642
+50%         0.976308
+75%         0.981967
+max         0.989239
+dtype: float64
+</pre>
+
+<p>
+Compute the Spearman correlation between all pairs of scRNA-Seq estimates.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">R</span> = pd.Series([st.mstats.spearmanr(T[i], T[j]).correlation <span class="org-keyword">for</span> i, j <span class="org-keyword">in</span> itertools.combinations(T.columns, 2)])
+R.describe()
+</pre>
+</div>
+
+<pre class="example">
+count    1225.000000
+mean        0.964085
+std         0.012129
+min         0.910210
+25%         0.960425
+50%         0.966380
+75%         0.971532
+max         0.985259
+dtype: float64
+</pre>
+
+<p>
+Compute the Spearman correlation between bulk and single cell.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">pd.Series([st.mstats.spearmanr(S[i], T[i]).correlation <span class="org-keyword">for</span> i <span class="org-keyword">in</span> S]).describe()
+</pre>
+</div>
+
+<pre class="example">
+count    50.000000
+mean      0.770785
+std       0.022602
+min       0.690612
+25%       0.761318
+50%       0.776103
+75%       0.786595
+max       0.803776
+dtype: float64
+</pre>
+
+<p>
+Compute the Spearman correlation for randomized pairs of bulk/single cell
+abundances.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">np.random.seed(0)
+pd.Series([st.mstats.spearmanr(S[i], T[j]).correlation
+           <span class="org-keyword">for</span> i <span class="org-keyword">in</span> np.random.choice(S.columns, 20, replace=<span class="org-constant">True</span>)
+           <span class="org-keyword">for</span> j <span class="org-keyword">in</span> np.random.choice(T.columns, 20, replace=<span class="org-constant">True</span>)]).describe()
+</pre>
+</div>
+
+<pre class="example">
+count    400.000000
+mean       0.768326
+std        0.019574
+min        0.699244
+25%        0.755550
+50%        0.769128
+75%        0.784345
+max        0.804371
+dtype: float64
+</pre>
+</div>
+</div>
+
+<div id="outline-container-orgd1000d9" class="outline-2">
+<h2 id="orgd1000d9">Plot bulk vs. single cell relative abundance</h2>
+<div class="outline-text-2" id="text-orgd1000d9">
+<p>
+Under <a href="zinb.html">our assumed model</a>, the parameter \(\mu\) is proportional to relative
+abundance.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/density-estimation/without-cell-cycle/zi2-log-mu.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
+<span class="org-variable-name">log_mu</span> -= log_mu.agg(sp.logsumexp, axis=0)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">S</span>, <span class="org-variable-name">T</span> = (bulk_log_rho.loc[keep_genes.values.ravel()]
+        .mask(mask)
+        .align(log_mu.mask(mask), join=<span class="org-string">'inner'</span>))
+</pre>
+</div>
+
+<p>
+Plot the concordance.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plot_concordance_rho(
+  S,
+  T,
+  <span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/vs-sc-mean'</span>)
+</pre>
+</div>
+
+<p>
+<object type="image/svg+xml" data="figure/sc-vs-bulk.org/vs-sc-mean/NA18507.svg" class="org-svg">
+Sorry, your browser does not support SVG.</object>
+<object type="image/svg+xml" data="figure/sc-vs-bulk.org/vs-sc-mean/NA18522.svg" class="org-svg">
+Sorry, your browser does not support SVG.</object>
+</p>
+
+<p>
+Look at the genes only detected in bulk.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">with</span> <span class="org-builtin">open</span>(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/density-estimation/bulk-only.txt'</span>, <span class="org-string">'w'</span>) <span class="org-keyword">as</span> f:
+  <span class="org-keyword">print</span>(*<span class="org-builtin">set</span>([x <span class="org-keyword">for</span> k <span class="org-keyword">in</span> T <span class="org-keyword">for</span> x <span class="org-keyword">in</span> pd.Series(T[k].mask(np.isfinite(S[k])).dropna().index)]), sep=<span class="org-string">'\n'</span>, <span class="org-builtin">file</span>=f)
+</pre>
+</div>
+
+<p>
+Look at pathway enrichment for genes only detected in bulk.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">curl <span class="org-string">"https://david.ncifcrf.gov/data/download/t2t_B5C5AE2A242A1525715859955.txt"</span>
+</pre>
+</div>
+
+<pre class="example">
+Annotation Cluster 1	Enrichment Score: 5.576667372224575
+Category	Term	Count	%	PValue	Genes	List Total	Pop Hits	Pop Total	Fold Enrichment	Bonferroni	Benjamini	FDR
+INTERPRO	IPR018064:Metallothionein, vertebrate, metal binding site	6	4.958677685950414	1.4246693775812425E-9	ENSG00000125144, ENSG00000169715, ENSG00000125148, ENSG00000205358, ENSG00000187193, ENSG00000198417	96	11	18559	105.44886363636364	2.721118151916002E-7	2.721118151916002E-7	1.7722059264535517E-6
+UP_SEQ_FEATURE	region of interest:Beta	6	4.958677685950414	3.1296025620278356E-9	ENSG00000125144, ENSG00000169715, ENSG00000125148, ENSG00000205358, ENSG00000187193, ENSG00000198417	99	13	20063	93.53379953379954	8.668995394867096E-7	8.668995394867096E-7	4.131194308865105E-6
+UP_SEQ_FEATURE	region of interest:Alpha	6	4.958677685950414	3.1296025620278356E-9	ENSG00000125144, ENSG00000169715, ENSG00000125148, ENSG00000205358, ENSG00000187193, ENSG00000198417	99	13	20063	93.53379953379954	8.668995394867096E-7	8.668995394867096E-7	4.131194308865105E-6
+UP_SEQ_FEATURE	metal ion-binding site:Divalent metal cation; cluster B	6	4.958677685950414	4.849470990265653E-9	ENSG00000125144, ENSG00000169715, ENSG00000125148, ENSG00000205358, ENSG00000187193, ENSG00000198417	99	14	20063	86.85281385281385	1.3433025503051255E-6	6.716515007498813E-7	6.401485830309639E-6
+UP_SEQ_FEATURE	metal ion-binding site:Divalent metal cation; cluster A	6	4.958677685950414	4.849470990265653E-9	ENSG00000125144, ENSG00000169715, ENSG00000125148, ENSG00000205358, ENSG00000187193, ENSG00000198417	99	14	20063	86.85281385281385	1.3433025503051255E-6	6.716515007498813E-7	6.401485830309639E-6
+INTERPRO	IPR003019:Metallothionein superfamily, eukaryotic	6	4.958677685950414	6.0990406966974536E-9	ENSG00000125144, ENSG00000169715, ENSG00000125148, ENSG00000205358, ENSG00000187193, ENSG00000198417	96	14	18559	82.85267857142858	1.1649161019144927E-6	5.824582206548357E-7	7.586852035501579E-6
+INTERPRO	IPR000006:Metallothionein, vertebrate	6	4.958677685950414	6.0990406966974536E-9	ENSG00000125144, ENSG00000169715, ENSG00000125148, ENSG00000205358, ENSG00000187193, ENSG00000198417	96	14	18559	82.85267857142858	1.1649161019144927E-6	5.824582206548357E-7	7.586852035501579E-6
+INTERPRO	IPR017854:Metallothionein domain	6	4.958677685950414	6.0990406966974536E-9	ENSG00000125144, ENSG00000169715, ENSG00000125148, ENSG00000205358, ENSG00000187193, ENSG00000198417	96	14	18559	82.85267857142858	1.1649161019144927E-6	5.824582206548357E-7	7.586852035501579E-6
+INTERPRO	IPR023587:Metallothionein domain, vertebrate	6	4.958677685950414	6.0990406966974536E-9	ENSG00000125144, ENSG00000169715, ENSG00000125148, ENSG00000205358, ENSG00000187193, ENSG00000198417	96	14	18559	82.85267857142858	1.1649161019144927E-6	5.824582206548357E-7	7.586852035501579E-6
+UP_KEYWORDS	Metal-thiolate cluster	6	4.958677685950414	1.0025245596206678E-8	ENSG00000125144, ENSG00000169715, ENSG00000125148, ENSG00000205358, ENSG00000187193, ENSG00000198417	117	14	20581	75.3882783882784	1.5438866435291132E-6	1.5438866435291132E-6	1.202629306140679E-5
+GOTERM_BP_DIRECT	GO:0071294~cellular response to zinc ion	6	4.958677685950414	4.094169579380311E-8	ENSG00000125144, ENSG00000169715, ENSG00000125148, ENSG00000205358, ENSG00000187193, ENSG00000198417	90	19	16792	58.91929824561404	1.9406175909564283E-5	1.9406175909564283E-5	5.851492919095591E-5
+GOTERM_BP_DIRECT	GO:0045926~negative regulation of growth	6	4.958677685950414	4.094169579380311E-8	ENSG00000125144, ENSG00000169715, ENSG00000125148, ENSG00000205358, ENSG00000187193, ENSG00000198417	90	19	16792	58.91929824561404	1.9406175909564283E-5	1.9406175909564283E-5	5.851492919095591E-5
+UP_KEYWORDS	Cadmium	5	4.132231404958678	1.1811282003624497E-7	ENSG00000125144, ENSG00000169715, ENSG00000205358, ENSG00000187193, ENSG00000198417	117	9	20581	97.72554605887939	1.8189209940788764E-5	9.09464632670165E-6	1.4168815375414923E-4
+KEGG_PATHWAY	hsa04978:Mineral absorption	6	4.958677685950414	1.561721135515403E-6	ENSG00000125144, ENSG00000169715, ENSG00000125148, ENSG00000205358, ENSG00000187193, ENSG00000198417	32	46	6910	28.16576086956522	8.901421223550532E-5	8.901421223550532E-5	0.001547999109541287
+GOTERM_BP_DIRECT	GO:0071276~cellular response to cadmium ion	5	4.132231404958678	1.664617662755867E-6	ENSG00000125144, ENSG00000169715, ENSG00000205358, ENSG00000187193, ENSG00000198417	90	17	16792	54.87581699346404	7.887182269761261E-4	3.9443690372353846E-4	0.0023790888878050254
+UP_KEYWORDS	Copper	5	4.132231404958678	4.976376910881519E-4	ENSG00000125144, ENSG00000169715, ENSG00000205358, ENSG00000187193, ENSG00000198417	117	65	20581	13.531229454306377	0.07379091796476478	0.025228076303446367	0.5953360202090807
+GOTERM_MF_DIRECT	GO:0046872~metal ion binding	15	12.396694214876034	0.12418773298386136	ENSG00000125144, ENSG00000198105, ENSG00000125148, ENSG00000102349, ENSG00000205358, ENSG00000187193, ENSG00000198417, ENSG00000152977, ENSG00000169715, ENSG00000153266, ENSG00000177932, ENSG00000215397, ENSG00000259332, ENSG00000132846, ENSG00000121691	83	2069	16881	1.4745206053794686	0.9999999852802904	0.8352634661442035	78.91549668783586
+GOTERM_MF_DIRECT	GO:0008270~zinc ion binding	9	7.43801652892562	0.20634061490317346	ENSG00000125144, ENSG00000169715, ENSG00000125148, ENSG00000205358, ENSG00000187193, ENSG00000165188, ENSG00000247746, ENSG00000198417, ENSG00000048540	83	1169	16881	1.5658424974491636	0.9999999999999776	0.91087103471022	93.3655336196179
+GOTERM_CC_DIRECT	GO:0048471~perinuclear region of cytoplasm	6	4.958677685950414	0.30096978390296947	ENSG00000125144, ENSG00000169715, ENSG00000125148, ENSG00000205358, ENSG00000187193, ENSG00000198417	108	621	18224	1.630345321166577	0.9999999999999998	0.9942944345640995	98.13459523208337
+UP_KEYWORDS	Zinc	16	13.223140495867769	0.34358634892845447	ENSG00000125144, ENSG00000198105, ENSG00000125148, ENSG00000102349, ENSG00000205358, ENSG00000187193, ENSG00000198417, ENSG00000152977, ENSG00000169715, ENSG00000153266, ENSG00000177932, ENSG00000215397, ENSG00000132846, ENSG00000165188, ENSG00000247746, ENSG00000048540	117	2348	20581	1.1986779073661529	1.0	0.9779278733358946	99.35899578165785
+UP_KEYWORDS	Zinc-finger	9	7.43801652892562	0.7961450798424026	ENSG00000152977, ENSG00000153266, ENSG00000198105, ENSG00000102349, ENSG00000177932, ENSG00000215397, ENSG00000132846, ENSG00000165188, ENSG00000247746	117	1781	20581	0.8889128838595431	1.0	0.9997152160677613	99.99999948166463
+UP_KEYWORDS	Metal-binding	18	14.87603305785124	0.8364136070519472	ENSG00000125144, ENSG00000198105, ENSG00000125148, ENSG00000102349, ENSG00000205358, ENSG00000187193, ENSG00000198417, ENSG00000152977, ENSG00000169715, ENSG00000153266, ENSG00000177932, ENSG00000215397, ENSG00000259332, ENSG00000132846, ENSG00000121691, ENSG00000165188, ENSG00000247746, ENSG00000048540	117	3640	20581	0.8698647506339814	1.0	0.9998355028846869	99.99999996300832
+
+Annotation Cluster 2	Enrichment Score: 3.334962167202779
+Category	Term	Count	%	PValue	Genes	List Total	Pop Hits	Pop Total	Fold Enrichment	Bonferroni	Benjamini	FDR
+INTERPRO	IPR001152:Thymosin beta-4	4	3.3057851239669422	1.2897495522925282E-6	ENSG00000034510, ENSG00000205542, ENSG00000154620, ENSG00000158164	96	5	18559	154.65833333333333	2.463119835646177E-4	8.211073651009926E-5	0.0016043616741900912
+SMART	SM00152:THY	4	3.3057851239669422	1.6226621358714626E-6	ENSG00000034510, ENSG00000205542, ENSG00000154620, ENSG00000158164	57	5	10057	141.15087719298245	7.463973312682448E-5	7.463973312682448E-5	0.0015336986909142425
+PIR_SUPERFAMILY	PIRSF001828:thymosin beta	4	3.3057851239669422	3.5173915511616714E-6	ENSG00000034510, ENSG00000205542, ENSG00000154620, ENSG00000158164	14	5	1692	96.68571428571428	3.869062660721845E-5	3.869062660721845E-5	0.0021911300040700077
+GOTERM_BP_DIRECT	GO:0042989~sequestering of actin monomers	4	3.3057851239669422	1.681314954634123E-5	ENSG00000034510, ENSG00000205542, ENSG00000154620, ENSG00000158164	90	10	16792	74.63111111111111	0.007937827610423387	0.0026529745868454357	0.024027109196389507
+GOTERM_MF_DIRECT	GO:0003785~actin monomer binding	4	3.3057851239669422	2.6496648695155503E-4	ENSG00000034510, ENSG00000205542, ENSG00000154620, ENSG00000158164	83	26	16881	31.29008341056534	0.03539850083091345	0.03539850083091345	0.31060183729006985
+GOTERM_CC_DIRECT	GO:0031941~filamentous actin	4	3.3057851239669422	7.847934587976678E-4	ENSG00000034510, ENSG00000205542, ENSG00000154620, ENSG00000158164	108	31	18224	21.77299880525687	0.07623286602486246	0.07623286602486246	0.8692440247447752
+GOTERM_BP_DIRECT	GO:0007015~actin filament organization	4	3.3057851239669422	0.006594793403436778	ENSG00000034510, ENSG00000205542, ENSG00000154620, ENSG00000158164	90	72	16792	10.365432098765433	0.9565561097851812	0.32431996209823577	9.023293445276037
+UP_KEYWORDS	Actin-binding	6	4.958677685950414	0.019571276316372795	ENSG00000034510, ENSG00000147481, ENSG00000205542, ENSG00000154620, ENSG00000158164, ENSG00000197616	117	274	20581	3.85195583005802	0.9523494351355245	0.397886993238434	21.109161121502428
+GOTERM_BP_DIRECT	GO:0030036~actin cytoskeleton organization	3	2.479338842975207	0.15128048512411713	ENSG00000034510, ENSG00000205542, ENSG00000158164	90	130	16792	4.305641025641026	1.0	0.9795020108256144	90.4086641217756
+UP_KEYWORDS	Cytoskeleton	5	4.132231404958678	0.889662886640318	ENSG00000034510, ENSG00000147481, ENSG00000205542, ENSG00000154620, ENSG00000158164	117	1138	20581	0.7728733871088881	1.0	0.9998963302291057	99.99999999967154
+
+Annotation Cluster 3	Enrichment Score: 1.6571445730798036
+Category	Term	Count	%	PValue	Genes	List Total	Pop Hits	Pop Total	Fold Enrichment	Bonferroni	Benjamini	FDR
+INTERPRO	IPR001356:Homeodomain	8	6.6115702479338845	3.445655722065392E-4	ENSG00000184302, ENSG00000109132, ENSG00000164853, ENSG00000119547, ENSG00000170561, ENSG00000205922, ENSG00000138083, ENSG00000164093	96	256	18559	6.041341145833333	0.06370376779306242	0.016321183584631305	0.42777583502832117
+UP_SEQ_FEATURE	DNA-binding region:Homeobox	7	5.785123966942149	3.5054172576739275E-4	ENSG00000184302, ENSG00000109132, ENSG00000164853, ENSG00000119547, ENSG00000205922, ENSG00000138083, ENSG00000164093	99	191	20063	7.427203976942197	0.09255024505416842	0.031853984164181726	0.4617402147000016
+SMART	SM00389:HOX	8	6.6115702479338845	4.42340030678099E-4	ENSG00000184302, ENSG00000109132, ENSG00000164853, ENSG00000119547, ENSG00000170561, ENSG00000205922, ENSG00000138083, ENSG00000164093	57	250	10057	5.646035087719298	0.020146436053534278	0.010124470477997027	0.41731066017264284
+UP_KEYWORDS	Homeobox	8	6.6115702479338845	7.172911762649775E-4	ENSG00000184302, ENSG00000109132, ENSG00000164853, ENSG00000119547, ENSG00000170561, ENSG00000205922, ENSG00000138083, ENSG00000164093	117	262	20581	5.371175050564364	0.10461588777842423	0.02724752158556898	0.8570778580120453
+GOTERM_BP_DIRECT	GO:0006366~transcription from RNA polymerase II promoter	10	8.264462809917356	0.001572722098348745	ENSG00000152977, ENSG00000129514, ENSG00000184302, ENSG00000109132, ENSG00000153266, ENSG00000119547, ENSG00000205922, ENSG00000138083, ENSG00000164093, ENSG00000054598	90	513	16792	3.636993718865064	0.5257672759453207	0.11692297380011663	2.2244314781961316
+INTERPRO	IPR009057:Homeodomain-like	8	6.6115702479338845	0.0016952639861163858	ENSG00000184302, ENSG00000109132, ENSG00000164853, ENSG00000119547, ENSG00000170561, ENSG00000205922, ENSG00000138083, ENSG00000164093	96	336	18559	4.602926587301587	0.2768005217052305	0.06275826172079468	2.088482148755444
+GOTERM_BP_DIRECT	GO:0045944~positive regulation of transcription from RNA polymerase II promoter	13	10.743801652892563	0.005493950593360164	ENSG00000184302, ENSG00000129514, ENSG00000205922, ENSG00000138083, ENSG00000164093, ENSG00000152977, ENSG00000109132, ENSG00000119547, ENSG00000153266, ENSG00000132846, ENSG00000106153, ENSG00000054598, ENSG00000163508	90	981	16792	2.4724883905312036	0.9265618980685568	0.3113654984676302	7.571745627308124
+GOTERM_MF_DIRECT	GO:0001077~transcriptional activator activity, RNA polymerase II core promoter proximal region sequence-specific binding	6	4.958677685950414	0.0058345245616869485	ENSG00000152977, ENSG00000129514, ENSG00000109132, ENSG00000119547, ENSG00000205922, ENSG00000164093	83	236	16881	5.170818868695119	0.5487885570500103	0.32827725738219216	6.638584356776677
+UP_KEYWORDS	DNA-binding	21	17.355371900826448	0.010410726649525567	ENSG00000269404, ENSG00000129514, ENSG00000184302, ENSG00000164853, ENSG00000067048, ENSG00000198105, ENSG00000102349, ENSG00000170561, ENSG00000205922, ENSG00000138083, ENSG00000164093, ENSG00000152977, ENSG00000109132, ENSG00000188375, ENSG00000153266, ENSG00000119547, ENSG00000177932, ENSG00000197061, ENSG00000215397, ENSG00000054598, ENSG00000163508	117	2050	20581	1.801963727329581	0.8004430841018089	0.27554175963005556	11.798110609182277
+UP_SEQ_FEATURE	compositionally biased region:Poly-Ala	7	5.785123966942149	0.014325138545599983	ENSG00000152977, ENSG00000109132, ENSG00000119547, ENSG00000138083, ENSG00000054598, ENSG00000171450, ENSG00000163508	99	404	20063	3.511376137613761	0.9816249090490333	0.6318223898788264	17.342512514631448
+GOTERM_BP_DIRECT	GO:0007420~brain development	5	4.132231404958678	0.01839843632364141	ENSG00000152977, ENSG00000053438, ENSG00000138083, ENSG00000054598, ENSG00000163508	90	190	16792	4.909941520467836	0.999849580378387	0.585303424363129	23.310420295398327
+GOTERM_MF_DIRECT	GO:0003677~DNA binding	15	12.396694214876034	0.030082627435268905	ENSG00000129514, ENSG00000184302, ENSG00000164853, ENSG00000067048, ENSG00000198105, ENSG00000102349, ENSG00000205922, ENSG00000138083, ENSG00000164093, ENSG00000177932, ENSG00000197061, ENSG00000215397, ENSG00000132846, ENSG00000054598, ENSG00000163508	83	1674	16881	1.822451094701386	0.9842991054239907	0.4995960457027463	30.131860889678453
+UP_SEQ_FEATURE	compositionally biased region:Poly-Gly	5	4.132231404958678	0.054948385047742535	ENSG00000109132, ENSG00000119547, ENSG00000138083, ENSG00000054598, ENSG00000163508	99	292	20063	3.4701466722014667	0.9999998410789522	0.956324661067076	52.575403407838586
+INTERPRO	IPR017970:Homeobox, conserved site	4	3.3057851239669422	0.07390303033342986	ENSG00000109132, ENSG00000164853, ENSG00000170561, ENSG00000164093	96	190	18559	4.069956140350877	0.9999995720584485	0.8039458450125907	61.52082309616287
+UP_KEYWORDS	Activator	8	6.6115702479338845	0.08017664613850131	ENSG00000269404, ENSG00000152977, ENSG00000129514, ENSG00000109132, ENSG00000119547, ENSG00000205922, ENSG00000106153, ENSG00000163508	117	661	20581	2.128968023067872	0.9999974267468521	0.8409632464439599	63.30574819341427
+GOTERM_MF_DIRECT	GO:0000977~RNA polymerase II regulatory region sequence-specific DNA binding	4	3.3057851239669422	0.08062058246049644	ENSG00000109132, ENSG00000205922, ENSG00000054598, ENSG00000163508	83	208	16881	3.9112604263206676	0.9999891534993122	0.8046759754940478	62.72090014820477
+UP_KEYWORDS	Developmental protein	10	8.264462809917356	0.08771095723157968	ENSG00000152977, ENSG00000129514, ENSG00000184302, ENSG00000109132, ENSG00000153266, ENSG00000164853, ENSG00000053438, ENSG00000138083, ENSG00000164093, ENSG00000163508	117	949	20581	1.8535930759323807	0.9999992748987698	0.7567572726996232	66.753294668148
+GOTERM_MF_DIRECT	GO:0000978~RNA polymerase II core promoter proximal region sequence-specific DNA binding	5	4.132231404958678	0.09432038483218277	ENSG00000152977, ENSG00000109132, ENSG00000153266, ENSG00000119547, ENSG00000164093	83	355	16881	2.864585100967249	0.9999985921881136	0.776211228626135	68.74460304016104
+GOTERM_MF_DIRECT	GO:0003700~transcription factor activity, sequence-specific DNA binding	8	6.6115702479338845	0.18523548045286425	ENSG00000269404, ENSG00000152977, ENSG00000129514, ENSG00000177932, ENSG00000138083, ENSG00000164093, ENSG00000054598, ENSG00000163508	83	961	16881	1.6931158557225783	0.999999999999205	0.9018936246615948	90.97168947201777
+UP_KEYWORDS	Transcription	17	14.049586776859504	0.27417302590717135	ENSG00000269404, ENSG00000129514, ENSG00000164853, ENSG00000198105, ENSG00000102349, ENSG00000205922, ENSG00000138083, ENSG00000152977, ENSG00000109132, ENSG00000153266, ENSG00000119547, ENSG00000177932, ENSG00000215397, ENSG00000106153, ENSG00000054598, ENSG00000048540, ENSG00000163508	117	2398	20581	1.2470399121775269	1.0	0.9627419717782236	97.85931553820366
+UP_KEYWORDS	Transcription regulation	16	13.223140495867769	0.3337253043325218	ENSG00000269404, ENSG00000129514, ENSG00000164853, ENSG00000198105, ENSG00000102349, ENSG00000205922, ENSG00000138083, ENSG00000152977, ENSG00000109132, ENSG00000153266, ENSG00000119547, ENSG00000177932, ENSG00000215397, ENSG00000054598, ENSG00000048540, ENSG00000163508	117	2332	20581	1.20690211256249	1.0	0.9799246465161224	99.2334444591349
+GOTERM_BP_DIRECT	GO:0030154~cell differentiation	4	3.3057851239669422	0.44486454473031467	ENSG00000269404, ENSG00000152977, ENSG00000119547, ENSG00000205922	90	462	16792	1.6153920153920154	1.0	0.99999104883482	99.97777288991045
+GOTERM_BP_DIRECT	GO:0045893~positive regulation of transcription, DNA-templated	4	3.3057851239669422	0.5168140223066459	ENSG00000152977, ENSG00000143869, ENSG00000054598, ENSG00000163508	90	515	16792	1.4491477885652644	1.0	0.9999989748024688	99.99694311520028
+UP_KEYWORDS	Nucleus	28	23.140495867768596	0.739844207165452	ENSG00000164853, ENSG00000102349, ENSG00000253626, ENSG00000253506, ENSG00000159182, ENSG00000152977, ENSG00000109132, ENSG00000188375, ENSG00000147481, ENSG00000177932, ENSG00000197061, ENSG00000215397, ENSG00000106153, ENSG00000054598, ENSG00000269404, ENSG00000129514, ENSG00000184302, ENSG00000067048, ENSG00000198105, ENSG00000205922, ENSG00000170561, ENSG00000138083, ENSG00000250254, ENSG00000164093, ENSG00000182195, ENSG00000119547, ENSG00000153266, ENSG00000163508	117	5244	20581	0.939238657774127	1.0	0.9993921670293953	99.99999033647028
+
+Annotation Cluster 4	Enrichment Score: 1.2499471608414185
+Category	Term	Count	%	PValue	Genes	List Total	Pop Hits	Pop Total	Fold Enrichment	Bonferroni	Benjamini	FDR
+INTERPRO	IPR004001:Actin, conserved site	3	2.479338842975207	0.0037606999271607975	ENSG00000222038, ENSG00000196604, ENSG00000196834	96	18	18559	32.22048611111111	0.5130762433862859	0.1130274884996808	4.578771166139351
+INTERPRO	IPR020902:Actin/actin-like conserved site	3	2.479338842975207	0.005110513948360066	ENSG00000222038, ENSG00000196604, ENSG00000196834	96	21	18559	27.617559523809522	0.6241671949185366	0.13046922977687558	6.174622944939278
+INTERPRO	IPR004000:Actin-related protein	3	2.479338842975207	0.013076597763946148	ENSG00000222038, ENSG00000196604, ENSG00000196834	96	34	18559	17.057904411764707	0.9190646182796977	0.269673091270098	15.103574554141886
+SMART	SM00268:ACTIN	3	2.479338842975207	0.014397180251632587	ENSG00000222038, ENSG00000196604, ENSG00000196834	57	33	10057	16.03987240829346	0.48679708284211987	0.19937397066563267	12.808948263302455
+GOTERM_BP_DIRECT	GO:0001895~retina homeostasis	3	2.479338842975207	0.01901501309671769	ENSG00000222038, ENSG00000196604, ENSG00000196834	90	40	16792	13.993333333333332	0.9998883241962534	0.5627563073907305	23.996030232028975
+INTERPRO	IPR002110:Ankyrin repeat	4	3.3057851239669422	0.14256915991012142	ENSG00000222038, ENSG00000196604, ENSG00000163046, ENSG00000196834	96	255	18559	3.032516339869281	0.9999999999998258	0.9308020120860117	85.24172437712
+INTERPRO	IPR020683:Ankyrin repeat-containing domain	4	3.3057851239669422	0.1545793028275806	ENSG00000222038, ENSG00000196604, ENSG00000163046, ENSG00000196834	96	265	18559	2.918081761006289	0.9999999999999882	0.930937344494069	87.61691240255998
+SMART	SM00248:ANK	4	3.3057851239669422	0.16094167966935763	ENSG00000222038, ENSG00000196604, ENSG00000163046, ENSG00000196834	57	249	10057	2.834354963714507	0.9996877957409216	0.8670740705007958	80.95863994158734
+UP_KEYWORDS	ANK repeat	4	3.3057851239669422	0.18693377664161864	ENSG00000222038, ENSG00000196604, ENSG00000163046, ENSG00000196834	117	264	20581	2.6652421652421654	0.9999999999999856	0.9448223909359487	91.64647605511598
+UP_KEYWORDS	Isopeptide bond	8	6.6115702479338845	0.45637925175104177	ENSG00000067048, ENSG00000198692, ENSG00000222038, ENSG00000196604, ENSG00000102349, ENSG00000197061, ENSG00000196834, ENSG00000197616	117	1132	20581	1.2431518226571232	1.0	0.9859695316647251	99.93322579742441
+UP_KEYWORDS	Ubl conjugation	8	6.6115702479338845	0.8553030066572205	ENSG00000188375, ENSG00000067048, ENSG00000198692, ENSG00000222038, ENSG00000196604, ENSG00000102349, ENSG00000197061, ENSG00000196834	117	1705	20581	0.8253653156878965	1.0	0.9998424655960397	99.99999999151085
+
+Annotation Cluster 5	Enrichment Score: 1.157814438766558
+Category	Term	Count	%	PValue	Genes	List Total	Pop Hits	Pop Total	Fold Enrichment	Bonferroni	Benjamini	FDR
+GOTERM_BP_DIRECT	GO:0006413~translational initiation	6	4.958677685950414	8.054631319582625E-4	ENSG00000067048, ENSG00000198692, ENSG00000129824, ENSG00000198918, ENSG00000229117, ENSG00000205609	90	137	16792	8.171289537712896	0.31746629317685204	0.07354395203819064	1.1450467582972301
+GOTERM_MF_DIRECT	GO:0003723~RNA binding	8	6.6115702479338845	0.01694650777453914	ENSG00000067048, ENSG00000129824, ENSG00000198918, ENSG00000144642, ENSG00000229117, ENSG00000163923, ENSG00000129317, ENSG00000178997	83	547	16881	2.9745600317173633	0.9021654064698235	0.3717991943982005	18.179295433938435
+GOTERM_CC_DIRECT	GO:0022625~cytosolic large ribosomal subunit	3	2.479338842975207	0.06057252970141628	ENSG00000198918, ENSG00000229117, ENSG00000163923	108	68	18224	7.444444444444444	0.9981836949001399	0.8779897639185149	50.08448175192528
+UP_KEYWORDS	Ribosomal protein	4	3.3057851239669422	0.08696857707716145	ENSG00000129824, ENSG00000198918, ENSG00000229117, ENSG00000163923	117	185	20581	3.803372603372604	0.9999991781329468	0.7892018276269627	66.42729041845365
+GOTERM_BP_DIRECT	GO:0006614~SRP-dependent cotranslational protein targeting to membrane	3	2.479338842975207	0.08882486530305175	ENSG00000129824, ENSG00000198918, ENSG00000229117	90	94	16792	5.954609929078014	1.0	0.9471044953271334	73.53821197674968
+GOTERM_MF_DIRECT	GO:0003735~structural constituent of ribosome	4	3.3057851239669422	0.09360408784259258	ENSG00000129824, ENSG00000198918, ENSG00000229117, ENSG00000163923	83	222	16881	3.664604363399544	0.9999984323843365	0.811893003426054	68.4531829028361
+GOTERM_BP_DIRECT	GO:0019083~viral transcription	3	2.479338842975207	0.11899350439278467	ENSG00000129824, ENSG00000198918, ENSG00000229117	90	112	16792	4.997619047619048	1.0	0.9707660070127613	83.64588600840528
+KEGG_PATHWAY	hsa03010:Ribosome	3	2.479338842975207	0.12363305986457417	ENSG00000129824, ENSG00000198918, ENSG00000229117	32	136	6910	4.763327205882352	0.9994591196543766	0.8474980839947884	72.96715286848112
+GOTERM_BP_DIRECT	GO:0000184~nuclear-transcribed mRNA catabolic process, nonsense-mediated decay	3	2.479338842975207	0.13133460254424958	ENSG00000129824, ENSG00000198918, ENSG00000229117	90	119	16792	4.703641456582633	1.0	0.9754651683595816	86.63206843423275
+GOTERM_BP_DIRECT	GO:0006412~translation	4	3.3057851239669422	0.15080601210591557	ENSG00000129824, ENSG00000198918, ENSG00000229117, ENSG00000163923	90	253	16792	2.949846288976724	1.0	0.9830601621743895	90.33174368843385
+UP_KEYWORDS	Ribonucleoprotein	4	3.3057851239669422	0.23354480704735753	ENSG00000129824, ENSG00000198918, ENSG00000229117, ENSG00000163923	117	296	20581	2.377107877107877	1.0	0.9463765834126684	95.88564026790725
+GOTERM_BP_DIRECT	GO:0006364~rRNA processing	3	2.479338842975207	0.31391169530903607	ENSG00000129824, ENSG00000198918, ENSG00000229117	90	214	16792	2.615576323987539	1.0	0.9997016451669573	99.54133004532815
+
+Annotation Cluster 6	Enrichment Score: 0.38824722134828016
+Category	Term	Count	%	PValue	Genes	List Total	Pop Hits	Pop Total	Fold Enrichment	Bonferroni	Benjamini	FDR
+GOTERM_MF_DIRECT	GO:0046872~metal ion binding	15	12.396694214876034	0.12418773298386136	ENSG00000125144, ENSG00000198105, ENSG00000125148, ENSG00000102349, ENSG00000205358, ENSG00000187193, ENSG00000198417, ENSG00000152977, ENSG00000169715, ENSG00000153266, ENSG00000177932, ENSG00000215397, ENSG00000259332, ENSG00000132846, ENSG00000121691	83	2069	16881	1.4745206053794686	0.9999999852802904	0.8352634661442035	78.91549668783586
+UP_SEQ_FEATURE	zinc finger region:C2H2-type 3	6	4.958677685950414	0.20002572836406404	ENSG00000152977, ENSG00000153266, ENSG00000198105, ENSG00000102349, ENSG00000177932, ENSG00000215397	99	636	20063	1.9118543929864686	1.0	0.9999664769976425	94.74507395938936
+INTERPRO	IPR013087:Zinc finger C2H2-type/integrase DNA-binding domain	6	4.958677685950414	0.3005353480315689	ENSG00000152977, ENSG00000153266, ENSG00000198105, ENSG00000102349, ENSG00000177932, ENSG00000215397	96	712	18559	1.629125702247191	1.0	0.994760969134608	98.82786835019706
+UP_SEQ_FEATURE	zinc finger region:C2H2-type 4	5	4.132231404958678	0.32361856514385823	ENSG00000152977, ENSG00000153266, ENSG00000198105, ENSG00000177932, ENSG00000215397	99	588	20063	1.723270116127259	1.0	0.9999998092598401	99.42658956002023
+UP_KEYWORDS	Transcription regulation	16	13.223140495867769	0.3337253043325218	ENSG00000269404, ENSG00000129514, ENSG00000164853, ENSG00000198105, ENSG00000102349, ENSG00000205922, ENSG00000138083, ENSG00000152977, ENSG00000109132, ENSG00000153266, ENSG00000119547, ENSG00000177932, ENSG00000215397, ENSG00000054598, ENSG00000048540, ENSG00000163508	117	2332	20581	1.20690211256249	1.0	0.9799246465161224	99.2334444591349
+UP_KEYWORDS	Zinc	16	13.223140495867769	0.34358634892845447	ENSG00000125144, ENSG00000198105, ENSG00000125148, ENSG00000102349, ENSG00000205358, ENSG00000187193, ENSG00000198417, ENSG00000152977, ENSG00000169715, ENSG00000153266, ENSG00000177932, ENSG00000215397, ENSG00000132846, ENSG00000165188, ENSG00000247746, ENSG00000048540	117	2348	20581	1.1986779073661529	1.0	0.9779278733358946	99.35899578165785
+INTERPRO	IPR015880:Zinc finger, C2H2-like	6	4.958677685950414	0.3512259169300528	ENSG00000152977, ENSG00000153266, ENSG00000198105, ENSG00000102349, ENSG00000177932, ENSG00000215397	96	762	18559	1.522227690288714	1.0	0.9972683920835069	99.54021773058996
+UP_SEQ_FEATURE	zinc finger region:C2H2-type 2	5	4.132231404958678	0.3536534764141638	ENSG00000153266, ENSG00000198105, ENSG00000102349, ENSG00000177932, ENSG00000215397	99	615	20063	1.6476143549314282	1.0	0.999998532606025	99.68517338129126
+INTERPRO	IPR007087:Zinc finger, C2H2	6	4.958677685950414	0.38910972471353095	ENSG00000152977, ENSG00000153266, ENSG00000198105, ENSG00000102349, ENSG00000177932, ENSG00000215397	96	799	18559	1.4517365456821025	1.0	0.9981180926916895	99.7824762372675
+SMART	SM00355:ZnF_C2H2	6	4.958677685950414	0.4204196340584176	ENSG00000152977, ENSG00000153266, ENSG00000198105, ENSG00000102349, ENSG00000177932, ENSG00000215397	57	762	10057	1.3892802873325043	0.9999999999873168	0.9933832349229859	99.42323927690599
+UP_KEYWORDS	Repressor	5	4.132231404958678	0.4290178098347781	ENSG00000129514, ENSG00000153266, ENSG00000102349, ENSG00000177932, ENSG00000138083	117	592	20581	1.4856924231924231	1.0	0.9866342378500353	99.87965111954423
+UP_SEQ_FEATURE	zinc finger region:C2H2-type 5	4	3.3057851239669422	0.5058204185977098	ENSG00000152977, ENSG00000153266, ENSG00000198105, ENSG00000177932	99	550	20063	1.4738659320477503	1.0	0.999999996684043	99.99089745290264
+UP_SEQ_FEATURE	zinc finger region:C2H2-type 1	4	3.3057851239669422	0.5106935288567703	ENSG00000153266, ENSG00000102349, ENSG00000177932, ENSG00000215397	99	554	20063	1.4632243007694272	1.0	0.9999999847565189	99.99201360769592
+UP_SEQ_FEATURE	zinc finger region:C2H2-type 6	3	2.479338842975207	0.7063059798171685	ENSG00000153266, ENSG00000198105, ENSG00000177932	99	501	20063	1.213512369200992	1.0	0.9999999999954072	99.99999053734379
+UP_KEYWORDS	Zinc-finger	9	7.43801652892562	0.7961450798424026	ENSG00000152977, ENSG00000153266, ENSG00000198105, ENSG00000102349, ENSG00000177932, ENSG00000215397, ENSG00000132846, ENSG00000165188, ENSG00000247746	117	1781	20581	0.8889128838595431	1.0	0.9997152160677613	99.99999948166463
+GOTERM_BP_DIRECT	GO:0006351~transcription, DNA-templated	9	7.43801652892562	0.8278697337310026	ENSG00000269404, ENSG00000164853, ENSG00000198105, ENSG00000102349, ENSG00000177932, ENSG00000215397, ENSG00000106153, ENSG00000048540, ENSG00000163508	90	1955	16792	0.8589258312020461	1.0	0.9999999999979298	99.9999999988014
+GOTERM_MF_DIRECT	GO:0003676~nucleic acid binding	4	3.3057851239669422	0.8645297706711467	ENSG00000152977, ENSG00000067048, ENSG00000198105, ENSG00000102349	83	985	16881	0.8259311357103541	1.0	0.9999998865639937	99.99999999356245
+
+Annotation Cluster 7	Enrichment Score: 0.027273308610959623
+Category	Term	Count	%	PValue	Genes	List Total	Pop Hits	Pop Total	Fold Enrichment	Bonferroni	Benjamini	FDR
+GOTERM_BP_DIRECT	GO:0007186~G-protein coupled receptor signaling pathway	4	3.3057851239669422	0.862055875728697	ENSG00000180974, ENSG00000171596, ENSG00000162188, ENSG00000176533	90	899	16792	0.8301569645284884	1.0	0.9999999999998194	99.99999999994938
+UP_KEYWORDS	Transducer	4	3.3057851239669422	0.8870340956077949	ENSG00000180974, ENSG00000171596, ENSG00000162188, ENSG00000176533	117	899	20581	0.7826740062557638	1.0	0.9999111373289696	99.99999999956434
+UP_KEYWORDS	Lipoprotein	3	2.479338842975207	0.955850044661467	ENSG00000162188, ENSG00000171450, ENSG00000176533	117	852	20581	0.619387263753461	1.0	0.9999967759511403	99.99999999999999
+UP_KEYWORDS	Cell membrane	8	6.6115702479338845	0.9994661673136622	ENSG00000165246, ENSG00000180974, ENSG00000171596, ENSG00000180638, ENSG00000110934, ENSG00000162188, ENSG00000171450, ENSG00000176533	117	3175	20581	0.44322767346389397	1.0	0.9999999999167455	100.0
+GOTERM_CC_DIRECT	GO:0005886~plasma membrane	7	5.785123966942149	0.9999996888448728	ENSG00000180974, ENSG00000171596, ENSG00000180638, ENSG00000121691, ENSG00000162188, ENSG00000171450, ENSG00000176533	108	4121	18224	0.2866258639129301	1.0	1.0	100.0
+
+Annotation Cluster 8	Enrichment Score: 0.018488677632230974
+Category	Term	Count	%	PValue	Genes	List Total	Pop Hits	Pop Total	Fold Enrichment	Bonferroni	Benjamini	FDR
+GOTERM_MF_DIRECT	GO:0005524~ATP binding	5	4.132231404958678	0.939834701022917	ENSG00000067048, ENSG00000254598, ENSG00000259332, ENSG00000197142, ENSG00000197616	83	1495	16881	0.6802192045775074	1.0	0.9999999994012004	99.99999999999953
+UP_SEQ_FEATURE	nucleotide phosphate-binding region:ATP	3	2.479338842975207	0.9583380444526277	ENSG00000067048, ENSG00000254598, ENSG00000197616	99	994	20063	0.6116395341747455	1.0	1.0	100.0
+UP_KEYWORDS	ATP-binding	5	4.132231404958678	0.9583551588999236	ENSG00000067048, ENSG00000254598, ENSG00000259332, ENSG00000197142, ENSG00000197616	117	1391	20581	0.6323004417900177	1.0	0.9999964597284898	100.0
+UP_KEYWORDS	Nucleotide-binding	6	4.958677685950414	0.9771215666158212	ENSG00000067048, ENSG00000254598, ENSG00000259332, ENSG00000197142, ENSG00000083750, ENSG00000197616	117	1788	20581	0.5902885332415534	1.0	0.9999993115933432	100.0
+
+Annotation Cluster 9	Enrichment Score: 0.007646781441465043
+Category	Term	Count	%	PValue	Genes	List Total	Pop Hits	Pop Total	Fold Enrichment	Bonferroni	Benjamini	FDR
+UP_SEQ_FEATURE	transmembrane region	19	15.702479338842975	0.957339021402744	ENSG00000171840, ENSG00000127540, ENSG00000198133, ENSG00000139370, ENSG00000138944, ENSG00000170091, ENSG00000086159, ENSG00000171596, ENSG00000180638, ENSG00000219438, ENSG00000197142, ENSG00000178449, ENSG00000228474, ENSG00000179542, ENSG00000180974, ENSG00000165246, ENSG00000165188, ENSG00000166002, ENSG00000205670	99	5056	20063	0.7615654168264927	1.0	1.0	100.0
+UP_SEQ_FEATURE	topological domain:Extracellular	9	7.43801652892562	0.9707381785755949	ENSG00000171840, ENSG00000179542, ENSG00000165246, ENSG00000198133, ENSG00000180974, ENSG00000138944, ENSG00000086159, ENSG00000171596, ENSG00000180638	99	2787	20063	0.6544345500212024	1.0	1.0	100.0
+UP_SEQ_FEATURE	topological domain:Cytoplasmic	11	9.090909090909092	0.9816966995687397	ENSG00000171840, ENSG00000179542, ENSG00000165246, ENSG00000198133, ENSG00000180974, ENSG00000138944, ENSG00000170091, ENSG00000086159, ENSG00000171596, ENSG00000180638, ENSG00000197142	99	3456	20063	0.6450295781893004	1.0	1.0	100.0
+UP_KEYWORDS	Transmembrane helix	23	19.00826446280992	0.9864641246740288	ENSG00000171840, ENSG00000127540, ENSG00000198133, ENSG00000139370, ENSG00000205639, ENSG00000138944, ENSG00000170091, ENSG00000086159, ENSG00000171596, ENSG00000180638, ENSG00000219438, ENSG00000197142, ENSG00000178449, ENSG00000228474, ENSG00000179542, ENSG00000214194, ENSG00000180974, ENSG00000165246, ENSG00000270136, ENSG00000165188, ENSG00000243317, ENSG00000166002, ENSG00000205670	117	5634	20581	0.7181110413272288	1.0	0.9999997967109956	100.0
+UP_KEYWORDS	Transmembrane	23	19.00826446280992	0.9871177279266715	ENSG00000171840, ENSG00000127540, ENSG00000198133, ENSG00000139370, ENSG00000205639, ENSG00000138944, ENSG00000170091, ENSG00000086159, ENSG00000171596, ENSG00000180638, ENSG00000219438, ENSG00000197142, ENSG00000178449, ENSG00000228474, ENSG00000179542, ENSG00000214194, ENSG00000180974, ENSG00000165246, ENSG00000270136, ENSG00000165188, ENSG00000243317, ENSG00000166002, ENSG00000205670	117	5651	20581	0.7159507355932768	1.0	0.9999997573537213	100.0
+GOTERM_CC_DIRECT	GO:0005887~integral component of plasma membrane	4	3.3057851239669422	0.9913310609603783	ENSG00000171840, ENSG00000165246, ENSG00000086159, ENSG00000171596	108	1415	18224	0.47700562753566284	1.0	0.9999999999999987	100.0
+GOTERM_CC_DIRECT	GO:0016021~integral component of membrane	21	17.355371900826448	0.9920901906582361	ENSG00000171840, ENSG00000127540, ENSG00000198133, ENSG00000139370, ENSG00000138944, ENSG00000205639, ENSG00000170091, ENSG00000086159, ENSG00000171596, ENSG00000180638, ENSG00000219438, ENSG00000197142, ENSG00000178449, ENSG00000228474, ENSG00000179542, ENSG00000214194, ENSG00000180974, ENSG00000165188, ENSG00000243317, ENSG00000166002, ENSG00000205670	108	5163	18224	0.6863365399100437	1.0	0.999999999999993	100.0
+UP_KEYWORDS	Membrane	31	25.6198347107438	0.994169485652969	ENSG00000171840, ENSG00000198133, ENSG00000170091, ENSG00000253626, ENSG00000171596, ENSG00000180638, ENSG00000219438, ENSG00000197142, ENSG00000162188, ENSG00000228474, ENSG00000179542, ENSG00000180389, ENSG00000124172, ENSG00000110934, ENSG00000132846, ENSG00000165188, ENSG00000243317, ENSG00000166002, ENSG00000176533, ENSG00000127540, ENSG00000205639, ENSG00000138944, ENSG00000139370, ENSG00000086159, ENSG00000178449, ENSG00000214194, ENSG00000165246, ENSG00000180974, ENSG00000270136, ENSG00000171450, ENSG00000205670	117	7494	20581	0.7276601908307273	1.0	0.9999999668887811	100.0
+
+Annotation Cluster 10	Enrichment Score: 0.002100062360351966
+Category	Term	Count	%	PValue	Genes	List Total	Pop Hits	Pop Total	Fold Enrichment	Bonferroni	Benjamini	FDR
+UP_SEQ_FEATURE	disulfide bond	9	7.43801652892562	0.9804366159733408	ENSG00000165246, ENSG00000180974, ENSG00000171596, ENSG00000096088, ENSG00000105472, ENSG00000143869, ENSG00000164241, ENSG00000168878, ENSG00000248099	99	2917	20063	0.6252688004487799	1.0	1.0	100.0
+UP_SEQ_FEATURE	signal peptide	9	7.43801652892562	0.9953586987120217	ENSG00000179542, ENSG00000165246, ENSG00000138944, ENSG00000096088, ENSG00000105472, ENSG00000143869, ENSG00000168878, ENSG00000173401, ENSG00000248099	99	3346	20063	0.5451013421724719	1.0	1.0	100.0
+UP_KEYWORDS	Disulfide bond	11	9.090909090909092	0.995972355429861	ENSG00000165246, ENSG00000180974, ENSG00000171596, ENSG00000096088, ENSG00000270136, ENSG00000105472, ENSG00000106153, ENSG00000143869, ENSG00000164241, ENSG00000168878, ENSG00000248099	117	3434	20581	0.5634728631234164	1.0	0.9999999857858547	100.0
+UP_KEYWORDS	Signal	12	9.917355371900827	0.9994413719687681	ENSG00000179542, ENSG00000214194, ENSG00000165246, ENSG00000138944, ENSG00000096088, ENSG00000270136, ENSG00000105472, ENSG00000143869, ENSG00000168878, ENSG00000173401, ENSG00000243317, ENSG00000248099	117	4160	20581	0.5074211045364891	1.0	0.999999999940204	100.0
+UP_SEQ_FEATURE	glycosylation site:N-linked (GlcNAc...)	7	5.785123966942149	0.9999909766059296	ENSG00000179542, ENSG00000165246, ENSG00000180974, ENSG00000138944, ENSG00000171596, ENSG00000143869, ENSG00000168878	99	4234	20063	0.33504864421255537	1.0	1.0	100.0
+UP_KEYWORDS	Glycoprotein	8	6.6115702479338845	0.9999995368222665	ENSG00000179542, ENSG00000165246, ENSG00000180974, ENSG00000138944, ENSG00000171596, ENSG00000105472, ENSG00000143869, ENSG00000168878	117	4551	20581	0.309217284827041	1.0	1.0	100.0
+
+</pre>
+
+<p>
+Compare ZINB estimate against pooled MLE.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">S</span>, <span class="org-variable-name">T</span> = log_mu.mask(mask).align(sc_log_rho.mask(mask), join=<span class="org-string">'inner'</span>)
+<span class="org-keyword">del</span> S[<span class="org-string">'NA18498'</span>]
+<span class="org-keyword">del</span> T[<span class="org-string">'NA18498'</span>]
+<span class="org-variable-name">diff</span> = <span class="org-builtin">abs</span>(S - T)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">diff.describe()
+</pre>
+</div>
+
+<pre class="example">
+NA18489       NA18499       NA18501       NA18502       NA18505  \
+count  1.019600e+04  10196.000000  10196.000000  10196.000000  10196.000000
+mean   1.178346e-01      0.121262      0.135809      0.139497      0.156081
+std    1.363366e-01      0.136127      0.141259      0.146562      0.151453
+min    6.676062e-07      0.000004      0.000002      0.000004      0.000025
+25%    8.943889e-03      0.008586      0.015372      0.014142      0.024955
+50%    4.863866e-02      0.054939      0.075093      0.077339      0.096931
+75%    2.057522e-01      0.219528      0.237000      0.249202      0.275236
+max    5.949735e-01      0.599258      0.597418      0.643712      0.777383
+
+NA18507       NA18508       NA18511       NA18516       NA18517  \
+count  10196.000000  10196.000000  1.019600e+04  10196.000000  10196.000000
+mean       0.126535      0.150258  1.399941e-01      0.148479      0.127944
+std        0.137818      0.148053  1.467701e-01      0.152430      0.137889
+min        0.000003      0.000003  5.337702e-07      0.000011      0.000026
+25%        0.011150      0.018908  1.633549e-02      0.017336      0.016981
+50%        0.062832      0.096256  7.651160e-02      0.084013      0.060533
+75%        0.226499      0.261811  2.471018e-01      0.263972      0.221579
+max        0.562528      0.631915  6.857363e-01      0.633576      0.608121
+
+...            NA19190       NA19193       NA19203       NA19204  \
+count      ...       10196.000000  10196.000000  10196.000000  10196.000000
+mean       ...           0.136877      0.132370      0.172977      0.146066
+std        ...           0.144241      0.144685      0.160661      0.147889
+min        ...           0.000002      0.000006      0.000002      0.000017
+25%        ...           0.016106      0.013751      0.026534      0.023519
+50%        ...           0.069349      0.061976      0.119054      0.079187
+75%        ...           0.242639      0.235401      0.304475      0.260124
+max        ...           0.655097      0.644531      0.684917      0.617891
+
+NA19206       NA19207       NA19209       NA19210       NA19225  \
+count  10196.000000  1.019600e+04  10196.000000  10196.000000  10196.000000
+mean       0.119952  1.100978e-01      0.124245      0.127634      0.142626
+std        0.137472  1.297691e-01      0.140236      0.139594      0.145838
+min        0.000001  6.039983e-07      0.000005      0.000013      0.000010
+25%        0.009453  7.563498e-03      0.010923      0.013301      0.018521
+50%        0.049953  4.321796e-02      0.054123      0.060849      0.083325
+75%        0.211579  1.917986e-01      0.220077      0.224234      0.247469
+max        0.615195  5.967968e-01      0.605708      0.657102      0.667808
+
+NA19257
+count  10196.000000
+mean       0.123779
+std        0.137379
+min        0.000002
+25%        0.010887
+50%        0.058749
+75%        0.216238
+max        0.630771
+
+[8 rows x 53 columns]
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-ipython">pd.Series([st.mstats.spearmanr(S[i], T[i]).correlation <span class="org-keyword">for</span> i <span class="org-keyword">in</span> S]).describe()
+</pre>
+</div>
+
+<pre class="example">
+count    53.000000
+mean      0.998627
+std       0.000324
+min       0.997574
+25%       0.998491
+50%       0.998607
+75%       0.998778
+max       0.999402
+dtype: float64
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plot_concordance_rho(
+  S,
+  T,
+  xlabel=<span class="org-string">'ZINB ln relative abundance'</span>,
+  ylabel=<span class="org-string">'Pooled ln relative abundance'</span>,
+  output_dir=<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/zinb-vs-pooled'</span>)
+</pre>
+</div>
+
+<p>
+Look at \((1 - \pi) \mu\).
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">logodds</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/without-cell-cycle/zi2-logodds.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
+<span class="org-variable-name">corrected_log_mu</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/density-estimation/without-cell-cycle/zi2-log-mu.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
+<span class="org-variable-name">corrected_log_mu</span> *= sp.expit(logodds)
+<span class="org-variable-name">corrected_log_mu</span> -= sp.logsumexp(corrected_log_mu)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">S</span>, <span class="org-variable-name">T</span> = (bulk_log_rho.loc[keep_genes.values.ravel()]
+        .mask(mask)
+        .align(corrected_log_mu.mask(mask), join=<span class="org-string">'inner'</span>))
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">pd.Series([st.mstats.spearmanr(S[i], T[i]).correlation <span class="org-keyword">for</span> i <span class="org-keyword">in</span> S]).describe()
+</pre>
+</div>
+
+<pre class="example">
+count    50.000000
+mean      0.737392
+std       0.026686
+min       0.662447
+25%       0.723944
+50%       0.743025
+75%       0.755475
+max       0.781169
+dtype: float64
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">S</span>, <span class="org-variable-name">T</span> = (sc_log_rho.loc[keep_genes.values.ravel()]
+        .mask(mask)
+        .align(corrected_log_mu.mask(mask), join=<span class="org-string">'inner'</span>))
+<span class="org-keyword">del</span> S[<span class="org-string">"NA18507"</span>]
+<span class="org-keyword">del</span> T[<span class="org-string">"NA18507"</span>]
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">pd.Series([st.mstats.spearmanr(S[i], T[i]).correlation <span class="org-keyword">for</span> i <span class="org-keyword">in</span> S]).describe()
+</pre>
+</div>
+
+<pre class="example">
+count    53.000000
+mean      0.960098
+std       0.009965
+min       0.929497
+25%       0.953466
+50%       0.960169
+75%       0.967074
+max       0.976472
+dtype: float64
+</pre>
+</div>
+</div>
+
+<div id="outline-container-org7ed7f24" class="outline-2">
+<h2 id="org7ed7f24">Plot bulk vs. pooled subsets</h2>
+<div class="outline-text-2" id="text-org7ed7f24">
+<p>
+Plot concordance between bulk vs pools of single cells, focusing on genes
+which have log-transformed expression at least 1 in both assays.
+</p>
 
 <div class="org-src-container">
 <pre class="src src-ipython">plot_concordance_by_num_cells(
@@ -531,23 +1227,6 @@ partitioning into two halves.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">plot_concordance_pooled_subsets</span>(individual, umi, annotations, output_dir):
-  <span class="org-variable-name">umi</span> = umi.loc[:,(annotations[<span class="org-string">'chip_id'</span>] == individual).values]
-  <span class="org-keyword">for</span> num_cells <span class="org-keyword">in</span> [1, 10, 50, 100]:
-    <span class="org-variable-name">sample</span> = umi.sample(n=2 * num_cells, axis=1)
-    <span class="org-variable-name">pool1</span> = cpm(sample.iloc[:,:num_cells].<span class="org-builtin">sum</span>(axis=1).to_frame(), log2=<span class="org-constant">True</span>)
-    <span class="org-variable-name">pool2</span> = cpm(sample.iloc[:,num_cells:].<span class="org-builtin">sum</span>(axis=1).to_frame(), log2=<span class="org-constant">True</span>)
-    plot_concordance(
-      x=pool1,
-      y=pool2,
-      title=<span class="org-string">'{}, {} cell{}'</span>.<span class="org-builtin">format</span>(individual, num_cells, <span class="org-string">'s'</span> <span class="org-keyword">if</span> num_cells &gt; 1 <span class="org-keyword">else</span> <span class="org-string">''</span>),
-      filename=<span class="org-string">'{}/{}-{}.svg'</span>.<span class="org-builtin">format</span>(output_dir, individual, num_cells),
-      ylabel=<span class="org-string">'scRNA-Seq $\log_2(\mathrm{CPM} + 1)$'</span>,
-      gridsize=15)
-</pre>
-</div>
-
-<div class="org-src-container">
 <pre class="src src-ipython">plot_concordance_pooled_subsets(
   <span class="org-string">'NA18507'</span>,
   umi,
@@ -570,142 +1249,85 @@ Sorry, your browser does not support SVG.</object>
 </div>
 </div>
 
-<div id="outline-container-orgd1000d9" class="outline-2">
-<h2 id="orgd1000d9">Plot bulk vs. single cell relative abundance</h2>
-<div class="outline-text-2" id="text-orgd1000d9">
+<div id="outline-container-org2b1236d" class="outline-2">
+<h2 id="org2b1236d">Chu et al hESC</h2>
+<div class="outline-text-2" id="text-org2b1236d">
 <p>
-TPM is proportional to relative abundance. <b>Important:</b> we need to quantify
-relative abundance with respect to exactly the same set of genes as the
-single cell data.
+<a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4989499/">Chu et al 2016</a> profiled hESC using single cell and matched bulk RNA-Seq
+(<a href="https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE75748">GSE75748</a>). Analyze their data analagously to understand whether the
+correlation we observe is anomalous.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">bulk_tpm</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/kallisto/bulk-ipsc-tpm.txt.gz'</span>, header=<span class="org-constant">None</span>, sep=<span class="org-string">' '</span>).pivot(columns=0, index=1, values=2)
-<span class="org-variable-name">bulk_log_rho</span> = np.log(bulk_tpm) - np.log(bulk_tpm.<span class="org-builtin">sum</span>(axis=0))
-</pre>
-</div>
-
-<p>
-Under <a href="zinb.html">our assumed model</a>, the parameter \(\mu\) is proportional to relative
-abundance.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'</span>) <span class="org-keyword">as</span> conn:
-  <span class="org-variable-name">log_mu</span> = (pd.read_sql(
-    <span class="org-string">"""select gene, ind, log_mu from params where ind in </span>
-<span class="org-string">    (select chip_id from annotation group by chip_id </span>
-<span class="org-string">    having count(distinct sample) &gt;= 50);"""</span>, conn)
-              .pivot(index=<span class="org-string">'gene'</span>, columns=<span class="org-string">'ind'</span>, values=<span class="org-string">'log_mu'</span>))
-  <span class="org-variable-name">log_mu</span> -= log_mu.agg(sp.logsumexp, axis=0)
-</pre>
-</div>
-
-<p>
-Estimate the Spearman correlation between single cell and bulk for genes
-which survive QC and have relative abundance \(< 10^{-15}\) in both data sets.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">S</span>, <span class="org-variable-name">T</span> = bulk_log_rho.loc[keep_genes.values.ravel()].mask(bulk_log_rho &lt; np.log(1e-15)).align(log_mu.loc[keep_genes.values.ravel()].mask(log_mu &lt; np.log(1e-15)), join=<span class="org-string">'inner'</span>)
-pd.Series([st.mstats.spearmanr(S[k], T[k]).correlation <span class="org-keyword">for</span> k <span class="org-keyword">in</span> S]).describe()
-</pre>
-</div>
-
-<pre class="example">
-count    49.000000
-mean      0.767447
-std       0.022018
-min       0.688958
-25%       0.758455
-50%       0.770411
-75%       0.783731
-max       0.800085
-dtype: float64
-</pre>
-
-<p>
-Plot the concordance.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">plot_concordance_rho</span>(bulk, sc, output_dir):
-  <span class="org-variable-name">bulk</span>, <span class="org-variable-name">sc</span> = bulk.align(sc, axis=1, join=<span class="org-string">'inner'</span>)
-  <span class="org-keyword">for</span> k <span class="org-keyword">in</span> bulk:
-    <span class="org-variable-name">y</span> = bulk[k].to_frame()
-    <span class="org-variable-name">y</span> = y.mask(~np.isfinite(y)).dropna()
-    <span class="org-variable-name">x</span> = sc[k].to_frame()
-    <span class="org-variable-name">x</span> = x.mask(np.logical_or(~np.isfinite(x), x &lt; y.<span class="org-builtin">min</span>().<span class="org-builtin">min</span>())).dropna()
-    plot_concordance(
-      x=x,
-      y=y,
-      lim=[y.<span class="org-builtin">min</span>().<span class="org-builtin">min</span>(), y.<span class="org-builtin">max</span>().<span class="org-builtin">max</span>()],
-      title=k,
-      xlabel=<span class="org-string">'Single cell log relative abundance'</span>,
-      ylabel=<span class="org-string">'Bulk log relative abundance'</span>,
-      filename=<span class="org-string">'{}/{}.svg'</span>.<span class="org-builtin">format</span>(output_dir, k))
+<pre class="src src-sh">curl -sO --ftp-pasv ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE75nnn/GSE75748/suppl/GSE75748_bulk_cell_type_ec.csv.gz
 </pre>
 </div>
 
 <div class="org-src-container">
-<pre class="src src-ipython">plot_concordance_rho(
-  S,
-  T,
-  <span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/vs-sc-mean'</span>)
+<pre class="src src-sh">curl -sO --ftp-pasv ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE75nnn/GSE75748/suppl/GSE75748_sc_cell_type_ec.csv.gz
 </pre>
 </div>
 
-<p>
-<object type="image/svg+xml" data="figure/sc-vs-bulk.org/vs-sc-mean/NA18501.svg" class="org-svg">
-Sorry, your browser does not support SVG.</object>
-<object type="image/svg+xml" data="figure/sc-vs-bulk.org/vs-sc-mean/NA18502.svg" class="org-svg">
-Sorry, your browser does not support SVG.</object>
-<object type="image/svg+xml" data="figure/sc-vs-bulk.org/vs-sc-mean/NA18505.svg" class="org-svg">
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">chu_bulk_tpm</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/hesc/GSE75748_bulk_cell_type_ec.csv.gz'</span>, sep=<span class="org-string">','</span>, index_col=0)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">T</span> = np.log(chu_bulk_tpm) - np.log(chu_bulk_tpm.<span class="org-builtin">sum</span>(axis=0))
+<span class="org-variable-name">R</span> = pd.DataFrame([(i, j, st.mstats.spearmanr(T[i], T[j]).correlation) <span class="org-keyword">for</span> i, j <span class="org-keyword">in</span> it.combinations(<span class="org-builtin">sorted</span>(T.columns), 2)])
+<span class="org-variable-name">M</span> = R.pivot(index=0, columns=1, values=2).T
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.imshow(M, cmap=colorcet.cm[<span class="org-string">'kr'</span>])
+<span class="org-variable-name">cb</span> = plt.colorbar()
+cb.set_label(<span class="org-string">'Spearman correlation'</span>)
+plt.gca().set_aspect(<span class="org-string">'equal'</span>)
+plt.xticks(<span class="org-builtin">range</span>(M.shape[0]), M.columns, rotation=90)
+<span class="org-variable-name">_</span> = plt.yticks(<span class="org-builtin">range</span>(M.shape[1]), M.index)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><object type="image/svg+xml" data="figure/sc-vs-bulk.org/hesc/chu-et-al-bulk-corr.svg" class="org-svg">
 Sorry, your browser does not support SVG.</object>
 </p>
-
-<p>
-Look at the distribution of absolute differences.
-</p>
+</div>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">S</span>, <span class="org-variable-name">T</span> = bulk_log_rho.align(log_mu, join=<span class="org-string">'inner'</span>)
-<span class="org-variable-name">diff</span> = <span class="org-builtin">abs</span>(S - T)
+<pre class="src src-ipython"><span class="org-variable-name">chu_sc_tpm</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/hesc/GSE75748_sc_cell_type_ec.csv.gz'</span>, sep=<span class="org-string">','</span>, index_col=0)
 </pre>
 </div>
 
 <div class="org-src-container">
-<pre class="src src-ipython">pd.Series((~np.isfinite(diff)).<span class="org-builtin">sum</span>(axis=0) / diff.shape[0]).describe()
+<pre class="src src-ipython"><span class="org-keyword">for</span> k <span class="org-keyword">in</span> (<span class="org-string">'H1'</span>, <span class="org-string">'H9'</span>, <span class="org-string">'DEC'</span>, <span class="org-string">'EC'</span>, <span class="org-string">'HFF'</span>, <span class="org-string">'NPC'</span>, <span class="org-string">'TB'</span>):
+  <span class="org-variable-name">bulk_rho</span> = chu_bulk_tpm.<span class="org-builtin">filter</span>(like=k, axis=<span class="org-string">'columns'</span>).agg(np.mean, axis=1)
+  <span class="org-variable-name">bulk_rho</span> = np.log(bulk_rho) - np.log(bulk_rho.<span class="org-builtin">sum</span>(axis=0))
+  <span class="org-variable-name">sc_rho</span> = chu_sc_tpm.<span class="org-builtin">filter</span>(like=k, axis=<span class="org-string">'columns'</span>).agg(np.mean, axis=1)
+  <span class="org-variable-name">sc_rho</span> = np.log(sc_rho) - np.log(sc_rho.<span class="org-builtin">sum</span>(axis=0))
+  <span class="org-variable-name">x</span> = sc_rho.mask(mask).dropna().to_frame()
+  <span class="org-variable-name">y</span> = bulk_rho.mask(mask).dropna().to_frame()
+  plot_concordance(
+    x=x,
+    y=y,
+    title=k,
+    gridsize=20,
+    filename=<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/hesc/{}.svg'</span>.<span class="org-builtin">format</span>(k),
+    xlabel=<span class="org-string">'Single cell ln relative abundance'</span>,
+    ylabel=<span class="org-string">'Bulk ln relative abundance'</span>,
+  )
 </pre>
 </div>
-
-<pre class="example">
-count    49.000000
-mean      0.232770
-std       0.019747
-min       0.188665
-25%       0.223004
-50%       0.233581
-75%       0.247454
-max       0.273921
-dtype: float64
-</pre>
-
-<div class="org-src-container">
-<pre class="src src-ipython">np.nanpercentile(diff.mask(~np.isfinite(diff)), [90, 95, 99, 99.5, 99.9])
-</pre>
-</div>
-
-<pre class="example">
-array([2.22150587, 3.03904554, 4.87481989, 5.54950021, 6.94873559])
-
-</pre>
 </div>
 </div>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-04-27 Fri 15:55</p>
+<p class="date">Created: 2018-05-08 Tue 14:21</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>

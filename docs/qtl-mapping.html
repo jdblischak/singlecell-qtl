@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-04-27 Fri 13:58 -->
+<!-- 2018-05-07 Mon 12:13 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>QTL mapping pipeline</title>
@@ -1545,9 +1545,9 @@ Take QTLs with \(\mathrm{FDR} < 0.1\).
 </div>
 </div>
 
-<div id="outline-container-orga422cba" class="outline-3">
-<h3 id="orga422cba">Call mean-QTLs</h3>
-<div class="outline-text-3" id="text-orga422cba">
+<div id="outline-container-orgdfb7d0f" class="outline-3">
+<h3 id="orgdfb7d0f">Call mean-QTLs</h3>
+<div class="outline-text-3" id="text-orgdfb7d0f">
 <p>
 Throw out individuals with fewer than 50 cells.
 </p>
@@ -1713,9 +1713,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-org2dc20c4" class="outline-3">
-<h3 id="org2dc20c4">Call variance-QTLs</h3>
-<div class="outline-text-3" id="text-org2dc20c4">
+<div id="outline-container-org8fffbab" class="outline-3">
+<h3 id="org8fffbab">Call variance-QTLs</h3>
+<div class="outline-text-3" id="text-org8fffbab">
 <p>
 Throw out individuals with fewer than 50 cells.
 </p>
@@ -1833,9 +1833,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-orgb56dde6" class="outline-3">
-<h3 id="orgb56dde6">Call CV-QTLs</h3>
-<div class="outline-text-3" id="text-orgb56dde6">
+<div id="outline-container-org23e0ad9" class="outline-3">
+<h3 id="org23e0ad9">Call CV-QTLs</h3>
+<div class="outline-text-3" id="text-org23e0ad9">
 <p>
 Throw out individuals with fewer than 50 cells.
 </p>
@@ -1942,9 +1942,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-org7cbdf01" class="outline-3">
-<h3 id="org7cbdf01">Call Fano-QTLs</h3>
-<div class="outline-text-3" id="text-org7cbdf01">
+<div id="outline-container-org65a8c81" class="outline-3">
+<h3 id="org65a8c81">Call Fano-QTLs</h3>
+<div class="outline-text-3" id="text-org65a8c81">
 <p>
 Throw out individuals with fewer than 50 cells.
 </p>
@@ -2431,9 +2431,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-orgdfb7d0f" class="outline-3">
-<h3 id="orgdfb7d0f">Call mean-QTLs</h3>
-<div class="outline-text-3" id="text-orgdfb7d0f">
+<div id="outline-container-org97ea9dc" class="outline-3">
+<h3 id="org97ea9dc">Call mean-QTLs</h3>
+<div class="outline-text-3" id="text-org97ea9dc">
 <p>
 We have \(r_{ijk} \sim g_{ijk}(\cdot)\), where \(g\) is the ZINB density <a href="zinb.html">as
 previously defined</a>.
@@ -2565,9 +2565,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-org8fffbab" class="outline-3">
-<h3 id="org8fffbab">Call variance-QTLs</h3>
-<div class="outline-text-3" id="text-org8fffbab">
+<div id="outline-container-orgfb3e978" class="outline-3">
+<h3 id="orgfb3e978">Call variance-QTLs</h3>
+<div class="outline-text-3" id="text-orgfb3e978">
 <p>
 We have \(r_{ijk} \sim g_{ijk}(\cdot)\), where \(g\) is the ZINB density <a href="zinb.html">as
 previously defined</a>.
@@ -2702,9 +2702,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-org23e0ad9" class="outline-3">
-<h3 id="org23e0ad9">Call CV-QTLs</h3>
-<div class="outline-text-3" id="text-org23e0ad9">
+<div id="outline-container-orgea2ba84" class="outline-3">
+<h3 id="orgea2ba84">Call CV-QTLs</h3>
+<div class="outline-text-3" id="text-orgea2ba84">
 <p>
 Estimate the coefficient of variation using the corrected moments.
 </p>
@@ -2812,9 +2812,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-org65a8c81" class="outline-3">
-<h3 id="org65a8c81">Call Fano-QTLs</h3>
-<div class="outline-text-3" id="text-org65a8c81">
+<div id="outline-container-orgc0e03bc" class="outline-3">
+<h3 id="orgc0e03bc">Call Fano-QTLs</h3>
+<div class="outline-text-3" id="text-orgc0e03bc">
 <p>
 Estimate the coefficient of variation using the corrected moments.
 </p>
@@ -3513,7 +3513,6 @@ plt.xlabel(<span class="org-string">'Variance QTL $z$-score'</span>)
 </div>
 </div>
 
-
 <div id="outline-container-orgcaa7c69" class="outline-3">
 <h3 id="orgcaa7c69">Predicting mean QTLs from variance QTLs</h3>
 <div class="outline-text-3" id="text-orgcaa7c69">
@@ -3706,181 +3705,24 @@ Read the results
 </div>
 
 <p>
+Prepare the summary statistics for <code>mash</code> EB estimation.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">Z</span> = nominal_var_qtl_stats.merge(nominal_pooled_qtl_stats, on=[<span class="org-string">'gene'</span>, <span class="org-string">'id'</span>]).set_index([<span class="org-string">'gene'</span>, <span class="org-string">'id'</span>])[[<span class="org-string">'z_x'</span>, <span class="org-string">'z_y'</span>]]
+</pre>
+</div>
+
+<p>
 Run two-condition <code>mash</code>.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">Z</span> = nominal_var_qtl_stats.merge(nominal_pooled_qtl_stats, on=[<span class="org-string">'gene'</span>, <span class="org-string">'id'</span>]).set_index([<span class="org-string">'gene'</span>, <span class="org-string">'id'</span>]).<span class="org-builtin">filter</span>(like=<span class="org-string">'z'</span>, axis=<span class="org-string">'columns'</span>)
-<span class="org-variable-name">mash_result</span> = {}
-<span class="org-keyword">for</span> k, g <span class="org-keyword">in</span> Z.groupby(level=0):
-  <span class="org-variable-name">data</span> = mashr.mash_set_data(numpy2ri(g.values), numpy2ri(np.ones(g.shape)))
-  <span class="org-variable-name">V</span> = mashr.estimate_null_correlation(data)
-  <span class="org-variable-name">data</span> = mashr.mash_set_data(numpy2ri(g.values), numpy2ri(np.ones(g.shape)), V=V)
-  <span class="org-variable-name">U</span> = mashr.cov_canonical(data)
-  <span class="org-variable-name">mash_result</span>[k] = mashr.mash(data, U, verbose=<span class="org-constant">False</span>)
-</pre>
-</div>
-
-<p>
-Recover the estimated mixture weights.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">pihat</span> = pd.DataFrame.from_dict({k: np.array(mashr.get_estimated_pi(v)) <span class="org-keyword">for</span> k, v <span class="org-keyword">in</span> mash_result.items()}).T
-<span class="org-variable-name">pihat.columns</span> = [<span class="org-string">'pointmass'</span>] + <span class="org-builtin">list</span>(U.names)
-</pre>
-</div>
-
-<p>
-Look at the distribution of mixture weights over all genes.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">pihat.describe()
-</pre>
-</div>
-
-<pre class="example">
-pointmass  identity  singletons_1  singletons_2  equal_effects  \
-count        258       258           258           258            258
-mean       0.367  0.000363        0.0705        0.0272          0.469
-std        0.266   0.00473         0.153        0.0912          0.288
-min       0.0124  2.44e-19             0             0              0
-25%        0.142  8.23e-11       3.1e-10      3.09e-10          0.236
-50%        0.292  8.64e-10      7.43e-09      3.11e-09          0.491
-75%        0.558  8.91e-09        0.0421      6.88e-08          0.709
-max            1    0.0734         0.825         0.701          0.988
-
-simple_het_1  simple_het_2  simple_het_3
-count           258           258           258
-mean       0.000135         0.002         0.064
-std         0.00217        0.0322         0.152
-min        2.44e-19      2.44e-19             0
-25%        8.46e-11      1.24e-10      2.78e-10
-50%        7.08e-10      1.09e-09      1.42e-08
-75%        7.25e-09      6.43e-09        0.0436
-max          0.0348         0.517          0.91
-</pre>
-
-<p>
-Rank genes by posterior probability of a unique variance effect.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">print</span>(pihat[pihat[<span class="org-string">'singletons_1'</span>] &gt; 0.5].sort_values(<span class="org-string">'singletons_1'</span>, ascending=<span class="org-constant">False</span>).merge(gene_info[[<span class="org-string">'name'</span>]], left_index=<span class="org-constant">True</span>, right_index=<span class="org-constant">True</span>).to_html(classes=<span class="org-string">'table'</span>))
-</pre>
-</div>
-
-<table border="1" class="dataframe table">
-  <thead>
-    <tr style="text-align: right;">
-      <th></th>
-      <th>pointmass</th>
-      <th>identity</th>
-      <th>singletons_1</th>
-      <th>singletons_2</th>
-      <th>equal_effects</th>
-      <th>simple_het_1</th>
-      <th>simple_het_2</th>
-      <th>simple_het_3</th>
-      <th>name</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th>ENSG00000130511</th>
-      <td>0.175</td>
-      <td>2.76e-09</td>
-      <td>0.825</td>
-      <td>6.29e-11</td>
-      <td>2.09e-11</td>
-      <td>2.65e-10</td>
-      <td>1.21e-10</td>
-      <td>2.77e-09</td>
-      <td>SSBP4</td>
-    </tr>
-    <tr>
-      <th>ENSG00000160908</th>
-      <td>0.202</td>
-      <td>2.67e-11</td>
-      <td>0.798</td>
-      <td>3.33e-10</td>
-      <td>0</td>
-      <td>2.08e-10</td>
-      <td>3.27e-10</td>
-      <td>8.52e-11</td>
-      <td>ZNF394</td>
-    </tr>
-    <tr>
-      <th>ENSG00000137693</th>
-      <td>0.154</td>
-      <td>9.95e-10</td>
-      <td>0.756</td>
-      <td>1.38e-09</td>
-      <td>0.0902</td>
-      <td>5.55e-10</td>
-      <td>1.86e-09</td>
-      <td>4.23e-10</td>
-      <td>YAP1</td>
-    </tr>
-    <tr>
-      <th>ENSG00000165724</th>
-      <td>0.332</td>
-      <td>9.47e-10</td>
-      <td>0.668</td>
-      <td>2.27e-09</td>
-      <td>2e-09</td>
-      <td>8.34e-10</td>
-      <td>1.59e-09</td>
-      <td>4.63e-09</td>
-      <td>ZMYND19</td>
-    </tr>
-    <tr>
-      <th>ENSG00000115216</th>
-      <td>0.155</td>
-      <td>9.19e-11</td>
-      <td>0.638</td>
-      <td>9.22e-11</td>
-      <td>0.207</td>
-      <td>1.29e-10</td>
-      <td>5.28e-11</td>
-      <td>3.66e-12</td>
-      <td>NRBP1</td>
-    </tr>
-    <tr>
-      <th>ENSG00000137806</th>
-      <td>0.285</td>
-      <td>1.05e-10</td>
-      <td>0.627</td>
-      <td>9.98e-10</td>
-      <td>0.0873</td>
-      <td>2.05e-08</td>
-      <td>1.16e-11</td>
-      <td>2.75e-10</td>
-      <td>NDUFAF1</td>
-    </tr>
-    <tr>
-      <th>ENSG00000136111</th>
-      <td>0.221</td>
-      <td>4.05e-09</td>
-      <td>0.543</td>
-      <td>2.77e-08</td>
-      <td>0.237</td>
-      <td>1.02e-08</td>
-      <td>5.09e-08</td>
-      <td>1.11e-08</td>
-      <td>TBC1D4</td>
-    </tr>
-  </tbody>
-</table>
-
-<p>
-Write out the estimated posterior mixture weights.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'</span>) <span class="org-keyword">as</span> conn:
-  pihat.to_sql(<span class="org-string">'pihat'</span>, conn)
+<pre class="src src-ipython"><span class="org-variable-name">data</span> = mashr.mash_set_data(numpy2ri(Z_sub.values), numpy2ri(np.ones(Z_sub.shape)))
+<span class="org-variable-name">V</span> = mashr.estimate_null_correlation(data)
+<span class="org-variable-name">data</span> = mashr.mash_set_data(numpy2ri(Z_sub.values), numpy2ri(np.ones(Z_sub.shape)), V=V)
+<span class="org-variable-name">U</span> = mashr.cov_canonical(data)
+<span class="org-variable-name">mash_result</span> = mashr.mash(data, U, verbose=<span class="org-constant">False</span>)
 </pre>
 </div>
 
@@ -3889,38 +3731,62 @@ Write out the intermediate representation of the mash result.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">import</span> pickle
-<span class="org-keyword">with</span> <span class="org-builtin">open</span>(<span class="org-string">'mash-result.pkl'</span>, <span class="org-string">'wb'</span>) <span class="org-keyword">as</span> f:
+<pre class="src src-ipython"><span class="org-keyword">with</span> <span class="org-builtin">open</span>(<span class="org-string">'mash-result.pkl'</span>, <span class="org-string">'wb'</span>) <span class="org-keyword">as</span> f:
   pickle.dump(mash_result, f)
 </pre>
 </div>
 
 <p>
-Get the index of the significant effects (lfsr &lt; 0.01) for each gene with
-at least 50% probability of independent variance effect.
+Read the intermediate representation.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">lfsr_pass</span> = {k: <span class="org-builtin">set</span>(np.where(np.array(ashr.get_lfsr(mash_result[k])) &lt; 0.01)[0]) <span class="org-keyword">for</span> k <span class="org-keyword">in</span> pihat[pihat[<span class="org-string">'singletons_1'</span>] &gt; 0.5].index}
+<pre class="src src-ipython"><span class="org-keyword">with</span> <span class="org-builtin">open</span>(<span class="org-string">'mash-result.pkl'</span>, <span class="org-string">'rb'</span>) <span class="org-keyword">as</span> f:
+  <span class="org-variable-name">mash_result</span> = pickle.load(f)
 </pre>
 </div>
 
 <p>
-Get the posterior mean/SD of effect sizes for the significant effects
+Recover the estimated mixture weights.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">pm</span> = {k: np.array(ashr.get_pm(mash_result[k]))[<span class="org-builtin">list</span>(v)] <span class="org-keyword">for</span> k, v <span class="org-keyword">in</span> lfsr_pass.items()}
-<span class="org-variable-name">psd</span> = {k: np.array(ashr.get_psd(mash_result[k]))[<span class="org-builtin">list</span>(v)] <span class="org-keyword">for</span> k, v <span class="org-keyword">in</span> lfsr_pass.items()}
+<pre class="src src-ipython">{k: v <span class="org-keyword">for</span> k, v <span class="org-keyword">in</span> <span class="org-builtin">zip</span>([<span class="org-string">'pointmass'</span>] + <span class="org-builtin">list</span>(U.names),
+                      np.array(mashr.get_estimated_pi(mash_result)))}
 </pre>
 </div>
+
+<pre class="example">
+{'equal_effects': 0.6304740345396695,
+'identity': 3.222654477200791e-07,
+'pointmass': 0.2799479785087344,
+'simple_het_1': 3.3854982953530273e-07,
+'simple_het_2': 3.6256921592961205e-07,
+'simple_het_3': 0.08957557566393076,
+'singletons_1': 1.10893521460435e-06,
+'singletons_2': 2.7896795759335475e-07}
+</pre>
+
+<p>
+Recover the estimated sharing of effects.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">np.array(mashr.get_pairwise_sharing(mash_result))
+</pre>
+</div>
+
+<pre class="example">
+array([[1.        , 0.96786156],
+[0.96786156, 1.        ]])
+</pre>
 </div>
 </div>
 </div>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-04-27 Fri 13:58</p>
+<p class="date">Created: 2018-05-07 Mon 12:13</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
