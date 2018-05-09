@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-05-07 Mon 12:13 -->
+<!-- 2018-05-08 Tue 15:36 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>QTL mapping pipeline</title>
@@ -1356,7 +1356,7 @@ dosage matrix.
 <pre class="src src-sh">sbatch --partition=mstephens
 <span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
 <span class="org-builtin">source</span> activate scqtl
-python reprocess-dosage.py
+python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/reprocess-dosage.py
 bgzip yri-120-dosages.vcf
 tabix yri-120-dosages.vcf.gz
 </pre>
@@ -1545,9 +1545,9 @@ Take QTLs with \(\mathrm{FDR} < 0.1\).
 </div>
 </div>
 
-<div id="outline-container-orgdfb7d0f" class="outline-3">
-<h3 id="orgdfb7d0f">Call mean-QTLs</h3>
-<div class="outline-text-3" id="text-orgdfb7d0f">
+<div id="outline-container-org97ea9dc" class="outline-3">
+<h3 id="org97ea9dc">Call mean-QTLs</h3>
+<div class="outline-text-3" id="text-org97ea9dc">
 <p>
 Throw out individuals with fewer than 50 cells.
 </p>
@@ -1713,9 +1713,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-org8fffbab" class="outline-3">
-<h3 id="org8fffbab">Call variance-QTLs</h3>
-<div class="outline-text-3" id="text-org8fffbab">
+<div id="outline-container-orgfb3e978" class="outline-3">
+<h3 id="orgfb3e978">Call variance-QTLs</h3>
+<div class="outline-text-3" id="text-orgfb3e978">
 <p>
 Throw out individuals with fewer than 50 cells.
 </p>
@@ -1833,9 +1833,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-org23e0ad9" class="outline-3">
-<h3 id="org23e0ad9">Call CV-QTLs</h3>
-<div class="outline-text-3" id="text-org23e0ad9">
+<div id="outline-container-orgea2ba84" class="outline-3">
+<h3 id="orgea2ba84">Call CV-QTLs</h3>
+<div class="outline-text-3" id="text-orgea2ba84">
 <p>
 Throw out individuals with fewer than 50 cells.
 </p>
@@ -1942,9 +1942,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-org65a8c81" class="outline-3">
-<h3 id="org65a8c81">Call Fano-QTLs</h3>
-<div class="outline-text-3" id="text-org65a8c81">
+<div id="outline-container-orgc0e03bc" class="outline-3">
+<h3 id="orgc0e03bc">Call Fano-QTLs</h3>
+<div class="outline-text-3" id="text-orgc0e03bc">
 <p>
 Throw out individuals with fewer than 50 cells.
 </p>
@@ -2077,33 +2077,22 @@ Take QTLs at FDR 10%.
 <h3 id="org5144992">Call &mu;-QTLs</h3>
 <div class="outline-text-3" id="text-org5144992">
 <p>
-Throw out individuals with fewer than 50 cells.
-</p>
-
-<p>
 Read the estimated parameters \(\log \mu_{ik}\). Exclude individuals with
 fewer than 50 cells.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'</span>) <span class="org-keyword">as</span> conn:
-  <span class="org-variable-name">log_mu</span> = (pd.read_sql(
-    <span class="org-string">"""select gene, ind, log_mu from params where ind in </span>
-<span class="org-string">    (select chip_id from annotation group by chip_id </span>
-<span class="org-string">    having count(distinct sample) &gt;= 50);"""</span>, conn)
-              .pivot(index=<span class="org-string">'gene'</span>, columns=<span class="org-string">'ind'</span>, values=<span class="org-string">'log_mu'</span>))
+<pre class="src src-ipython"><span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/with-cell-cycle-genes/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-keyword">del</span> log_mu[<span class="org-string">'NA18498'</span>]
 </pre>
 </div>
 
 <p>
-Normalize the mean matrix analagous to the bulk data. In our estimation
-procedure, we now return \(\ln\mu = -\infty\) for individuals with only zero
-observations. Clip this to \(\ln\epsilon\), where \(\epsilon\) is the
-smallest representable floating point number.
+Normalize the mean matrix analagous to the bulk data.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">log_mu</span> = (np.clip(log_mu.loc[keep_genes.values.ravel()].dropna(), np.log(np.finfo(np.<span class="org-builtin">float</span>).eps), 0)
+<pre class="src src-ipython"><span class="org-variable-name">log_mu</span> = (log_mu
           .transform(<span class="org-keyword">lambda</span> x: (x - x.mean()) / x.std(), axis=1)
           .<span class="org-builtin">apply</span>(qqnorm, axis=0))
 </pre>
@@ -2135,7 +2124,7 @@ Index the phenotype file.
 </p>
 
 <pre class="example">
-Submitted batch job 45380264
+Submitted batch job 45799976
 
 </pre>
 
@@ -2144,7 +2133,7 @@ Run <code>qtltools</code>.
 </p>
 
 <pre class="example">
-Submitted batch job 45380269
+Submitted batch job 45799979
 
 </pre>
 
@@ -2197,7 +2186,7 @@ Take QTLs at FDR 10%.
 </div>
 
 <pre class="example">
-196
+239
 
 </pre>
 </div>
@@ -2211,23 +2200,17 @@ Read the estimated parameters. Exclude individuals with fewer than 50 cells.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'</span>) <span class="org-keyword">as</span> conn:
-  <span class="org-variable-name">log_phi</span> = (pd.read_sql(
-    <span class="org-string">"""select gene, ind, log_phi from params where ind in </span>
-<span class="org-string">    (select chip_id from annotation group by chip_id </span>
-<span class="org-string">    having count(distinct sample) &gt;= 50);"""</span>, conn)
-             .pivot(index=<span class="org-string">'gene'</span>, columns=<span class="org-string">'ind'</span>, values=<span class="org-string">'log_phi'</span>))
+<pre class="src src-ipython"><span class="org-variable-name">log_phi</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/with-cell-cycle-genes/zi2-log-phi.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-keyword">del</span> log_phi[<span class="org-string">'NA18498'</span>]
 </pre>
 </div>
 
 <p>
-Normalize the dispersion matrix. Again, we have infinite values, but
-dispersions are not restricted to be in \([0, 1]\), so we have to change the
-clipping bounds.
+Normalize the phenotype matrix.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">log_phi</span> = np.clip(log_phi.loc[keep_genes.values.ravel()].dropna(), -300, 300).transform(<span class="org-keyword">lambda</span> x: (x - x.mean()) / x.std(), axis=1).<span class="org-builtin">apply</span>(qqnorm, axis=1)
+<pre class="src src-ipython"><span class="org-variable-name">log_phi</span> = log_phi.transform(<span class="org-keyword">lambda</span> x: (x - x.mean()) / x.std(), axis=1).<span class="org-builtin">apply</span>(qqnorm, axis=1)
 </pre>
 </div>
 
@@ -2245,7 +2228,7 @@ Index the phenotype file.
 </p>
 
 <pre class="example">
-Submitted batch job 45380395
+Submitted batch job 45800118
 
 </pre>
 
@@ -2254,7 +2237,7 @@ Run <code>qtltools</code>.
 </p>
 
 <pre class="example">
-Submitted batch job 45380397
+Submitted batch job 45800119
 
 </pre>
 
@@ -2329,12 +2312,8 @@ Read the estimated parameters. Exclude individuals with fewer than 50 cells.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'</span>) <span class="org-keyword">as</span> conn:
-  <span class="org-variable-name">logodds</span> = (pd.read_sql(
-    <span class="org-string">"""select gene, ind, logodds from params where ind in </span>
-<span class="org-string">    (select chip_id from annotation group by chip_id </span>
-<span class="org-string">    having count(distinct sample) &gt;= 50);"""</span>, conn)
-             .pivot(index=<span class="org-string">'gene'</span>, columns=<span class="org-string">'ind'</span>, values=<span class="org-string">'logodds'</span>))
+<pre class="src src-ipython"><span class="org-variable-name">logodds</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/with-cell-cycle-genes/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-keyword">del</span> logodds[<span class="org-string">'NA18498'</span>]
 </pre>
 </div>
 
@@ -2343,8 +2322,7 @@ Normalize the log odds matrix.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">logodds</span> = np.clip(logodds.loc[keep_genes.values.ravel()].dropna(), -300, 300)
-<span class="org-variable-name">logodds</span> = logodds.loc[(logodds.agg(np.std, axis=1) &gt; 0).values]
+<pre class="src src-ipython"><span class="org-variable-name">logodds</span> = logodds.loc[(logodds.agg(np.std, axis=1) &gt; 0).values]
 <span class="org-variable-name">logodds</span> = logodds.transform(<span class="org-keyword">lambda</span> x: (x - x.mean()) / x.std(), axis=1).<span class="org-builtin">apply</span>(qqnorm, axis=1)
 </pre>
 </div>
@@ -2363,7 +2341,7 @@ Index the phenotype file.
 </p>
 
 <pre class="example">
-Submitted batch job 45380825
+Submitted batch job 45800244
 
 </pre>
 
@@ -2372,7 +2350,7 @@ Run <code>qtltools</code>.
 </p>
 
 <pre class="example">
-Submitted batch job 45380832
+Submitted batch job 45800287
 
 </pre>
 
@@ -2425,15 +2403,15 @@ Take QTLs at FDR 10%.
 </div>
 
 <pre class="example">
-0
+111
 
 </pre>
 </div>
 </div>
 
-<div id="outline-container-org97ea9dc" class="outline-3">
-<h3 id="org97ea9dc">Call mean-QTLs</h3>
-<div class="outline-text-3" id="text-org97ea9dc">
+<div id="outline-container-org27e92d7" class="outline-3">
+<h3 id="org27e92d7">Call mean-QTLs</h3>
+<div class="outline-text-3" id="text-org27e92d7">
 <p>
 We have \(r_{ijk} \sim g_{ijk}(\cdot)\), where \(g\) is the ZINB density <a href="zinb.html">as
 previously defined</a>.
@@ -2449,16 +2427,13 @@ zero-inflation&#x2013;corrected mean as:
 </p>
 
 <p>
-Read the estimated corrected means.
+Estimate the corrected means.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="orgef6f6e2"><span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'</span>) <span class="org-keyword">as</span> conn:
-  <span class="org-variable-name">mean</span> = (pd.read_sql(
-    <span class="org-string">"""select gene, ind, mean from params where ind in </span>
-<span class="org-string">    (select chip_id from annotation group by chip_id </span>
-<span class="org-string">    having count(distinct sample) &gt;= 50);"""</span>, conn)
-             .pivot(index=<span class="org-string">'gene'</span>, columns=<span class="org-string">'ind'</span>, values=<span class="org-string">'mean'</span>))
+<pre class="src src-ipython"><span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/with-cell-cycle-genes/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">mean</span> = np.exp(log_mu) * annotation.groupby(<span class="org-string">'chip_id'</span>)[<span class="org-string">'mol_hs'</span>].agg(np.mean)
+<span class="org-keyword">del</span> mean[<span class="org-string">'NA18498'</span>]
 </pre>
 </div>
 
@@ -2467,7 +2442,7 @@ Normalize the mean matrix.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org532fea9"><span class="org-variable-name">mean</span> = mean.loc[keep_genes.values.ravel()].transform(<span class="org-keyword">lambda</span> x: (x - x.mean()) / x.std(), axis=1).<span class="org-builtin">apply</span>(qqnorm, axis=0)
+<pre class="src src-ipython"><span class="org-variable-name">mean</span> = mean.transform(<span class="org-keyword">lambda</span> x: (x - x.mean()) / x.std(), axis=1).<span class="org-builtin">apply</span>(qqnorm, axis=0)
 </pre>
 </div>
 
@@ -2497,7 +2472,7 @@ Index the phenotype file.
 </p>
 
 <pre class="example">
-Submitted batch job 45381092
+Submitted batch job 45800884
 
 </pre>
 
@@ -2506,7 +2481,7 @@ Run <code>qtltools</code>.
 </p>
 
 <pre class="example">
-Submitted batch job 45381098
+Submitted batch job 45800885
 
 </pre>
 
@@ -2559,15 +2534,15 @@ Take QTLs at FDR 10%.
 </div>
 
 <pre class="example">
-208
+237
 
 </pre>
 </div>
 </div>
 
-<div id="outline-container-orgfb3e978" class="outline-3">
-<h3 id="orgfb3e978">Call variance-QTLs</h3>
-<div class="outline-text-3" id="text-orgfb3e978">
+<div id="outline-container-org2b212e0" class="outline-3">
+<h3 id="org2b212e0">Call variance-QTLs</h3>
+<div class="outline-text-3" id="text-org2b212e0">
 <p>
 We have \(r_{ijk} \sim g_{ijk}(\cdot)\), where \(g\) is the ZINB density <a href="zinb.html">as
 previously defined</a>.
@@ -2587,16 +2562,20 @@ zero-inflation&#x2013;corrected variance as:
 </p>
 
 <p>
-Read the estimated corrected variances.
+Compute the estimated corrected variances.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="orgb553ee6"><span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'</span>) <span class="org-keyword">as</span> conn:
-  <span class="org-variable-name">variance</span> = (pd.read_sql(
-    <span class="org-string">"""select gene, ind, var from params where ind in </span>
-<span class="org-string">    (select chip_id from annotation group by chip_id </span>
-<span class="org-string">    having count(distinct sample) &gt;= 50);"""</span>, conn)
-             .pivot(index=<span class="org-string">'gene'</span>, columns=<span class="org-string">'ind'</span>, values=<span class="org-string">'var'</span>))
+<pre class="src src-ipython" id="org69cb5f4"><span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/with-cell-cycle-genes/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">log_phi</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/with-cell-cycle-genes/zi2-log-phi.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">mean</span> = np.exp(log_mu) * annotation.groupby(<span class="org-string">'chip_id'</span>)[<span class="org-string">'mol_hs'</span>].agg(np.mean)
+<span class="org-keyword">def</span> <span class="org-function-name">_var</span>(x):
+  <span class="org-variable-name">mean_by_sample</span> = annotation[annotation[<span class="org-string">'chip_id'</span>] == x.name][<span class="org-string">'mol_hs'</span>].values.reshape(1, -1) * x.values.reshape(-1, 1)
+  <span class="org-variable-name">var_by_sample</span> = mean_by_sample + np.exp(log_phi)[x.name].values.reshape(-1, 1) * np.square(mean_by_sample)
+  <span class="org-keyword">return</span> np.mean(np.square(mean_by_sample - mean[x.name].values.reshape(-1, 1)) + var_by_sample, axis=1)
+<span class="org-variable-name">variance</span> = np.exp(log_mu).<span class="org-builtin">apply</span>(_var, axis=0)
+<span class="org-keyword">del</span> mean[<span class="org-string">'NA18498'</span>]
+<span class="org-keyword">del</span> variance[<span class="org-string">'NA18498'</span>]
 </pre>
 </div>
 
@@ -2605,7 +2584,7 @@ Normalize the variance matrix.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org745502c"><span class="org-variable-name">variance</span> = variance.loc[keep_genes.values.ravel()].transform(<span class="org-keyword">lambda</span> x: (x - x.mean()) / x.std(), axis=1).<span class="org-builtin">apply</span>(qqnorm, axis=0)
+<pre class="src src-ipython"><span class="org-variable-name">variance</span> = variance.transform(<span class="org-keyword">lambda</span> x: (x - x.mean()) / x.std(), axis=1).<span class="org-builtin">apply</span>(qqnorm, axis=0)
 </pre>
 </div>
 
@@ -2634,7 +2613,7 @@ Index the phenotype file.
 </p>
 
 <pre class="example">
-Submitted batch job 45381211
+Submitted batch job 45801002
 
 </pre>
 
@@ -2643,7 +2622,7 @@ Run <code>qtltools</code>.
 </p>
 
 <pre class="example">
-Submitted batch job 45381214
+Submitted batch job 45801010
 
 </pre>
 
@@ -2696,27 +2675,21 @@ Take QTLs at FDR 10%.
 </div>
 
 <pre class="example">
-100
+108
 
 </pre>
 </div>
 </div>
 
-<div id="outline-container-orgea2ba84" class="outline-3">
-<h3 id="orgea2ba84">Call CV-QTLs</h3>
-<div class="outline-text-3" id="text-orgea2ba84">
+<div id="outline-container-orgd6010db" class="outline-3">
+<h3 id="orgd6010db">Call CV-QTLs</h3>
+<div class="outline-text-3" id="text-orgd6010db">
 <p>
 Estimate the coefficient of variation using the corrected moments.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'</span>) <span class="org-keyword">as</span> conn:
-  <span class="org-variable-name">params</span> = (pd.read_sql(
-    <span class="org-string">"""select gene, ind, mean, var from params where ind in </span>
-<span class="org-string">    (select chip_id from annotation group by chip_id </span>
-<span class="org-string">    having count(distinct sample) &gt;= 50);"""</span>, conn))
-  <span class="org-variable-name">params</span>[<span class="org-string">'cv'</span>] = np.sqrt(params[<span class="org-string">'var'</span>]) / (params[<span class="org-string">'mean'</span>] + 1e-8)
-  <span class="org-variable-name">cv</span> = params.pivot(index=<span class="org-string">'gene'</span>, columns=<span class="org-string">'ind'</span>, values=<span class="org-string">'cv'</span>)
+<pre class="src src-ipython"><span class="org-variable-name">cv</span> = np.sqrt(variance) / mean
 </pre>
 </div>
 
@@ -2725,7 +2698,7 @@ Normalize the CV matrix.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">cv</span> = cv.loc[keep_genes.values.ravel()].transform(<span class="org-keyword">lambda</span> x: (x - x.mean()) / x.std(), axis=1).<span class="org-builtin">apply</span>(qqnorm, axis=0)
+<pre class="src src-ipython"><span class="org-variable-name">cv</span> = cv.transform(<span class="org-keyword">lambda</span> x: (x - x.mean()) / x.std(), axis=1).<span class="org-builtin">apply</span>(qqnorm, axis=0)
 </pre>
 </div>
 
@@ -2744,7 +2717,7 @@ Index the phenotype file.
 </p>
 
 <pre class="example">
-Submitted batch job 45381353
+Submitted batch job 45801190
 
 </pre>
 
@@ -2753,7 +2726,7 @@ Run <code>qtltools</code>.
 </p>
 
 <pre class="example">
-Submitted batch job 45381354
+Submitted batch job 45801191
 
 </pre>
 
@@ -2806,27 +2779,21 @@ Take QTLs at FDR 10%.
 </div>
 
 <pre class="example">
-4
+16
 
 </pre>
 </div>
 </div>
 
-<div id="outline-container-orgc0e03bc" class="outline-3">
-<h3 id="orgc0e03bc">Call Fano-QTLs</h3>
-<div class="outline-text-3" id="text-orgc0e03bc">
+<div id="outline-container-org26c3465" class="outline-3">
+<h3 id="org26c3465">Call Fano-QTLs</h3>
+<div class="outline-text-3" id="text-org26c3465">
 <p>
 Estimate the coefficient of variation using the corrected moments.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'</span>) <span class="org-keyword">as</span> conn:
-  <span class="org-variable-name">params</span> = (pd.read_sql(
-    <span class="org-string">"""select gene, ind, mean, var from params where ind in </span>
-<span class="org-string">    (select chip_id from annotation group by chip_id </span>
-<span class="org-string">    having count(distinct sample) &gt;= 50);"""</span>, conn))
-  <span class="org-variable-name">params</span>[<span class="org-string">'fano'</span>] = params[<span class="org-string">'var'</span>] / (params[<span class="org-string">'mean'</span>] + 1e-8)
-  <span class="org-variable-name">fano</span> = params.pivot(index=<span class="org-string">'gene'</span>, columns=<span class="org-string">'ind'</span>, values=<span class="org-string">'fano'</span>)
+<pre class="src src-ipython"><span class="org-variable-name">fano</span> = variance / mean
 </pre>
 </div>
 
@@ -2835,7 +2802,7 @@ Normalize the Fano matrix.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">fano</span> = fano.loc[keep_genes.values.ravel()].transform(<span class="org-keyword">lambda</span> x: (x - x.mean()) / x.std(), axis=1).<span class="org-builtin">apply</span>(qqnorm, axis=0)
+<pre class="src src-ipython"><span class="org-variable-name">fano</span> = fano.transform(<span class="org-keyword">lambda</span> x: (x - x.mean()) / x.std(), axis=1).<span class="org-builtin">apply</span>(qqnorm, axis=0)
 </pre>
 </div>
 
@@ -2854,7 +2821,7 @@ Index the phenotype file.
 </p>
 
 <pre class="example">
-Submitted batch job 45381553
+Submitted batch job 45801310
 
 </pre>
 
@@ -2863,7 +2830,7 @@ Run <code>qtltools</code>.
 </p>
 
 <pre class="example">
-Submitted batch job 45381664
+Submitted batch job 45801328
 
 </pre>
 
@@ -2932,13 +2899,7 @@ theoretical relationship and map QTLs for it.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'</span>) <span class="org-keyword">as</span> conn:
-  <span class="org-variable-name">params</span> = (pd.read_sql(
-    <span class="org-string">"""select gene, ind, mean, var from params where ind in </span>
-<span class="org-string">    (select chip_id from annotation group by chip_id </span>
-<span class="org-string">    having count(distinct sample) &gt;= 50);"""</span>, conn))
-  <span class="org-variable-name">params</span>[<span class="org-string">'resid'</span>] = params[<span class="org-string">'var'</span>] / (params[<span class="org-string">'mean'</span>] + 1e-8) - 1 - params[<span class="org-string">'mean'</span>] * 0.24
-  <span class="org-variable-name">resid</span> = params.pivot(index=<span class="org-string">'gene'</span>, columns=<span class="org-string">'ind'</span>, values=<span class="org-string">'resid'</span>)
+<pre class="src src-ipython"><span class="org-variable-name">resid</span> = variance / (mean + 1e-8) - 1 - mean * 0.24
 </pre>
 </div>
 
@@ -2947,7 +2908,7 @@ Normalize the resid matrix.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">resid</span> = resid.loc[keep_genes.values.ravel()].transform(<span class="org-keyword">lambda</span> x: (x - x.mean()) / x.std(), axis=1)
+<pre class="src src-ipython"><span class="org-variable-name">resid</span> = resid.transform(<span class="org-keyword">lambda</span> x: (x - x.mean()) / x.std(), axis=1)
 </pre>
 </div>
 
@@ -2966,7 +2927,7 @@ Index the phenotype file.
 </p>
 
 <pre class="example">
-Submitted batch job 45381856
+Submitted batch job 45801937
 
 </pre>
 
@@ -2975,7 +2936,7 @@ Run <code>qtltools</code>.
 </p>
 
 <pre class="example">
-Submitted batch job 45381864
+Submitted batch job 45801942
 
 </pre>
 
@@ -3786,7 +3747,7 @@ array([[1.        , 0.96786156],
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-05-07 Mon 12:13</p>
+<p class="date">Created: 2018-05-08 Tue 15:36</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
