@@ -1,0 +1,115 @@
+#+TITLE: Chu et al hESC
+#+SETUPFILE: setup.org
+
+* Setup
+
+  #+BEGIN_SRC emacs-lisp
+    (org-babel-lob-ingest "/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/dim-reduction.org")
+    (org-babel-lob-ingest "/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/zinb.org")
+    (org-babel-lob-ingest "/home/aksarkar/.emacs.d/org-templates/library.org")
+  #+END_SRC
+
+  #+RESULTS:
+  : 1
+
+  #+CALL: ipython3(memory="6G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
+
+  #+RESULTS:
+  : Submitted batch job 45824760
+
+  #+CALL: zinb-imports()
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[3]:
+  :END:
+
+* Download the data
+
+  [[https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4989499/][Chu et al 2016]] profiled hESC using single cell and matched bulk RNA-Seq
+  ([[https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE75748][GSE75748]]). Analyze their data analagously to understand whether the
+  correlation we observe is anomalous.
+
+  #+BEGIN_SRC sh :session chu :dir /scratch/midway2/aksarkar/singlecell/hesc/
+    curl -sO --ftp-pasv ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE75nnn/GSE75748/suppl/GSE75748_bulk_cell_type_ec.csv.gz
+  #+END_SRC
+
+  #+RESULTS:
+
+  #+BEGIN_SRC sh :session chu
+    curl -sO --ftp-pasv ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE75nnn/GSE75748/suppl/GSE75748_sc_cell_type_ec.csv.gz
+  #+END_SRC
+
+  #+RESULTS:
+
+* Single cell/bulk concordance
+
+  #+BEGIN_SRC ipython
+    chu_bulk_tpm = pd.read_table('/scratch/midway2/aksarkar/singlecell/hesc/GSE75748_bulk_cell_type_ec.csv.gz', sep=',', index_col=0)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[33]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    T = np.log(chu_bulk_tpm) - np.log(chu_bulk_tpm.sum(axis=0))
+    R = pd.DataFrame([(i, j, st.mstats.spearmanr(T[i], T[j]).correlation) for i, j in it.combinations(sorted(T.columns), 2)])
+    M = R.pivot(index=0, columns=1, values=2).T
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[77]:
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/sc-vs-bulk.org/hesc/chu-et-al-bulk-corr.svg
+    plt.clf()
+    plt.imshow(M, cmap=colorcet.cm['kr'])
+    cb = plt.colorbar()
+    cb.set_label('Spearman correlation')
+    plt.gca().set_aspect('equal')
+    plt.xticks(range(M.shape[0]), M.columns, rotation=90)
+    _ = plt.yticks(range(M.shape[1]), M.index)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[109]:
+  [[file:figure/sc-vs-bulk.org/hesc/chu-et-al-bulk-corr.svg]]
+  :END:
+
+  #+BEGIN_SRC ipython
+    chu_sc_tpm = pd.read_table('/scratch/midway2/aksarkar/singlecell/hesc/GSE75748_sc_cell_type_ec.csv.gz', sep=',', index_col=0)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[38]:
+  :END:
+
+  #+BEGIN_SRC ipython :results none
+    for k in ('H1', 'H9', 'DEC', 'EC', 'HFF', 'NPC', 'TB'):
+      bulk_rho = chu_bulk_tpm.filter(like=k, axis='columns').agg(np.mean, axis=1)
+      bulk_rho = np.log(bulk_rho) - np.log(bulk_rho.sum(axis=0))
+      sc_rho = chu_sc_tpm.filter(like=k, axis='columns').agg(np.mean, axis=1)
+      sc_rho = np.log(sc_rho) - np.log(sc_rho.sum(axis=0))
+      x = sc_rho.mask(mask).dropna().to_frame()
+      y = bulk_rho.mask(mask).dropna().to_frame()
+      plot_concordance(
+        x=x,
+        y=y,
+        title=k,
+        gridsize=20,
+        filename='/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/sc-vs-bulk.org/hesc/{}.svg'.format(k),
+        xlabel='Single cell ln relative abundance',
+        ylabel='Bulk ln relative abundance',
+      )
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[95]:
+  :END:
+
