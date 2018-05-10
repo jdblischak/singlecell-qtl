@@ -85,7 +85,7 @@
 
   #+RESULTS: concordance-def
   :RESULTS:
-  # Out[97]:
+  # Out[38]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -104,7 +104,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[98]:
+  # Out[39]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -126,7 +126,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[99]:
+  # Out[40]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -147,7 +147,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[100]:
+  # Out[41]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -171,7 +171,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[101]:
+  # Out[42]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -181,7 +181,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[103]:
+  # Out[43]:
   :END:
 
 * Read the data
@@ -197,7 +197,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[7]:
+  # Out[35]:
   :END:
 
   Read the UMI matrix.
@@ -226,7 +226,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[9]:
+  # Out[36]:
   :END:
 
 * Plot bulk vs. pooled single cells
@@ -618,12 +618,15 @@
 
   #+BEGIN_SRC ipython
     log_mu = pd.read_table('/scratch/midway2/aksarkar/singlecell/density-estimation/without-cell-cycle/zi2-log-mu.txt.gz', sep=' ', index_col=0)
+    logodds = pd.read_table('/scratch/midway2/aksarkar/singlecell/density-estimation/without-cell-cycle/zi2-log-mu.txt.gz', sep=' ', index_col=0)
+     # Important: log(sigmoid(x)) = -softplus(-x)
+    log_mu -= np.log1p(np.exp(logodds))
     log_mu -= log_mu.agg(sp.logsumexp, axis=0)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[157]:
+  # Out[33]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -634,7 +637,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[108]:
+  # Out[44]:
   :END:
 
   Plot the concordance.

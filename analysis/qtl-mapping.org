@@ -28,7 +28,7 @@
   #+CALL: ipython3(memory="16G", venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 45523151
+  : Submitted batch job 45817597
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -62,7 +62,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[113]:
+  # Out[21]:
   :END:
 
 * Implementation
@@ -85,7 +85,7 @@
 
   #+RESULTS: r-wrappers
   :RESULTS:
-  # Out[114]:
+  # Out[10]:
   :END:
 
   #+NAME: get-gene-info
@@ -100,7 +100,7 @@
 
   #+RESULTS: get-gene-info
   :RESULTS:
-  # Out[115]:
+  # Out[11]:
   :END:
 
   #+RESULTS:
@@ -154,7 +154,7 @@
 
   #+RESULTS: write-pheno-def
   :RESULTS:
-  # Out[116]:
+  # Out[12]:
   :END:
 
   #+NAME: tabix
@@ -224,7 +224,7 @@
 
   #+RESULTS: read-qtltools-def
   :RESULTS:
-  # Out[117]:
+  # Out[13]:
   :END:
 
   #+RESULTS:
@@ -245,7 +245,7 @@
 
   #+RESULTS: plot-approx-perm-def
   :RESULTS:
-  # Out[118]:
+  # Out[14]:
   :END:
 
   #+NAME: qqplot-def
@@ -268,7 +268,7 @@
 
   #+RESULTS: qqplot-def
   :RESULTS:
-  # Out[119]:
+  # Out[15]:
   :END:
 
   #+NAME: replication-tests-def
@@ -353,7 +353,7 @@
 
   #+RESULTS: replication-tests-def
   :RESULTS:
-  # Out[120]:
+  # Out[16]:
   :END:
 
   #+NAME: bootstrap-def
@@ -372,7 +372,7 @@
 
   #+RESULTS: bootstrap-def
   :RESULTS:
-  # Out[121]:
+  # Out[17]:
   :END:
 
   #+NAME: bootstrap-betahat-se-def
@@ -434,7 +434,7 @@
 
   #+RESULTS: bootstrap-betahat-se-def
   :RESULTS:
-  # Out[122]:
+  # Out[18]:
   :END:
 
 * Preliminaries
@@ -1855,7 +1855,23 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[172]:
+   # Out[23]:
+   :END:
+
+   From first principles, we should expect that the relative abundance is
+   actually \((1 - \pi) \mu\), not \(\mu\).
+
+   #+BEGIN_SRC ipython
+     log_mu = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/with-cell-cycle-genes/zi2-log-mu.txt.gz', index_col=0, sep=' ')
+     logodds = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/with-cell-cycle-genes/zi2-logodds.txt.gz', index_col=0, sep=' ')
+     # Important: log(sigmoid(x)) = -softplus(-x)
+     log_mu -= np.log1p(np.exp(logodds))
+     del log_mu['NA18498']
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[19]:
    :END:
 
    Normalize the mean matrix analagous to the bulk data.
@@ -1868,7 +1884,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[173]:
+   # Out[22]:
    :END:
 
    Compute principal components of the mean matrix.
@@ -1881,7 +1897,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[174]:
+   # Out[23]:
    :END:
 
    Write out the [[https://qtltools.github.io/qtltools/pages/input_files.html][phenotype file]] for ~qtltools~. Hold out even chromosomes while
@@ -1893,7 +1909,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[175]:
+   # Out[24]:
    :END:
 
    Index the phenotype file.
@@ -1901,14 +1917,14 @@
    #+CALL: tabix(input="log_mu.bed") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
 
    #+RESULTS:
-   : Submitted batch job 45799976
+   : Submitted batch job 45838414
 
    Run ~qtltools~.
 
    #+CALL: qtltools(pheno="log_mu", geno="/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz", op="--cov log_mu-covars.txt --window 100000 --permute 10000") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
 
    #+RESULTS:
-   : Submitted batch job 45799979
+   : Submitted batch job 45838416
 
    Read the output.
 
@@ -1918,7 +1934,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[176]:
+   # Out[25]:
    :END:
 
    Check the beta approximation to the permutation p-values.
@@ -1929,7 +1945,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[177]:
+   # Out[26]:
    [[file:figure/qtl-mapping.org/mu-qtl-beta-approx.png]]
    :END:
 
@@ -1941,7 +1957,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[178]:
+   # Out[27]:
    [[file:figure/qtl-mapping.org/mu-qtl-qq.png]]
    :END:
 
@@ -1953,8 +1969,8 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[179]:
-   : 239
+   # Out[28]:
+   : 247
    :END:
 
 ** Call \phi-QTLs
@@ -2072,6 +2088,19 @@
    # Out[187]:
    :END:
 
+   Check whether changing the algorithm produces the QTLs, or confounder
+   correction does.
+
+   #+BEGIN_SRC ipython
+     logodds = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/without-confounders/zi2-log-mu.txt.gz', index_col=0, sep=' ')
+     del logodds['NA18498']
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[31]:
+   :END:
+
    Normalize the log odds matrix.
 
    #+BEGIN_SRC ipython
@@ -2081,7 +2110,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[188]:
+   # Out[32]:
    :END:
 
    Write out the phenotype file.
@@ -2092,7 +2121,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[189]:
+   # Out[33]:
    :END:
 
    Index the phenotype file.
@@ -2100,14 +2129,13 @@
    #+CALL: tabix(input="logodds.bed") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
 
    #+RESULTS:
-   : Submitted batch job 45800244
+   : Submitted batch job 45818525
 
    Run ~qtltools~.
 
    #+CALL: qtltools(pheno="logodds", geno="/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz", op="--window 100000 --permute 10000") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
 
    #+RESULTS:
-   : Submitted batch job 45800287
 
    Read the output.
 
@@ -2117,7 +2145,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[190]:
+   # Out[34]:
    :END:
 
    Check the beta approximation to the permutation p-values.
@@ -2128,7 +2156,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[191]:
+   # Out[35]:
    [[file:figure/qtl-mapping.org/logodds-qtl-beta-approx.png]]
    :END:
 
@@ -2140,7 +2168,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[192]:
+   # Out[36]:
    [[file:figure/qtl-mapping.org/logodds-qtl-qq.png]]
    :END:
 
@@ -2152,7 +2180,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[193]:
+   # Out[37]:
    : 111
    :END:
 
@@ -2680,7 +2708,6 @@
    Index the phenotype file.
 
    #+CALL: tabix(input="resid.bed") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
-
    #+RESULTS:
    : Submitted batch job 45801937
 
@@ -2759,6 +2786,10 @@
   #+RESULTS:
   : Submitted batch job 45802079
 
+  #+BEGIN_SRC ipython
+    with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
+  #+END_SRC
+
 * QTL overlap
 ** Replication rates
 
@@ -2768,12 +2799,12 @@
     prefix = '/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/'
     qtls = {pheno: (pd.read_table('{}/{}.txt.gz'.format(prefix, pheno), sep=' '),
                     pd.read_table('{}/{}.bed.gz'.format(prefix, pheno)).set_index('pid').filter(like='NA', axis='columns'))
-            for pheno in ['bulk', 'pooled', 'log_mu', 'log_phi', 'mean', 'variance', 'fano']}
+            for pheno in ['bulk', 'pooled', 'logodds-log-mu', 'log_mu', 'log_phi', 'mean', 'variance', 'fano']}
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[171]:
+  # Out[29]:
   :END:
 
   The bulk QTL gene names need to be munged.
@@ -2784,7 +2815,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[172]:
+  # Out[54]:
   :END:
 
   Compute the gene-level FDR filter.
@@ -2796,7 +2827,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[173]:
+  # Out[31]:
   :END:
 
   Read covariates for mean phenotypes.
@@ -2804,30 +2835,35 @@
   #+BEGIN_SRC ipython
     base = pathlib.Path('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/')
     covars = [pd.read_table(base / '{}-covars.txt'.format(f), sep='\s+', engine='python', index_col=0)
-              for f in ('bulk', 'pooled', 'log_mu', 'mean')]
+              for f in ('bulk', 'pooled', 'logodds-log-mu', 'log_mu', 'mean')]
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[174]:
+  # Out[59]:
   :END:
 
   Estimate replication rates for mean QTLs.
 
   #+BEGIN_SRC ipython
     pd.options.display.float_format = '{:.3g}'.format
-    pairwise_replication(qtls, phenos=['bulk', 'pooled', 'log_mu', 'mean'], ticks=['Bulk', 'Pooled', '$\log(\mu)$', 'ZI mean'], covars=covars)
+    pairwise_replication(
+      qtls,
+      phenos=['bulk', 'pooled', 'logodds-log-mu', 'log_mu', 'mean'],
+      ticks=['Bulk', 'Pooled', '$(1 - \pi)\mu$', '$\log(\mu)$', 'ZI mean'],
+      covars=covars)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[180]:
+  # Out[61]:
   #+BEGIN_EXAMPLE
-    Bulk  Pooled  $\log(\mu)$  ZI mean
-    Bulk          100    82.6         80.6     80.7
-    Pooled        100     100         98.8     98.8
-    $\log(\mu)$   100    99.5          100      100
-    ZI mean       100    99.5          100      100
+    Bulk  Pooled  $(1 - \pi)\mu$  $\log(\mu)$  ZI mean
+    Bulk             100    82.6            35.5         82.9     82.8
+    Pooled           100     100            59.8         99.2     99.2
+    $(1 - \pi)\mu$   100    76.9             100         76.9     76.9
+    $\log(\mu)$      100     100            65.3          100     99.6
+    ZI mean          100     100            70.5          100      100
   #+END_EXAMPLE
   :END:
 
