@@ -51,15 +51,16 @@
   #+CALL: ipython3(memory="16G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 44478793
+  : Submitted batch job 45841677
 
   #+BEGIN_SRC ipython
     %matplotlib inline
+    %config InlineBackend.figure_formats = set(['retina'])
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[1]:
+  # Out[78]:
   :END:
 
   #+NAME: dim-reduction-imports
@@ -105,7 +106,7 @@
   #+RESULTS:
   :RESULTS:
   # Out[4]:
-  : (10173, 4901)
+  : (10196, 5447)
   :END:
 
   The expected ERCC spike-in molecule counts were previously tabulated for
@@ -160,24 +161,50 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[10]:
+  # Out[157]:
   :END:
 
   #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/pca.png
     plt.clf()
     fig, ax = plt.subplots(2, 2)
-    fig.set_size_inches(12, 12)
+    fig.set_size_inches(8, 8)
+    N = len(set(annotations['batch']))
     for i in range(2):
       for j in range(i, 2):
-        ax[i][j].scatter(loadings[:,i], loadings[:,j + 1])
-        ax[i][j].set_xlabel('PC{}'.format(j + 2))
-        ax[i][j].set_ylabel('PC{}'.format(i + 1))
+        for k, batch in enumerate(sorted(set(annotations['batch']))):
+          ax[i][j].scatter(loadings[annotations['batch'] == batch,i], loadings[annotations['batch'] == batch,j + 1], c=colorcet.cm['rainbow'](k / N), s=4, marker='+', alpha=0.5)
+          ax[i][j].set_xlabel('PC{}'.format(j + 2))
+          ax[i][j].set_ylabel('PC{}'.format(i + 1))
+    ax[1, 0].set_axis_off()
+    fig.tight_layout()
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[9]:
+  # Out[170]:
   [[file:figure/dim-reduction.org/pca.png]]
+  :END:
+
+  #+BEGIN_SRC ipython :results none
+    plt.clf()
+    fig, ax = plt.subplots(2, 2)
+    fig.set_size_inches(8, 8)
+    N = len(set(annotations['batch']))
+    for i in range(2):
+      for j in range(i, 2):
+        for k, batch in enumerate(sorted(set(annotations['batch']))):
+          ax[i][j].scatter(loadings[annotations['batch'] == batch,i], loadings[annotations['batch'] == batch,j + 1], c=colorcet.cm['rainbow'](k / N), s=4, marker='+', alpha=0.5)
+          ax[i][j].set_xlabel('PC{}'.format(j + 2))
+          ax[i][j].set_ylabel('PC{}'.format(i + 1))
+    ax[1, 0].set_axis_off()
+    fig.tight_layout()
+    plt.savefig('pca.pdf')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[179]:
+  : <matplotlib.figure.Figure at 0x7f55719c3e10>
   :END:
 
   Correlate PCs with known continuous covariates by computing squared Pearson
@@ -243,7 +270,7 @@
 
   #+RESULTS: corr-def
   :RESULTS:
-  # Out[11]:
+  # Out[172]:
   :END:
 
   #+NAME: extract-covars
@@ -254,7 +281,7 @@
 
   #+RESULTS: extract-covars
   :RESULTS:
-  # Out[12]:
+  # Out[173]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -266,7 +293,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[13]:
+  # Out[174]:
   :END:
 
   #+NAME: plot-covars-def
@@ -399,6 +426,72 @@
   approximation is better for some genes than others, i.e. that there could be
   gene-specific or gene module-specific effects. These are unlikely to be
   captured by PCA or factor analysis.
+
+* t-stochastic neighbor embedding
+
+  Normalize the data.
+
+  #+CALL: normalize()
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[7]:
+  :END:
+
+  Compute cosine distance between cells
+
+  #+BEGIN_SRC ipython
+    import sklearn.metrics
+   
+    distance = sklearn.metrics.pairwise.cosine_distances(log_cpm.values.T)
+  #+END_SRC
+
+  Compute the embedding
+
+  #+BEGIN_SRC ipython
+    import sklearn.manifold
+
+    embeddings = {
+      perplexity: sklearn.manifold.TSNE(metric='precomputed', perplexity=perplexity).fit_transform(distance)
+      for perplexity in np.geomspace(5, 50, 5)}
+  #+END_SRC
+
+  #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/tsne.png
+    plt.clf()
+    fig, ax = plt.subplots(1, 5)
+    fig.set_size_inches(10, 3)
+    N = len(set(annotations['chip_id']))
+    for i, k in enumerate(np.geomspace(5, 50, 5)):
+      for j, individual in enumerate(sorted(set(annotations['chip_id']))):
+        v = embeddings[k][annotations['chip_id'] == individual]
+        ax[i].scatter(v[:, 0], v[:, 1], c=colorcet.cm['rainbow'](j / N), s=2)
+      ax[i].set_title('Perplexity = {:.2g}'.format(k))
+    fig.tight_layout()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[124]:
+  [[file:figure/dim-reduction.org/tsne.png]]
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/tsne-by-batch.png
+    plt.clf()
+    fig, ax = plt.subplots(1, 5)
+    fig.set_size_inches(10, 3)
+    N = len(set(annotations['batch']))
+    for i, k in enumerate(np.geomspace(5, 50, 5)):
+      for j, batch in enumerate(sorted(set(annotations['batch']))):
+        v = embeddings[k][annotations['batch'] == batch]
+        ax[i].scatter(v[:, 0], v[:, 1], c=colorcet.cm['rainbow'](j / N), s=2)
+    fig.tight_layout()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[123]:
+  [[file:figure/dim-reduction.org/tsne-by-batch.png]]
+  :END:
 
 * Zero-inflated factor analysis
 
