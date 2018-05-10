@@ -1,0 +1,235 @@
+#+TITLE: DESCEND analysis
+#+SETUPFILE: setup.org
+
+* Introduction
+
+  [[https://www.biorxiv.org/content/early/2017/12/01/227033][Wang et al 2017]] introduce DESCEND, a non-parametric method to estimate the
+  latent distribution of gene expression in scRNA-Seq data.
+
+  Compare their estimated distributions to our ZINB-estimated distributions.
+
+* Setup                                                            :noexport:
+
+  #+BEGIN_SRC emacs-lisp
+    (org-babel-lob-ingest "/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/qtl-mapping.org")
+    (org-babel-lob-ingest "/home/aksarkar/.emacs.d/org-templates/library.org")
+  #+END_SRC
+
+  #+RESULTS:
+  : 1
+
+  #+CALL: ipython3(memory="16G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
+
+  #+RESULTS:
+  : Submitted batch job 45841513
+
+  #+CALL: zinb-imports()
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[130]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    %matplotlib inline
+    %config InlineBackend.figure_formats = set(['retina'])
+    import colorcet
+    import matplotlib.pyplot as plt
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[125]:
+  :END:
+
+  #+NAME: descend-imports
+  #+BEGIN_SRC ipython :eval never
+    import rpy2.robjects.packages
+    import rpy2.robjects.pandas2ri
+    import rpy2.robjects.numpy2ri
+
+    rpy2.robjects.numpy2ri.activate()
+    rpy2.robjects.pandas2ri.activate()
+    descend = rpy2.robjects.packages.importr('descend')
+  #+END_SRC
+
+  #+RESULTS: descend-imports
+  :RESULTS:
+  # Out[6]:
+  :END:
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[2]:
+  :END:
+
+* Run DESCEND
+
+  Write a wrapper around the ~DESCEND~ object type. Refer to
+  https://rpy2.readthedocs.io/en/version_2.7.x/_static/notebooks/s4class.html
+  for useful information.
+
+  #+NAME: parse-descend
+  #+BEGIN_SRC ipython
+    class DESCEND(rpy2.robjects.methods.RS4):
+      def __init__(self, descend_obj):
+        self.descend_obj = descend_obj
+
+      @property
+      def estimates(self):
+        if tuple(self.descend_obj.rclass) != ('DESCEND',):
+          return pd.Series(
+            [np.nan for _ in range(5)],
+            index=['Nonzero Fraction', 'Nonzero Intensity', 'Mean', 'CV', 'Gini'])
+        else:
+          est = self.descend_obj.slots['estimates']
+          names = list(list(x) for x in est.names)
+          return pd.Series(np.array(est)[:,0], index=names[0])
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[78]:
+  :END:
+
+  #+CALL: qc-filters()
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[127]:
+  :END:
+
+  For simplicity, just fit DESCEND on cells from one individual.
+
+  #+NAME: read-na18507
+  #+BEGIN_SRC ipython
+    keep_ind = annotation['chip_id'] == 'NA18507'
+    umi = pd.concat(
+      [(chunk
+        .loc[:,keep_samples.values.ravel()]
+        .loc[:,keep_ind.values.ravel()])
+       for chunk in pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', index_col=0, chunksize=100)])
+    umi = umi.loc[keep_genes.values.ravel()]
+  #+END_SRC
+
+  #+RESULTS: read-na18507
+  :RESULTS:
+  # Out[4]:
+  :END:
+
+  #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/descend.py
+    <<zinb-imports>>
+    <<descend-imports>>
+    <<parse-descend>>
+    <<recode-impl>>
+    <<qc-filters>>
+    design = recode(annotation[keep_ind], 'experiment')
+    design -= design.mean(axis=0)
+    design /= design.std(axis=0)
+    <<read-na18507>>
+    result = descend.runDescend(
+      count_matrix=umi,
+      scaling_consts=annotation[annotation['chip_id'] == 'NA18507']['mol_hs'],
+      Z=design,
+      n_cores=28)
+    descend_result = pd.DataFrame([DESCEND(x).estimates for x in result], index=umi.index)
+    descend_result.to_csv('descend-result.txt.gz', sep='\t', compression='gzip')
+  #+END_SRC
+
+  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/descend/
+    sbatch --partition=broadwl -n1 -c28 --exclusive --mem=16G --job-name descend --out descend.out
+    #!/bin/bash
+    source activate scqtl
+    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/descend.py
+  #+END_SRC
+
+  #+RESULTS:
+  : Submitted batch job 45838251
+
+* Compare with other methods
+
+  Estimate the Poisson MLE for pseudobulk data.
+
+  #+BEGIN_SRC ipython
+    pseudobulk_log_rho = np.log(umi.agg(np.sum, axis=1)) - np.log(annotation[keep_ind]['mol_hs'].sum())
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[131]:
+  :END:
+
+  Read ZINB estimates.
+
+  #+BEGIN_SRC ipython
+    zinb_log_mu = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/with-cell-cycle-genes/zi2-log-mu.txt.gz', sep=' ', index_col=0)
+    zinb_logodds = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/with-cell-cycle-genes/zi2-logodds.txt.gz', sep=' ', index_col=0)
+    zinb_log_rho = zinb_log_mu
+    zinb_log_rho -= sp.logsumexp(zinb_log_mu)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[182]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
+      log_mu = pd.read_sql('select * from params', conn).pivot(index='gene', columns='ind', values='log_mu')
+      zinb_log_rho = log_mu - sp.logsumexp(log_mu)
+      zinb_log_rho = zinb_log_rho.loc[keep_genes.values.ravel()]
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[153]:
+  :END:
+
+  Read the DESCEND estimates.
+
+  #+BEGIN_SRC ipython
+    descend_result = pd.read_table('/scratch/midway2/aksarkar/singlecell/descend/descend-result.txt.gz', index_col=0)
+    descend_result = descend_result.mask(~np.isfinite(descend_result))
+    descend_log_rho = np.log(descend_result['Mean']) - np.log(descend_result['Mean'].sum())
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[133]:
+  :END:
+
+  Plot the estimates against each other.
+
+  #+BEGIN_SRC ipython :ipyfile figure/descend.org/comparison.png
+    plt.clf()
+    fig, ax = plt.subplots(2, 2)
+    fig.set_size_inches(8, 8)
+    ax[0, 0].scatter(pseudobulk_log_rho, zinb_log_rho['NA18507'], c='k', marker='+', s=2, alpha=0.25)
+    ax[0, 0].plot([-18, -5], [-18, -5], ls=':', lw=1, c='r')
+    ax[0, 0].set_aspect('equal')
+    ax[0, 0].set_xlabel('Psuedobulk ln relative abundance')
+    ax[0, 0].set_ylabel('ZINB normalized $\ln((1 - \pi) \mu)$')
+
+    ax[1, 0].scatter(pseudobulk_log_rho, descend_log_rho, c='k', marker='+', s=2, alpha=0.25)
+    ax[1, 0].plot([-18, -5], [-18, -5], ls=':', lw=1, c='r')
+    ax[1, 0].set_aspect('equal')
+    ax[1, 0].set_xlabel('Psuedobulk ln relative abundance')
+    ax[1, 0].set_ylabel('DESCEND normalized $\ln((1 - \pi) \mu)$')
+
+    ax[1, 1].scatter(zinb_log_rho['NA18507'], descend_log_rho, c='k', marker='+', s=2, alpha=0.25)
+    ax[1, 1].plot([-18, -5], [-18, -5], ls=':', lw=1, c='r')
+    ax[1, 1].set_aspect('equal')
+    ax[1, 1].set_xlabel('ZINB normalized $\ln((1 - \pi) \mu)$')
+    ax[1, 1].set_ylabel('DESCEND normalized $\ln((1 - \pi) \mu)$')
+
+    ax[0, 1].set_axis_off()
+
+    fig.tight_layout()
+
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[155]:
+  [[file:figure/descend.org/comparison.png]]
+  :END:
