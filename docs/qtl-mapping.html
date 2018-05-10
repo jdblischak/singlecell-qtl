@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-05-08 Tue 15:36 -->
+<!-- 2018-05-10 Thu 18:39 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>QTL mapping pipeline</title>
@@ -1545,9 +1545,9 @@ Take QTLs with \(\mathrm{FDR} < 0.1\).
 </div>
 </div>
 
-<div id="outline-container-org97ea9dc" class="outline-3">
-<h3 id="org97ea9dc">Call mean-QTLs</h3>
-<div class="outline-text-3" id="text-org97ea9dc">
+<div id="outline-container-orgcec4fb9" class="outline-3">
+<h3 id="orgcec4fb9">Call mean-QTLs</h3>
+<div class="outline-text-3" id="text-orgcec4fb9">
 <p>
 Throw out individuals with fewer than 50 cells.
 </p>
@@ -1713,9 +1713,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-orgfb3e978" class="outline-3">
-<h3 id="orgfb3e978">Call variance-QTLs</h3>
-<div class="outline-text-3" id="text-orgfb3e978">
+<div id="outline-container-org7e7222f" class="outline-3">
+<h3 id="org7e7222f">Call variance-QTLs</h3>
+<div class="outline-text-3" id="text-org7e7222f">
 <p>
 Throw out individuals with fewer than 50 cells.
 </p>
@@ -1833,9 +1833,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-orgea2ba84" class="outline-3">
-<h3 id="orgea2ba84">Call CV-QTLs</h3>
-<div class="outline-text-3" id="text-orgea2ba84">
+<div id="outline-container-orge08aeb3" class="outline-3">
+<h3 id="orge08aeb3">Call CV-QTLs</h3>
+<div class="outline-text-3" id="text-orge08aeb3">
 <p>
 Throw out individuals with fewer than 50 cells.
 </p>
@@ -1942,9 +1942,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-orgc0e03bc" class="outline-3">
-<h3 id="orgc0e03bc">Call Fano-QTLs</h3>
-<div class="outline-text-3" id="text-orgc0e03bc">
+<div id="outline-container-org5b88de1" class="outline-3">
+<h3 id="org5b88de1">Call Fano-QTLs</h3>
+<div class="outline-text-3" id="text-org5b88de1">
 <p>
 Throw out individuals with fewer than 50 cells.
 </p>
@@ -2088,6 +2088,20 @@ fewer than 50 cells.
 </div>
 
 <p>
+From first principles, we should expect that the relative abundance is
+actually \((1 - \pi) \mu\), not \(\mu\).
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/with-cell-cycle-genes/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">logodds</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/with-cell-cycle-genes/zi2-logodds.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-comment-delimiter"># </span><span class="org-comment">Important: log(sigmoid(x)) = -softplus(-x)</span>
+<span class="org-variable-name">log_mu</span> -= np.log1p(np.exp(logodds))
+<span class="org-keyword">del</span> log_mu[<span class="org-string">'NA18498'</span>]
+</pre>
+</div>
+
+<p>
 Normalize the mean matrix analagous to the bulk data.
 </p>
 
@@ -2124,7 +2138,7 @@ Index the phenotype file.
 </p>
 
 <pre class="example">
-Submitted batch job 45799976
+Submitted batch job 45838414
 
 </pre>
 
@@ -2133,7 +2147,7 @@ Run <code>qtltools</code>.
 </p>
 
 <pre class="example">
-Submitted batch job 45799979
+Submitted batch job 45838416
 
 </pre>
 
@@ -2186,7 +2200,7 @@ Take QTLs at FDR 10%.
 </div>
 
 <pre class="example">
-239
+247
 
 </pre>
 </div>
@@ -2318,6 +2332,17 @@ Read the estimated parameters. Exclude individuals with fewer than 50 cells.
 </div>
 
 <p>
+Check whether changing the algorithm produces the QTLs, or confounder
+correction does.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">logodds</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/without-confounders/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-keyword">del</span> logodds[<span class="org-string">'NA18498'</span>]
+</pre>
+</div>
+
+<p>
 Normalize the log odds matrix.
 </p>
 
@@ -2341,18 +2366,13 @@ Index the phenotype file.
 </p>
 
 <pre class="example">
-Submitted batch job 45800244
+Submitted batch job 45818525
 
 </pre>
 
 <p>
 Run <code>qtltools</code>.
 </p>
-
-<pre class="example">
-Submitted batch job 45800287
-
-</pre>
 
 <p>
 Read the output.
@@ -2409,9 +2429,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-org27e92d7" class="outline-3">
-<h3 id="org27e92d7">Call mean-QTLs</h3>
-<div class="outline-text-3" id="text-org27e92d7">
+<div id="outline-container-orgd3c7cd7" class="outline-3">
+<h3 id="orgd3c7cd7">Call mean-QTLs</h3>
+<div class="outline-text-3" id="text-orgd3c7cd7">
 <p>
 We have \(r_{ijk} \sim g_{ijk}(\cdot)\), where \(g\) is the ZINB density <a href="zinb.html">as
 previously defined</a>.
@@ -2540,9 +2560,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-org2b212e0" class="outline-3">
-<h3 id="org2b212e0">Call variance-QTLs</h3>
-<div class="outline-text-3" id="text-org2b212e0">
+<div id="outline-container-org2623aab" class="outline-3">
+<h3 id="org2623aab">Call variance-QTLs</h3>
+<div class="outline-text-3" id="text-org2623aab">
 <p>
 We have \(r_{ijk} \sim g_{ijk}(\cdot)\), where \(g\) is the ZINB density <a href="zinb.html">as
 previously defined</a>.
@@ -2681,9 +2701,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-orgd6010db" class="outline-3">
-<h3 id="orgd6010db">Call CV-QTLs</h3>
-<div class="outline-text-3" id="text-orgd6010db">
+<div id="outline-container-org989a6f9" class="outline-3">
+<h3 id="org989a6f9">Call CV-QTLs</h3>
+<div class="outline-text-3" id="text-org989a6f9">
 <p>
 Estimate the coefficient of variation using the corrected moments.
 </p>
@@ -2785,9 +2805,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-org26c3465" class="outline-3">
-<h3 id="org26c3465">Call Fano-QTLs</h3>
-<div class="outline-text-3" id="text-org26c3465">
+<div id="outline-container-org5e94a7b" class="outline-3">
+<h3 id="org5e94a7b">Call Fano-QTLs</h3>
+<div class="outline-text-3" id="text-org5e94a7b">
 <p>
 Estimate the coefficient of variation using the corrected moments.
 </p>
@@ -3017,9 +3037,14 @@ rsync -FFau . /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-ma
 </div>
 
 <pre class="example">
-Submitted batch job 45395999
+Submitted batch job 45802079
 
 </pre>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'</span>) <span class="org-keyword">as</span> conn:
+</pre>
+</div>
 </div>
 </div>
 
@@ -3038,7 +3063,7 @@ Read the QTLs and normalized expression matrices.
 <pre class="src src-ipython"><span class="org-variable-name">prefix</span> = <span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/'</span>
 <span class="org-variable-name">qtls</span> = {pheno: (pd.read_table(<span class="org-string">'{}/{}.txt.gz'</span>.<span class="org-builtin">format</span>(prefix, pheno), sep=<span class="org-string">' '</span>),
                 pd.read_table(<span class="org-string">'{}/{}.bed.gz'</span>.<span class="org-builtin">format</span>(prefix, pheno)).set_index(<span class="org-string">'pid'</span>).<span class="org-builtin">filter</span>(like=<span class="org-string">'NA'</span>, axis=<span class="org-string">'columns'</span>))
-        <span class="org-keyword">for</span> pheno <span class="org-keyword">in</span> [<span class="org-string">'bulk'</span>, <span class="org-string">'pooled'</span>, <span class="org-string">'log_mu'</span>, <span class="org-string">'log_phi'</span>, <span class="org-string">'mean'</span>, <span class="org-string">'variance'</span>, <span class="org-string">'fano'</span>]}
+        <span class="org-keyword">for</span> pheno <span class="org-keyword">in</span> [<span class="org-string">'bulk'</span>, <span class="org-string">'pooled'</span>, <span class="org-string">'logodds-log-mu'</span>, <span class="org-string">'log_mu'</span>, <span class="org-string">'log_phi'</span>, <span class="org-string">'mean'</span>, <span class="org-string">'variance'</span>, <span class="org-string">'fano'</span>]}
 </pre>
 </div>
 
@@ -3068,7 +3093,7 @@ Read covariates for mean phenotypes.
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-variable-name">base</span> = pathlib.Path(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/'</span>)
 <span class="org-variable-name">covars</span> = [pd.read_table(base / <span class="org-string">'{}-covars.txt'</span>.<span class="org-builtin">format</span>(f), sep=<span class="org-string">'\s+'</span>, engine=<span class="org-string">'python'</span>, index_col=0)
-          <span class="org-keyword">for</span> f <span class="org-keyword">in</span> (<span class="org-string">'bulk'</span>, <span class="org-string">'pooled'</span>, <span class="org-string">'log_mu'</span>, <span class="org-string">'mean'</span>)]
+          <span class="org-keyword">for</span> f <span class="org-keyword">in</span> (<span class="org-string">'bulk'</span>, <span class="org-string">'pooled'</span>, <span class="org-string">'logodds-log-mu'</span>, <span class="org-string">'log_mu'</span>, <span class="org-string">'mean'</span>)]
 </pre>
 </div>
 
@@ -3078,16 +3103,21 @@ Estimate replication rates for mean QTLs.
 
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-variable-name">pd.options.display.float_format</span> = <span class="org-string">'{:.3g}'</span>.<span class="org-builtin">format</span>
-pairwise_replication(qtls, phenos=[<span class="org-string">'bulk'</span>, <span class="org-string">'pooled'</span>, <span class="org-string">'log_mu'</span>, <span class="org-string">'mean'</span>], ticks=[<span class="org-string">'Bulk'</span>, <span class="org-string">'Pooled'</span>, <span class="org-string">'$\log(\mu)$'</span>, <span class="org-string">'ZI mean'</span>], covars=covars)
+pairwise_replication(
+  qtls,
+  phenos=[<span class="org-string">'bulk'</span>, <span class="org-string">'pooled'</span>, <span class="org-string">'logodds-log-mu'</span>, <span class="org-string">'log_mu'</span>, <span class="org-string">'mean'</span>],
+  ticks=[<span class="org-string">'Bulk'</span>, <span class="org-string">'Pooled'</span>, <span class="org-string">'$(1 - \pi)\mu$'</span>, <span class="org-string">'$\log(\mu)$'</span>, <span class="org-string">'ZI mean'</span>],
+  covars=covars)
 </pre>
 </div>
 
 <pre class="example">
-Bulk  Pooled  $\log(\mu)$  ZI mean
-Bulk          100    82.6         80.6     80.7
-Pooled        100     100         98.8     98.8
-$\log(\mu)$   100    99.5          100      100
-ZI mean       100    99.5          100      100
+Bulk  Pooled  $(1 - \pi)\mu$  $\log(\mu)$  ZI mean
+Bulk             100    82.6            35.5         82.9     82.8
+Pooled           100     100            59.8         99.2     99.2
+$(1 - \pi)\mu$   100    76.9             100         76.9     76.9
+$\log(\mu)$      100     100            65.3          100     99.6
+ZI mean          100     100            70.5          100      100
 </pre>
 
 <p>
@@ -3747,7 +3777,7 @@ array([[1.        , 0.96786156],
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-05-08 Tue 15:36</p>
+<p class="date">Created: 2018-05-10 Thu 18:39</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-05-08 Tue 14:21 -->
+<!-- 2018-05-10 Thu 18:39 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Single cell/bulk RNA-Seq concordance</title>
@@ -821,6 +821,9 @@ abundance.
 
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/density-estimation/without-cell-cycle/zi2-log-mu.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
+<span class="org-variable-name">logodds</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/density-estimation/without-cell-cycle/zi2-log-mu.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
+ <span class="org-comment-delimiter"># </span><span class="org-comment">Important: log(sigmoid(x)) = -softplus(-x)</span>
+<span class="org-variable-name">log_mu</span> -= np.log1p(np.exp(logodds))
 <span class="org-variable-name">log_mu</span> -= log_mu.agg(sp.logsumexp, axis=0)
 </pre>
 </div>
@@ -1327,7 +1330,7 @@ Sorry, your browser does not support SVG.</object>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-05-08 Tue 14:21</p>
+<p class="date">Created: 2018-05-10 Thu 18:39</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>

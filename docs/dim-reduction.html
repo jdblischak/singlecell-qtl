@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-04-08 Sun 22:21 -->
+<!-- 2018-05-10 Thu 18:39 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Dimensionality reduction</title>
@@ -329,7 +329,7 @@ Read the full data matrix and apply the QC filters.
 </div>
 
 <pre class="example">
-(10173, 4901)
+(10196, 5447)
 
 </pre>
 
@@ -381,12 +381,16 @@ expression. Use the <code>edgeR</code> pseudocount.
 <div class="org-src-container">
 <pre class="src src-ipython">plt.clf()
 <span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(2, 2)
-fig.set_size_inches(12, 12)
+fig.set_size_inches(8, 8)
+<span class="org-variable-name">N</span> = <span class="org-builtin">len</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'batch'</span>]))
 <span class="org-keyword">for</span> i <span class="org-keyword">in</span> <span class="org-builtin">range</span>(2):
   <span class="org-keyword">for</span> j <span class="org-keyword">in</span> <span class="org-builtin">range</span>(i, 2):
-    ax[i][j].scatter(loadings[:,i], loadings[:,j + 1])
-    ax[i][j].set_xlabel(<span class="org-string">'PC{}'</span>.<span class="org-builtin">format</span>(j + 2))
-    ax[i][j].set_ylabel(<span class="org-string">'PC{}'</span>.<span class="org-builtin">format</span>(i + 1))
+    <span class="org-keyword">for</span> k, batch <span class="org-keyword">in</span> <span class="org-builtin">enumerate</span>(<span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'batch'</span>]))):
+      ax[i][j].scatter(loadings[annotations[<span class="org-string">'batch'</span>] == batch,i], loadings[annotations[<span class="org-string">'batch'</span>] == batch,j + 1], c=colorcet.cm[<span class="org-string">'rainbow'</span>](k / N), s=4, marker=<span class="org-string">'+'</span>, alpha=0.5)
+      ax[i][j].set_xlabel(<span class="org-string">'PC{}'</span>.<span class="org-builtin">format</span>(j + 2))
+      ax[i][j].set_ylabel(<span class="org-string">'PC{}'</span>.<span class="org-builtin">format</span>(i + 1))
+ax[1, 0].set_axis_off()
+fig.tight_layout()
 </pre>
 </div>
 
@@ -395,6 +399,28 @@ fig.set_size_inches(12, 12)
 <p><img src="figure/dim-reduction.org/pca.png" alt="pca.png">
 </p>
 </div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+<span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(2, 2)
+fig.set_size_inches(8, 8)
+<span class="org-variable-name">N</span> = <span class="org-builtin">len</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'batch'</span>]))
+<span class="org-keyword">for</span> i <span class="org-keyword">in</span> <span class="org-builtin">range</span>(2):
+  <span class="org-keyword">for</span> j <span class="org-keyword">in</span> <span class="org-builtin">range</span>(i, 2):
+    <span class="org-keyword">for</span> k, batch <span class="org-keyword">in</span> <span class="org-builtin">enumerate</span>(<span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'batch'</span>]))):
+      ax[i][j].scatter(loadings[annotations[<span class="org-string">'batch'</span>] == batch,i], loadings[annotations[<span class="org-string">'batch'</span>] == batch,j + 1], c=colorcet.cm[<span class="org-string">'rainbow'</span>](k / N), s=4, marker=<span class="org-string">'+'</span>, alpha=0.5)
+      ax[i][j].set_xlabel(<span class="org-string">'PC{}'</span>.<span class="org-builtin">format</span>(j + 2))
+      ax[i][j].set_ylabel(<span class="org-string">'PC{}'</span>.<span class="org-builtin">format</span>(i + 1))
+ax[1, 0].set_axis_off()
+fig.tight_layout()
+plt.savefig(<span class="org-string">'pca.pdf'</span>)
+</pre>
+</div>
+
+<pre class="example">
+&lt;matplotlib.figure.Figure at 0x7f55719c3e10&gt;
+
+</pre>
 
 <p>
 Correlate PCs with known continuous covariates by computing squared Pearson
@@ -612,6 +638,78 @@ approximation is better for some genes than others, i.e. that there could be
 gene-specific or gene module-specific effects. These are unlikely to be
 captured by PCA or factor analysis.
 </p>
+</div>
+</div>
+
+<div id="outline-container-org87f1cbc" class="outline-2">
+<h2 id="org87f1cbc">t-stochastic neighbor embedding</h2>
+<div class="outline-text-2" id="text-org87f1cbc">
+<p>
+Normalize the data.
+</p>
+
+<p>
+Compute cosine distance between cells
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">import</span> sklearn.metrics
+
+<span class="org-variable-name">distance</span> = sklearn.metrics.pairwise.cosine_distances(log_cpm.values.T)
+</pre>
+</div>
+
+<p>
+Compute the embedding
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">import</span> sklearn.manifold
+
+<span class="org-variable-name">embeddings</span> = {
+  perplexity: sklearn.manifold.TSNE(metric=<span class="org-string">'precomputed'</span>, perplexity=perplexity).fit_transform(distance)
+  <span class="org-keyword">for</span> perplexity <span class="org-keyword">in</span> np.geomspace(5, 50, 5)}
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+<span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(1, 5)
+fig.set_size_inches(10, 3)
+<span class="org-variable-name">N</span> = <span class="org-builtin">len</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>]))
+<span class="org-keyword">for</span> i, k <span class="org-keyword">in</span> <span class="org-builtin">enumerate</span>(np.geomspace(5, 50, 5)):
+  <span class="org-keyword">for</span> j, individual <span class="org-keyword">in</span> <span class="org-builtin">enumerate</span>(<span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>]))):
+    <span class="org-variable-name">v</span> = embeddings[k][annotations[<span class="org-string">'chip_id'</span>] == individual]
+    ax[i].scatter(v[:, 0], v[:, 1], c=colorcet.cm[<span class="org-string">'rainbow'</span>](j / N), s=2)
+  ax[i].set_title(<span class="org-string">'Perplexity = {:.2g}'</span>.<span class="org-builtin">format</span>(k))
+fig.tight_layout()
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/dim-reduction.org/tsne.png" alt="tsne.png">
+</p>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+<span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(1, 5)
+fig.set_size_inches(10, 3)
+<span class="org-variable-name">N</span> = <span class="org-builtin">len</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'batch'</span>]))
+<span class="org-keyword">for</span> i, k <span class="org-keyword">in</span> <span class="org-builtin">enumerate</span>(np.geomspace(5, 50, 5)):
+  <span class="org-keyword">for</span> j, batch <span class="org-keyword">in</span> <span class="org-builtin">enumerate</span>(<span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'batch'</span>]))):
+    <span class="org-variable-name">v</span> = embeddings[k][annotations[<span class="org-string">'batch'</span>] == batch]
+    ax[i].scatter(v[:, 0], v[:, 1], c=colorcet.cm[<span class="org-string">'rainbow'</span>](j / N), s=2)
+fig.tight_layout()
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/dim-reduction.org/tsne-by-batch.png" alt="tsne-by-batch.png">
+</p>
+</div>
 </div>
 </div>
 
@@ -1308,7 +1406,7 @@ Sorry, your browser does not support SVG.</object>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-04-08 Sun 22:21</p>
+<p class="date">Created: 2018-05-10 Thu 18:39</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
