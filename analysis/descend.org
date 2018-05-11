@@ -21,13 +21,13 @@
   #+CALL: ipython3(memory="16G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 45841513
+  : Submitted batch job 45863170
 
   #+CALL: zinb-imports()
 
   #+RESULTS:
   :RESULTS:
-  # Out[130]:
+  # Out[1]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -39,7 +39,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[125]:
+  # Out[2]:
   :END:
 
   #+NAME: descend-imports
@@ -96,7 +96,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[127]:
+  # Out[3]:
   :END:
 
   For simplicity, just fit DESCEND on cells from one individual.
@@ -151,38 +151,30 @@
   Estimate the Poisson MLE for pseudobulk data.
 
   #+BEGIN_SRC ipython
-    pseudobulk_log_rho = np.log(umi.agg(np.sum, axis=1)) - np.log(annotation[keep_ind]['mol_hs'].sum())
+    log_rho = dict()
+    log_rho['pseudobulk'] = np.log(umi.agg(np.sum, axis=1)) - np.log(annotation[keep_ind]['mol_hs'].sum())
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[131]:
+  # Out[5]:
   :END:
 
   Read ZINB estimates.
 
   #+BEGIN_SRC ipython
-    zinb_log_mu = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/with-cell-cycle-genes/zi2-log-mu.txt.gz', sep=' ', index_col=0)
-    zinb_logodds = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/with-cell-cycle-genes/zi2-logodds.txt.gz', sep=' ', index_col=0)
-    zinb_log_rho = zinb_log_mu
-    zinb_log_rho -= sp.logsumexp(zinb_log_mu)
+    zinb_log_mu = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/with-cell-cycle-genes/zi2-log-mu.txt.gz', sep=' ', index_col=0)['NA18507']
+    zinb_logodds = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/with-cell-cycle-genes/zi2-logodds.txt.gz', sep=' ', index_col=0)['NA18507']
+
+    # Important: log(sigmoid(x)) = -softplus(-x)
+    log_rho['zinb_nonzero'] = zinb_log_mu - np.log1p(np.exp(zinb_logodds))
+    log_rho['zinb_nonzero'] -= sp.logsumexp(log_rho['zinb_nonzero'])
+    log_rho['zinb'] = zinb_log_mu - sp.logsumexp(zinb_log_mu)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[182]:
-  :END:
-
-  #+BEGIN_SRC ipython
-    with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
-      log_mu = pd.read_sql('select * from params', conn).pivot(index='gene', columns='ind', values='log_mu')
-      zinb_log_rho = log_mu - sp.logsumexp(log_mu)
-      zinb_log_rho = zinb_log_rho.loc[keep_genes.values.ravel()]
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[153]:
+  # Out[6]:
   :END:
 
   Read the DESCEND estimates.
@@ -190,46 +182,52 @@
   #+BEGIN_SRC ipython
     descend_result = pd.read_table('/scratch/midway2/aksarkar/singlecell/descend/descend-result.txt.gz', index_col=0)
     descend_result = descend_result.mask(~np.isfinite(descend_result))
-    descend_log_rho = np.log(descend_result['Mean']) - np.log(descend_result['Mean'].sum())
+    log_rho['descend_nonzero'] = np.log(descend_result['Nonzero Intensity']) - np.log(descend_result['Nonzero Intensity'].sum())
+    log_rho['descend'] = np.log(descend_result['Mean']) - np.log(descend_result['Mean'].sum())
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[133]:
+  # Out[9]:
+  :END:
+
+  Construct a DataFrame for convenience.
+
+  #+BEGIN_SRC ipython
+    log_rho = pd.DataFrame(log_rho)
+    log_rho.columns = ['DESCEND', 'DESCEND nonzero', 'Pseudobulk', 'ZINB', 'ZINB nonzero']
+    log_rho = log_rho[['DESCEND', 'ZINB', 'DESCEND nonzero', 'ZINB nonzero', 'Pseudobulk']]
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[27]:
   :END:
 
   Plot the estimates against each other.
 
   #+BEGIN_SRC ipython :ipyfile figure/descend.org/comparison.png
     plt.clf()
-    fig, ax = plt.subplots(2, 2)
-    fig.set_size_inches(8, 8)
-    ax[0, 0].scatter(pseudobulk_log_rho, zinb_log_rho['NA18507'], c='k', marker='+', s=2, alpha=0.25)
-    ax[0, 0].plot([-18, -5], [-18, -5], ls=':', lw=1, c='r')
-    ax[0, 0].set_aspect('equal')
-    ax[0, 0].set_xlabel('Psuedobulk ln relative abundance')
-    ax[0, 0].set_ylabel('ZINB normalized $\ln((1 - \pi) \mu)$')
-
-    ax[1, 0].scatter(pseudobulk_log_rho, descend_log_rho, c='k', marker='+', s=2, alpha=0.25)
-    ax[1, 0].plot([-18, -5], [-18, -5], ls=':', lw=1, c='r')
-    ax[1, 0].set_aspect('equal')
-    ax[1, 0].set_xlabel('Psuedobulk ln relative abundance')
-    ax[1, 0].set_ylabel('DESCEND normalized $\ln((1 - \pi) \mu)$')
-
-    ax[1, 1].scatter(zinb_log_rho['NA18507'], descend_log_rho, c='k', marker='+', s=2, alpha=0.25)
-    ax[1, 1].plot([-18, -5], [-18, -5], ls=':', lw=1, c='r')
-    ax[1, 1].set_aspect('equal')
-    ax[1, 1].set_xlabel('ZINB normalized $\ln((1 - \pi) \mu)$')
-    ax[1, 1].set_ylabel('DESCEND normalized $\ln((1 - \pi) \mu)$')
-
-    ax[0, 1].set_axis_off()
-
+    P = log_rho.shape[1]
+    fig, ax = plt.subplots(P, P)
+    fig.set_size_inches(12, 12)
+    for y in range(P):
+      ax[y, 0].set_ylabel(log_rho.columns[y])
+      for x in range(P):
+        if y > x:
+          ax[y, x].scatter(log_rho.iloc[:,x], log_rho.iloc[:,y], c='k', s=2, alpha=0.25)
+          ax[y, x].text(-15, -5, '$r$ = {:.2g}'.format(st.mstats.spearmanr(log_rho.iloc[:,x], log_rho.iloc[:,y]).correlation), verticalalignment='top')
+          ax[y, x].plot([-16, -5], [-16, -5], ls=':', lw=1, c='r')
+          ax[y, x].set_aspect('equal')
+        else:
+          ax[y, x].set_axis_off()
+    for x in range(P):
+      ax[-1, x].set_xlabel(log_rho.columns[x])
     fig.tight_layout()
-
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[155]:
+  # Out[38]:
   [[file:figure/descend.org/comparison.png]]
   :END:
