@@ -60,17 +60,16 @@
 * Setup                                                            :noexport:
 
   #+BEGIN_SRC emacs-lisp
-    (org-babel-lob-ingest "/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/dim-reduction.org")
     (org-babel-lob-ingest "/home/aksarkar/.emacs.d/org-templates/library.org")
   #+END_SRC
 
   #+RESULTS:
   : 1
 
-  #+CALL: ipython3(memory="6G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
+  #+CALL: ipython3(memory="16G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 45793308
+  : Submitted batch job 45980452
 
   #+NAME: zinb-imports
   #+BEGIN_SRC ipython
@@ -349,73 +348,6 @@
   :RESULTS:
   :END:
 
-** Fit ZINB2
-
-   Estimate the parameters of the zero-inflated model assuming dropout per
-   individual and gene.
-
-   #+NAME: tf-zinb.py
-   #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb.py
-     <<zinb-imports>>
-     <<tf-imports>>
-     <<tf-zinb-impl>>
-     <<recode-impl>>
-     <<read-data-qc>>
-     onehot = recode(annotations, 'chip_id')
-     # These explain most PVE of circular pseudotime (ref. Joyce Hsiao)
-     cell_cycle_genes = [
-       'ENSG00000094804', # CDC6
-       'ENSG00000170312', # CDK1
-       'ENSG00000175063', # UBE2C
-       'ENSG00000131747', # TOP2A
-       'ENSG00000197061', # HIST1H4C
-     ]
-     cell_cycle = (umi.loc[cell_cycle_genes].values / annotations['mol_hs'].values).reshape(-1, 5)
-     chip = recode(annotations, 'experiment')
-     design = np.concatenate([chip, cell_cycle], axis=1)
-     design -= design.mean(axis=0)
-     design /= design.std(axis=0)
-     mean, dispersion, dropout = fit(
-       umi=umi.values.T.astype(np.float32),
-       onehot=onehot.astype(np.float32),
-       design=np.zeros((onehot.shape[0], 1)).astype(np.float32),
-       size_factor=annotations['mol_hs'].astype(np.float32).values.reshape(-1, 1),
-       gene_dropout=True,
-       ind_dropout=True,
-       learning_rate=5e-2,
-       max_epochs=4000)
-
-     index = umi.index
-     header = sorted(set(annotations['chip_id']))
-     pd.DataFrame(mean.T, index=index, columns=header).to_csv('zi2-log-mu.txt.gz', sep=' ', compression='gzip')
-     pd.DataFrame(dispersion.T, index=index, columns=header).to_csv('zi2-log-phi.txt.gz', sep=' ', compression='gzip')
-     pd.DataFrame(dropout.T, index=index, columns=header).to_csv('zi2-logodds.txt.gz', sep=' ', compression='gzip')
-   #+END_SRC
-
-   #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation/
-     sbatch --partition=gpu --gres=gpu:1 --mem=16G --time=60 --job-name=zinb2 --output=zinb2.out
-     #!/bin/bash
-     source activate scqtl
-     python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb.py
-   #+END_SRC
-
-   #+RESULTS:
-   : Submitted batch job 45796717
-
-   #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation/
-     sbatch --partition=broadwl
-     #!/bin/bash
-     cat >.rsync-filter <<EOF
-     + */
-     + zi2*.txt.gz
-     - *
-     EOF
-     rsync -FFau . /project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/
-   #+END_SRC
-
-   #+RESULTS:
-   : Submitted batch job 45796357
-
 ** Simulation
 
    #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-sim.py
@@ -480,6 +412,138 @@
 
    #+RESULTS:
    : Submitted batch job 45713922
+
+** Fit ZINB2
+
+   Read the data.
+
+   #+NAME: read-data-qc-impl
+   #+BEGIN_SRC ipython
+     keep_samples = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
+     keep_genes = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt', index_col=0, header=None)
+     annotations = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
+     annotations = annotations.loc[keep_samples.values.ravel()]
+     header = sorted(set(annotations['chip_id']))
+     umi = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', index_col=0).loc[keep_genes.values.ravel(),keep_samples.values.ravel()]
+     index = umi.index
+   #+END_SRC
+
+   #+RESULTS: read-data-qc-impl
+   :RESULTS:
+   # Out[3]:
+   :END:
+
+   #+RESULTS: read-data-qc
+   :RESULTS:
+   # Out[3]:
+   :END:
+
+   Prepare the design matrix of covariates.
+
+   #+CALL: recode-impl()
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[4]:
+   :END:
+
+   #+NAME: prepare-covars
+   #+BEGIN_SRC ipython
+     onehot = recode(annotations, 'chip_id')
+
+     designs = []
+
+     # Null covariate model
+     designs.append(np.zeros((onehot.shape[0], 1)))
+
+     # Chip can't be centered because otherwise the matrix becomes rank-deficient
+     chip = recode(annotations, 'experiment')
+     chip -= chip.mean(axis=0)
+     designs.append(chip)
+
+     # These explain most PVE of circular pseudotime (ref. Joyce Hsiao)
+     cell_cycle_genes = [
+       'ENSG00000094804', # CDC6
+       'ENSG00000170312', # CDK1
+       'ENSG00000175063', # UBE2C
+       'ENSG00000131747', # TOP2A
+     #  'ENSG00000197061', # HIST1H4C
+     ]
+     cell_cycle = (umi.loc[cell_cycle_genes].values / annotations['mol_hs'].values).reshape(-1, len(cell_cycle_genes))
+     cell_cycle -= cell_cycle.mean(axis=0)
+     cell_cycle /= cell_cycle.std(axis=0)
+     designs.append(cell_cycle)
+   #+END_SRC
+
+   #+RESULTS: prepare-covars
+   :RESULTS:
+   # Out[5]:
+   :END:
+
+   Estimate the parameters of the zero-inflated model assuming dropout per
+   individual and gene.
+
+   #+NAME: tf-zinb.py
+   #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb.py
+     <<zinb-imports>>
+     <<tf-imports>>
+     import argparse
+     <<tf-zinb-impl>>
+     <<recode-impl>>
+
+     parser = argparse.ArgumentParser()
+     parser.add_argument('--design', help='Design matrix of confounders', choices=list(range(3)), type=int)
+     args = parser.parse_args()
+     <<read-data-qc-impl>>
+     <<prepare-covars>>
+     log_mu, log_phi, logodds = fit(
+       umi=umi.T.astype(np.float32),
+       onehot=onehot.astype(np.float32),
+       design=designs[args.design].astype(np.float32),
+       size_factor=annotations['mol_hs'].astype(np.float32).values.reshape(-1, 1),
+       gene_dropout=True,
+       ind_dropout=True,
+       learning_rate=5e-2,
+       max_epochs=4000)
+     pd.DataFrame(log_mu.T, index=index, columns=header).to_csv('zi2-log-mu.txt.gz', sep=' ', compression='gzip')
+     pd.DataFrame(log_phi.T, index=index, columns=header).to_csv('zi2-log-phi.txt.gz', sep=' ', compression='gzip')
+     pd.DataFrame(logodds.T, index=index, columns=header).to_csv('zi2-logodds.txt.gz', sep=' ', compression='gzip')
+   #+END_SRC
+
+   #+NAME: run-tf-zinb
+   #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation/
+     sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --time=180 --job-name=tf-zinb --output=zinb2.out
+     #!/bin/bash
+     source activate scqtl
+     mkdir -p design0 design1 design2
+     # pushd design0
+     # python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb.py --design 0
+     # popd
+     pushd design1
+     python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb.py --design 1
+     popd
+     # pushd design2
+     # python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb.py --design 2
+     # popd
+   #+END_SRC
+
+   #+RESULTS: run-tf-zinb
+   : Submitted batch job 45961313
+
+   #+NAME: rsync
+   #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation/
+     sbatch --partition=broadwl
+     #!/bin/bash
+     cat >.rsync-filter <<EOF
+     + */
+     + zi2*.txt.gz
+     - *
+     EOF
+     rsync -FFau --delete . /project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/
+   #+END_SRC
+
+   #+RESULTS: rsync
+   : Submitted batch job 45964008
 
 * numpy/scipy implementation
 
@@ -579,11 +643,6 @@
   #+RESULTS: np-zinb-impl2
   :RESULTS:
   # Out[26]:
-  :END:
-
-  #+RESULTS: np-zinb-impl
-  :RESULTS:
-  # Out[4]:
   :END:
 
   Computing analytic SE runs into numerical problems.
@@ -1226,14 +1285,14 @@
   Read the estimated parameters.
 
   #+BEGIN_SRC ipython
-    log_mu = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/without-cell-cycle/zi2-log-mu.txt.gz', index_col=0, sep=' ')
-    log_phi = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/without-cell-cycle/zi2-log-phi.txt.gz', index_col=0, sep=' ')
-    logodds = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/without-cell-cycle/zi2-logodds.txt.gz', sep=' ', index_col=0)
+    log_mu = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-log-mu.txt.gz', comment='g', index_col=0, header=None, sep=' ')
+    log_phi = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-log-phi.txt.gz', comment='g', index_col=0, header=None, sep=' ')
+    logodds = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-logodds.txt.gz', comment='g', sep=' ', header=None, index_col=0)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[34]:
+  # Out[66]:
   :END:
 
   Look at the joint distribution.
@@ -1249,43 +1308,43 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[36]:
+  # Out[67]:
   #+BEGIN_EXAMPLE
     log_mu   log_phi   logodds
-    gene
-    ENSG00000000003  -9.441596 -2.501993 -7.015090
-    ENSG00000000419  -9.906777 -2.812004 -6.547979
-    ENSG00000000457 -11.986061 -1.406747  0.337841
-    ENSG00000000460 -11.033319 -2.387189 -2.911735
-    ENSG00000001036 -11.051643 -2.351120 -2.723858
+    0
+    ENSG00000000003  -9.441604 -2.501957 -7.102628
+    ENSG00000000419  -9.906798 -2.813177 -6.630466
+    ENSG00000000457 -11.994419 -1.410893  0.343059
+    ENSG00000000460 -11.033277 -2.391397 -2.921791
+    ENSG00000001036 -11.051584 -2.355751 -2.738895
   #+END_EXAMPLE
   :END:
 
   #+BEGIN_SRC ipython :ipyfile figure/zinb.org/joint-distribution.png
     plt.clf()
-    plt.gcf().set_size_inches(9, 9)
-    fig, ax = plt.subplots(2, 2, gridspec_kw={'width_ratios': [0.5, 0.5], 'height_ratios': [0.5, 0.5]})
+    fig, ax = plt.subplots(2, 2)
+    fig.set_size_inches(6, 6)
 
-    ax[0][0].scatter(J['log_mu'], J['log_phi'], c='k', s=2, alpha=0.25)
-    ax[0][0].set_xlabel('$\ln(\mu)$')
-    ax[0][0].set_ylabel('$\ln(\phi)$')
+    ax[0, 0].scatter(J['log_mu'], J['log_phi'], c='k', s=2, alpha=0.25)
+    ax[0, 0].set_xlabel('$\ln(\mu)$')
+    ax[0, 0].set_ylabel('$\ln(\phi)$')
 
-    ax[1][0].scatter(J['log_mu'], J['logodds'], c='k', s=2, alpha=0.25)
-    ax[1][0].set_xlabel('$\ln(\mu)$')
-    ax[1][0].set_ylabel('$\mathrm{logit}(\pi)$')
+    ax[1, 0].scatter(J['log_mu'], J['logodds'], c='k', s=2, alpha=0.25)
+    ax[1, 0].set_xlabel('$\ln(\mu)$')
+    ax[1, 0].set_ylabel('$\mathrm{logit}(\pi)$')
 
-    ax[0][1].scatter(J['logodds'], J['log_phi'], c='k', s=2, alpha=0.25)
-    ax[0][1].set_xlabel('$\mathrm{logit}(\pi)$')
-    ax[0][1].set_ylabel('$\ln(\phi)$')
+    ax[0, 1].scatter(J['logodds'], J['log_phi'], c='k', s=2, alpha=0.25)
+    ax[0, 1].set_xlabel('$\mathrm{logit}(\pi)$')
+    ax[0, 1].set_ylabel('$\ln(\phi)$')
 
-    ax[1][1].axis('off')
+    ax[1, 1].axis('off')
 
     fig.tight_layout()
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[61]:
+  # Out[68]:
   [[file:figure/zinb.org/joint-distribution.png]]
   :END:
 
@@ -1295,85 +1354,85 @@
   average reduction in heterogeneity (residual variance).
 
   #+BEGIN_SRC ipython
-    log_phi0 = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/without-confounders/zi2-log-phi.txt.gz', index_col=0, sep=' ')
-    log_phi1 = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/without-cell-cycle/zi2-log-phi.txt.gz', index_col=0, sep=' ')
-    log_phi2 = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/with-cell-cycle-genes/zi2-log-phi.txt.gz', index_col=0, sep=' ')
+    log_phi0 = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-log-phi.txt.gz', index_col=0, sep=' ')
+    log_phi1 = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-phi.txt.gz', index_col=0, sep=' ')
+    log_phi2 = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-log-phi.txt.gz', index_col=0, sep=' ')
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[22]:
+  # Out[4]:
   :END:
 
   #+BEGIN_SRC ipython
-    1 - (log_phi1 / log_phi0).mean().mean()
+    1 - np.exp(log_phi1 - log_phi0).mean().mean()
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[23]:
-  : 0.4349981749938848
+  # Out[39]:
+  : 0.15909761141307022
   :END:
 
   #+BEGIN_SRC ipython
-    1 - (log_phi2 / log_phi1).mean().mean()
+    1 - np.exp(log_phi2 - log_phi0).mean().mean()
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[24]:
-  : 0.0
+  # Out[40]:
+  : 0.0031759806727725826
   :END:
 
   Estimate how much the mean changes due to confounding.
 
   #+BEGIN_SRC ipython
-    log_mu0 = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/without-confounders/zi2-log-mu.txt.gz', index_col=0, sep=' ')
-    log_mu1 = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/without-cell-cycle/zi2-log-mu.txt.gz', index_col=0, sep=' ')
-    log_mu2 = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/with-cell-cycle-genes/zi2-log-mu.txt.gz', index_col=0, sep=' ')
+    log_mu0 = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-log-mu.txt.gz', index_col=0, sep=' ')
+    log_mu1 = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz', index_col=0, sep=' ')
+    log_mu2 = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-log-mu.txt.gz', index_col=0, sep=' ')
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[26]:
+  # Out[13]:
   :END:
 
   #+BEGIN_SRC ipython
-    np.exp(log_mu0 - log_mu1).describe().loc['mean'].describe()
+    np.exp(log_mu1 - log_mu0).describe().loc['mean'].describe()
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[27]:
+  # Out[37]:
   #+BEGIN_EXAMPLE
     count    54.000000
-    mean      1.334900
-    std       0.070728
-    min       1.195521
-    25%       1.280344
-    50%       1.343722
-    75%       1.370947
-    max       1.509227
+    mean      0.987324
+    std       0.041614
+    min       0.892340
+    25%       0.956751
+    50%       0.993726
+    75%       1.015968
+    max       1.066907
     Name: mean, dtype: float64
   #+END_EXAMPLE
   :END:
 
   #+BEGIN_SRC ipython
-    np.exp(log_mu1 - log_mu2).describe().loc['mean'].describe()
+    np.exp(log_mu2 - log_mu0).describe().loc['mean'].describe()
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[28]:
+  # Out[41]:
   #+BEGIN_EXAMPLE
-    count    54.0
-    mean      1.0
-    std       0.0
-    min       1.0
-    25%       1.0
-    50%       1.0
-    75%       1.0
-    max       1.0
+    count    54.000000
+    mean      0.999748
+    std       0.005232
+    min       0.990614
+    25%       0.996131
+    50%       0.999285
+    75%       1.004168
+    max       1.008685
     Name: mean, dtype: float64
   #+END_EXAMPLE
   :END:
