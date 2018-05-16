@@ -21,7 +21,7 @@
   #+CALL: ipython3(memory="16G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 45863170
+  : Submitted batch job 45926703
 
   #+CALL: zinb-imports()
 
@@ -96,7 +96,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[3]:
+  # Out[24]:
   :END:
 
   For simplicity, just fit DESCEND on cells from one individual.
@@ -146,7 +146,7 @@
   #+RESULTS:
   : Submitted batch job 45838251
 
-* Compare with other methods
+* Mean estimation
 
   Estimate the Poisson MLE for pseudobulk data.
 
@@ -230,4 +230,77 @@
   :RESULTS:
   # Out[38]:
   [[file:figure/descend.org/comparison.png]]
+  :END:
+
+* CV estimation
+
+  Initialize the data structure.
+
+  #+BEGIN_SRC ipython
+    cv = {}
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[15]:
+  :END:
+
+  Read ZINB estimates.
+
+  #+BEGIN_SRC ipython
+    zinb_log_mu = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/with-cell-cycle-genes/zi2-log-mu.txt.gz', sep=' ', index_col=0)['NA18507']
+    zinb_log_phi = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/with-cell-cycle-genes/zi2-log-phi.txt.gz', sep=' ', index_col=0)['NA18507']
+    zinb_logodds = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/with-cell-cycle-genes/zi2-logodds.txt.gz', sep=' ', index_col=0)['NA18507']
+
+    mean = sp.expit(-zinb_logodds) * np.exp(zinb_log_mu)
+    var = sp.expit(-zinb_logodds) * (2 * np.exp(zinb_log_mu) + np.exp(2 * zinb_log_mu + zinb_log_phi))
+    cv['zinb'] = (np.sqrt(var) / mean).ravel()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[17]:
+  :END:
+
+  Read the DESCEND estimates.
+
+  #+BEGIN_SRC ipython
+    descend_result = pd.read_table('/scratch/midway2/aksarkar/singlecell/descend/descend-result.txt.gz', index_col=0)
+    cv['descend'] = descend_result.mask(~np.isfinite(descend_result))['CV']
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[18]:
+  :END:
+
+  Construct a DataFrame for convenience.
+
+  #+BEGIN_SRC ipython
+    cv = pd.DataFrame(cv)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[19]:
+  :END:
+
+  Plot the estimates against each other.
+
+  #+BEGIN_SRC ipython :ipyfile figure/descend.org/cv-comparison.png
+    plt.clf()
+    plt.gcf().set_size_inches(4, 4)
+    plt.scatter(cv['zinb'], cv['descend'], c='k', s=2, alpha=0.25)
+    plt.text(0, 3, '$r$ = {:.2g}'.format(st.mstats.spearmanr(cv['zinb'], cv['descend']).correlation), verticalalignment='top')
+    plt.plot([0, 3], [0, 3], ls=':', lw=1, c='r')
+    plt.xlabel('ZINB CV')
+    plt.ylabel('DESCEND CV')
+    # plt.gca().set_aspect('equal', adjustable='datalim', anchor='SW')
+    plt.gcf().tight_layout()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[20]:
+  [[file:figure/descend.org/cv-comparison.png]]
   :END:
