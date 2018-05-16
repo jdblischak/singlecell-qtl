@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-05-10 Thu 18:39 -->
+<!-- 2018-05-15 Tue 22:02 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>DESCEND analysis</title>
@@ -323,15 +323,16 @@ Submitted batch job 45838251
 </div>
 </div>
 
-<div id="outline-container-org76cfa32" class="outline-2">
-<h2 id="org76cfa32">Compare with other methods</h2>
-<div class="outline-text-2" id="text-org76cfa32">
+<div id="outline-container-org347c498" class="outline-2">
+<h2 id="org347c498">Mean estimation</h2>
+<div class="outline-text-2" id="text-org347c498">
 <p>
 Estimate the Poisson MLE for pseudobulk data.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">pseudobulk_log_rho</span> = np.log(umi.agg(np.<span class="org-builtin">sum</span>, axis=1)) - np.log(annotation[keep_ind][<span class="org-string">'mol_hs'</span>].<span class="org-builtin">sum</span>())
+<pre class="src src-ipython"><span class="org-variable-name">log_rho</span> = <span class="org-builtin">dict</span>()
+<span class="org-variable-name">log_rho</span>[<span class="org-string">'pseudobulk'</span>] = np.log(umi.agg(np.<span class="org-builtin">sum</span>, axis=1)) - np.log(annotation[keep_ind][<span class="org-string">'mol_hs'</span>].<span class="org-builtin">sum</span>())
 </pre>
 </div>
 
@@ -340,18 +341,13 @@ Read ZINB estimates.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">zinb_log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/with-cell-cycle-genes/zi2-log-mu.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
-<span class="org-variable-name">zinb_logodds</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/with-cell-cycle-genes/zi2-logodds.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
-<span class="org-variable-name">zinb_log_rho</span> = zinb_log_mu
-<span class="org-variable-name">zinb_log_rho</span> -= sp.logsumexp(zinb_log_mu)
-</pre>
-</div>
+<pre class="src src-ipython"><span class="org-variable-name">zinb_log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/with-cell-cycle-genes/zi2-log-mu.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)[<span class="org-string">'NA18507'</span>]
+<span class="org-variable-name">zinb_logodds</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/with-cell-cycle-genes/zi2-logodds.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)[<span class="org-string">'NA18507'</span>]
 
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'</span>) <span class="org-keyword">as</span> conn:
-  <span class="org-variable-name">log_mu</span> = pd.read_sql(<span class="org-string">'select * from params'</span>, conn).pivot(index=<span class="org-string">'gene'</span>, columns=<span class="org-string">'ind'</span>, values=<span class="org-string">'log_mu'</span>)
-  <span class="org-variable-name">zinb_log_rho</span> = log_mu - sp.logsumexp(log_mu)
-  <span class="org-variable-name">zinb_log_rho</span> = zinb_log_rho.loc[keep_genes.values.ravel()]
+<span class="org-comment-delimiter"># </span><span class="org-comment">Important: log(sigmoid(x)) = -softplus(-x)</span>
+<span class="org-variable-name">log_rho</span>[<span class="org-string">'zinb_nonzero'</span>] = zinb_log_mu - np.log1p(np.exp(zinb_logodds))
+<span class="org-variable-name">log_rho</span>[<span class="org-string">'zinb_nonzero'</span>] -= sp.logsumexp(log_rho[<span class="org-string">'zinb_nonzero'</span>])
+<span class="org-variable-name">log_rho</span>[<span class="org-string">'zinb'</span>] = zinb_log_mu - sp.logsumexp(zinb_log_mu)
 </pre>
 </div>
 
@@ -362,7 +358,19 @@ Read the DESCEND estimates.
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-variable-name">descend_result</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/descend/descend-result.txt.gz'</span>, index_col=0)
 <span class="org-variable-name">descend_result</span> = descend_result.mask(~np.isfinite(descend_result))
-<span class="org-variable-name">descend_log_rho</span> = np.log(descend_result[<span class="org-string">'Mean'</span>]) - np.log(descend_result[<span class="org-string">'Mean'</span>].<span class="org-builtin">sum</span>())
+<span class="org-variable-name">log_rho</span>[<span class="org-string">'descend_nonzero'</span>] = np.log(descend_result[<span class="org-string">'Nonzero Intensity'</span>]) - np.log(descend_result[<span class="org-string">'Nonzero Intensity'</span>].<span class="org-builtin">sum</span>())
+<span class="org-variable-name">log_rho</span>[<span class="org-string">'descend'</span>] = np.log(descend_result[<span class="org-string">'Mean'</span>]) - np.log(descend_result[<span class="org-string">'Mean'</span>].<span class="org-builtin">sum</span>())
+</pre>
+</div>
+
+<p>
+Construct a DataFrame for convenience.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">log_rho</span> = pd.DataFrame(log_rho)
+<span class="org-variable-name">log_rho.columns</span> = [<span class="org-string">'DESCEND'</span>, <span class="org-string">'DESCEND nonzero'</span>, <span class="org-string">'Pseudobulk'</span>, <span class="org-string">'ZINB'</span>, <span class="org-string">'ZINB nonzero'</span>]
+<span class="org-variable-name">log_rho</span> = log_rho[[<span class="org-string">'DESCEND'</span>, <span class="org-string">'ZINB'</span>, <span class="org-string">'DESCEND nonzero'</span>, <span class="org-string">'ZINB nonzero'</span>, <span class="org-string">'Pseudobulk'</span>]]
 </pre>
 </div>
 
@@ -372,30 +380,22 @@ Plot the estimates against each other.
 
 <div class="org-src-container">
 <pre class="src src-ipython">plt.clf()
-<span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(2, 2)
-fig.set_size_inches(8, 8)
-ax[0, 0].scatter(pseudobulk_log_rho, zinb_log_rho[<span class="org-string">'NA18507'</span>], c=<span class="org-string">'k'</span>, marker=<span class="org-string">'+'</span>, s=2, alpha=0.25)
-ax[0, 0].plot([-18, -5], [-18, -5], ls=<span class="org-string">':'</span>, lw=1, c=<span class="org-string">'r'</span>)
-ax[0, 0].set_aspect(<span class="org-string">'equal'</span>)
-ax[0, 0].set_xlabel(<span class="org-string">'Psuedobulk ln relative abundance'</span>)
-ax[0, 0].set_ylabel(<span class="org-string">'ZINB normalized $\ln((1 - \pi) \mu)$'</span>)
-
-ax[1, 0].scatter(pseudobulk_log_rho, descend_log_rho, c=<span class="org-string">'k'</span>, marker=<span class="org-string">'+'</span>, s=2, alpha=0.25)
-ax[1, 0].plot([-18, -5], [-18, -5], ls=<span class="org-string">':'</span>, lw=1, c=<span class="org-string">'r'</span>)
-ax[1, 0].set_aspect(<span class="org-string">'equal'</span>)
-ax[1, 0].set_xlabel(<span class="org-string">'Psuedobulk ln relative abundance'</span>)
-ax[1, 0].set_ylabel(<span class="org-string">'DESCEND normalized $\ln((1 - \pi) \mu)$'</span>)
-
-ax[1, 1].scatter(zinb_log_rho[<span class="org-string">'NA18507'</span>], descend_log_rho, c=<span class="org-string">'k'</span>, marker=<span class="org-string">'+'</span>, s=2, alpha=0.25)
-ax[1, 1].plot([-18, -5], [-18, -5], ls=<span class="org-string">':'</span>, lw=1, c=<span class="org-string">'r'</span>)
-ax[1, 1].set_aspect(<span class="org-string">'equal'</span>)
-ax[1, 1].set_xlabel(<span class="org-string">'ZINB normalized $\ln((1 - \pi) \mu)$'</span>)
-ax[1, 1].set_ylabel(<span class="org-string">'DESCEND normalized $\ln((1 - \pi) \mu)$'</span>)
-
-ax[0, 1].set_axis_off()
-
+<span class="org-variable-name">P</span> = log_rho.shape[1]
+<span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(P, P)
+fig.set_size_inches(12, 12)
+<span class="org-keyword">for</span> y <span class="org-keyword">in</span> <span class="org-builtin">range</span>(P):
+  ax[y, 0].set_ylabel(log_rho.columns[y])
+  <span class="org-keyword">for</span> x <span class="org-keyword">in</span> <span class="org-builtin">range</span>(P):
+    <span class="org-keyword">if</span> y &gt; x:
+      ax[y, x].scatter(log_rho.iloc[:,x], log_rho.iloc[:,y], c=<span class="org-string">'k'</span>, s=2, alpha=0.25)
+      ax[y, x].text(-15, -5, <span class="org-string">'$r$ = {:.2g}'</span>.<span class="org-builtin">format</span>(st.mstats.spearmanr(log_rho.iloc[:,x], log_rho.iloc[:,y]).correlation), verticalalignment=<span class="org-string">'top'</span>)
+      ax[y, x].plot([-16, -5], [-16, -5], ls=<span class="org-string">':'</span>, lw=1, c=<span class="org-string">'r'</span>)
+      ax[y, x].set_aspect(<span class="org-string">'equal'</span>)
+    <span class="org-keyword">else</span>:
+      ax[y, x].set_axis_off()
+<span class="org-keyword">for</span> x <span class="org-keyword">in</span> <span class="org-builtin">range</span>(P):
+  ax[-1, x].set_xlabel(log_rho.columns[x])
 fig.tight_layout()
-
 </pre>
 </div>
 
@@ -406,10 +406,81 @@ fig.tight_layout()
 </div>
 </div>
 </div>
+
+<div id="outline-container-org51f91f8" class="outline-2">
+<h2 id="org51f91f8">CV estimation</h2>
+<div class="outline-text-2" id="text-org51f91f8">
+<p>
+Initialize the data structure.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">cv</span> = {}
+</pre>
+</div>
+
+<p>
+Read ZINB estimates.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">zinb_log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/with-cell-cycle-genes/zi2-log-mu.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)[<span class="org-string">'NA18507'</span>]
+<span class="org-variable-name">zinb_log_phi</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/with-cell-cycle-genes/zi2-log-phi.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)[<span class="org-string">'NA18507'</span>]
+<span class="org-variable-name">zinb_logodds</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/with-cell-cycle-genes/zi2-logodds.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)[<span class="org-string">'NA18507'</span>]
+
+<span class="org-variable-name">mean</span> = sp.expit(-zinb_logodds) * np.exp(zinb_log_mu)
+<span class="org-variable-name">var</span> = sp.expit(-zinb_logodds) * (2 * np.exp(zinb_log_mu) + np.exp(2 * zinb_log_mu + zinb_log_phi))
+<span class="org-variable-name">cv</span>[<span class="org-string">'zinb'</span>] = (np.sqrt(var) / mean).ravel()
+</pre>
+</div>
+
+<p>
+Read the DESCEND estimates.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">descend_result</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/descend/descend-result.txt.gz'</span>, index_col=0)
+<span class="org-variable-name">cv</span>[<span class="org-string">'descend'</span>] = descend_result.mask(~np.isfinite(descend_result))[<span class="org-string">'CV'</span>]
+</pre>
+</div>
+
+<p>
+Construct a DataFrame for convenience.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">cv</span> = pd.DataFrame(cv)
+</pre>
+</div>
+
+<p>
+Plot the estimates against each other.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.gcf().set_size_inches(4, 4)
+plt.scatter(cv[<span class="org-string">'zinb'</span>], cv[<span class="org-string">'descend'</span>], c=<span class="org-string">'k'</span>, s=2, alpha=0.25)
+plt.text(0, 3, <span class="org-string">'$r$ = {:.2g}'</span>.<span class="org-builtin">format</span>(st.mstats.spearmanr(cv[<span class="org-string">'zinb'</span>], cv[<span class="org-string">'descend'</span>]).correlation), verticalalignment=<span class="org-string">'top'</span>)
+plt.plot([0, 3], [0, 3], ls=<span class="org-string">':'</span>, lw=1, c=<span class="org-string">'r'</span>)
+plt.xlabel(<span class="org-string">'ZINB CV'</span>)
+plt.ylabel(<span class="org-string">'DESCEND CV'</span>)
+<span class="org-comment-delimiter"># </span><span class="org-comment">plt.gca().set_aspect('equal', adjustable='datalim', anchor='SW')</span>
+plt.gcf().tight_layout()
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/descend.org/cv-comparison.png" alt="cv-comparison.png">
+</p>
+</div>
+</div>
+</div>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-05-10 Thu 18:39</p>
+<p class="date">Created: 2018-05-15 Tue 22:02</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>

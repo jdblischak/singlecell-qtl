@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-05-08 Tue 14:21 -->
+<!-- 2018-05-15 Tue 22:04 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mean/dispersion estimation</title>
@@ -254,9 +254,9 @@ for the JavaScript code in this tag.
 <div id="content">
 <h1 class="title">Mean/dispersion estimation</h1>
 
-<div id="outline-container-orgde98ea2" class="outline-2">
-<h2 id="orgde98ea2">Introduction</h2>
-<div class="outline-text-2" id="text-orgde98ea2">
+<div id="outline-container-orgac4ee6b" class="outline-2">
+<h2 id="orgac4ee6b">Introduction</h2>
+<div class="outline-text-2" id="text-orgac4ee6b">
 <p>
 We take a modular approach to call QTLs:
 </p>
@@ -271,16 +271,16 @@ Here, we solve (1).
 </p>
 
 <ol class="org-ol">
-<li><a href="#org6ace9b3">We implement CPU-based ML estimation</a></li>
-<li><a href="#org4f496c8">We estimate per-gene indexes of dispersion</a> accounting for the fact that
+<li><a href="#orgd4b2b6e">We implement CPU-based ML estimation</a></li>
+<li><a href="#orgc7f68cb">We estimate per-gene indexes of dispersion</a> accounting for the fact that
 data came from multiple individuals</li>
 </ol>
 </div>
 </div>
 
-<div id="outline-container-org83e68c4" class="outline-2">
-<h2 id="org83e68c4">Model specification</h2>
-<div class="outline-text-2" id="text-org83e68c4">
+<div id="outline-container-org2a4c6d9" class="outline-2">
+<h2 id="org2a4c6d9">Model specification</h2>
+<div class="outline-text-2" id="text-org2a4c6d9">
 <p>
 Let \(r_{ijk}\) denote the number of molecules for individual \(i\), cell
 \(j\), gene \(k\). Let \(R_{ij}\) denote a size factor for each cell.
@@ -356,9 +356,9 @@ the mixture components) are also equal.
 </div>
 </div>
 
-<div id="outline-container-orgfe16c2c" class="outline-2">
-<h2 id="orgfe16c2c">Tensorflow implementation</h2>
-<div class="outline-text-2" id="text-orgfe16c2c">
+<div id="outline-container-orga5e4ee6" class="outline-2">
+<h2 id="orga5e4ee6">Tensorflow implementation</h2>
+<div class="outline-text-2" id="text-orga5e4ee6">
 <p>
 We optimize all of the parameters together, using one-hot encoding to map
 parameters to data points. This makes inference more amenable to running on
@@ -371,7 +371,7 @@ perform gradient descent.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org628d337"><span class="org-keyword">def</span> <span class="org-function-name">nb_llik</span>(x, mean, inv_disp):
+<pre class="src src-ipython" id="orgb25f6b1"><span class="org-keyword">def</span> <span class="org-function-name">nb_llik</span>(x, mean, inv_disp):
   <span class="org-doc">"""Log likelihood of x distributed as NB</span>
 
 <span class="org-doc">  See Hilbe 2012, eq. 8.10</span>
@@ -578,87 +578,9 @@ perform gradient descent.
 </div>
 </div>
 
-<div id="outline-container-org460a6e9" class="outline-3">
-<h3 id="org460a6e9">Fit ZINB2</h3>
-<div class="outline-text-3" id="text-org460a6e9">
-<p>
-Estimate the parameters of the zero-inflated model assuming dropout per
-individual and gene.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython" id="org2bb0d42">&lt;&lt;zinb-imports&gt;&gt;
-&lt;&lt;tf-imports&gt;&gt;
-&lt;&lt;tf-zinb-impl&gt;&gt;
-&lt;&lt;recode-impl&gt;&gt;
-&lt;&lt;read-data-qc&gt;&gt;
-<span class="org-variable-name">onehot</span> = recode(annotations, <span class="org-string">'chip_id'</span>)
-<span class="org-comment-delimiter"># </span><span class="org-comment">These explain most PVE of circular pseudotime (ref. Joyce Hsiao)</span>
-<span class="org-variable-name">cell_cycle_genes</span> = [
-  <span class="org-string">'ENSG00000094804'</span>, <span class="org-comment-delimiter"># </span><span class="org-comment">CDC6</span>
-  <span class="org-string">'ENSG00000170312'</span>, <span class="org-comment-delimiter"># </span><span class="org-comment">CDK1</span>
-  <span class="org-string">'ENSG00000175063'</span>, <span class="org-comment-delimiter"># </span><span class="org-comment">UBE2C</span>
-  <span class="org-string">'ENSG00000131747'</span>, <span class="org-comment-delimiter"># </span><span class="org-comment">TOP2A</span>
-  <span class="org-string">'ENSG00000197061'</span>, <span class="org-comment-delimiter"># </span><span class="org-comment">HIST1H4C</span>
-]
-<span class="org-variable-name">cell_cycle</span> = (umi.loc[cell_cycle_genes].values / annotations[<span class="org-string">'mol_hs'</span>].values).reshape(-1, 5)
-<span class="org-variable-name">chip</span> = recode(annotations, <span class="org-string">'experiment'</span>)
-<span class="org-variable-name">design</span> = np.concatenate([chip, cell_cycle], axis=1)
-<span class="org-variable-name">design</span> -= design.mean(axis=0)
-<span class="org-variable-name">design</span> /= design.std(axis=0)
-<span class="org-variable-name">mean</span>, <span class="org-variable-name">dispersion</span>, <span class="org-variable-name">dropout</span> = fit(
-  umi=umi.values.T.astype(np.float32),
-  onehot=onehot.astype(np.float32),
-  design=np.zeros((onehot.shape[0], 1)).astype(np.float32),
-  size_factor=annotations[<span class="org-string">'mol_hs'</span>].astype(np.float32).values.reshape(-1, 1),
-  gene_dropout=<span class="org-constant">True</span>,
-  ind_dropout=<span class="org-constant">True</span>,
-  learning_rate=5e-2,
-  max_epochs=4000)
-
-<span class="org-variable-name">index</span> = umi.index
-<span class="org-variable-name">header</span> = <span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>]))
-pd.DataFrame(mean.T, index=index, columns=header).to_csv(<span class="org-string">'zi2-log-mu.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
-pd.DataFrame(dispersion.T, index=index, columns=header).to_csv(<span class="org-string">'zi2-log-phi.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
-pd.DataFrame(dropout.T, index=index, columns=header).to_csv(<span class="org-string">'zi2-logodds.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-sh">sbatch --partition=gpu --gres=gpu:1 --mem=16G --time=60 --job-name=zinb2 --output=zinb2.out
-<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
-<span class="org-builtin">source</span> activate scqtl
-python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb.py
-</pre>
-</div>
-
-<pre class="example">
-Submitted batch job 45796717
-
-</pre>
-
-<div class="org-src-container">
-<pre class="src src-sh">sbatch --partition=broadwl
-<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
-cat &gt;.rsync-filter &lt;&lt;EOF
-<span class="org-sh-heredoc">+ */</span>
-<span class="org-sh-heredoc">+ zi2*.txt.gz</span>
-<span class="org-sh-heredoc">- *</span>
-<span class="org-sh-heredoc">EOF</span>
-rsync -FFau . /project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/
-</pre>
-</div>
-
-<pre class="example">
-Submitted batch job 45796357
-
-</pre>
-</div>
-</div>
-
-<div id="outline-container-orgf3af350" class="outline-3">
-<h3 id="orgf3af350">Simulation</h3>
-<div class="outline-text-3" id="text-orgf3af350">
+<div id="outline-container-org6eee67f" class="outline-3">
+<h3 id="org6eee67f">Simulation</h3>
+<div class="outline-text-3" id="text-org6eee67f">
 <div class="org-src-container">
 <pre class="src src-ipython">&lt;&lt;zinb-imports&gt;&gt;
 &lt;&lt;tf-imports&gt;&gt;
@@ -727,17 +649,140 @@ Submitted batch job 45713922
 </pre>
 </div>
 </div>
+
+<div id="outline-container-orgecf0144" class="outline-3">
+<h3 id="orgecf0144">Fit ZINB2</h3>
+<div class="outline-text-3" id="text-orgecf0144">
+<p>
+Read the data.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython" id="org60116d0"><span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
+<span class="org-variable-name">keep_genes</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
+<span class="org-variable-name">annotations</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
+<span class="org-variable-name">annotations</span> = annotations.loc[keep_samples.values.ravel()]
+<span class="org-variable-name">header</span> = <span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>]))
+<span class="org-variable-name">umi</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>, index_col=0).loc[keep_genes.values.ravel(),keep_samples.values.ravel()]
+<span class="org-variable-name">index</span> = umi.index
+</pre>
 </div>
 
-<div id="outline-container-org6ace9b3" class="outline-2">
-<h2 id="org6ace9b3">numpy/scipy implementation</h2>
-<div class="outline-text-2" id="text-org6ace9b3">
+<p>
+Prepare the design matrix of covariates.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython" id="orgc927afe"><span class="org-variable-name">onehot</span> = recode(annotations, <span class="org-string">'chip_id'</span>)
+
+<span class="org-variable-name">designs</span> = []
+
+<span class="org-comment-delimiter"># </span><span class="org-comment">Null covariate model</span>
+designs.append(np.zeros((onehot.shape[0], 1)))
+
+<span class="org-comment-delimiter"># </span><span class="org-comment">Chip can't be centered because otherwise the matrix becomes rank-deficient</span>
+<span class="org-variable-name">chip</span> = recode(annotations, <span class="org-string">'experiment'</span>)
+<span class="org-variable-name">chip</span> -= chip.mean(axis=0)
+designs.append(chip)
+
+<span class="org-comment-delimiter"># </span><span class="org-comment">These explain most PVE of circular pseudotime (ref. Joyce Hsiao)</span>
+<span class="org-variable-name">cell_cycle_genes</span> = [
+  <span class="org-string">'ENSG00000094804'</span>, <span class="org-comment-delimiter"># </span><span class="org-comment">CDC6</span>
+  <span class="org-string">'ENSG00000170312'</span>, <span class="org-comment-delimiter"># </span><span class="org-comment">CDK1</span>
+  <span class="org-string">'ENSG00000175063'</span>, <span class="org-comment-delimiter"># </span><span class="org-comment">UBE2C</span>
+  <span class="org-string">'ENSG00000131747'</span>, <span class="org-comment-delimiter"># </span><span class="org-comment">TOP2A</span>
+<span class="org-comment-delimiter">#  </span><span class="org-comment">'ENSG00000197061', # HIST1H4C</span>
+]
+<span class="org-variable-name">cell_cycle</span> = (umi.loc[cell_cycle_genes].values / annotations[<span class="org-string">'mol_hs'</span>].values).reshape(-1, <span class="org-builtin">len</span>(cell_cycle_genes))
+<span class="org-variable-name">cell_cycle</span> -= cell_cycle.mean(axis=0)
+<span class="org-variable-name">cell_cycle</span> /= cell_cycle.std(axis=0)
+designs.append(cell_cycle)
+</pre>
+</div>
+
+<p>
+Estimate the parameters of the zero-inflated model assuming dropout per
+individual and gene.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython" id="org08cf7fc">&lt;&lt;zinb-imports&gt;&gt;
+&lt;&lt;tf-imports&gt;&gt;
+<span class="org-keyword">import</span> argparse
+&lt;&lt;tf-zinb-impl&gt;&gt;
+&lt;&lt;recode-impl&gt;&gt;
+
+<span class="org-variable-name">parser</span> = argparse.ArgumentParser()
+parser.add_argument(<span class="org-string">'--design'</span>, <span class="org-builtin">help</span>=<span class="org-string">'Design matrix of confounders'</span>, choices=<span class="org-builtin">list</span>(<span class="org-builtin">range</span>(3)), <span class="org-builtin">type</span>=<span class="org-builtin">int</span>)
+<span class="org-variable-name">args</span> = parser.parse_args()
+&lt;&lt;read-data-qc-impl&gt;&gt;
+&lt;&lt;prepare-covars&gt;&gt;
+<span class="org-variable-name">log_mu</span>, <span class="org-variable-name">log_phi</span>, <span class="org-variable-name">logodds</span> = fit(
+  umi=umi.T.astype(np.float32),
+  onehot=onehot.astype(np.float32),
+  design=designs[args.design].astype(np.float32),
+  size_factor=annotations[<span class="org-string">'mol_hs'</span>].astype(np.float32).values.reshape(-1, 1),
+  gene_dropout=<span class="org-constant">True</span>,
+  ind_dropout=<span class="org-constant">True</span>,
+  learning_rate=5e-2,
+  max_epochs=4000)
+pd.DataFrame(log_mu.T, index=index, columns=header).to_csv(<span class="org-string">'zi2-log-mu.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
+pd.DataFrame(log_phi.T, index=index, columns=header).to_csv(<span class="org-string">'zi2-log-phi.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
+pd.DataFrame(logodds.T, index=index, columns=header).to_csv(<span class="org-string">'zi2-logodds.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-sh" id="org8a8944d">sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --time=180 --job-name=tf-zinb --output=zinb2.out
+<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
+<span class="org-builtin">source</span> activate scqtl
+mkdir -p design0 design1 design2
+<span class="org-comment-delimiter"># </span><span class="org-comment">pushd design0</span>
+<span class="org-comment-delimiter"># </span><span class="org-comment">python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb.py --design 0</span>
+<span class="org-comment-delimiter"># </span><span class="org-comment">popd</span>
+<span class="org-builtin">pushd</span> design1
+python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb.py --design 1
+<span class="org-builtin">popd</span>
+<span class="org-comment-delimiter"># </span><span class="org-comment">pushd design2</span>
+<span class="org-comment-delimiter"># </span><span class="org-comment">python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb.py --design 2</span>
+<span class="org-comment-delimiter"># </span><span class="org-comment">popd</span>
+</pre>
+</div>
+
+<pre class="example">
+Submitted batch job 45961313
+
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-sh" id="orga92c0a6">sbatch --partition=broadwl
+<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
+cat &gt;.rsync-filter &lt;&lt;EOF
+<span class="org-sh-heredoc">+ */</span>
+<span class="org-sh-heredoc">+ zi2*.txt.gz</span>
+<span class="org-sh-heredoc">- *</span>
+<span class="org-sh-heredoc">EOF</span>
+rsync -FFau --delete . /project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/
+</pre>
+</div>
+
+<pre class="example">
+Submitted batch job 45964008
+
+</pre>
+</div>
+</div>
+</div>
+
+<div id="outline-container-orgd4b2b6e" class="outline-2">
+<h2 id="orgd4b2b6e">numpy/scipy implementation</h2>
+<div class="outline-text-2" id="text-orgd4b2b6e">
 <p>
 Optimize the negative log-likelihood.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org529a27d"><span class="org-keyword">def</span> <span class="org-function-name">log</span>(x):
+<pre class="src src-ipython" id="orge4bffc2"><span class="org-keyword">def</span> <span class="org-function-name">log</span>(x):
   <span class="org-doc">"""Numerically safe log"""</span>
   <span class="org-keyword">return</span> np.log(x + 1e-8)
 
@@ -860,9 +905,9 @@ Computing analytic SE runs into numerical problems.
 </div>
 </div>
 
-<div id="outline-container-org1b75a70" class="outline-3">
-<h3 id="org1b75a70">Simulation</h3>
-<div class="outline-text-3" id="text-org1b75a70">
+<div id="outline-container-org9f0f870" class="outline-3">
+<h3 id="org9f0f870">Simulation</h3>
+<div class="outline-text-3" id="text-org9f0f870">
 <p>
 Check the parameter estimation on simulated data.
 </p>
@@ -898,7 +943,7 @@ Letting \(\tau\) denote precision:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="orgd2a03c7"><span class="org-keyword">def</span> <span class="org-function-name">simulate</span>(num_samples, size=<span class="org-constant">None</span>, log_mu=<span class="org-constant">None</span>, log_phi=<span class="org-constant">None</span>, logodds=<span class="org-constant">None</span>, seed=<span class="org-constant">None</span>, design=<span class="org-constant">None</span>, fold=<span class="org-constant">None</span>):
+<pre class="src src-ipython" id="orgebda222"><span class="org-keyword">def</span> <span class="org-function-name">simulate</span>(num_samples, size=<span class="org-constant">None</span>, log_mu=<span class="org-constant">None</span>, log_phi=<span class="org-constant">None</span>, logodds=<span class="org-constant">None</span>, seed=<span class="org-constant">None</span>, design=<span class="org-constant">None</span>, fold=<span class="org-constant">None</span>):
   <span class="org-keyword">if</span> seed <span class="org-keyword">is</span> <span class="org-constant">None</span>:
     <span class="org-variable-name">seed</span> = 0
   np.random.seed(seed)
@@ -1265,7 +1310,7 @@ Write the annotations to the database.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="orgda7fb7e"><span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
+<pre class="src src-ipython" id="orgf6792ab"><span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
 <span class="org-variable-name">annotations</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
 <span class="org-variable-name">annotations</span>[<span class="org-string">'sample'</span>] = annotations.<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: <span class="org-string">'{chip_id}.{experiment:08d}.{well}'</span>.<span class="org-builtin">format</span>(**<span class="org-builtin">dict</span>(x)), axis=1)
 <span class="org-variable-name">annotations</span>[<span class="org-string">'size'</span>] = annotations[<span class="org-string">'mol_hs'</span>]
@@ -1281,7 +1326,7 @@ Recode categorical variables as binary indicators.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="orgf00e99d"><span class="org-keyword">def</span> <span class="org-function-name">recode</span>(annotations, key):
+<pre class="src src-ipython" id="org76d27e5"><span class="org-keyword">def</span> <span class="org-function-name">recode</span>(annotations, key):
   <span class="org-variable-name">n</span> = annotations.shape[0]
   <span class="org-variable-name">cat</span> = <span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(annotations[key]))
   <span class="org-variable-name">onehot</span> = np.zeros((n, <span class="org-builtin">len</span>(cat)))
@@ -1370,7 +1415,7 @@ Process each chunk in parallel.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="orgbd92003"><span class="org-keyword">def</span> <span class="org-function-name">compute_breaks</span>(chunk, by_ind=<span class="org-constant">False</span>):
+<pre class="src src-ipython" id="org059bf51"><span class="org-keyword">def</span> <span class="org-function-name">compute_breaks</span>(chunk, by_ind=<span class="org-constant">False</span>):
   <span class="org-comment-delimiter"># </span><span class="org-comment">Each subproblem has fixed size, so we can just split on integer indices</span>
   <span class="org-comment-delimiter"># </span><span class="org-comment">(instead of grouping)</span>
   <span class="org-variable-name">num_genes</span> = <span class="org-builtin">len</span>(<span class="org-builtin">set</span>(chunk[<span class="org-string">'gene'</span>]))
@@ -1453,9 +1498,9 @@ Populate the database.
 </div>
 </div>
 
-<div id="outline-container-org4f5c185" class="outline-2">
-<h2 id="org4f5c185">Parameter distributions</h2>
-<div class="outline-text-2" id="text-org4f5c185">
+<div id="outline-container-orgb3ce509" class="outline-2">
+<h2 id="orgb3ce509">Parameter distributions</h2>
+<div class="outline-text-2" id="text-orgb3ce509">
 <p>
 The simulation reveals the method has undesirable behavior when the
 proportion of zeros is too large and mean is too small.
@@ -1466,9 +1511,9 @@ Read the estimated parameters.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/without-cell-cycle/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
-<span class="org-variable-name">log_phi</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/without-cell-cycle/zi2-log-phi.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
-<span class="org-variable-name">logodds</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/without-cell-cycle/zi2-logodds.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
+<pre class="src src-ipython"><span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-log-mu.txt.gz'</span>, comment=<span class="org-string">'g'</span>, index_col=0, header=<span class="org-constant">None</span>, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">log_phi</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-log-phi.txt.gz'</span>, comment=<span class="org-string">'g'</span>, index_col=0, header=<span class="org-constant">None</span>, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">logodds</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-logodds.txt.gz'</span>, comment=<span class="org-string">'g'</span>, sep=<span class="org-string">' '</span>, header=<span class="org-constant">None</span>, index_col=0)
 </pre>
 </div>
 
@@ -1488,32 +1533,32 @@ J.head()
 
 <pre class="example">
 log_mu   log_phi   logodds
-gene
-ENSG00000000003  -9.441596 -2.501993 -7.015090
-ENSG00000000419  -9.906777 -2.812004 -6.547979
-ENSG00000000457 -11.986061 -1.406747  0.337841
-ENSG00000000460 -11.033319 -2.387189 -2.911735
-ENSG00000001036 -11.051643 -2.351120 -2.723858
+0
+ENSG00000000003  -9.441604 -2.501957 -7.102628
+ENSG00000000419  -9.906798 -2.813177 -6.630466
+ENSG00000000457 -11.994419 -1.410893  0.343059
+ENSG00000000460 -11.033277 -2.391397 -2.921791
+ENSG00000001036 -11.051584 -2.355751 -2.738895
 </pre>
 
 <div class="org-src-container">
 <pre class="src src-ipython">plt.clf()
-plt.gcf().set_size_inches(9, 9)
-<span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(2, 2, gridspec_kw={<span class="org-string">'width_ratios'</span>: [0.5, 0.5], <span class="org-string">'height_ratios'</span>: [0.5, 0.5]})
+<span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(2, 2)
+fig.set_size_inches(6, 6)
 
-ax[0][0].scatter(J[<span class="org-string">'log_mu'</span>], J[<span class="org-string">'log_phi'</span>], c=<span class="org-string">'k'</span>, s=2, alpha=0.25)
-ax[0][0].set_xlabel(<span class="org-string">'$\ln(\mu)$'</span>)
-ax[0][0].set_ylabel(<span class="org-string">'$\ln(\phi)$'</span>)
+ax[0, 0].scatter(J[<span class="org-string">'log_mu'</span>], J[<span class="org-string">'log_phi'</span>], c=<span class="org-string">'k'</span>, s=2, alpha=0.25)
+ax[0, 0].set_xlabel(<span class="org-string">'$\ln(\mu)$'</span>)
+ax[0, 0].set_ylabel(<span class="org-string">'$\ln(\phi)$'</span>)
 
-ax[1][0].scatter(J[<span class="org-string">'log_mu'</span>], J[<span class="org-string">'logodds'</span>], c=<span class="org-string">'k'</span>, s=2, alpha=0.25)
-ax[1][0].set_xlabel(<span class="org-string">'$\ln(\mu)$'</span>)
-ax[1][0].set_ylabel(<span class="org-string">'$\mathrm{logit}(\pi)$'</span>)
+ax[1, 0].scatter(J[<span class="org-string">'log_mu'</span>], J[<span class="org-string">'logodds'</span>], c=<span class="org-string">'k'</span>, s=2, alpha=0.25)
+ax[1, 0].set_xlabel(<span class="org-string">'$\ln(\mu)$'</span>)
+ax[1, 0].set_ylabel(<span class="org-string">'$\mathrm{logit}(\pi)$'</span>)
 
-ax[0][1].scatter(J[<span class="org-string">'logodds'</span>], J[<span class="org-string">'log_phi'</span>], c=<span class="org-string">'k'</span>, s=2, alpha=0.25)
-ax[0][1].set_xlabel(<span class="org-string">'$\mathrm{logit}(\pi)$'</span>)
-ax[0][1].set_ylabel(<span class="org-string">'$\ln(\phi)$'</span>)
+ax[0, 1].scatter(J[<span class="org-string">'logodds'</span>], J[<span class="org-string">'log_phi'</span>], c=<span class="org-string">'k'</span>, s=2, alpha=0.25)
+ax[0, 1].set_xlabel(<span class="org-string">'$\mathrm{logit}(\pi)$'</span>)
+ax[0, 1].set_ylabel(<span class="org-string">'$\ln(\phi)$'</span>)
 
-ax[1][1].axis(<span class="org-string">'off'</span>)
+ax[1, 1].axis(<span class="org-string">'off'</span>)
 
 fig.tight_layout()
 </pre>
@@ -1527,38 +1572,38 @@ fig.tight_layout()
 </div>
 </div>
 
-<div id="outline-container-org3d54e04" class="outline-2">
-<h2 id="org3d54e04">Effect of confounding</h2>
-<div class="outline-text-2" id="text-org3d54e04">
+<div id="outline-container-org7a2e302" class="outline-2">
+<h2 id="org7a2e302">Effect of confounding</h2>
+<div class="outline-text-2" id="text-org7a2e302">
 <p>
 Estimate proportion of variance explained by confounders by estimating the
 average reduction in heterogeneity (residual variance).
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">log_phi0</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/without-confounders/zi2-log-phi.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
-<span class="org-variable-name">log_phi1</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/without-cell-cycle/zi2-log-phi.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
-<span class="org-variable-name">log_phi2</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/with-cell-cycle-genes/zi2-log-phi.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<pre class="src src-ipython"><span class="org-variable-name">log_phi0</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-log-phi.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">log_phi1</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-phi.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">log_phi2</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-log-phi.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
 </pre>
 </div>
 
 <div class="org-src-container">
-<pre class="src src-ipython">1 - (log_phi1 / log_phi0).mean().mean()
+<pre class="src src-ipython">1 - np.exp(log_phi1 - log_phi0).mean().mean()
 </pre>
 </div>
 
 <pre class="example">
-0.4349981749938848
+0.15909761141307022
 
 </pre>
 
 <div class="org-src-container">
-<pre class="src src-ipython">1 - (log_phi2 / log_phi1).mean().mean()
+<pre class="src src-ipython">1 - np.exp(log_phi2 - log_phi0).mean().mean()
 </pre>
 </div>
 
 <pre class="example">
-0.0
+0.0031759806727725826
 
 </pre>
 
@@ -1567,51 +1612,257 @@ Estimate how much the mean changes due to confounding.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">log_mu0</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/without-confounders/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
-<span class="org-variable-name">log_mu1</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/without-cell-cycle/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
-<span class="org-variable-name">log_mu2</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/with-cell-cycle-genes/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<pre class="src src-ipython"><span class="org-variable-name">log_mu0</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">log_mu1</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">log_mu2</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
 </pre>
 </div>
 
 <div class="org-src-container">
-<pre class="src src-ipython">np.exp(log_mu0 - log_mu1).describe().loc[<span class="org-string">'mean'</span>].describe()
+<pre class="src src-ipython">np.exp(log_mu1 - log_mu0).describe().loc[<span class="org-string">'mean'</span>].describe()
 </pre>
 </div>
 
 <pre class="example">
 count    54.000000
-mean      1.334900
-std       0.070728
-min       1.195521
-25%       1.280344
-50%       1.343722
-75%       1.370947
-max       1.509227
+mean      0.987324
+std       0.041614
+min       0.892340
+25%       0.956751
+50%       0.993726
+75%       1.015968
+max       1.066907
 Name: mean, dtype: float64
 </pre>
 
 <div class="org-src-container">
-<pre class="src src-ipython">np.exp(log_mu1 - log_mu2).describe().loc[<span class="org-string">'mean'</span>].describe()
+<pre class="src src-ipython">np.exp(log_mu2 - log_mu0).describe().loc[<span class="org-string">'mean'</span>].describe()
 </pre>
 </div>
 
 <pre class="example">
-count    54.0
-mean      1.0
-std       0.0
-min       1.0
-25%       1.0
-50%       1.0
-75%       1.0
-max       1.0
+count    54.000000
+mean      0.999748
+std       0.005232
+min       0.990614
+25%       0.996131
+50%       0.999285
+75%       1.004168
+max       1.008685
 Name: mean, dtype: float64
 </pre>
 </div>
 </div>
 
-<div id="outline-container-orgc80bb54" class="outline-2">
-<h2 id="orgc80bb54">Mean-variance relationship by individual</h2>
-<div class="outline-text-2" id="text-orgc80bb54">
+<div id="outline-container-orge431611" class="outline-2">
+<h2 id="orge431611">log CPM based estimators</h2>
+<div class="outline-text-2" id="text-orge431611">
+<p>
+Compute pseudobulk relative abundance. <b>Important:</b> keep the \(\infty\) around.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">pooled_log_mu</span> = np.log(umi.groupby(annotations[<span class="org-string">'chip_id'</span>].values, axis=1).agg(np.<span class="org-builtin">sum</span>)) - np.log(annotations.groupby(<span class="org-string">'chip_id'</span>)[<span class="org-string">'mol_hs'</span>].agg(np.<span class="org-builtin">sum</span>))
+<span class="org-variable-name">pooled_log_rho</span> = pooled_log_mu - sp.logsumexp(pooled_log_mu)
+</pre>
+</div>
+
+<p>
+To first order,
+</p>
+
+<p>
+\[ E[\ln r] = \ln r \]
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-comment-delimiter"># </span><span class="org-comment">Follow edgeR</span>
+<span class="org-variable-name">eps</span> = .5 / annotations[<span class="org-string">'mol_hs'</span>].mean()
+<span class="org-variable-name">log_counts</span> = np.log(umi + eps)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">cpm_log_mu</span> = log_counts.groupby(annotations[<span class="org-string">'chip_id'</span>].values, axis=1).agg(np.mean)
+<span class="org-variable-name">cpm_log_rho</span> = cpm_log_mu - sp.logsumexp(cpm_log_mu)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">zinb_log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
+<span class="org-variable-name">zinb_logodds</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-logodds.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
+<span class="org-comment-delimiter"># </span><span class="org-comment">Important: log(sigmoid(x)) = -softplus(-x)</span>
+<span class="org-variable-name">zinb_log_mu</span> -= np.log1p(np.exp(zinb_logodds))
+<span class="org-variable-name">zinb_log_rho</span> = zinb_log_mu - sp.logsumexp(zinb_log_mu)
+</pre>
+</div>
+
+<p>
+Construct a DataFrame for convenience.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">log_rho</span> = pd.DataFrame({<span class="org-string">'Pooled'</span>: pooled_log_rho[<span class="org-string">'NA18507'</span>],
+                        <span class="org-string">'ZINB'</span>: zinb_log_rho[<span class="org-string">'NA18507'</span>],
+                        <span class="org-string">'CPM'</span>: cpm_log_rho[<span class="org-string">'NA18507'</span>]})[[<span class="org-string">'ZINB'</span>, <span class="org-string">'Pooled'</span>, <span class="org-string">'CPM'</span>]]
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+<span class="org-variable-name">N</span> = log_rho.shape[1]
+<span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(N, N)
+fig.set_size_inches(6, 6)
+<span class="org-keyword">for</span> y <span class="org-keyword">in</span> <span class="org-builtin">range</span>(N):
+  ax[y, 0].set_ylabel(<span class="org-string">'{}'</span>.<span class="org-builtin">format</span>(log_rho.columns[y]))
+  <span class="org-keyword">for</span> x <span class="org-keyword">in</span> <span class="org-builtin">range</span>(N):
+    <span class="org-keyword">if</span> y &lt; x:
+      ax[y, x].set_axis_off()
+    <span class="org-keyword">else</span>:
+      ax[y, x].scatter(log_rho.iloc[:, x], log_rho.iloc[:, y], c=<span class="org-string">'k'</span>, s=2, alpha=0.1)
+      ax[y, x].plot(ax[y, x].get_xlim(), ax[y, x].get_xlim(), c=<span class="org-string">'r'</span>, ls=<span class="org-string">':'</span>, lw=1)
+      ax[y, x].text(.05, .95, <span class="org-string">'$r$ = {:.2g}'</span>.<span class="org-builtin">format</span>(st.mstats.spearmanr(log_rho.iloc[:, x], log_rho.iloc[:, y]).correlation), transform=ax[y, x].transAxes, verticalalignment=<span class="org-string">'top'</span>)
+<span class="org-keyword">for</span> x <span class="org-keyword">in</span> <span class="org-builtin">range</span>(N):
+  ax[-1, x].set_xlabel(<span class="org-string">'{}'</span>.<span class="org-builtin">format</span>(log_rho.columns[x]))
+fig.tight_layout()
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/zinb.org/cpm-estimator-mu.png" alt="cpm-estimator-mu.png">
+</p>
+</div>
+
+<p>
+Look at CV vs. mean, following Islam et al 2013.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
+<span class="org-variable-name">annotations</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
+<span class="org-variable-name">annotations</span> = annotations.loc[keep_samples.values.ravel()]
+<span class="org-variable-name">umi</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>, index_col=0)
+<span class="org-variable-name">zeros_pass</span> = umi.loc[:,keep_samples.values.ravel()].agg(np.<span class="org-builtin">sum</span>, axis=1) &gt; 0
+<span class="org-variable-name">umi</span> = umi.loc[zeros_pass,keep_samples.values.ravel()]
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">keep_ind</span> = (annotations[<span class="org-string">'chip_id'</span>] == <span class="org-string">'NA18507'</span>).values.ravel()
+<span class="org-variable-name">mean</span> = umi.agg(np.mean, axis=1)
+<span class="org-variable-name">cv</span> = umi.agg(st.variation, axis=1)
+<span class="org-variable-name">ind_mean</span> = umi.loc[:,keep_ind].agg(np.mean, axis=1)
+<span class="org-variable-name">ind_cv</span> = umi.loc[:,keep_ind].agg(st.variation, axis=1)
+</pre>
+</div>
+
+<p>
+Islam et al define a "lossy Poisson" by fitting a regression \(\mathrm{CV}
+  \sim 1 / \sqrt(f \mathrm{mean})\) to the spike-ins
+</p>
+
+<p>
+Fit the regression by minimizing least-squares. <b>Important:</b> Islam et al
+claim this an MLE, but don't say of what.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">lossy_pois</span>(theta, x):
+  <span class="org-keyword">return</span> np.sqrt(1 / (theta * x))
+
+<span class="org-keyword">def</span> <span class="org-function-name">lossy_pois_llik</span>(theta, x, y):
+  <span class="org-keyword">return</span> np.square(y - lossy_pois(theta, x)).mean()
+
+<span class="org-keyword">def</span> <span class="org-function-name">fit_lossy_pois</span>(ercc):
+  <span class="org-variable-name">x</span> = ercc.agg(np.mean, axis=1)
+  <span class="org-variable-name">y</span> = ercc.agg(st.variation, axis=1)
+  <span class="org-keyword">return</span> so.minimize(lossy_pois_llik, x0=[0.05], args=(x.mask(x &lt; 0.1).dropna(), y.mask(x &lt; 0.1).dropna()), bounds=[(0, <span class="org-constant">None</span>)])
+</pre>
+</div>
+
+<p>
+Extract the spike-ins from the <code>ExpressionSet</code>.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-R">eset <span class="org-ess-assignment">&lt;-</span> readRDS(<span class="org-string">"/project2/mstephens/aksarkar/projects/singlecell-qtl/data/eset.rds"</span>)
+ercc <span class="org-ess-assignment">&lt;-</span> eset[fData(eset)$<span class="org-ess-modifiers">source</span> == <span class="org-string">"ERCC"</span>]
+write.table(exprs(ercc), gzfile(<span class="org-string">'ercc.txt.gz'</span>))
+</pre>
+</div>
+
+<p>
+Fit the regression.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">ercc</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/ercc.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">ercc</span> = ercc.loc[:,keep_samples.values.ravel()]
+<span class="org-variable-name">ercc</span> = ercc[ercc.agg(np.<span class="org-builtin">sum</span>, axis=1) &gt; 0]
+<span class="org-variable-name">opt</span> = fit_lossy_pois(ercc)
+opt
+</pre>
+</div>
+
+<pre class="example">
+fun: 0.085459646089885
+hess_inv: &lt;1x1 LbfgsInvHessProduct with dtype=float64&gt;
+jac: array([2.54379851e-06])
+message: b'CONVERGENCE: NORM_OF_PROJECTED_GRADIENT_&lt;=_PGTOL'
+nfev: 24
+nit: 6
+status: 0
+success: True
+x: array([0.64712397])
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+<span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(1, 2)
+fig.set_size_inches(8, 4)
+
+<span class="org-keyword">for</span> a <span class="org-keyword">in</span> ax:
+  a.semilogx()
+  a.set_xlabel(<span class="org-string">'Sample mean of molecules'</span>)
+  a.set_ylabel(<span class="org-string">'Sample CV of molecules'</span>)
+
+ax[0].scatter(ind_mean, ind_cv, c=<span class="org-string">'0.5'</span>, s=2, zorder=0, label=<span class="org-string">'Endogenous'</span>)
+ax[0].scatter(ercc.loc[:,keep_ind].agg(np.mean, axis=1), ercc.loc[:,keep_ind].agg(st.variation, axis=1), c=<span class="org-string">'r'</span>, s=2, label=<span class="org-string">'ERCC'</span>)
+<span class="org-variable-name">lim</span> = ax[0].get_xlim()
+<span class="org-variable-name">grid</span> = np.geomspace(lim[0], lim[1], 200)
+ax[0].plot(grid, lossy_pois(1, grid), ls=<span class="org-string">'--'</span>, lw=1, c=<span class="org-string">'k'</span>, zorder=1)
+ax[0].plot(grid, lossy_pois(opt.x, grid), ls=<span class="org-string">'--'</span>, lw=1, c=<span class="org-string">'r'</span>, zorder=1)
+<span class="org-variable-name">keep_grid</span> = grid[4 * lossy_pois(1, grid) &lt; ax[0].get_ylim()[1]]
+ax[0].plot(keep_grid, 4 * lossy_pois(1, keep_grid), ls=<span class="org-string">'-'</span>, lw=1, c=<span class="org-string">'r'</span>, zorder=1)
+ax[0].legend(frameon=<span class="org-constant">False</span>, fancybox=<span class="org-constant">False</span>)
+ax[0].set_title(<span class="org-string">'NA18507'</span>)
+
+ax[1].scatter(mean, cv, c=<span class="org-string">'0.5'</span>, s=2, zorder=0, label=<span class="org-string">'Endogenous'</span>)
+ax[1].scatter(ercc.agg(np.mean, axis=1), ercc.agg(st.variation, axis=1), c=<span class="org-string">'r'</span>, s=2, label=<span class="org-string">'ERCC'</span>)
+ax[1].legend(frameon=<span class="org-constant">False</span>, fancybox=<span class="org-constant">False</span>)
+<span class="org-variable-name">lim</span> = ax[1].get_xlim()
+<span class="org-variable-name">grid</span> = np.geomspace(lim[0], lim[1], 200)
+ax[1].plot(grid, lossy_pois(1, grid), ls=<span class="org-string">'--'</span>, lw=1, c=<span class="org-string">'k'</span>, zorder=1)
+ax[1].plot(grid, lossy_pois(opt.x, grid), ls=<span class="org-string">'--'</span>, lw=1, c=<span class="org-string">'r'</span>, zorder=1)
+<span class="org-variable-name">keep_grid</span> = grid[4 * lossy_pois(1, grid) &lt; ax[1].get_ylim()[1]]
+ax[1].plot(keep_grid, 4 * lossy_pois(1, keep_grid), ls=<span class="org-string">'-'</span>, lw=1, c=<span class="org-string">'r'</span>, zorder=1)
+ax[1].set_title(<span class="org-string">'Over 53 individuals'</span>)
+fig.tight_layout()
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/zinb.org/count-cv-vs-count-mean.png" alt="count-cv-vs-count-mean.png">
+</p>
+</div>
+</div>
+</div>
+
+<div id="outline-container-org2985e2c" class="outline-2">
+<h2 id="org2985e2c">Mean-variance relationship by individual</h2>
+<div class="outline-text-2" id="text-org2985e2c">
 <p>
 Read the estimated parameters.
 </p>
@@ -1653,9 +1904,9 @@ Text(0,0.5,'Estimated Fano factor')
 </div>
 </div>
 
-<div id="outline-container-org4f496c8" class="outline-2">
-<h2 id="org4f496c8">Per-gene dispersion</h2>
-<div class="outline-text-2" id="text-org4f496c8">
+<div id="outline-container-orgc7f68cb" class="outline-2">
+<h2 id="orgc7f68cb">Per-gene dispersion</h2>
+<div class="outline-text-2" id="text-orgc7f68cb">
 <p>
 The index of dispersion for observed data \(r_{ijk}\) at gene \(k\) is:
 </p>
@@ -1780,7 +2031,7 @@ plt.xlabel(<span class="org-string">'Quantile of estimated mean'</span>)
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-05-08 Tue 14:21</p>
+<p class="date">Created: 2018-05-15 Tue 22:04</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
