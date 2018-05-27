@@ -37,11 +37,15 @@
     {
 	"mem" : 4000
     },
-        "counts_combined" :
+    "expressionset_combined" :
+    {
+	"mem" : 16000
+    },
+    "counts_combined" :
     {
 	"mem" : 8000
     },
-        "annotation_combined" :
+    "annotation_combined" :
     {
 	"mem" : 8000
     }
