@@ -26,18 +26,10 @@
 
   1. [[*Principal components analysis][We perform PCA on the post-QC data]] and show that most variation is
      explained by gene detection rate
-  2. [[*Zero-inflated factor analysis][We fit zero-inflated factor analysis]] and show that after explicitly
-     modeling dropout, we still recover a factor correlated with gene detection
-     rate
-  3. [[*Effect of normalization on PCA][We show in simulation]] that PC1 is correlated with library size even in the
-     absence of dropout
-  4. [[*Effect of dropout on gene expression][We confirm in the real data]] that the entire distribution of non-zero gene
+  2. [[*Effect of dropout on gene expression][We confirm in the real data]] that the entire distribution of non-zero gene
      expression is correlated with gene detection rate
-  5. [[*PCA on bicentered data][We show that adjusting for both sample- and gene-specific means]] eliminates
-     the first technical PC
-  6. [[*Kernel PCA][We show that applying kernel PCA]] eliminates the second technical PC
-  7. [[*PCA on gene expression residuals][We show that regressing out the percentiles of gene expression]] eliminates
-     both technical PCs
+  3. [[*PCA on gene expression residuals][We show that regressing out the percentiles of gene expression]] eliminates
+     the dependence on gene detection rate
 
 * Setup                                                            :noexport:
 
@@ -51,7 +43,7 @@
   #+CALL: ipython3(memory="16G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 45841677
+  : Submitted batch job 46233805
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -60,7 +52,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[78]:
+  # Out[1]:
   :END:
 
   #+NAME: dim-reduction-imports
@@ -96,7 +88,7 @@
 
   #+RESULTS: read-data-qc
   :RESULTS:
-  # Out[3]:
+  # Out[5]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -105,36 +97,8 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[4]:
-  : (10196, 5447)
-  :END:
-
-  The expected ERCC spike-in molecule counts were previously tabulated for
-  1:50\(\times\) dilution.
-
-  #+BEGIN_SRC ipython
-    ercc_mean_mols_50x = pd.read_table('https://raw.githubusercontent.com/jdblischak/singleCellSeq/master/data/expected-ercc-molecules.txt')
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[5]:
-  :END:
-
-  #+BEGIN_SRC ipython
-    def efficiency(sample, ercc_mean_mols_50x):
-      res = sample['mol_ercc'] / ercc_mean_mols_50x['ercc_molecules_well'].sum()
-      if sample['ERCC'] == '50x dilution':
-        return res
-      elif sample['ERCC'] == '100x dilution':
-        return .5 * res
-      else:
-        return np.nan
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
   # Out[6]:
+  : (10099, 5566)
   :END:
 
 * Principal components analysis
@@ -144,7 +108,7 @@
 
   #+NAME: normalize
   #+BEGIN_SRC ipython
-    libsize = umi.sum(axis=0)
+    libsize = annotations['mol_hs'].values
     pseudocount = .5 * libsize / libsize.mean()
     log_cpm = (np.log(umi + pseudocount) - np.log(libsize + 2 * pseudocount) + 6 * np.log(10)) / np.log(2)
   #+END_SRC
@@ -161,7 +125,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[157]:
+  # Out[10]:
   :END:
 
   #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/pca.png
@@ -181,7 +145,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[170]:
+  # Out[11]:
   [[file:figure/dim-reduction.org/pca.png]]
   :END:
 
@@ -227,20 +191,10 @@
   #+BEGIN_SRC ipython
     def extract_covars(annotations):
       return pd.Series({
-        'batch': int(annotations['batch'][1:]),
-        # Recode experiment YYYYMMDD so it is strictly increasing with time
-        'experiment': 10000 * (annotations['experiment'] % 10000) + annotations['experiment'] // 10000,
-        'index': annotations['index'],
-        'concentration': annotations['concentration'],
-        'reads_with_umi': annotations['umi'],
-        'mols': annotations['molecules'],
-        'efficiency': efficiency(annotations, ercc_mean_mols_50x=ercc_mean_mols_50x),
-        'mapped_prop_hs': annotations['reads_hs'] / annotations['mapped'],
-        'mapped_prop_dm': annotations['reads_dm'] / annotations['mapped'],
-        'mapped_prop_ce': annotations['reads_ce'] / annotations['mapped'],
-        'detect_hs': annotations['detect_hs'],
-        'chipmix': annotations['chipmix'],
-        'freemix': annotations['freemix'],
+        'Reads': annotations['umi'],
+        'Molecules': annotations['molecules'],
+        'Mapped %': annotations['umi'] / annotations['mapped'],
+        'Genes detected': annotations['detect_hs'],
       })
 
     def correlation(pcs, cont_covars):
@@ -257,43 +211,44 @@
           result.append([i, j, np.square(st.pearsonr(pcs[i][keep], cont_covars[j][keep]))[0]])
       return pd.DataFrame(result, columns=['pc', 'covar', 'corr'])
 
-    def categorical_r2(loadings, annotations, key):
+    def categorical_r2(loadings, annotations, key, name):
       categories = sorted(annotations[key].unique())
       onehot = np.zeros((annotations.shape[0], len(categories)), dtype=np.float32)
       onehot[np.arange(onehot.shape[0]), annotations[key].apply(lambda x: categories.index(x))] = 1
       m = sklm.LinearRegression(fit_intercept=True, copy_X=True).fit(onehot, loadings)
       return pd.DataFrame({
           'pc': np.arange(10),
-          'covar': key,
+          'covar': name,
           'corr': 1 - np.square(loadings - m.predict(onehot)).sum(axis=0) / np.square(loadings - loadings.mean(axis=0)).sum(axis=0)})
   #+END_SRC
 
   #+RESULTS: corr-def
   :RESULTS:
-  # Out[172]:
+  # Out[17]:
   :END:
 
   #+NAME: extract-covars
   #+BEGIN_SRC ipython
     cont_covars = annotations.apply(extract_covars, axis=1)
-    cat_covars = annotations[['chip_id', 'well']]
+    cat_covars = list(zip(annotations[['batch', 'experiment', 'chip_id', 'well']],
+                          ['Batch', 'C1 chip', 'Individual', 'Well']))
   #+END_SRC
 
   #+RESULTS: extract-covars
   :RESULTS:
-  # Out[173]:
+  # Out[18]:
   :END:
 
   #+BEGIN_SRC ipython
     corr = pd.concat(
       [correlation(pd.DataFrame(loadings), cont_covars)] +
-      [categorical_r2(loadings, annotations, k) for k in cat_covars])
+      [categorical_r2(loadings, annotations, k, n) for k, n in cat_covars])
     corr = corr.pivot(index='covar', columns='pc')
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[174]:
+  # Out[19]:
   :END:
 
   #+NAME: plot-covars-def
@@ -301,7 +256,7 @@
     def plot_pca_covar_corr(pca, corr):
       plt.clf()
       fig, ax = plt.subplots(2, 1, gridspec_kw={'height_ratios': [.25, .75]}, sharex=True)
-      fig.set_size_inches(6, 9)
+      fig.set_size_inches(4, 5)
       ax[0].bar(np.arange(len(pca.components_)), pca.explained_variance_ratio_)
       ax[0].set_xticks(np.arange(len(pca.components_)))
       ax[0].set_xticklabels([str(x) for x in np.arange(1, len(pca.components_) + 1)])
@@ -321,7 +276,7 @@
 
   #+RESULTS: plot-covars-def
   :RESULTS:
-  # Out[14]:
+  # Out[24]:
   :END:
 
   #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/pca-vs-covars.svg
@@ -331,9 +286,11 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[27]:
+  # Out[25]:
   [[file:figure/dim-reduction.org/pca-vs-covars.svg]]
   :END:
+
+** Reconstruction error                                            :noexport:
 
   The top 10 PCs define a low-rank approximation to the original data, so we
   should ask how good the approximation was, by comparing the distribution of
@@ -427,7 +384,7 @@
   gene-specific or gene module-specific effects. These are unlikely to be
   captured by PCA or factor analysis.
 
-* t-stochastic neighbor embedding
+* t-stochastic neighbor embedding                                  :noexport:
 
   Normalize the data.
 
@@ -493,7 +450,7 @@
   [[file:figure/dim-reduction.org/tsne-by-batch.png]]
   :END:
 
-* Zero-inflated factor analysis
+* Zero-inflated factor analysis                                    :noexport:
 
   If dropout changes the distribution of the non-zero observations, we might
   hope that fitting a latent variable model which explicitly includes dropout
@@ -590,7 +547,7 @@
   [[file:figure/dim-reduction.org/pca-vs-zifa-corr.png]]
   :END:
 
-* Effect of normalization on PCA
+* Effect of normalization on PCA                                   :noexport:
 
   Should we expect that the top principal component of log CPM is still
   sequencing depth?  [[https://dx.doi.org/10.1093/biostatistics/kxx053][Hicks et al 2017]] claim that correlation of the first
@@ -829,16 +786,17 @@
         label = '$\log({} + {:.3g})$'.format('\mathrm{UMI}', pseudocount)
 
       plt.clf()
+      plt.gcf().set_size_inches(4, 4)
       for q, v in zip(quantiles, vals):
-        plt.scatter(annotations['detect_hs'] / keep_genes.shape[0], v, c=colorcet.cm['inferno'](q), label='{:.3f}'.format(q), s=2)
-      plt.legend(bbox_to_anchor=(1.04, .5), loc='center left')
-      plt.xlabel('Detection rate')
+        plt.scatter(annotations['detect_hs'] / keep_genes.shape[0], v, c=colorcet.cm['inferno'](q), label='{:.2f}'.format(q), s=2)
+      plt.legend(title='Quantile', frameon=False, fancybox=False, bbox_to_anchor=(1, .5), loc='center left')
+      plt.xlabel('Proportion of genes detected')
       plt.ylabel(label)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[11]:
+  # Out[26]:
   :END:
 
   We recapitulate the main result of Hicks et al in our data.
@@ -850,7 +808,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[12]:
+  # Out[27]:
   [[file:figure/dim-reduction.org/umi-quantiles-vs-detection.png]]
   :END:
 
@@ -868,7 +826,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[57]:
+  # Out[28]:
   [[file:figure/dim-reduction.org/umi-quantiles-vs-detection-1.png]]
   :END:
 
@@ -878,7 +836,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[58]:
+  # Out[29]:
   [[file:figure/dim-reduction.org/umi-quantiles-vs-detection-1e-3.png]]
   :END:
 
@@ -926,35 +884,35 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[35]:
+  # Out[30]:
   :END:
 
   #+CALL: normalize()
 
   #+RESULTS:
   :RESULTS:
-  # Out[9]:
+  # Out[31]:
   :END:
 
   #+CALL: corr-def()
 
   #+RESULTS:
   :RESULTS:
-  # Out[10]:
+  # Out[32]:
   :END:
 
   #+CALL: extract-covars()
 
   #+RESULTS:
   :RESULTS:
-  # Out[11]:
+  # Out[33]:
   :END:
 
   #+CALL: plot-covars-def()
 
   #+RESULTS:
   :RESULTS:
-  # Out[12]:
+  # Out[34]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -964,14 +922,14 @@
       loadings = ppca.fit_transform(log_cpm.values.T - sample_means - feature_means.T)
       corr = pd.concat(
         [correlation(pd.DataFrame(loadings), cont_covars)] +
-        [categorical_r2(loadings, annotations, k) for k in cat_covars])
+        [categorical_r2(loadings, annotations, k, n) for k, n in cat_covars])
       corr = corr.pivot(index='covar', columns='pc')
       plot_pca_covar_corr(ppca, corr)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[36]:
+  # Out[35]:
   :END:
 
   #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/pca-bicentered-covars.svg
@@ -981,7 +939,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[37]:
+  # Out[36]:
   [[file:figure/dim-reduction.org/pca-bicentered-covars.svg]]
   :END:
 
@@ -1007,13 +965,13 @@
     loadings_kpca = kpca.fit_transform(log_cpm.values.T)
     corr_kpca = pd.concat(
       [correlation(pd.DataFrame(loadings_kpca), cont_covars)] +
-      [categorical_r2(loadings_kpca, annotations, k) for k in cat_covars])
+      [categorical_r2(loadings_kpca, annotations, k, n) for k, n in cat_covars])
     corr_kpca = corr_kpca.pivot(index='covar', columns='pc')
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[39]:
+  # Out[37]:
   :END:
 
   #+NAME: plot-kpca-covars
@@ -1033,7 +991,7 @@
 
   #+RESULTS: plot-kpca-covars
   :RESULTS:
-  # Out[40]:
+  # Out[38]:
   [[file:figure/dim-reduction.org/kpca-covars.svg]]
   :END:
 
@@ -1061,7 +1019,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[81]:
+  # Out[39]:
   :END:
 
   #+BEGIN_SRC ipython :async t
@@ -1070,6 +1028,7 @@
 
   #+RESULTS:
   :RESULTS:
+  # Out[40]:
   :END:
 
   #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/pca-expr-residual-covars.svg
@@ -1079,7 +1038,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[90]:
+  # Out[43]:
   [[file:figure/dim-reduction.org/pca-expr-residual-covars.svg]]
   :END:
 
@@ -1102,7 +1061,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[43]:
+  # Out[131]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -1116,6 +1075,6 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[54]:
+  # Out[134]:
   [[file:figure/dim-reduction.org/pca-qqnorm-covars.svg]]
   :END:

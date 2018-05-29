@@ -22,24 +22,21 @@ def update_gene(attr, old, new):
     return
   with sqlite3.connect(db) as conn:
     global gene
-    gene = next(conn.execute('select gene from fano_qtls where fano_qtls.gene == ?;', (gene_data.data['gene'][selected[0]],)))[0]
+    gene = next(conn.execute('select gene from cv_qtls where cv_qtls.gene == ?;', (gene_data.data['gene'][selected[0]],)))[0]
     params = pd.read_sql(
-      sql="""select fano_qtl_geno.ind, fano_qtl_geno.value as genotype, log_mu, log_mu +
-      log_mu_se as log_mu_upper, log_mu - log_mu_se as log_mu_lower, log_phi,
-      log_phi + log_phi_se as log_phi_upper, log_phi - log_phi_se as
-      log_phi_lower, logodds, mean, var, var / mean as fano from fano_qtl_geno,
-      params where fano_qtl_geno.gene == ? and fano_qtl_geno.gene ==
-      params.gene and fano_qtl_geno.ind == params.ind;""",
+      sql="""select cv_qtl_geno.ind, cv_qtl_geno.value as genotype, log_mu, log_phi,
+      logodds, mean, variance, cv, fano from cv_qtl_geno, params where
+      cv_qtl_geno.gene == ? and cv_qtl_geno.gene == params.gene and
+      cv_qtl_geno.ind == params.ind;""",
       params=(gene,),
       con=conn)
     # Jitter the points
-    np.random.seed(0)
-    params['genotype'] += np.random.normal(scale=0.02, size=params.shape[0])
+    # np.random.seed(0)
+    # params['genotype'] += np.random.normal(scale=0.01, size=params.shape[0])
     # Scale ln to log2
     for k in params:
       if k.startswith('log'):
         params[k] /= np.log(2)
-    params['cv'] = np.sqrt(params['var']) / params['mean']
     ind_data.data = bokeh.models.ColumnDataSource.from_df(params)
     umi_data.data = bokeh.models.ColumnDataSource.from_df(pd.DataFrame(columns=['left', 'right', 'count']))
     dist_data.data = bokeh.models.ColumnDataSource.from_df(pd.DataFrame(columns=['x', 'y']))
@@ -79,15 +76,13 @@ def update_umi(attr, old, new):
 def init():
   with sqlite3.connect(db) as conn:
     gene_data.data = bokeh.models.ColumnDataSource.from_df(pd.read_sql(
-      sql="""select fano_qtls.gene, gene_info.name, id, p_beta as p, beta from fano_qtls,
-      gene_info where fano_qtls.gene == gene_info.gene and fdr_pass order by p_beta;""",
+      sql="""select gene, name, id, p_beta as p, beta from cv_qtls order by p_beta;""",
       con=conn))
 
 # These need to be separate because they have different dimension
 ind_data = bokeh.models.ColumnDataSource(pd.DataFrame(
-  columns=['ind', 'genotype', 'log_mu', 'log_mu_lower', 'log_mu_upper',
-           'log_phi', 'log_phi_lower', 'log_phi_upper' , 'logodds',
-           'mean', 'var', 'cv', 'fano']))
+  columns=['ind', 'genotype', 'log_mu', 'log_phi', 'logodds', 'mean', 'variance',
+           'cv', 'fano']))
 ind_data.on_change('selected', update_umi)
 
 gene_data = bokeh.models.ColumnDataSource(pd.DataFrame(columns=['gene', 'id', 'p', 'beta']))
@@ -106,13 +101,11 @@ qtls = bokeh.models.widgets.DataTable(
 hover = bokeh.models.HoverTool(tooltips=[('Individual', '@ind')])
 
 sc_mu_by_geno = bokeh.plotting.figure(width=300, height=300, tools=['pan', 'wheel_zoom', 'reset', 'tap', hover, ])
-sc_mu_by_geno.segment(source=ind_data, x0='genotype', y0='log_mu_lower', x1='genotype', y1='log_mu_upper', color='black', line_width=2)
 sc_mu_by_geno.scatter(source=ind_data, x='genotype', y='log_mu', color='black', size=6)
 sc_mu_by_geno.xaxis.axis_label = 'Dosage'
 sc_mu_by_geno.yaxis.axis_label = 'log2(μ)'
 
 sc_phi_by_geno = bokeh.plotting.figure(width=300, height=300, tools=['pan', 'wheel_zoom', 'reset', 'tap', hover])
-sc_phi_by_geno.segment(source=ind_data, x0='genotype', y0='log_phi_lower', x1='genotype', y1='log_phi_upper', color='black', line_width=2)
 sc_phi_by_geno.scatter(source=ind_data, x='genotype', y='log_phi', color='black', size=6)
 sc_phi_by_geno.xaxis.axis_label = 'Dosage'
 sc_phi_by_geno.yaxis.axis_label = 'log2(φ)'
@@ -125,22 +118,22 @@ sc_logodds_by_geno.yaxis.axis_label = 'logit(π)'
 sc_mean_by_geno = bokeh.plotting.figure(width=300, height=300, tools=['tap', hover])
 sc_mean_by_geno.scatter(source=ind_data, x='genotype', y='mean', color='black', size=6)
 sc_mean_by_geno.xaxis.axis_label = 'Dosage'
-sc_mean_by_geno.yaxis.axis_label = 'ZI-corrected mean'
+sc_mean_by_geno.yaxis.axis_label = 'ZINB mean'
 
 sc_var_by_geno = bokeh.plotting.figure(width=300, height=300, tools=['tap', hover])
-sc_var_by_geno.scatter(source=ind_data, x='genotype', y='var', color='black', size=6)
+sc_var_by_geno.scatter(source=ind_data, x='genotype', y='variance', color='black', size=6)
 sc_var_by_geno.xaxis.axis_label = 'Dosage'
-sc_var_by_geno.yaxis.axis_label = 'ZI-corrected variance'
+sc_var_by_geno.yaxis.axis_label = 'ZINB variance'
 
 sc_cv_by_geno = bokeh.plotting.figure(width=300, height=300, tools=['tap', hover])
 sc_cv_by_geno.scatter(source=ind_data, x='genotype', y='cv', color='black', size=6)
 sc_cv_by_geno.xaxis.axis_label = 'Dosage'
-sc_cv_by_geno.yaxis.axis_label = 'ZI-corrected CV'
+sc_cv_by_geno.yaxis.axis_label = 'ZINB CV'
 
 sc_fano_by_geno = bokeh.plotting.figure(width=300, height=300, tools=['tap', hover])
 sc_fano_by_geno.scatter(source=ind_data, x='genotype', y='fano', color='black', size=6)
 sc_fano_by_geno.xaxis.axis_label = 'Dosage'
-sc_fano_by_geno.yaxis.axis_label = 'ZI-corrected Fano factor'
+sc_fano_by_geno.yaxis.axis_label = 'ZINB Fano factor'
 
 umi = bokeh.plotting.figure(width=300, height=300, tools=[])
 umi.quad(source=umi_data, bottom=0, top='count', left='left', right='right', color='black')
@@ -156,7 +149,7 @@ panels = bokeh.layouts.gridplot([
 layout = bokeh.layouts.layout([[qtls], [panels]], sizing_mode='fixed')
 
 doc = bokeh.io.curdoc()
-doc.title = 'Fano QTL browser'
+doc.title = 'CV-QTL browser'
 doc.add_root(layout)
 
 init()

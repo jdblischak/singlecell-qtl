@@ -17,11 +17,12 @@
 
   #+BEGIN_SRC ipython
     %matplotlib inline
+    %config InlineBackend.figure_formats = set(['svg'])
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[1]:
+  # Out[75]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -36,7 +37,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[19]:
+  # Out[96]:
   :END:
 
 * Read the data
@@ -68,7 +69,7 @@
 * Distributions of read counts
 ** H. sapiens
 
-  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/reads-by-cell.png
+  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/reads-by-cell.svg
     plt.clf()
     plt.gcf().set_size_inches(12, 4)
     plt.hist(annotations['reads_hs'], bins=100)
@@ -79,12 +80,12 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[20]:
+  # Out[97]:
   : Text(0.5,1,'Read count by cell')
-  [[file:figure/descriptive-stats.org/reads-by-cell.png]]
+  [[file:figure/descriptive-stats.org/reads-by-cell.svg]]
   :END:
 
-  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/reads-by-cell-batch-hist.png
+  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/reads-by-cell-batch-hist.svg
     plt.clf()
     plt.gcf().set_size_inches(12, 4)
     colors = {k: matplotlib.cm.get_cmap('Set1').colors[i] for i, k in enumerate(set(annotations['batch']))}
@@ -98,12 +99,12 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[21]:
+  # Out[98]:
   : Text(0.5,1,'Read count by batch')
-  [[file:figure/descriptive-stats.org/reads-by-cell-batch-hist.png]]
+  [[file:figure/descriptive-stats.org/reads-by-cell-batch-hist.svg]]
   :END:
 
-  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/reads-by-cell-batch.png
+  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/reads-by-cell-batch.svg
     plt.clf()
     plt.gcf().set_size_inches(12, 4)
     colors = {k: matplotlib.cm.get_cmap('Set1').colors[i] for i, k in enumerate(set(annotations['batch']))}
@@ -119,12 +120,12 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[22]:
+  # Out[99]:
   : Text(0.5,1,'Read count by batch')
-  [[file:figure/descriptive-stats.org/reads-by-cell-batch.png]]
+  [[file:figure/descriptive-stats.org/reads-by-cell-batch.svg]]
   :END:
 
-  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/reads-by-ind.png
+  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/reads-by-ind.svg
     plt.clf()
     plt.gcf().set_size_inches(12, 4)
     _ = plt.boxplot(annotations.groupby('chip_id').apply(lambda x: list(x['reads_hs'])),
@@ -136,11 +137,11 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[23]:
-  [[file:figure/descriptive-stats.org/reads-by-ind.png]]
+  # Out[100]:
+  [[file:figure/descriptive-stats.org/reads-by-ind.svg]]
   :END:
 
-  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/reads-by-ind-batch.png
+  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/reads-by-ind-batch.svg
     plt.clf()
     fig, ax = plt.subplots(len(set(annotations['batch'])), 1)
     fig.set_size_inches(12, 10)
@@ -156,14 +157,14 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[24]:
+  # Out[101]:
   : Text(0.5,0.98,'Read count by individual/batch')
-  [[file:figure/descriptive-stats.org/reads-by-ind-batch.png]]
+  [[file:figure/descriptive-stats.org/reads-by-ind-batch.svg]]
   :END:
 
 ** ERCC
 
-  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/ercc-reads-by-ind.png
+  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/ercc-reads-by-ind.svg
     plt.clf()
     fig, ax = plt.subplots(3, 1)
     fig.set_size_inches(12, 12)
@@ -180,13 +181,13 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[25]:
+  # Out[102]:
   : Text(0.5,0.98,'ERCC read count by individual')
-  [[file:figure/descriptive-stats.org/ercc-reads-by-ind.png]]
+  [[file:figure/descriptive-stats.org/ercc-reads-by-ind.svg]]
   :END:
 ** D. melanogaster
 
-  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/dm-reads-by-ind.png
+  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/dm-reads-by-ind.svg
     plt.clf()
     fig, ax = plt.subplots(len(set(annotations['fly'])), 1)
     fig.set_size_inches(12, 8)
@@ -203,14 +204,14 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[26]:
+  # Out[103]:
   : Text(0.5,0.98,'D. mel. read count by individual')
-  [[file:figure/descriptive-stats.org/dm-reads-by-ind.png]]
+  [[file:figure/descriptive-stats.org/dm-reads-by-ind.svg]]
   :END:
 
 ** C. elegans
 
-  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/ce-reads-by-ind.png
+  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/ce-reads-by-ind.svg
     plt.clf()
     fig, ax = plt.subplots(3, 1)
     fig.set_size_inches(12, 12)
@@ -227,15 +228,15 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[27]:
+  # Out[104]:
   : Text(0.5,0.98,'C. elegans read count by individual')
-  [[file:figure/descriptive-stats.org/ce-reads-by-ind.png]]
+  [[file:figure/descriptive-stats.org/ce-reads-by-ind.svg]]
   :END:
 
 * Distributions of molecules
 ** H. sapiens
 
-  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/umi-by-cell.png
+  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/umi-by-cell.svg
     plt.clf()
     plt.hist(annotations['mol_hs'], bins=100)
     plt.xlabel('Number of molecules')
@@ -246,14 +247,15 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[32]:
+  # Out[105]:
   :END:
 
-  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/umi-by-ind.png
+  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/umi-by-ind.svg
     plt.clf()
     plt.gcf().set_size_inches(12, 4)
     _ = plt.boxplot(annotations.groupby('chip_id').apply(lambda x: list(x['mol_hs'])),
-                    labels=sorted(set(annotations['chip_id'])))
+                    labels=sorted(set(annotations['chip_id'])),
+                    sym='.')
     plt.xlabel('Individual')
     plt.ylabel('Molecule count')
     plt.xticks(rotation=90)
@@ -262,12 +264,12 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[33]:
+  # Out[106]:
   : Text(0.5,1,'Molecule count by individual')
-  [[file:figure/descriptive-stats.org/umi-by-ind.png]]
+  [[file:figure/descriptive-stats.org/umi-by-ind.svg]]
   :END:
 
-  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/umi-by-ind-batch.png
+  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/umi-by-ind-batch.svg
     plt.clf()
     fig, ax = plt.subplots(len(set(annotations['batch'])), 1)
     fig.set_size_inches(12, 10)
@@ -283,14 +285,14 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[34]:
+  # Out[107]:
   : Text(0.5,0.98,'Molecule count by individual')
-  [[file:figure/descriptive-stats.org/umi-by-ind-batch.png]]
+  [[file:figure/descriptive-stats.org/umi-by-ind-batch.svg]]
   :END:
 
 ** ERCC
 
-  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/ercc-by-ind.png
+  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/ercc-by-ind.svg
     plt.clf()
     fig, ax = plt.subplots(3, 1)
     fig.set_size_inches(12, 12)
@@ -308,14 +310,14 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[35]:
+  # Out[108]:
   : Text(0.5,0.98,'ERCC molecule count by individual')
-  [[file:figure/descriptive-stats.org/ercc-by-ind.png]]
+  [[file:figure/descriptive-stats.org/ercc-by-ind.svg]]
   :END:
 
 ** D. melanogaster
 
-  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/dm-by-ind.png
+  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/dm-by-ind.svg
     plt.clf()
     fig, ax = plt.subplots(len(set(annotations['fly'])), 1)
     fig.set_size_inches(12, 8)
@@ -333,14 +335,14 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[36]:
+  # Out[109]:
   : Text(0.5,0.98,'D. mel. molecule count by individual')
-  [[file:figure/descriptive-stats.org/dm-by-ind.png]]
+  [[file:figure/descriptive-stats.org/dm-by-ind.svg]]
   :END:
 
 ** C. elegans
 
-  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/ce-by-ind.png
+  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/ce-by-ind.svg
     plt.clf()
     fig, ax = plt.subplots(3, 1)
     fig.set_size_inches(12, 12)
@@ -358,9 +360,9 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[37]:
+  # Out[110]:
   : Text(0.5,0.98,'C. elegans molecule count by individual')
-  [[file:figure/descriptive-stats.org/ce-by-ind.png]]
+  [[file:figure/descriptive-stats.org/ce-by-ind.svg]]
   :END:
 
 * Distributions of cells
@@ -368,12 +370,11 @@
   Our previous results on [[file:sc-vs-bulk.org::*Plot%20pooled%20subsets%20vs.%20pooled%20subsets][concordance between pools of single cells]] suggest
   that at least 50 cells are needed to consistently estimate mean expression.
 
-  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/cells-by-ind.png
+  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/cells-by-ind.svg
     plt.clf()
     plt.gcf().set_size_inches(12, 4)
     plt.bar(np.arange(len(set(annotations['chip_id']))),
-            annotations.groupby('chip_id')['chip_id'].agg(len))
-    plt.axhline(y=50, c='r')
+            annotations.groupby('chip_id')['chip_id'].agg(len), color='k')
     plt.xlabel('Individual')
     plt.ylabel('Number of cells')
     plt.title('Number of cells by individual')
@@ -382,11 +383,11 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[38]:
-  [[file:figure/descriptive-stats.org/cells-by-ind.png]]
+  # Out[111]:
+  [[file:figure/descriptive-stats.org/cells-by-ind.svg]]
   :END:
 
-  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/cells-by-ind-batch.png
+  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/cells-by-ind-batch.svg
     plt.clf()
     fig, ax = plt.subplots(len(set(annotations['batch'])), 1)
     fig.set_size_inches(12, 10)
@@ -402,12 +403,12 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[39]:
+  # Out[112]:
   : Text(0.5,0.98,'Number of cells by individual')
-  [[file:figure/descriptive-stats.org/cells-by-ind-batch.png]]
+  [[file:figure/descriptive-stats.org/cells-by-ind-batch.svg]]
   :END:
 
-* Distribution of SNPs near TSS
+* Distribution of SNPs near TSS                                    :noexport:
 
   Because we are only sequencing 5' ends to capture the UMI (rather than
   sequencing over the entire transcript), mapping errors due to polymorphisms
@@ -498,7 +499,7 @@
   # Out[46]:
   :END:
 
-  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/snp-tss-offset-hist.png
+  #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/snp-tss-offset-hist.svg
     plt.clf()
     plt.hist(tss_hits_offset.values, bins=100)
     plt.xlabel('Distance to first SNP downstream from TSS')
@@ -509,6 +510,6 @@
   :RESULTS:
   # Out[49]:
   : Text(0,0.5,'Number of genes')
-  [[file:figure/descriptive-stats.org/snp-tss-offset-hist.png]]
+  [[file:figure/descriptive-stats.org/snp-tss-offset-hist.svg]]
   :END:
 
