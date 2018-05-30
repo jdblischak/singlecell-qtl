@@ -423,7 +423,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[29]:
+   # Out[170]:
    :END:
 
    #+BEGIN_SRC ipython
@@ -434,7 +434,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[37]:
+   # Out[178]:
    :END:
 
    Plot the results.
@@ -469,7 +469,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[41]:
+   # Out[179]:
    [[file:figure/zinb.org/sim1.png]]
    :END:
 
@@ -480,7 +480,7 @@
      fig, ax = plt.subplots(1, 3)
      fig.set_size_inches(8.5, 3)
 
-     subset = result.loc[np.logical_and(sample_pass, pi_pass),['log_mu', 'log_mu_hat']]
+     subset = result.loc[np.logical_and.reduce(np.vstack([sample_pass, pi_pass, fold_pass])),['log_mu', 'log_mu_hat']]
      ax[0].scatter(subset['log_mu'], subset['log_mu_hat'], s=2, c='k')
      ax[0].plot(ax[0].get_xlim(), ax[0].get_xlim(), c='r', ls=':', lw=1)
      ax[0].set_xlabel('True $\ln(\mu)$')
@@ -495,15 +495,15 @@
      subset = result.loc[np.logical_and.reduce(np.vstack([sample_pass, fold_pass])),['logodds', 'logodds_hat']]
      ax[2].scatter(subset['logodds'], subset['logodds_hat'], s=2, c='k')
      ax[2].plot(ax[2].get_xlim(), ax[2].get_xlim(), c='r', ls=':', lw=1)
-     ax[2].set_xlabel('True $\ln(\pi)$')
-     ax[2].set_ylabel('Estimated $\ln(\pi)$')
+     ax[2].set_xlabel('True $\mathrm{logit}(\pi)$')
+     ax[2].set_ylabel('Estimated $\mathrm{logit}(\pi)$')
 
      fig.tight_layout()
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[47]:
+   # Out[180]:
    [[file:figure/zinb.org/sim2.png]]
    :END:
 
