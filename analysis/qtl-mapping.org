@@ -29,7 +29,7 @@
   #+CALL: ipython3(memory="16G", venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 46186971
+  : Submitted batch job 46270150
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -63,7 +63,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[52]:
+  # Out[1]:
   :END:
 
 * Implementation
@@ -86,7 +86,7 @@
 
   #+RESULTS: r-wrappers
   :RESULTS:
-  # Out[37]:
+  # Out[2]:
   :END:
 
   #+NAME: get-gene-info
@@ -101,7 +101,7 @@
 
   #+RESULTS: get-gene-info
   :RESULTS:
-  # Out[38]:
+  # Out[3]:
   :END:
 
   #+NAME: write-gene-info
@@ -150,7 +150,7 @@
 
   #+RESULTS: write-pheno-def
   :RESULTS:
-  # Out[39]:
+  # Out[4]:
   :END:
 
   #+NAME: tabix
@@ -220,7 +220,7 @@
 
   #+RESULTS: read-qtltools-def
   :RESULTS:
-  # Out[40]:
+  # Out[5]:
   :END:
 
   #+RESULTS:
@@ -241,7 +241,7 @@
 
   #+RESULTS: plot-approx-perm-def
   :RESULTS:
-  # Out[41]:
+  # Out[6]:
   :END:
 
   #+NAME: qqplot-def
@@ -264,7 +264,7 @@
 
   #+RESULTS: qqplot-def
   :RESULTS:
-  # Out[42]:
+  # Out[7]:
   :END:
 
   #+NAME: replication-tests-def
@@ -352,7 +352,7 @@
 
   #+RESULTS: replication-tests-def
   :RESULTS:
-  # Out[179]:
+  # Out[40]:
   :END:
 
   #+NAME: bootstrap-def
@@ -371,7 +371,7 @@
 
   #+RESULTS: bootstrap-def
   :RESULTS:
-  # Out[44]:
+  # Out[9]:
   :END:
 
   #+NAME: bootstrap-betahat-se-def
@@ -433,7 +433,7 @@
 
   #+RESULTS: bootstrap-betahat-se-def
   :RESULTS:
-  # Out[45]:
+  # Out[10]:
   :END:
 
 * Preliminaries
@@ -2751,14 +2751,14 @@
 
   #+BEGIN_SRC ipython
     prefix = '/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/'
-    qtls = {pheno: (pd.read_table('{}/{}.txt.gz'.format(prefix, pheno), sep=' '),
-                    pd.read_table('{}/{}.bed.gz'.format(prefix, pheno)).set_index('pid').filter(like='NA', axis='columns'))
+    qtls = {pheno: [pd.read_table('{}/{}.txt.gz'.format(prefix, pheno), sep=' '),
+                    pd.read_table('{}/{}.bed.gz'.format(prefix, pheno)).set_index('pid').filter(like='NA', axis='columns')]
             for pheno in ['bulk', 'pooled', 'log_mu', 'log_phi', 'mean', 'variance', 'cv', 'fano']}
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[175]:
+  # Out[34]:
   :END:
 
   The bulk QTL gene names need to be munged.
@@ -2770,7 +2770,20 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[176]:
+  # Out[35]:
+  :END:
+
+  The CV-QTLs are expected to have the opposite sign from the mean QTLs (under
+  the Poisson, \(\mathrm{CV} \propto 1 / \sqrt(\lambda)\))
+
+  #+BEGIN_SRC ipython
+    qtls['cv'][0]['beta'] *= -1
+    qtls['cv'][1] *= -1
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[36]:
   :END:
 
   Compute the gene-level FDR filter.
@@ -2782,7 +2795,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[177]:
+  # Out[37]:
   :END:
 
   Read covariates for mean phenotypes.
@@ -2795,7 +2808,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[172]:
+  # Out[15]:
   :END:
 
   Estimate replication rates for mean QTLs.
@@ -2811,7 +2824,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[180]:
+  # Out[16]:
   #+BEGIN_EXAMPLE
     Bulk  Pooled  $(1 - \pi)\mu$  ZI mean
     Bulk             100    84.1              83     83.6
@@ -2832,17 +2845,525 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[181]:
+  # Out[41]:
   #+BEGIN_EXAMPLE
     Mean  Variance   CV  Fano
-    Mean       100      99.3  4.3  91.8
-    Variance  99.3       100 9.46   100
-    CV           0      3.45  100   6.9
-    Fano      96.3       100 14.8   100
+    Mean       100      99.3 88.9  91.8
+    Variance  99.3       100 79.1   100
+    CV         100      96.6  100  89.7
+    Fano      96.3       100 77.8   100
   #+END_EXAMPLE
   :END:
 
-  Extract the CV QTLs for the browser.
+** Relationship of \(p\)-values, effect sizes, and expression levels
+
+   Compute relative abundance per individual.
+
+   #+BEGIN_SRC ipython
+     log_mu = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-log-mu.txt.gz', index_col=0, sep=' ')
+     logodds = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-logodds.txt.gz', index_col=0, sep=' ')
+
+     abundance = log_mu - np.log1p(np.exp(logodds))
+     abundance -= sp.logsumexp(abundance, axis=0)
+     abundance /= np.log(2)
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[42]:
+   :END:
+
+   Investigate whether variance QTL \(p\)-values are correlated with relative
+   abundance.
+
+   #+BEGIN_SRC ipython
+     variance_qtls = qtls['variance'][0]
+     thresh_pass = variance_qtls['p_beta'] < 1e-2
+     var_qtl_abundance, var_qtl_stats = abundance.align(variance_qtls[thresh_pass].set_index('gene'), axis='index', join='inner')
+     fdr_pass = var_qtl_stats['fdr_pass']
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[43]:
+   :END:
+
+   Count how many variance QTLs have \(p < 10^{-2}\)
+
+   #+BEGIN_SRC ipython
+     thresh_pass.sum()
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[44]:
+   : 315
+   :END:
+
+   #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/var-qtl-vs-log-mu.png
+     plt.clf()
+     plt.errorbar(x=var_qtl_abundance.mean(axis=1), y=-np.log10(var_qtl_stats['p_beta']), xerr=var_qtl_abundance.std(axis=1), fmt='none', label=None, lw=1, ecolor='.8', zorder=-1)
+     plt.scatter(x=var_qtl_abundance[fdr_pass].mean(axis=1), y=-np.log10(var_qtl_stats[fdr_pass]['p_beta']), c='r', s=4, label='FDR 10%')
+     plt.scatter(x=var_qtl_abundance[~fdr_pass].mean(axis=1), y=-np.log10(var_qtl_stats[~fdr_pass]['p_beta']), c='k', s=4, label='p < 0.01')
+     plt.legend(loc='upper left', frameon=False)
+     plt.xlabel('$\log_2(\mathrm{relative\ abundance})$')
+     _ = plt.ylabel('Variance QTL $-\log_{10}(p)$')
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[45]:
+   [[file:figure/qtl-mapping.org/var-qtl-vs-log-mu.png]]
+   :END:
+
+   Make sure our effect sizes match ~qtltools~.
+
+   #+BEGIN_SRC ipython
+     variance = qtls['variance'][1]
+     Xv, Yv = extract_qtl_gene_pair(variance_qtls[thresh_pass], variance, dosages='/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz')
+     Cv = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/variance-covars.txt', index_col=0)
+     Cv = Cv.align(Xv, axis='columns', join='inner')[0]
+     my_var_qtl_stats = replication_tests(Xv, Yv, Cv)
+     my_var_qtl_stats.merge(variance_qtls, on='gene').apply(lambda x: abs(x['beta_x'] - x['beta_y']), axis=1).describe()
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[46]:
+   #+BEGIN_EXAMPLE
+     count        315
+     mean      0.0889
+     std        0.171
+     min     0.000248
+     25%       0.0233
+     50%       0.0551
+     75%        0.105
+     max         2.05
+     dtype: float64
+   #+END_EXAMPLE
+   :END:
+
+   Look at the gene with max difference in estimated effect size.
+
+   #+BEGIN_SRC ipython
+     my_var_qtl_stats.iloc[my_var_qtl_stats.merge(variance_qtls, on='gene').apply(lambda x: abs(x['beta_x'] - x['beta_y']), axis=1).idxmax()]
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[47]:
+   #+BEGIN_EXAMPLE
+     beta             -0.327
+     gene    ENSG00000138587
+     p                0.0795
+     se                0.186
+     Name: 108, dtype: object
+   #+END_EXAMPLE
+   :END:
+
+   Estimate standard errors via the bootstrap.
+
+   #+BEGIN_SRC ipython
+     var_qtl_stats['bootstrap_se'] = bootstrap_se(Xv, Yv, Cv)
+     var_qtl_stats['se'] = my_var_qtl_stats.set_index('gene')['se']
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[48]:
+   :END:
+
+   Investigate whether analytic SEs are reasonable:
+
+   #+BEGIN_SRC ipython
+     var_qtl_stats['se'].describe()
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[49]:
+   #+BEGIN_EXAMPLE
+     count      315
+     mean    0.0468
+     std     0.0332
+     min     0.0118
+     25%     0.0257
+     50%     0.0355
+     75%     0.0549
+     max      0.212
+     Name: se, dtype: float64
+   #+END_EXAMPLE
+   :END:
+  
+   #+BEGIN_SRC ipython
+     var_qtl_stats['bootstrap_se'].describe()
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[50]:
+   #+BEGIN_EXAMPLE
+     count     315
+     mean    0.235
+     std     0.285
+     min      0.11
+     25%     0.162
+     50%     0.195
+     75%     0.238
+     max      4.45
+     Name: bootstrap_se, dtype: float64
+   #+END_EXAMPLE
+   :END:
+
+   Plot analytic SEs against bootstrap SEs.
+
+   #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/var-qtl-se.png
+     plt.clf()
+     plt.gcf().set_size_inches(4, 4)
+     plt.scatter(var_qtl_stats['se'], var_qtl_stats['bootstrap_se'], s=1, c='k')
+     plt.plot([0, 1], [0, 1], c='r', ls=':', lw=1)
+     plt.xlim([0, 1])
+     plt.ylim([0, 1])
+     plt.xlabel('Analytic SE')
+     _ = plt.ylabel('Bootstrap SE')
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[51]:
+   [[file:figure/qtl-mapping.org/var-qtl-se.png]]
+   :END:
+
+   Compute \(z\)-scores using the bootstrap SEs.
+
+   #+BEGIN_SRC ipython
+     var_qtl_stats['z'] = var_qtl_stats['beta'] / var_qtl_stats['bootstrap_se']
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[52]:
+   :END:
+
+   Compute a \(z\)-score from the estimated effect size and the \(p\)-value.
+
+   #+BEGIN_SRC ipython
+     var_qtl_stats['isf_z'] = np.sign(var_qtl_stats['beta']) * np.sqrt(st.chi2(1).isf(var_qtl_stats['p_nominal']))
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[53]:
+   :END:
+
+   Plot bootstrap \(z\)-scores against inverse-transformed \(z\)-scores.
+
+   #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/bootstrap-z-vs-nominal-p-inverse-cdf.png
+     plt.clf()
+     plt.gcf().set_size_inches(4, 4)
+     plt.scatter(var_qtl_stats['z'], var_qtl_stats['isf_z'], s=3, c='k')
+     plt.axhline(y=0, c='k', lw=1)
+     plt.axvline(x=0, c='k', lw=1)
+     plt.plot([-15, 15], [-15, 15], c='r', ls=':', lw=1)
+     plt.xlim([-15, 15])
+     plt.ylim([-15, 15])
+     plt.xlabel('Bootstrap $z$-score')
+     _ = plt.ylabel('Inverse CDF $z$-score')
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[54]:
+   [[file:figure/qtl-mapping.org/bootstrap-z-vs-nominal-p-inverse-cdf.png]]
+   :END:
+
+   Investigate whether \(z\)-scores based on bootstrap SEs agree with
+   permutation \(p\)-values.
+
+   #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/var-qtl-z.png
+     plt.clf()
+     plt.scatter(-np.log10(var_qtl_stats[fdr_pass]['p_beta']), var_qtl_stats[fdr_pass]['z'], c='r', label='FDR 10%', s=4)
+     plt.scatter(-np.log10(var_qtl_stats[~fdr_pass]['p_beta']), var_qtl_stats[~fdr_pass]['z'], c='k', label='p < 0.01', s=4)
+     plt.xlabel('Variance QTL $-\log_{10}(p)$')
+     plt.ylabel('Variance QTL $z$-score')
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[55]:
+   : Text(0,0.5,'Variance QTL $z$-score')
+   [[file:figure/qtl-mapping.org/var-qtl-z.png]]
+   :END:
+
+   Investigate whether variance QTL \(z\)-scores are correlated with relative
+   abundance.
+
+   #+BEGIN_SRC ipython
+     var_qtl_abundance = var_qtl_abundance.align(var_qtl_stats, axis='index', join='inner')[0]
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[56]:
+   :END:
+
+   #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/var-qtl-z-vs-log-mu.png
+     plt.clf()
+     plt.errorbar(x=var_qtl_abundance.mean(axis=1), y=var_qtl_stats['z'], xerr=var_qtl_abundance.std(axis=1), fmt='none', label=None, lw=1, ecolor='.8', zorder=1)
+     plt.scatter(x=var_qtl_abundance[fdr_pass].mean(axis=1), y=var_qtl_stats[fdr_pass]['z'], c='r', s=2, label='FDR 10%', zorder=2)
+     plt.scatter(x=var_qtl_abundance[~fdr_pass].mean(axis=1), y=var_qtl_stats[~fdr_pass]['z'], c='k', s=2, label='p < 0.01', zorder=2)
+     plt.legend(frameon=False)
+     plt.axhline(y=0, c='k')
+     plt.xlabel('$\log_2(\mathrm{relative\ abundance})$')
+     _ = plt.ylabel('Variance QTL $z$-score')
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[57]:
+   [[file:figure/qtl-mapping.org/var-qtl-z-vs-log-mu.png]]
+   :END:
+
+   Investigate whether variance QTL \(z\)-scores are correlated with mean QTL
+   \(z\)-scores.
+
+   #+BEGIN_SRC ipython
+     Xm, Ym = extract_qtl_gene_pair(variance_qtls[thresh_pass], qtls['mean'][1], dosages='/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz')
+     Cm = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/mean-covars.txt')
+     Cm = Cm.align(Xm, axis='columns', join='inner')[0]
+     var_qtl_stats['mean_beta'] = replication_tests(Xm, Ym, Cm).set_index('gene')['beta']
+     var_qtl_stats['mean_z'] = var_qtl_stats['mean_beta'] / bootstrap_se(Xm, Ym, Cm)
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[63]:
+   :END:
+
+   Plot variance QTL \(z\)-scores against pooled QTL \(z\)-scores.
+
+   #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/var-qtl-vs-mean-qtl.png
+     lim = [-12, 12]
+     plt.clf()
+     plt.gcf().set_size_inches(4, 4)
+     plt.plot(lim, lim, c='r', ls=':', lw=1)
+     plt.scatter(var_qtl_stats[fdr_pass]['z'], var_qtl_stats[fdr_pass]['mean_z'], c='r', s=3, label='FDR 10%')
+     plt.scatter(var_qtl_stats[~fdr_pass]['z'], var_qtl_stats[~fdr_pass]['mean_z'], c='k', s=3, label='$p < 10^{-2}$')
+     plt.legend(frameon=False)
+     plt.axhline(y=0, c='k', lw=1)
+     plt.axvline(x=0, c='k', lw=1)
+     plt.xlim(lim)
+     plt.ylim(lim)
+     plt.xlabel('Variance QTL $z$-score')
+     _ = plt.ylabel('Mean QTL $z$-score')
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[67]:
+   [[file:figure/qtl-mapping.org/var-qtl-vs-mean-qtl.png]]
+   :END:
+
+   Compute the same in the other direction.
+
+   #+BEGIN_SRC ipython 
+     mean_qtl_stats = qtls['mean'][0]
+     mean_qtl_stats = mean_qtl_stats[mean_qtl_stats['fdr_pass']].copy()
+     X, Y = extract_qtl_gene_pair(mean_qtl_stats, qtls['mean'][1], dosages='/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz')
+     z = mean_qtl_stats.set_index('gene')['beta'] / bootstrap_se(X, Y, Cm)
+
+     X, Y = extract_qtl_gene_pair(mean_qtl_stats, qtls['variance'][1], dosages='/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz')
+     vz = replication_tests(X, Y, Cv).set_index('gene')['beta'] / bootstrap_se(X, Y, Cv)
+
+     Xb, Yb = extract_qtl_gene_pair(mean_qtl_stats, qtls['bulk'][1], dosages='/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz')
+     Cb = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/bulk-covars.txt', sep=r'\s+', engine='python')
+     Cb = Cb.align(Xb, axis='columns', join='inner')[0]
+     bulk_z = replication_tests(Xb, Yb, Cb).set_index('gene')['beta'] / bootstrap_se(Xb, Yb, Cb)
+
+     mean_qtl_stats = mean_qtl_stats.set_index('gene')
+     mean_qtl_stats['z'] = z
+     mean_qtl_stats['var_z'] = vz
+     mean_qtl_stats['bulk_z'] = bulk_z
+     mean_qtl_stats['var_fdr_pass'] = mean_qtl_stats.index.isin(var_qtl_stats['fdr_pass'].index)
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[68]:
+   :END:
+
+   Plot mean vs. variance \(z\)-scores at eQTL SNP-gene pairs.
+
+   #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/mean-qtl-vs-var-qtl.png
+     lim = [-18, 18]
+     plt.clf()
+     plt.gcf().set_size_inches(4, 4)
+     plt.plot(lim, lim, c='r', ls=':', lw=1)
+     plt.scatter(mean_qtl_stats.loc[mean_qtl_stats['var_fdr_pass'], 'var_z'],
+                 mean_qtl_stats.loc[mean_qtl_stats['var_fdr_pass'], 'z'], c='r',
+                 s=3, label='vQTL (FDR 10%)')
+     plt.scatter(mean_qtl_stats.loc[~mean_qtl_stats['var_fdr_pass'], 'var_z'],
+                 mean_qtl_stats.loc[~mean_qtl_stats['var_fdr_pass'], 'z'], c='k',
+                 s=3, label='Not vQTL')
+     plt.legend(frameon=False)
+     plt.axhline(y=0, c='k', lw=1)
+     plt.axvline(x=0, c='k', lw=1)
+     plt.xlim(lim)
+     plt.ylim(lim)
+     plt.xlabel('Variance QTL $z$-score')
+     _ = plt.ylabel('Pooled QTL $z$-score')
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[70]:
+   [[file:figure/qtl-mapping.org/mean-qtl-vs-var-qtl.png]]
+   :END:
+
+   Plot single cell eQTL \(z\)-scores against bulk eQTL \(z\)-scores.
+
+   #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/bulk-qtl-vs-mean-qtl.png
+     lim = [-12, 12]
+     plt.clf()
+     plt.gcf().set_size_inches(4, 4)
+     plt.plot(lim, lim, c='r', ls=':', lw=1)
+     plt.scatter(mean_qtl_stats['z'], mean_qtl_stats['bulk_z'], c='k', s=3)
+     plt.axhline(y=0, c='k', lw=1)
+     plt.axvline(x=0, c='k', lw=1)
+     plt.xlim(lim)
+     plt.ylim(lim)
+     plt.xlabel('Single cell eQTL $z$-score')
+     _ = plt.ylabel('Bulk eQTL $z$-score')
+
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[99]:
+   [[file:figure/qtl-mapping.org/bulk-qtl-vs-mean-qtl.png]]
+   :END:
+
+** Predicting mean QTLs from variance QTLs
+
+   As we change the threshold for calling mean (variance) QTLs, track the
+   precision and recall of variance (mean) QTLs.
+
+   #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/var-qtl-mean-qtl-prc.png
+     plt.clf()
+     plt.gcf().set_size_inches(4, 4)
+     Y, P = qtls['mean'][0]['fdr_pass'].align(qtls['variance'][0]['p_beta'].dropna(), join='inner')
+     p, r, _ = sklearn.metrics.precision_recall_curve(Y.astype(int), -np.log(P))
+     auprc_mean_var = sklearn.metrics.average_precision_score(Y.astype(int), -np.log(P))
+     plt.plot(r[::10], p[::10], lw=1, c='k', label='Variance')
+     Y, P = qtls['variance'][0]['fdr_pass'].align(qtls['mean'][0]['p_beta'].dropna(), join='inner')
+     p, r, _ = sklearn.metrics.precision_recall_curve(Y.astype(int), -np.log(P))
+     auprc_var_mean = sklearn.metrics.average_precision_score(Y.astype(int), -np.log(P))
+     plt.plot(r[::10], p[::10], lw=1, c='r', label='Mean')
+     plt.legend(frameon=False)
+     plt.xlabel('Recall of QTLs at FDR 10%')
+     _ = plt.ylabel('Precision of QTLs at FDR 10%')
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[168]:
+   [[file:figure/qtl-mapping.org/var-qtl-mean-qtl-prc.png]]
+   :END:
+
+   Tabulate the AUPRC.
+
+   #+BEGIN_SRC ipython
+     auprc_mean_var, auprc_var_mean
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[112]:
+   : (0.5212419583724434, 0.6044457996921822)
+   :END:
+
+   Track sensitivity and specificity of mean QTLs.
+
+   #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/var-qtl-mean-qtl-roc.png
+     plt.clf()
+     plt.gcf().set_size_inches(4, 4)
+     Y, P = qtls['mean'][0]['fdr_pass'].align(qtls['variance'][0]['p_beta'].dropna(), join='inner')
+     fpr, tpr, _ = sklearn.metrics.roc_curve(Y.astype(int), -np.log(P))
+     auroc_mean_var = sklearn.metrics.roc_auc_score(Y.astype(int), -np.log(P))
+     plt.plot(fpr[::10], tpr[::10], lw=1, c='k', label='Variance')
+     Y, P = qtls['variance'][0]['fdr_pass'].align(qtls['mean'][0]['p_beta'].dropna(), join='inner')
+     fpr, tpr, _ = sklearn.metrics.roc_curve(Y.astype(int), -np.log(P))
+     auroc_var_mean = sklearn.metrics.roc_auc_score(Y.astype(int), -np.log(P))
+     plt.plot(fpr[::10], tpr[::10], lw=1, c='r', label='Mean')
+     plt.legend(frameon=False)
+     plt.xlabel('False positive rate of QTLs at FDR 10%')
+     _ = plt.ylabel('True positive rate of QTLs at FDR 10%')
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[169]:
+   [[file:figure/qtl-mapping.org/var-qtl-mean-qtl-roc.png]]
+   :END:
+
+   Tabulate the AUROC.
+
+   #+BEGIN_SRC ipython
+     auroc_mean_var, auroc_var_mean
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[110]:
+   : (0.8968614143396433, 0.9555166119581557)
+   :END:
+
+   Find the threshold at which 90% of eQTLs are recovered.
+
+   #+BEGIN_SRC ipython
+     Y, P = qtls['variance'][0].set_index('gene')['fdr_pass'].align(qtls['mean'][0].set_index('gene')['p_beta'].dropna(), join='inner')
+     fpr, tpr, thresh = sklearn.metrics.roc_curve(Y.astype(int), -np.log(P))
+     np.exp(-thresh[np.where(tpr <= 0.9)].min())
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[166]:
+   : 0.05222859999999999
+   :END:
+
+   Find the vQTLs which are not predictive of eQTLs.
+
+   #+BEGIN_SRC ipython
+     true_negatives = Y[np.logical_and(Y, -np.log(P) < thresh[np.where(tpr <= 0.9)].min())].to_frame().merge(gene_info, left_index=True, right_index=True)[['name']]
+     true_negatives
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[167]:
+   #+BEGIN_EXAMPLE
+     name
+     gene
+     ENSG00000122574      WIPF3
+     ENSG00000112367       FIG4
+     ENSG00000121481       RNF2
+     ENSG00000214194  LINC00998
+     ENSG00000133935    C14orf1
+     ENSG00000243725       TTC4
+     ENSG00000132849      INADL
+     ENSG00000171130   ATP6V0E2
+     ENSG00000129518       EAPP
+     ENSG00000182400   TRAPPC6B
+     ENSG00000182117      NOP10
+     ENSG00000068024      HDAC4
+     ENSG00000169714       CNBP
+     ENSG00000133030      MPRIP
+     ENSG00000108528   SLC25A11
+   #+END_EXAMPLE
+   :END:
+
+  Extract the QTLs for the browser.
 
   #+BEGIN_SRC ipython
     X, Y = extract_qtl_gene_pair(qtls['cv'][0][qtls['cv'][0]['fdr_pass']], qtls['cv'][1], '/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz')
@@ -2939,444 +3460,7 @@
   # Out[204]:
   :END:
 
-** Relationship of \(p\)-values, effect sizes, and expression levels
-
-   Compute relative abundance per individual.
-
-   #+BEGIN_SRC ipython
-     log_mu = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-log-mu.txt.gz', index_col=0, sep=' ')
-     logodds = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-logodds.txt.gz', index_col=0, sep=' ')
-
-     abundance = log_mu - np.log1p(np.exp(logodds))
-     abundance -= sp.logsumexp(abundance, axis=0)
-     abundance /= np.log(2)
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[182]:
-   :END:
-
-   Investigate whether variance QTL \(p\)-values are correlated with relative
-   abundance.
-
-   #+BEGIN_SRC ipython
-     variance_qtls = qtls['variance'][0]
-     thresh_pass = variance_qtls['p_beta'] < 1e-2
-     var_qtl_abundance, var_qtl_stats = abundance.align(variance_qtls[thresh_pass].set_index('gene'), axis='index', join='inner')
-     fdr_pass = var_qtl_stats['fdr_pass']
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[183]:
-   :END:
-
-   Count how many variance QTLs have \(p < 10^{-2}\)
-
-   #+BEGIN_SRC ipython
-     thresh_pass.sum()
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[184]:
-   : 315
-   :END:
-
-   #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/var-qtl-vs-log-mu.png
-     plt.clf()
-     plt.errorbar(x=var_qtl_abundance.mean(axis=1), y=-np.log10(var_qtl_stats['p_beta']), xerr=var_qtl_abundance.std(axis=1), fmt='none', label=None, lw=1, ecolor='.8', zorder=-1)
-     plt.scatter(x=var_qtl_abundance[fdr_pass].mean(axis=1), y=-np.log10(var_qtl_stats[fdr_pass]['p_beta']), c='r', s=4, label='FDR 10%')
-     plt.scatter(x=var_qtl_abundance[~fdr_pass].mean(axis=1), y=-np.log10(var_qtl_stats[~fdr_pass]['p_beta']), c='k', s=4, label='p < 0.01')
-     plt.legend(loc='upper left', frameon=False)
-     plt.xlabel('$\log_2(\mathrm{relative\ abundance})$')
-     _ = plt.ylabel('Variance QTL $-\log_{10}(p)$')
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[185]:
-   [[file:figure/qtl-mapping.org/var-qtl-vs-log-mu.png]]
-   :END:
-
-   Make sure our effect sizes match ~qtltools~.
-
-   #+BEGIN_SRC ipython
-     variance = qtls['variance'][1]
-     Xv, Yv = extract_qtl_gene_pair(variance_qtls[thresh_pass], variance, dosages='/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz')
-     Cv = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/variance-covars.txt', index_col=0)
-     Cv = Cv.align(Xv, axis='columns', join='inner')[0]
-     my_var_qtl_stats = replication_tests(Xv, Yv, Cv)
-     my_var_qtl_stats.merge(variance_qtls, on='gene').apply(lambda x: abs(x['beta_x'] - x['beta_y']), axis=1).describe()
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[186]:
-   #+BEGIN_EXAMPLE
-     count        315
-     mean      0.0889
-     std        0.171
-     min     0.000248
-     25%       0.0233
-     50%       0.0551
-     75%        0.105
-     max         2.05
-     dtype: float64
-   #+END_EXAMPLE
-   :END:
-
-   Look at the gene with max difference in estimated effect size.
-
-   #+BEGIN_SRC ipython
-     my_var_qtl_stats.iloc[my_var_qtl_stats.merge(variance_qtls, on='gene').apply(lambda x: abs(x['beta_x'] - x['beta_y']), axis=1).idxmax()]
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[141]:
-   #+BEGIN_EXAMPLE
-     beta              0.901
-     gene    ENSG00000085491
-     p              8.19e-10
-     se                0.147
-     Name: 17, dtype: object
-   #+END_EXAMPLE
-   :END:
-
-   Estimate standard errors via the bootstrap.
-
-   #+BEGIN_SRC ipython
-     var_qtl_stats['bootstrap_se'] = bootstrap_se(Xv, Yv, Cv)
-     var_qtl_stats['se'] = my_var_qtl_stats.set_index('gene')['se']
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[24]:
-   :END:
-
-   Investigate whether analytic SEs are reasonable:
-
-   #+BEGIN_SRC ipython
-     var_qtl_stats['se'].describe()
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[143]:
-   #+BEGIN_EXAMPLE
-     count      279
-     mean    0.0548
-     std      0.038
-     min     0.0126
-     25%     0.0274
-     50%     0.0404
-     75%     0.0716
-     max      0.192
-     Name: se, dtype: float64
-   #+END_EXAMPLE
-   :END:
-  
-   #+BEGIN_SRC ipython
-     var_qtl_stats['bootstrap_se'].describe()
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[144]:
-   #+BEGIN_EXAMPLE
-     count     279
-     mean    0.241
-     std     0.249
-     min     0.109
-     25%     0.164
-     50%     0.199
-     75%     0.255
-     max      4.06
-     Name: bootstrap_se, dtype: float64
-   #+END_EXAMPLE
-   :END:
-
-   Plot analytic SEs against bootstrap SEs.
-
-   #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/var-qtl-se.png
-     plt.clf()
-     plt.gcf().set_size_inches(4, 4)
-     plt.scatter(var_qtl_stats['se'], var_qtl_stats['bootstrap_se'], s=1, c='k')
-     plt.plot([0, 1], [0, 1], c='r', ls=':', lw=1)
-     plt.xlim([0, 1])
-     plt.ylim([0, 1])
-     plt.xlabel('Analytic SE')
-     _ = plt.ylabel('Bootstrap SE')
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[145]:
-   [[file:figure/qtl-mapping.org/var-qtl-se.png]]
-   :END:
-
-   Compute \(z\)-scores using the bootstrap SEs.
-
-   #+BEGIN_SRC ipython
-     var_qtl_stats['z'] = var_qtl_stats['beta'] / var_qtl_stats['bootstrap_se']
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[25]:
-   :END:
-
-   Compute a \(z\)-score from the estimated effect size and the \(p\)-value.
-
-   #+BEGIN_SRC ipython
-     var_qtl_stats['isf_z'] = np.sign(var_qtl_stats['beta']) * np.sqrt(st.chi2(1).isf(var_qtl_stats['p_nominal']))
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[147]:
-   :END:
-
-   Plot bootstrap \(z\)-scores against inverse-transformed \(z\)-scores.
-
-   #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/bootstrap-z-vs-nominal-p-inverse-cdf.png
-     plt.clf()
-     plt.gcf().set_size_inches(4, 4)
-     plt.scatter(var_qtl_stats['z'], var_qtl_stats['isf_z'], s=3, c='k')
-     plt.axhline(y=0, c='k', lw=1)
-     plt.axvline(x=0, c='k', lw=1)
-     plt.plot([-15, 15], [-15, 15], c='r', ls=':', lw=1)
-     plt.xlim([-15, 15])
-     plt.ylim([-15, 15])
-     plt.xlabel('Bootstrap $z$-score')
-     _ = plt.ylabel('Inverse CDF $z$-score')
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[148]:
-   [[file:figure/qtl-mapping.org/bootstrap-z-vs-nominal-p-inverse-cdf.png]]
-   :END:
-
-   Investigate whether \(z\)-scores based on bootstrap SEs agree with
-   permutation \(p\)-values.
-
-   #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/var-qtl-z.png
-     plt.clf()
-     plt.scatter(-np.log10(var_qtl_stats[fdr_pass]['p_beta']), var_qtl_stats[fdr_pass]['z'], c='r', label='FDR 10%', s=4)
-     plt.scatter(-np.log10(var_qtl_stats[~fdr_pass]['p_beta']), var_qtl_stats[~fdr_pass]['z'], c='k', label='p < 0.01', s=4)
-     plt.xlabel('Variance QTL $-\log_{10}(p)$')
-     plt.ylabel('Variance QTL $z$-score')
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[149]:
-   : Text(0,0.5,'Variance QTL $z$-score')
-   [[file:figure/qtl-mapping.org/var-qtl-z.png]]
-   :END:
-
-   Investigate whether variance QTL \(z\)-scores are correlated with relative
-   abundance.
-
-   #+BEGIN_SRC ipython
-     var_qtl_abundance = var_qtl_abundance.align(var_qtl_stats, axis='index', join='inner')[0]
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[150]:
-   :END:
-
-   #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/var-qtl-z-vs-log-mu.png
-     plt.clf()
-     plt.errorbar(x=var_qtl_abundance.mean(axis=1), y=var_qtl_stats['z'], xerr=var_qtl_abundance.std(axis=1), fmt='none', label=None, lw=1, ecolor='.8', zorder=1)
-     plt.scatter(x=var_qtl_abundance[fdr_pass].mean(axis=1), y=var_qtl_stats[fdr_pass]['z'], c='r', s=2, label='FDR 10%', zorder=2)
-     plt.scatter(x=var_qtl_abundance[~fdr_pass].mean(axis=1), y=var_qtl_stats[~fdr_pass]['z'], c='k', s=2, label='p < 0.01', zorder=2)
-     plt.legend(frameon=False)
-     plt.axhline(y=0, c='k')
-     plt.xlabel('$\log_2(\mathrm{relative\ abundance})$')
-     _ = plt.ylabel('Variance QTL $z$-score')
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[151]:
-   [[file:figure/qtl-mapping.org/var-qtl-z-vs-log-mu.png]]
-   :END:
-
-   Investigate whether variance QTL \(z\)-scores are correlated with pooled QTL
-   \(z\)-scores.
-
-   #+BEGIN_SRC ipython
-     Xm, Ym = extract_qtl_gene_pair(variance_qtls[thresh_pass], qtls['pooled'][1], dosages='/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz')
-     Cm = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/pooled-covars.txt')
-     Cm = Cm.align(Xm, axis='columns', join='inner')[0]
-     var_qtl_stats['mean_beta'] = replication_tests(Xm, Ym, Cm).set_index('gene')['beta']
-     var_qtl_stats['mean_z'] = var_qtl_stats['mean_beta'] / bootstrap_se(Xm, Ym, Cm)
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[19]:
-   :END:
-
-   Plot variance QTL \(z\)-scores against pooled QTL \(z\)-scores.
-
-   #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/var-qtl-vs-mean-qtl.png
-     lim = [-12, 12]
-     plt.clf()
-     plt.gcf().set_size_inches(6, 6)
-     plt.plot(lim, lim, c='r', ls=':', lw=1)
-     plt.scatter(var_qtl_stats[fdr_pass]['z'], var_qtl_stats[fdr_pass]['mean_z'], c='r', s=3, label='FDR 10%')
-     plt.scatter(var_qtl_stats[~fdr_pass]['z'], var_qtl_stats[~fdr_pass]['mean_z'], c='k', s=3, label='Permuted p < 0.01')
-     plt.legend(frameon=False)
-     plt.axhline(y=0, c='k', lw=1)
-     plt.axvline(x=0, c='k', lw=1)
-     plt.xlim(lim)
-     plt.ylim(lim)
-     plt.title('Variance-effect SNP-gene pairs')
-     plt.xlabel('Variance QTL $z$-score')
-     _ = plt.ylabel('Pooled QTL $z$-score')
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[26]:
-   [[file:figure/qtl-mapping.org/var-qtl-vs-mean-qtl.png]]
-   :END:
-
-   Compute the same in the other direction.
-
-   #+BEGIN_SRC ipython 
-     mean_qtl_stats = qtls['pooled'][0]
-     mean_qtl_stats = mean_qtl_stats[mean_qtl_stats['fdr_pass']].copy()
-     X, Y = extract_qtl_gene_pair(mean_qtl_stats, qtls['pooled'][1], dosages='/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz')
-     z = mean_qtl_stats.set_index('gene')['beta'] / bootstrap_se(X, Y, Cm)
-
-     X, Y = extract_qtl_gene_pair(mean_qtl_stats, qtls['variance'][1], dosages='/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz')
-     vz = replication_tests(X, Y, Cv).set_index('gene')['beta'] / bootstrap_se(X, Y, Cv)
-
-     Xb, Yb = extract_qtl_gene_pair(mean_qtl_stats, qtls['bulk'][1], dosages='/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz')
-     Cb = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/bulk-covars.txt', sep=r'\s+', engine='python')
-     Cb = Cb.align(Xb, axis='columns', join='inner')[0]
-     bulk_z = replication_tests(Xb, Yb, Cb).set_index('gene')['beta'] / bootstrap_se(Xb, Yb, Cb)
-
-     mean_qtl_stats = mean_qtl_stats.set_index('gene')
-     mean_qtl_stats['z'] = z
-     mean_qtl_stats['var_z'] = vz
-     mean_qtl_stats['bulk_z'] = bulk_z
-     mean_qtl_stats['var_fdr_pass'] = mean_qtl_stats.index.isin(var_qtl_stats['fdr_pass'].index)
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[127]:
-   :END:
-
-   Plot mean vs. variance \(z\)-scores at eQTL SNP-gene pairs.
-
-   #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/mean-qtl-vs-var-qtl.png
-     lim = [-18, 18]
-     plt.clf()
-     plt.gcf().set_size_inches(6, 6)
-     plt.plot(lim, lim, c='r', ls=':', lw=1)
-     plt.scatter(mean_qtl_stats.loc[mean_qtl_stats['var_fdr_pass'], 'var_z'],
-                 mean_qtl_stats.loc[mean_qtl_stats['var_fdr_pass'], 'z'], c='r',
-                 s=3, label='vQTL (FDR 10%)')
-     plt.scatter(mean_qtl_stats.loc[~mean_qtl_stats['var_fdr_pass'], 'var_z'],
-                 mean_qtl_stats.loc[~mean_qtl_stats['var_fdr_pass'], 'z'], c='k',
-                 s=3, label='Not vQTL')
-     plt.legend(frameon=False)
-     plt.axhline(y=0, c='k', lw=1)
-     plt.axvline(x=0, c='k', lw=1)
-     plt.xlim(lim)
-     plt.ylim(lim)
-     plt.title('Mean-effect SNP-gene pairs')
-     plt.xlabel('Variance QTL $z$-score')
-     _ = plt.ylabel('Pooled QTL $z$-score')
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[124]:
-   [[file:figure/qtl-mapping.org/mean-qtl-vs-var-qtl.png]]
-   :END:
-
-   Plot single cell eQTL \(z\)-scores against bulk eQTL \(z\)-scores.
-
-   #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/pooled-qtl-vs-mean-qtl.png
-     lim = [-12, 12]
-     plt.clf()
-     plt.gcf().set_size_inches(6, 6)
-     plt.plot(lim, lim, c='r', ls=':', lw=1)
-     plt.scatter(mean_qtl_stats['z'], mean_qtl_stats['bulk_z'], c='k', s=3)
-     plt.axhline(y=0, c='k', lw=1)
-     plt.axvline(x=0, c='k', lw=1)
-     plt.xlim(lim)
-     plt.ylim(lim)
-     plt.xlabel('Pooled single cell eQTL $z$-score')
-     _ = plt.ylabel('Bulk eQTL $z$-score')
-
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[130]:
-   [[file:figure/qtl-mapping.org/pooled-qtl-vs-mean-qtl.png]]
-   :END:
-
-** Predicting mean QTLs from variance QTLs
-
-   As we change the threshold for calling mean (variance) QTLs, track the
-   precision and recall of variance (mean) QTLs.
-
-   #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/var-qtl-mean-qtl-prc.png
-     plt.clf()
-     plt.gcf().set_size_inches(4, 4)
-     Y, P = qtls['pooled'][0]['fdr_pass'].align(qtls['variance'][0]['p_beta'].dropna(), join='inner')
-     p, r, _ = sklearn.metrics.precision_recall_curve(Y.astype(int), -np.log(P))
-     plt.plot(r[::10], p[::10], lw=1, c='k', label='Variance')
-     Y, P = qtls['variance'][0]['fdr_pass'].align(qtls['pooled'][0]['p_beta'].dropna(), join='inner')
-     p, r, _ = sklearn.metrics.precision_recall_curve(Y.astype(int), -np.log(P))
-     plt.plot(r[::10], p[::10], lw=1, c='r', label='Mean')
-     plt.legend()
-     plt.xlabel('Recall of QTLs at FDR 10%')
-     _ = plt.ylabel('Precision of QTLs at FDR 10%')
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[256]:
-   [[file:figure/qtl-mapping.org/var-qtl-mean-qtl-prc.png]]
-   :END:
-
-   Track sensitivity and specificity of mean QTLs.
-
-   #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/var-qtl-mean-qtl-roc.png
-     plt.clf()
-     plt.gcf().set_size_inches(4, 4)
-     Y, P = qtls['pooled'][0]['fdr_pass'].align(qtls['variance'][0]['p_beta'].dropna(), join='inner')
-     fpr, tpr, _ = sklearn.metrics.roc_curve(Y.astype(int), -np.log(P))
-     plt.plot(fpr[::10], tpr[::10], lw=1, c='k', label='Variance')
-     Y, P = qtls['variance'][0]['fdr_pass'].align(qtls['pooled'][0]['p_beta'].dropna(), join='inner')
-     fpr, tpr, _ = sklearn.metrics.roc_curve(Y.astype(int), -np.log(P))
-     plt.plot(fpr[::10], tpr[::10], lw=1, c='r', label='Mean')
-     plt.legend()
-     plt.xlabel('False positive rate of QTLs at FDR 10%')
-     _ = plt.ylabel('True positive rate of QTLs at FDR 10%')
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[258]:
-   [[file:figure/qtl-mapping.org/var-qtl-mean-qtl-roc.png]]
-   :END:
-
-** Multivariate adaptive shrinkage
+** Multivariate adaptive shrinkage                                 :noexport:
 
    Write out a subset of the phenotype matrix to get SNP-level summary stats for
    ~mash~.
