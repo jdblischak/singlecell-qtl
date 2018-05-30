@@ -72,7 +72,7 @@
   #+CALL: ipython3(memory="16G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 46253777
+  : Submitted batch job 46303124
 
   #+NAME: zinb-imports
   #+BEGIN_SRC ipython
@@ -347,20 +347,20 @@
    #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-sim.py
      <<zinb-imports>>
      <<tf-imports>>
-     <<sim-impl2>>
+     <<sim-impl>>
      <<tf-zinb-impl>>
 
      def evaluate(num_samples, num_mols, num_trials=10):
        # This will be reset inside the simulation to generate counts, but we need to
        # fix it to get one design matrix for all the simulated genes
-       np.random.seed(1000)
-       design = np.random.normal(size=(num_samples * num_trials, 1))
        # def simulate(num_samples, size=None, log_mu=None, log_phi=None, logodds=None, seed=None, design=None, fold=None):
-       args = [(num_samples * num_trials, num_mols, log_mu, log_phi, logodds, None, design, fold)
+       design = np.zeros((num_samples * num_trials, 1))
+       # Important: generate all of the samples for each trial in one shot, and use
+       # one-hot encoding to get separate estimates
+       args = [(num_samples * num_trials, num_mols, log_mu, log_phi, logodds, None, None, None)
                for log_mu in np.linspace(-12, -6, 7)
                for log_phi in np.linspace(-4, 0, 5)
-               for logodds in np.linspace(-3, 3, 7)
-               for fold in (1, 1.25, 6)]
+               for logodds in np.linspace(-3, 3, 7)]
        umi = np.concatenate([simulate(*a)[0][:,:1] for a in args], axis=1)
        onehot = np.zeros((num_samples * num_trials, num_trials))
        onehot[np.arange(onehot.shape[0]), np.arange(onehot.shape[0]) // num_samples] = 1
@@ -370,8 +370,6 @@
          onehot=onehot.astype(np.float32),
          design=design.astype(np.float32),
          size_factor=(num_mols * np.ones((num_samples * num_trials, 1))).astype(np.float32),
-         gene_dropout=True,
-         ind_dropout=True,
          learning_rate=5e-2,
          max_epochs=4000)
        result = pd.DataFrame(
@@ -391,7 +389,7 @@
        return result
 
      res = pd.concat([evaluate(num_samples, num_mols)
-                      for num_samples in (10000, 95, 1000)
+                      for num_samples in (10000, 95)
                       for num_mols in (114026,)])
      res.to_csv('simulation.txt.gz', compression='gzip', sep='\t')
    #+END_SRC
@@ -404,7 +402,7 @@
    #+END_SRC
 
    #+RESULTS:
-   : Submitted batch job 46100591
+   : Submitted batch job 46277656
 
    Read the results.
 
@@ -414,18 +412,17 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[170]:
+   # Out[3]:
    :END:
 
    #+BEGIN_SRC ipython
      mu_pass = result['log_mu'] > -10
      pi_pass = result['logodds'] < 0
-     fold_pass = result['fold'] == 1
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[178]:
+   # Out[12]:
    :END:
 
    Plot the results.
@@ -437,41 +434,7 @@
      fig, ax = plt.subplots(1, 3)
      fig.set_size_inches(8.5, 3)
 
-     subset = result.loc[np.logical_and.reduce(np.vstack([sample_pass, pi_pass, fold_pass])),['log_mu', 'log_mu_hat']]
-     ax[0].scatter(subset['log_mu'], subset['log_mu_hat'], s=2, c='k')
-     ax[0].plot(ax[0].get_xlim(), ax[0].get_xlim(), c='r', ls=':', lw=1)
-     ax[0].set_xlabel('True $\ln(\mu)$')
-     ax[0].set_ylabel('Estimated $\ln(\mu)$')
-
-     subset = result.loc[np.logical_and.reduce(np.vstack([sample_pass, mu_pass, pi_pass, fold_pass])),['log_phi', 'log_phi_hat']]
-     ax[1].scatter(subset['log_phi'], subset['log_phi_hat'], s=2, c='k')
-     ax[1].plot(ax[1].get_xlim(), ax[1].get_xlim(), c='r', ls=':', lw=1)
-     ax[1].set_xlabel('True $\ln(\phi)$')
-     ax[1].set_ylabel('Estimated $\ln(\phi)$')
-
-     subset = result.loc[np.logical_and.reduce(np.vstack([sample_pass, fold_pass])),['logodds', 'logodds_hat']]
-     ax[2].scatter(subset['logodds'], subset['logodds_hat'], s=2, c='k')
-     ax[2].plot(ax[2].get_xlim(), ax[2].get_xlim(), c='r', ls=':', lw=1)
-     ax[2].set_xlabel('True $\mathrm{logit}(\pi)$')
-     ax[2].set_ylabel('Estimated $\mathrm{logit}(\pi)$')
-
-     fig.tight_layout()
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[179]:
-   [[file:figure/zinb.org/sim1.png]]
-   :END:
-
-   #+BEGIN_SRC ipython :ipyfile figure/zinb.org/sim2.png
-     sample_pass = result['num_samples'] == 10000
-
-     plt.clf()
-     fig, ax = plt.subplots(1, 3)
-     fig.set_size_inches(8.5, 3)
-
-     subset = result.loc[np.logical_and.reduce(np.vstack([sample_pass, pi_pass, fold_pass])),['log_mu', 'log_mu_hat']]
+     subset = result.loc[np.logical_and.reduce(np.vstack([sample_pass, pi_pass])),['log_mu', 'log_mu_hat']]
      ax[0].scatter(subset['log_mu'], subset['log_mu_hat'], s=2, c='k')
      ax[0].plot(ax[0].get_xlim(), ax[0].get_xlim(), c='r', ls=':', lw=1)
      ax[0].set_xlabel('True $\ln(\mu)$')
@@ -483,7 +446,7 @@
      ax[1].set_xlabel('True $\ln(\phi)$')
      ax[1].set_ylabel('Estimated $\ln(\phi)$')
 
-     subset = result.loc[np.logical_and.reduce(np.vstack([sample_pass, fold_pass])),['logodds', 'logodds_hat']]
+     subset = result.loc[sample_pass,['logodds', 'logodds_hat']]
      ax[2].scatter(subset['logodds'], subset['logodds_hat'], s=2, c='k')
      ax[2].plot(ax[2].get_xlim(), ax[2].get_xlim(), c='r', ls=':', lw=1)
      ax[2].set_xlabel('True $\mathrm{logit}(\pi)$')
@@ -494,7 +457,41 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[180]:
+   # Out[13]:
+   [[file:figure/zinb.org/sim1.png]]
+   :END:
+
+   #+BEGIN_SRC ipython :ipyfile figure/zinb.org/sim2.png
+     sample_pass = result['num_samples'] == 10000
+
+     plt.clf()
+     fig, ax = plt.subplots(1, 3)
+     fig.set_size_inches(8.5, 3)
+
+     subset = result.loc[np.logical_and.reduce(np.vstack([sample_pass, pi_pass])),['log_mu', 'log_mu_hat']]
+     ax[0].scatter(subset['log_mu'], subset['log_mu_hat'], s=2, c='k')
+     ax[0].plot(ax[0].get_xlim(), ax[0].get_xlim(), c='r', ls=':', lw=1)
+     ax[0].set_xlabel('True $\ln(\mu)$')
+     ax[0].set_ylabel('Estimated $\ln(\mu)$')
+
+     subset = result.loc[np.logical_and.reduce(np.vstack([sample_pass, mu_pass, pi_pass])),['log_phi', 'log_phi_hat']]
+     ax[1].scatter(subset['log_phi'], subset['log_phi_hat'], s=2, c='k')
+     ax[1].plot(ax[1].get_xlim(), ax[1].get_xlim(), c='r', ls=':', lw=1)
+     ax[1].set_xlabel('True $\ln(\phi)$')
+     ax[1].set_ylabel('Estimated $\ln(\phi)$')
+
+     subset = result.loc[sample_pass,['logodds', 'logodds_hat']]
+     ax[2].scatter(subset['logodds'], subset['logodds_hat'], s=2, c='k')
+     ax[2].plot(ax[2].get_xlim(), ax[2].get_xlim(), c='r', ls=':', lw=1)
+     ax[2].set_xlabel('True $\mathrm{logit}(\pi)$')
+     ax[2].set_ylabel('Estimated $\mathrm{logit}(\pi)$')
+
+     fig.tight_layout()
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[17]:
    [[file:figure/zinb.org/sim2.png]]
    :END:
 
@@ -578,8 +575,6 @@
        onehot=onehot.astype(np.float32),
        design=designs[args.design].astype(np.float32),
        size_factor=annotations['mol_hs'].astype(np.float32).values.reshape(-1, 1),
-       gene_dropout=True,
-       ind_dropout=True,
        learning_rate=5e-2,
        max_epochs=4000)
      pd.DataFrame(log_mu.T, index=index, columns=header).to_csv('zi2-log-mu.txt.gz', sep=' ', compression='gzip')
@@ -625,7 +620,7 @@
    #+RESULTS: rsync
    : Submitted batch job 46253775
 
-* numpy/scipy implementation
+* numpy/scipy implementation                                       :noexport:
 
   Optimize the negative log-likelihood.
 
@@ -779,7 +774,7 @@
 
   \[ \tau = \frac{1 - 2 \ln y}{2 \ln y} \]  
 
-  #+NAME: sim-impl2
+  #+NAME: sim-impl
   #+BEGIN_SRC ipython
     def simulate(num_samples, size=None, log_mu=None, log_phi=None, logodds=None, seed=None, design=None, fold=None):
       if seed is None:
@@ -811,7 +806,15 @@
                    0,
                    np.random.negative_binomial(n=n, p=p, size=num_samples))
       return np.vstack((x, size * np.ones(num_samples))).T, design
+  #+END_SRC
 
+  #+RESULTS: sim-impl2
+  :RESULTS:
+  # Out[31]:
+  :END:
+
+  #+NAME: numpy-eval-impl
+  #+BEGIN_SRC ipython
     def batch_design_matrix(num_samples, num_batches):
       """Return a matrix of binary indicators representing batch assignment"""
       design = np.zeros((num_samples, num_batches))
@@ -832,12 +835,8 @@
       result['mean_log_cpm'] = log_cpm.mean()
       result['var_log_cpm'] = log_cpm.var()
       return result
-  #+END_SRC
 
-  #+RESULTS: sim-impl2
-  :RESULTS:
-  # Out[31]:
-  :END:
+  #+END_SRC
 
   Check the implementation actually worked.
 
@@ -1109,7 +1108,8 @@
     import multiprocessing as mp
     import sqlite3
     <<np-zinb-impl2>>
-    <<sim-impl2>>
+    <<sim-impl>>
+    <<np-eval-impl>>
     args = [(num_samples, num_mols, log_mu, log_phi, logodds, fold, trial)
             for num_samples in np.linspace(100, 1000, 5).astype(int)
             for num_mols in 1e3 * np.linspace(100, 1000, 5).astype(int)
