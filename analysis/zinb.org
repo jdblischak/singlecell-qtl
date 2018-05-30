@@ -165,7 +165,7 @@
 
       mean - mean (> 0)
       inv_disp - inverse dispersion (> 0)
-      logodds - dropout log odds
+      logodds - logit proportion of excess zeros
 
       """
       # Important identities:
@@ -276,26 +276,22 @@
         return control_flow_ops.group(*update_ops + [update_beta1, update_beta2],
                                       name=name_scope)
 
-    def fit(umi, onehot, size_factor, design, gene_dropout=False, ind_dropout=False, learning_rate=1e-2, max_epochs=1000):
+    def fit(umi, onehot, size_factor, design, learning_rate=1e-2, max_epochs=1000, fit_null=False, return_llik=False):
       """Return estimated log mean and log dispersion. 
-
-      If fitting a zero-inflated model, additionally return dropout log odds.
 
       umi - count matrix (n x p; float32)
       onehot - mapping of individuals to cells (m x n; float32)
       size_factor - size factor vector (n x 1; float32)
       design - confounder matrix (n x q; float32)
-      gene_dropout - fit one dropout parameter per gene
-      ind_dropout - fit one dropout parameter per individual
-
-      If ind_dropout is True, gene_dropout must be True, otherwise raises
-      ArgumentError.
+      fit_null - whether to fit the null model (common dispersion)
+      return_llik - whether to return the log likelihood matrix
 
       Returns:
 
       log_mean - log mean parameter (m x p)
       log_disp - log dispersion parameter (m x p)
-      dropout - dropout log odds (1 x p if gene_dropout, n x p if ind_dropout)
+      logodds - logit proportion of excess zeros (m x p)
+      llik - if return_llik, log likelihood per condition per gene (m x p)
 
       """
       n, p = umi.shape
@@ -311,35 +307,30 @@
         design = tf.Variable(design, trainable=False)
 
         mean = tf.exp(tf.Variable(tf.zeros([m, p])))
-        inv_disp = tf.exp(tf.Variable(tf.zeros([m, p])))
+        if fit_null:
+          inv_disp = tf.exp(tf.Variable(tf.zeros([1, p])))
+        else:
+          inv_disp = tf.exp(tf.Variable(tf.zeros([m, p])))
+        logodds = tf.Variable(tf.zeros([m, p]))
         beta = tf.Variable(tf.zeros([k, p]))
 
-        if gene_dropout:
-          if ind_dropout:
-            dropout_params = tf.Variable(tf.zeros([m, p]))
-            dropout = tf.matmul(onehot, dropout_params)
-          else:
-            dropout_params = tf.Variable(tf.zeros([1, p]))
-            dropout = dropout_params
-          llik = tf.reduce_mean(
-            zinb_llik(umi, size_factor * tf.matmul(onehot, mean) * tf.exp(tf.matmul(design, beta)),
-                      tf.matmul(onehot, inv_disp), dropout))
-        elif ind_dropout:
-          raise ValueError('Cannot specify individual-specific dropout without gene-specific dropout')
+        if fit_null:
+          llik = zinb_llik(umi, size_factor * tf.matmul(onehot, mean) * tf.exp(tf.matmul(design, beta)),
+                           inv_disp, tf.matmul(onehot, logodds))
         else:
-          llik = tf.reduce_mean(
-            nb_llik(umi, size_factor * tf.matmul(onehot, mean) * tf.exp(tf.matmul(design, beta)),
-                    tf.matmul(onehot, inv_disp)))
+          llik = zinb_llik(umi, size_factor * tf.matmul(onehot, mean) * tf.exp(tf.matmul(design, beta)),
+                           tf.matmul(onehot, inv_disp), tf.matmul(onehot, logodds))
 
-        train = AMSGrad(learning_rate=learning_rate).minimize(-llik)
-        opt = [tf.log(mean), -tf.log(inv_disp)]
-        if gene_dropout:
-          opt.append(dropout_params)
+        loss = -tf.reduce_mean(llik)
+        train = AMSGrad(learning_rate=learning_rate).minimize(loss)
+        opt = [tf.log(mean), -tf.log(inv_disp), logodds]
+        if return_llik:
+          opt.append(tf.matmul(onehot, llik))
         curr = float('-inf')
         with tf.Session() as sess:
           sess.run(tf.global_variables_initializer())
           for i in range(max_epochs):
-            _, update = sess.run([train, llik])
+            _, update = sess.run([train, loss])
             if not np.isfinite(update):
               raise tf.train.NanLossDuringTrainingError
             if not i % 500:
