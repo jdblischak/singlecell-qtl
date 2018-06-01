@@ -321,10 +321,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2018-05-27</p>
+<p><strong>Last updated:</strong> 2018-06-01</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> e2084af</p>
+<p><strong>Code version:</strong> 6b81757</p>
 <p>This analysis explores the total counts of reads and molecules mapped to each source (human, fly, worm, and ERCC).</p>
 <div id="setup" class="section level2">
 <h2>Setup</h2>
@@ -378,26 +378,26 @@ head(totals_long)</code></pre>
 <tbody>
 <tr class="odd">
 <td>Raw reads</td>
-<td>4.719887810^{6}</td>
-<td>2.189634410^{6}</td>
+<td>4.81112710^{6}</td>
+<td>2.198589410^{6}</td>
 <td>1.00</td>
 </tr>
 <tr class="even">
 <td>Reads with UMI</td>
-<td>3.117445110^{6}</td>
-<td>1.497130810^{6}</td>
+<td>3.173026110^{6}</td>
+<td>1.497057710^{6}</td>
 <td>0.65</td>
 </tr>
 <tr class="odd">
 <td>Reads mapped to genome</td>
-<td>2.196669210^{6}</td>
-<td>1.102373410^{6}</td>
+<td>2.239983610^{6}</td>
+<td>1.102816810^{6}</td>
 <td>0.46</td>
 </tr>
 <tr class="even">
 <td>Molecules mapped to genome</td>
-<td>1.145722210^{5}</td>
-<td>5.327841610^{4}</td>
+<td>1.155035110^{5}</td>
+<td>5.313022810^{4}</td>
 <td>0.03</td>
 </tr>
 </tbody>
@@ -436,22 +436,6 @@ ggplot(mapped_sum, aes(x = experiment, y = total)) +
 </thead>
 <tbody>
 <tr class="odd">
-<td align="left">04072017</td>
-<td align="right">117.9586</td>
-</tr>
-<tr class="even">
-<td align="left">03312017</td>
-<td align="right">121.0391</td>
-</tr>
-<tr class="odd">
-<td align="left">04142017</td>
-<td align="right">125.4580</td>
-</tr>
-<tr class="even">
-<td align="left">04132017</td>
-<td align="right">128.3044</td>
-</tr>
-<tr class="odd">
 <td align="left">03052018</td>
 <td align="right">132.5719</td>
 </tr>
@@ -460,36 +444,44 @@ ggplot(mapped_sum, aes(x = experiment, y = total)) +
 <td align="right">133.0558</td>
 </tr>
 <tr class="odd">
-<td align="left">03172017</td>
-<td align="right">141.9406</td>
+<td align="left">04132017</td>
+<td align="right">155.8150</td>
 </tr>
 <tr class="even">
-<td align="left">04052017</td>
-<td align="right">145.7825</td>
+<td align="left">04142017</td>
+<td align="right">155.9650</td>
 </tr>
 <tr class="odd">
-<td align="left">03162017</td>
-<td align="right">157.7334</td>
+<td align="left">03312017</td>
+<td align="right">157.8991</td>
 </tr>
 <tr class="even">
+<td align="left">04072017</td>
+<td align="right">158.0969</td>
+</tr>
+<tr class="odd">
 <td align="left">12042017</td>
 <td align="right">159.2927</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">08142017</td>
 <td align="right">164.2358</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">08152017</td>
 <td align="right">164.4480</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">10052017</td>
 <td align="right">164.6800</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">02192018</td>
 <td align="right">168.3123</td>
+</tr>
+<tr class="even">
+<td align="left">04052017</td>
+<td align="right">171.8213</td>
 </tr>
 <tr class="odd">
 <td align="left">10042017</td>
@@ -508,228 +500,236 @@ ggplot(mapped_sum, aes(x = experiment, y = total)) +
 <td align="right">174.9899</td>
 </tr>
 <tr class="odd">
-<td align="left">04202017</td>
-<td align="right">175.0927</td>
-</tr>
-<tr class="even">
 <td align="left">11272017</td>
 <td align="right">177.3012</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">11152017</td>
 <td align="right">180.4016</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">11202017</td>
 <td align="right">180.6296</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">02242018</td>
 <td align="right">181.0613</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">09272017</td>
 <td align="right">181.2822</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">02282018</td>
 <td align="right">181.2910</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">10172017</td>
 <td align="right">181.3652</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">12132017</td>
 <td align="right">182.2084</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">12062017</td>
 <td align="right">182.9707</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">03012018</td>
 <td align="right">183.6841</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">12082017</td>
 <td align="right">184.4322</td>
+</tr>
+<tr class="even">
+<td align="left">03172017</td>
+<td align="right">184.7017</td>
 </tr>
 <tr class="odd">
 <td align="left">11162017</td>
 <td align="right">185.1417</td>
 </tr>
 <tr class="even">
+<td align="left">03162017</td>
+<td align="right">185.2525</td>
+</tr>
+<tr class="odd">
 <td align="left">09262017</td>
 <td align="right">185.5391</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">02262018</td>
 <td align="right">185.6744</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">02202018</td>
 <td align="right">186.4867</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">11302017</td>
 <td align="right">186.8379</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">11142017</td>
 <td align="right">187.3253</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">11172017</td>
 <td align="right">189.3749</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">02212018</td>
 <td align="right">190.5448</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">11292017</td>
 <td align="right">191.7120</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">11022017</td>
 <td align="right">191.8474</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">08222017</td>
 <td align="right">192.2871</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">08162017</td>
 <td align="right">192.5859</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">11102017</td>
 <td align="right">193.6744</td>
 </tr>
-<tr class="even">
-<td align="left">03302017</td>
-<td align="right">193.7759</td>
-</tr>
 <tr class="odd">
+<td align="left">04202017</td>
+<td align="right">194.0535</td>
+</tr>
+<tr class="even">
 <td align="left">12122017</td>
 <td align="right">195.1131</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">10092017</td>
 <td align="right">195.7672</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">09252017</td>
 <td align="right">195.9887</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">11032017</td>
 <td align="right">196.2268</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">08112017</td>
 <td align="right">197.4141</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">11212017</td>
 <td align="right">197.6497</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">10302017</td>
 <td align="right">198.0889</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">03072018</td>
 <td align="right">201.6887</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">11282017</td>
 <td align="right">202.5115</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">11092017</td>
 <td align="right">204.0547</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">08182017</td>
 <td align="right">204.4532</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">08102017</td>
 <td align="right">205.5988</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">12142017</td>
 <td align="right">205.7184</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">10102017</td>
 <td align="right">208.4722</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">12052017</td>
 <td align="right">209.0949</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">08282017</td>
 <td align="right">210.1087</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">02222018</td>
 <td align="right">211.0495</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">11082017</td>
 <td align="right">211.7339</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">08212017</td>
 <td align="right">217.3511</td>
+</tr>
+<tr class="odd">
+<td align="left">03302017</td>
+<td align="right">219.8773</td>
 </tr>
 <tr class="even">
 <td align="left">08302017</td>
 <td align="right">219.9493</td>
 </tr>
 <tr class="odd">
-<td align="left">03232017</td>
-<td align="right">220.5914</td>
-</tr>
-<tr class="even">
 <td align="left">11072017</td>
 <td align="right">230.4075</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">02272018</td>
 <td align="right">233.8705</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">10112017</td>
 <td align="right">235.2866</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">11132017</td>
 <td align="right">238.0722</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">08242017</td>
 <td align="right">239.1506</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">12072017</td>
 <td align="right">239.5364</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">10162017</td>
 <td align="right">241.1949</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">08312017</td>
 <td align="right">241.8290</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">11062017</td>
 <td align="right">244.1415</td>
+</tr>
+<tr class="even">
+<td align="left">03232017</td>
+<td align="right">245.7061</td>
 </tr>
 <tr class="odd">
 <td align="left">10132017</td>
