@@ -1,6 +1,10 @@
 # README
 
-July 26th - batch 1 flow cell 1
+YG-PYT-170726.md5 - batch 1 flow cell 1 \*
+
+\* The checksums for this first flow cell were empirically determined, i.e.
+the files were downloaded, the md5 checksums calculated, and the files
+re-downloaded to confirm consistency.
 
 YG-PYT-171013.md5 - batch 1 flow cell 2
 
@@ -49,4 +53,3 @@ YG-PYT-ReSEQ6-2.md5 - batch 6 flow cell 2
 YG-PYT-ReSEQ6-3.md5 - batch 6 flow cell 3
 
 YG-PYT-ReSEQ6-4.md5 - batch 6 flow cell 4
-

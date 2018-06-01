@@ -117,7 +117,7 @@ def main(md5file, remotedir, outdir = ".", hostname = "fgfftp.uchicago.edu",
             continue
 
         # Record chip and the lane it was on
-        if len(chips) == 0 or chip != chips[-1]:
+        if re.search("-A01_", fname):
             chips.append(chip)
             lane = re.compile("L00[1-8]").findall(fname)[0]
             lanes.append(lane)
@@ -125,8 +125,12 @@ def main(md5file, remotedir, outdir = ".", hostname = "fgfftp.uchicago.edu",
         outdir_chip = outdir + "/" + chip
         os.makedirs(outdir_chip, exist_ok = True)
         localpath = outdir_chip + "/" + fname
-        remotepath = remotedir + "/" + fname
-        #import ipdb; ipdb.set_trace()
+        # One file was corrupted and needed to be demultiplexed a second
+        # time. It was saved in the subdirectory FastQ-OneFile instead of FastQ.
+        if fname == "YG-PYT-03302017-G03_S75_L006_R1_001.fastq.gz":
+            remotepath = remotedir.rstrip("/") + "-OneFile/" + fname
+        else:
+            remotepath = remotedir + "/" + fname
 
         # Download only if remote file exists and local file does not
         if not sftp.exists(remotepath):
