@@ -3,229 +3,280 @@
 
 * Introduction
 
-  Our goal here is estimate power to detect mean and variance-effect QTLs. The
-  strategy is to resample the single cell RNA-Seq data to generate datasets
-  with equal patterns of dropout, overdispersion, mean-variance
-  dependence, etc.
+  We [[file:qtl-mapping.org][previously found]] that our study lost power to detect eQTLs, and was
+  underpowered to directly detect dispersion-QTLs.
+
+  Here, we estimate power to detect eQTLs and dispersion-QTLs as a function of:
+
+  - number of cells per individual
+  - number of molecules per cell
+  - number of individuals
 
 * Setup                                                            :noexport:
-
-  #+BEGIN_SRC emacs-lisp
-    (org-babel-lob-ingest "/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/sc-vs-bulk.org")
+ 
+ #+BEGIN_SRC emacs-lisp
+    (org-babel-lob-ingest "~/.emacs.d/org-templates/library.org")
+    (org-babel-lob-ingest "/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/zinb.org")
   #+END_SRC
 
   #+RESULTS:
-  : 1
+  : 18
 
-  #+CALL: ipython3(memory="16G", venv="scqtl")
+  #+CALL: ipython3(memory="4G", venv="scqtl")
 
   #+RESULTS:
-  : Submitted batch job 44915330
+  : Submitted batch job 46322943
 
-  #+NAME: imports
   #+BEGIN_SRC ipython
     %matplotlib inline
+    %config InlineBackend.figure_formats = set(['retina'])
 
     import collections
     import colorcet
     import gzip
     import io
-    import matplotlib.cm
     import matplotlib.pyplot as plt
     import numpy as np
     import pandas as pd
-    import requests
-    import scipy.stats as sst
-  #+END_SRC
-
-  #+RESULTS: imports
-  :RESULTS:
-  :END:
-
-  #+CALL: concordance-def()
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[158]:
-  :END:
-
-* Read and QC the single cell counts
-
-  #+BEGIN_SRC ipython
-    annotations = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
-    keep_samples = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
-    keep_genes = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt', index_col=0, header=None)
-    annotations = annotations.loc[keep_samples.values.ravel()]
+    import scipy.stats as st
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[4]:
+  # Out[1]:
   :END:
 
-  #+BEGIN_SRC ipython
-    umi = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', index_col=0)
-    umi = umi.loc[keep_genes.values.ravel(),keep_samples.values.ravel()]
+* Differential dispersion
+
+  Perform a nested model comparison for each gene \(k\), comparing the model:
+
+  \[ r_{ijk} \sim ZINB(\pi_{ik}, \mu_{ik}, \phi_{ik}) \]
+
+  against the model:
+
+  \[ r_{ijk} \sim ZINB(\pi_{ik}, \mu_{ik}, \phi_{i}) \]
+
+  #+NAME: lrt-impl
+  #+BEGIN_SRC ipython :eval never
+    def lrt(umi, onehot, design, size_factor):
+      _, _, _, llik0 = fit(
+        umi=umi.values.T.astype(np.float32),
+        onehot=onehot.astype(np.float32),
+        design=design.astype(np.float32),
+        size_factor=size_factor.astype(np.float32),
+        fit_null=True,
+        return_llik=True,
+        learning_rate=5e-2,
+        max_epochs=4000)
+      _, _, _, llik1 = fit(
+        umi=umi.values.T.astype(np.float32),
+        onehot=onehot.astype(np.float32),
+        design=design.astype(np.float32),
+        size_factor=size_factor.astype(np.float32),
+        return_llik=True,
+        learning_rate=5e-2,
+        max_epochs=4000)
+      T = 2 * (llik1 - llik0)
+      return T, st.chi2(1).logsf(T)
   #+END_SRC
 
-* Resample scRNA-Seq
+** Null calibration via parametric bootstrap
 
-  Assuming the true single cells all came from one individual, generate new
-  single cells by sampling counts for each gene iid. with replacement. This
-  method assumes genes are independent, which is justified only if we perform
-  analysis one gene at a time.
+   Sample null data from the model, using empirical estimates of the parameters
+   in the observed data.
 
-  To generate a new data set (with multiple individuals), randomly sample
-  individuals with replacement, and generate a new set of single cells for each
-  sampled individual.
+   #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-lrt-null-parametric.py
+     <<zinb-imports>>
+     <<tf-imports>>
+     <<tf-zinb-impl>>
+     <<lrt-impl>>
+     <<sim-impl>>
 
-  #+NAME: simulate
-  #+BEGIN_SRC ipython
-    def sample_cells(umi, n=1):
-      """Return a sampled matrix of UMI counts
+     log_mu = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz', index_col=0, sep=' ')
+     log_phi = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-phi.txt.gz', index_col=0, sep=' ')
+     logodds = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz', index_col=0, sep=' ')
+     params = pd.DataFrame({'log_mu': log_mu['NA18507'],
+                            'log_phi': log_phi['NA18507'],
+                            'logodds': logodds['NA18507']},
+                           index=log_mu.index)
+     params = params[params['log_mu'] > -10]
+     n = 100
+     umi = pd.DataFrame([simulate(2 * n, size=1e5, log_mu=log_mu, log_phi=log_phi, logodds=logodds)[0][:,0]
+                         for _, (log_mu, log_phi, logodds) in params.iterrows() if log_mu > -10], index=params.index)
+     onehot = np.zeros((2 * n, 2))
+     onehot[:n,0] = 1
+     onehot[n:,1] = 1
+     design = np.zeros((2 * n, 1))
+     size_factor = 1e5 * np.ones((2 * n, 1))
+     T, P = lrt(umi, onehot, design, size_factor)
+     pd.DataFrame({'chi2': T, 'logp': P}, index=umi.index).to_csv('null-calibration-p.txt.gz', sep='\t', compression='gzip')
+   #+END_SRC
 
-      Assume the input matrix is UMI for a single individal. Sample gene counts
-      i.i.d. from the empirical distribution of counts
+   #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/power/
+     sbatch --partition=gpu --gres=gpu:1 --mem=16G --job-name=tf-lrt-null --output=tf-lrt-null-parametric.out
+     #!/bin/bash
+     source activate scqtl
+     python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-lrt-null-parametric.py
+   #+END_SRC
 
-      """
-      result = np.zeros((umi.shape[0], n))
-      for i, row in enumerate(umi.values):
-        result[i] = np.random.choice(row, size=n, replace=True)
-      return pd.DataFrame(result, index=umi.index)
+   #+RESULTS:
+   : Submitted batch job 46322399
 
-    def sample_individuals(umi, annotations, num_individuals=None, num_cells=100):
-      """Return a sampled matrix of UMI counts for multiple individuals
+   Plot the QQ-plot.
 
-      num_individuals - # individuals to sample (default: equal number)
-      num_cells - # cells to sample for each sampled individual
+   #+BEGIN_SRC ipython :ipyfile figure/power.org/null-calibration-p.png
+     null_lrt = pd.read_table('/scratch/midway2/aksarkar/singlecell/power/null-calibration-p.txt.gz')
+     N = null_lrt.shape[0]
+     plt.clf()
+     plt.gcf().set_size_inches(4, 4)
+     plt.scatter(st.chi2(1).ppf(np.linspace(0, 1 - 1 / N, N)), null_lrt['chi2'].sort_values(), c='k', s=2, alpha=0.25)
+     lim = [0, 1.1 * null_lrt['chi2'].max()]
+     plt.plot(lim, lim, c='r', ls=':', lw=1)
+     plt.xlim(lim)
+     plt.ylim(lim)
+     plt.xlabel('Expected $\chi^2$ statistic')
+     _ = plt.ylabel('Observed $\chi^2$ statistic')
+   #+END_SRC
 
-      Returns:
+   #+RESULTS:
+   :RESULTS:
+   # Out[12]:
+   [[file:figure/power.org/null-calibration-p.png]]
+   :END:
 
-      umi - matrix of counts
-      individuals - list of resampled IDs
+   Report how many genes were simulated.
 
-      """
-      if num_individuals is None:
-        num_individuals = len(lookup)
-      individuals = list(np.random.choice(annotations['chip_id'].unique(), size=num_individuals, replace=True))
-      result = pd.DataFrame(index=umi.index)
-      for k in individuals:
-        result = result.merge(
-          sample_cells(umi.loc[:,(annotations['chip_id'] == k).values], n=num_cells),
-          left_index=True,
-          right_index=True)
-      return result, individuals
-  #+END_SRC
+   #+BEGIN_SRC ipython
+     N
+   #+END_SRC
 
-  #+RESULTS: simulate
-  :RESULTS:
-  :END:
+   #+RESULTS:
+   :RESULTS:
+   # Out[13]:
+   : 1832
+   :END:
 
-* Plot concordance between simulated and real data
+** Null calibration via nonparametric bootstrap                    :noexport:
 
-  #+CALL: concordance-def()
+   Assuming the true single cells all came from one individual, generate new
+   single cells by sampling counts for each gene iid. with replacement. This
+   method assumes genes are independent, which is justified only if we perform
+   analysis one gene at a time.
 
-  #+RESULTS:
-  :RESULTS:
-  :END:
+   #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-lrt-null.py
+     <<zinb-imports>>
+     <<tf-imports>>
+     <<tf-zinb-impl>>
+     <<lrt-impl>>
 
-  #+BEGIN_SRC ipython :results none
-    pools = [cpm(sample_cells(umi.loc[:,(annotations['chip_id'] == 'NA18507').values], n=100).agg(np.sum, axis=1), log2=True).to_frame()
-             for _ in range(2)]
+     def downsample_counts(umi, size_factor, num_mols):
+       """Return a downsampled matrix of UMI counts
 
-    plot_concordance(
-      x=pools[0],
-      xlabel='Simulated single cell $\log_2(CPM + 1)$',
-      y=bulk['NA18507'].to_frame(),
-      ylabel='Bulk $\log_2(TPM + 1)$',
-      title='NA18507',
-      filename='/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/sim/sc-vs-bulk.png')
-    plot_concordance(
-      x=pools[0],
-      xlabel='Simulated single cell $\log_2(CPM + 1)$',
-      y=pools[1],
-      ylabel='Simulated single cell $\log_2(CPM + 1)$',
-      title='NA18507',
-      filename='/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/sim/sc-vs-sc.png',
-      gridsize=15)
-  #+END_SRC
+       This is needed so that every cell has the same number of molecules in
+       expectation
 
-  The true concordance, [[file:sc-vs-bulk.org::*Plot%20bulk%20vs.%20pooled%20single%20cells][as previously computed]]:
+       """
+       p = num_mols / size_factor
+       assert (p <= 1).all()
+       return umi.apply(lambda x: np.random.binomial(x, p), axis=1)
 
-  file:figure/sc-vs-bulk.org/normed/NA18507.png
-  file:figure/sc-vs-bulk.org/subsets/NA18507-100.png
+     def sample_cells(umi, n=1):
+       """Return a sampled matrix of UMI counts
 
-  Generated single cell. vs bulk and single cell vs. single cell concordance:
+       Assume the input matrix is UMI for a single individal. Sample gene counts
+       i.i.d. from the empirical distribution of counts
 
-  file:figure/power.org/sim/sc-vs-bulk.png
-  file:figure/power.org/sim/sc-vs-sc.png
+       """
+       result = np.zeros((umi.shape[0], n))
+       for i, row in enumerate(umi.values):
+         result[i] = np.random.choice(row, size=n, replace=True)
+       return pd.DataFrame(result, index=umi.index)
 
-* Simulate at a bulk RNA-Seq QTL
+     <<read-data-qc-impl>>
+     log_mu = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz', index_col=0, sep=' ')
+     keep_cells = np.logical_and(
+       annotations['chip_id'] == 'NA18507',
+       annotations['mol_hs'] > 1e5,
+     )
+     umi = umi.loc[log_mu['NA18507'] >= -10,keep_cells.values]
 
-  Consider the gene /ZWIM7/, for which the strongest mean eQTL is
-  ~rs73276049~. We previously plotted the distribution of UMI counts stratified
-  by genotype:
+     # Generate counts at equal number of molecules (to simplify bootstrapping)
+     np.random.seed(1)
+     umi = downsample_counts(umi, annotations['mol_hs'], 1e5)
 
-  file:figure/sc-stratified-geno.org/214941.png
+     # Generate two groups under the null
+     n = 100
+     umi = sample_cells(umi, n=2 * n)
+     onehot = np.zeros((2 * n, 2))
+     onehot[:n,0] = 1
+     onehot[n:,1] = 1
+     design = np.zeros((2 * n, 1))
+     size_factor = num_mols.min() * np.ones((2 * n, 1))
 
-  Get the genotype for each individual:
+     T, P = lrt(umi, onehot, design, size_factor)
+     pd.DataFrame({'chi2': T, 'logp': P}, index=umi.index).to_csv('null-calibration.txt.gz', sep='\t', compression='gzip')
+   #+END_SRC
 
-  #+BEGIN_SRC ipython
-    def extract_genotypes(f, rsid):
-      head = next(f).split()
-      for line in f:
-        record = line.split()
-        if record[2] == rsid:
-          return {'NA{}'.format(k): int(np.round(float(v))) for k, v in zip(head, record) if k[0] == '1'}
-      return dict()
-  #+END_SRC
+   #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/power/
+     sbatch --partition=gpu --gres=gpu:1 --mem=16G --job-name=tf-lrt-null --output=tf-lrt-null.out
+     #!/bin/bash
+     source activate scqtl
+     python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-lrt-null.py
+   #+END_SRC
 
-  #+RESULTS:
-  :RESULTS:
-  :END:
+   #+RESULTS:
+   : Submitted batch job 46323093
 
-  #+BEGIN_SRC ipython
-    with gzip.open('/project/compbio/jointLCLs/genotype/hg19/YRI/genotypesYRI.gen.txt.gz', 'rt') as f:
-      lookup = extract_genotypes(f, 'rs73276049')
-  #+END_SRC
+   Plot the QQ-plot.
 
-  #+RESULTS:
-  :RESULTS:
-  :END:
+   #+BEGIN_SRC ipython :ipyfile figure/power.org/null-calibration.png
+     null_lrt = pd.read_table('/scratch/midway2/aksarkar/singlecell/power/null-calibration.txt.gz')
+     N = null_lrt.shape[0]
+     plt.clf()
+     plt.gcf().set_size_inches(4, 4)
+     plt.scatter(st.chi2(1).ppf(np.linspace(0, 1 - 1 / N, N)), null_lrt['chi2'].sort_values(), c='k', s=2, alpha=0.25)
+     lim = [0, 1.1 * null_lrt['chi2'].max()]
+     plt.plot(lim, lim, c='r', ls=':', lw=1)
+     plt.xlim(lim)
+     plt.ylim(lim)
+     plt.xlabel('Expected chi-square statistic')
+     _ = plt.ylabel('Observed chi-square statistic')
+   #+END_SRC
 
-  Simulate new cohorts varying the sample size, stratify on genotype, and plot:
+   #+RESULTS:
+   :RESULTS:
+   # Out[11]:
+   [[file:figure/power.org/null-calibration.png]]
+   :END:
 
-  1. the distribution of simulated UMI counts
-  2. the mean UMI count
+** Power
 
-  #+BEGIN_SRC ipython :results none
-    colors = {k: matplotlib.cm.get_cmap('Set1').colors[k] for k in range(-1, 3)}
-    for n in [20, 40, 60, 80]:
-      sampled_umi, individuals = sample_individuals(umi, annotations, num_individuals=n)
-      plt.clf()
-      # We need to handle missing genotypes because NA19092 isn't in the genotype
-      # matrix
-      for k, g in sampled_umi.loc['ENSG00000214941'].groupby([lookup.get(k, -1) for k in individuals for _ in range(100)]):
-        if k >= 0:
-          plt.hist(g, histtype='step', bins=np.arange(g.max()).astype(np.float32), color=colors[k])
-          plt.axvline(x=g.mean(), color=colors[k], label=int(k))
-      plt.title('ZWIM7, {} individuals, 100 cells'.format(n))
-      plt.ylabel('Number of cells')
-      plt.xlabel('UMI count')
-      plt.gca().legend()
-      plt.savefig('/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/sim/ZWIM7-{}.png'.format(n))
-  #+END_SRC
+   Sample from the assumed model.
 
-  file:figure/power.org/sim/ZWIM7-20.png
-  file:figure/power.org/sim/ZWIM7-40.png
-  file:figure/power.org/sim/ZWIM7-60.png
-  file:figure/power.org/sim/ZWIM7-80.png
+* eQTL discovery
 
-* Open problems
+  We assume expression is generated from \(m\) causal effects (out of \(p\)
+  variants) following a linear model:
 
-  1. If we estimate the effect size distribution from real data, and use the
-     estimated effect sizes to perform the power calculation, we need to
-     account for winner's curse
-  2. Confounder correction on the UMI counts
-  3. Confounder correction on the genotypes
+  \[ \ln\mu = \mathbf{X} \bm{\beta} + \bm{\epsilon} \]
 
+  \[ \mathbb{E}[x_i] = 0, \mathbb{V}[x_i] = 1 \]
+
+  \[ \bm{\beta} \sim (1 - \frac{m}{p}) \delta_0 + \frac{m}{p} N(0, \sigma^2_g / m) \]
+
+  \[ \bm{\epsilon} \sim N(0, \sigma^2_e) \]
+
+  The key insight is that the single cell experiment size changes the standard
+  error of the mean estimator.
+
+  \[ \ln{\hat\mu} \sim N(\ln\mu, \sigma^2) \]
+
+  We estimate the standard error as a function of the experiment size from the
+  simulation.
+
+* Dispersion-QTL discovery
+
+  We assume dispersions are generated from \(m\) causal effects following a
+  linear model:
+
+  \[ \ln{\hat\phi} \sim N(\mathbf{X} \bm{\beta}, \sigma^2_e + \sigma^2) \]

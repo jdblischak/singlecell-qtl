@@ -291,7 +291,7 @@
       log_mean - log mean parameter (m x p)
       log_disp - log dispersion parameter (m x p)
       logodds - logit proportion of excess zeros (m x p)
-      llik - if return_llik, log likelihood per condition per gene (m x p)
+      llik - if return_llik, log likelihood per gene (p)
 
       """
       n, p = umi.shape
@@ -325,7 +325,7 @@
         train = AMSGrad(learning_rate=learning_rate).minimize(loss)
         opt = [tf.log(mean), -tf.log(inv_disp), logodds]
         if return_llik:
-          opt.append(tf.matmul(onehot, llik))
+          opt.append(tf.reduce_sum(llik, axis=0))
         curr = float('-inf')
         with tf.Session() as sess:
           sess.run(tf.global_variables_initializer())
