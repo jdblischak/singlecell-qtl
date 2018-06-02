@@ -25,7 +25,7 @@
   #+CALL: ipython3(memory="4G", venv="scqtl")
 
   #+RESULTS:
-  : Submitted batch job 46322943
+  : Submitted batch job 46351694
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -252,6 +252,62 @@
 ** Power
 
    Sample from the assumed model.
+
+   #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-lrt-power.py
+     <<zinb-imports>>
+     <<tf-imports>>
+     <<tf-zinb-impl>>
+     <<lrt-impl>>
+     <<sim-impl>>
+
+     log_mu = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz', index_col=0, sep=' ')
+     log_phi = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-phi.txt.gz', index_col=0, sep=' ')
+     logodds = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz', index_col=0, sep=' ')
+     params = pd.DataFrame({'log_mu': log_mu['NA18507'],
+                            'log_phi': log_phi['NA18507'],
+                            'logodds': logodds['NA18507']},
+                           index=log_mu.index)
+     params = params[params['log_mu'] > -10]
+
+     sample_sizes = np.array([100, 1000, 10000])
+     log_fold_changes = np.log(np.geomspace(1.1, 2, 5))
+     depths = np.array([1e4, 1e5, 1e6])
+
+     result = []
+     for num_mols in depths:
+       for log_fc in log_fold_changes:
+         for num_samples in sample_sizes:
+           umi = []
+           for _, (log_mu, log_phi, logodds) in params.iterrows():
+             umi.append(np.hstack([
+               simulate(num_samples, size=num_mols, log_mu=log_mu, log_phi=log_phi, logodds=logodds)[0][:,0],
+               simulate(num_samples, size=num_mols, log_mu=log_mu, log_phi=log_phi + log_fc, logodds=logodds)[0][:,0]
+             ]))
+           umi = pd.DataFrame(umi, index=params.index)
+           onehot = np.zeros((umi.shape[1], 2))
+           onehot[:num_samples,0] = 1
+           onehot[num_samples:,1] = 1
+           design = np.zeros((umi.shape[1], 1))
+           size_factor = num_mols * np.ones((umi.shape[1], 1))
+           T, P = lrt(umi, onehot, design, size_factor)
+           result.append(pd.DataFrame({
+             'num_mols': num_mols,
+             'num_samples': num_samples,
+             'log_fold_change': log_fc,
+             'chi2': T,
+             'logp': P}))
+     pd.concat(result).to_csv('lrt-power.txt.gz', sep='\t', compression='gzip') 
+   #+END_SRC
+
+   #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/power/
+     sbatch --partition=gpu --gres=gpu:1 --mem=16G --job-name=tf-lrt-power --output=tf-lrt-power.out
+     #!/bin/bash
+     source activate scqtl
+     python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-lrt-power.py
+   #+END_SRC
+
+   #+RESULTS:
+   : Submitted batch job 46356053
 
 * eQTL discovery
 
