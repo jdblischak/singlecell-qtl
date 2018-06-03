@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-05-29 Tue 14:59 -->
+<!-- 2018-06-02 Sat 19:37 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mean/dispersion estimation</title>
@@ -273,7 +273,7 @@ Here, we solve (1).
 <ol class="org-ol">
 <li><a href="#orga5e4ee6">We implement GPU-based ML estimation</a> of a zero-inflated negative binomial
 model</li>
-<li><a href="#orgb129f69">We show in simulation</a> that the estimates are unbisaed</li>
+<li><a href="#org7f7b292">We show in simulation</a> that the estimates are unbisaed</li>
 <li><a href="#orgd1c7189">We compare ZINB estimates of mean expression</a> against sample-based estimates</li>
 <li><a href="#orgbf1b716">We estimate Fano factors</a> accounting for different depths across samples
 and different means across individuals</li>
@@ -397,7 +397,7 @@ perform gradient descent.
 
 <span class="org-doc">  mean - mean (&gt; 0)</span>
 <span class="org-doc">  inv_disp - inverse dispersion (&gt; 0)</span>
-<span class="org-doc">  logodds - dropout log odds</span>
+<span class="org-doc">  logodds - logit proportion of excess zeros</span>
 
 <span class="org-doc">  """</span>
   <span class="org-comment-delimiter"># </span><span class="org-comment">Important identities:</span>
@@ -508,26 +508,22 @@ perform gradient descent.
     <span class="org-keyword">return</span> control_flow_ops.group(*update_ops + [update_beta1, update_beta2],
                                   name=name_scope)
 
-<span class="org-keyword">def</span> <span class="org-function-name">fit</span>(umi, onehot, size_factor, design, gene_dropout=<span class="org-constant">False</span>, ind_dropout=<span class="org-constant">False</span>, learning_rate=1e-2, max_epochs=1000):
+<span class="org-keyword">def</span> <span class="org-function-name">fit</span>(umi, onehot, size_factor, design, learning_rate=1e-2, max_epochs=1000, fit_null=<span class="org-constant">False</span>, return_llik=<span class="org-constant">False</span>):
   <span class="org-doc">"""Return estimated log mean and log dispersion. </span>
-
-<span class="org-doc">  If fitting a zero-inflated model, additionally return dropout log odds.</span>
 
 <span class="org-doc">  umi - count matrix (n x p; float32)</span>
 <span class="org-doc">  onehot - mapping of individuals to cells (m x n; float32)</span>
 <span class="org-doc">  size_factor - size factor vector (n x 1; float32)</span>
 <span class="org-doc">  design - confounder matrix (n x q; float32)</span>
-<span class="org-doc">  gene_dropout - fit one dropout parameter per gene</span>
-<span class="org-doc">  ind_dropout - fit one dropout parameter per individual</span>
-
-<span class="org-doc">  If ind_dropout is True, gene_dropout must be True, otherwise raises</span>
-<span class="org-doc">  ArgumentError.</span>
+<span class="org-doc">  fit_null - whether to fit the null model (common dispersion)</span>
+<span class="org-doc">  return_llik - whether to return the log likelihood matrix</span>
 
 <span class="org-doc">  Returns:</span>
 
 <span class="org-doc">  log_mean - log mean parameter (m x p)</span>
 <span class="org-doc">  log_disp - log dispersion parameter (m x p)</span>
-<span class="org-doc">  dropout - dropout log odds (1 x p if gene_dropout, n x p if ind_dropout)</span>
+<span class="org-doc">  logodds - logit proportion of excess zeros (m x p)</span>
+<span class="org-doc">  llik - if return_llik, log likelihood per gene (p)</span>
 
 <span class="org-doc">  """</span>
   <span class="org-variable-name">n</span>, <span class="org-variable-name">p</span> = umi.shape
@@ -543,35 +539,30 @@ perform gradient descent.
     <span class="org-variable-name">design</span> = tf.Variable(design, trainable=<span class="org-constant">False</span>)
 
     <span class="org-variable-name">mean</span> = tf.exp(tf.Variable(tf.zeros([m, p])))
-    <span class="org-variable-name">inv_disp</span> = tf.exp(tf.Variable(tf.zeros([m, p])))
+    <span class="org-keyword">if</span> fit_null:
+      <span class="org-variable-name">inv_disp</span> = tf.exp(tf.Variable(tf.zeros([1, p])))
+    <span class="org-keyword">else</span>:
+      <span class="org-variable-name">inv_disp</span> = tf.exp(tf.Variable(tf.zeros([m, p])))
+    <span class="org-variable-name">logodds</span> = tf.Variable(tf.zeros([m, p]))
     <span class="org-variable-name">beta</span> = tf.Variable(tf.zeros([k, p]))
 
-    <span class="org-keyword">if</span> gene_dropout:
-      <span class="org-keyword">if</span> ind_dropout:
-        <span class="org-variable-name">dropout_params</span> = tf.Variable(tf.zeros([m, p]))
-        <span class="org-variable-name">dropout</span> = tf.matmul(onehot, dropout_params)
-      <span class="org-keyword">else</span>:
-        <span class="org-variable-name">dropout_params</span> = tf.Variable(tf.zeros([1, p]))
-        <span class="org-variable-name">dropout</span> = dropout_params
-      <span class="org-variable-name">llik</span> = tf.reduce_mean(
-        zinb_llik(umi, size_factor * tf.matmul(onehot, mean) * tf.exp(tf.matmul(design, beta)),
-                  tf.matmul(onehot, inv_disp), dropout))
-    <span class="org-keyword">elif</span> ind_dropout:
-      <span class="org-keyword">raise</span> <span class="org-type">ValueError</span>(<span class="org-string">'Cannot specify individual-specific dropout without gene-specific dropout'</span>)
+    <span class="org-keyword">if</span> fit_null:
+      <span class="org-variable-name">llik</span> = zinb_llik(umi, size_factor * tf.matmul(onehot, mean) * tf.exp(tf.matmul(design, beta)),
+                       inv_disp, tf.matmul(onehot, logodds))
     <span class="org-keyword">else</span>:
-      <span class="org-variable-name">llik</span> = tf.reduce_mean(
-        nb_llik(umi, size_factor * tf.matmul(onehot, mean) * tf.exp(tf.matmul(design, beta)),
-                tf.matmul(onehot, inv_disp)))
+      <span class="org-variable-name">llik</span> = zinb_llik(umi, size_factor * tf.matmul(onehot, mean) * tf.exp(tf.matmul(design, beta)),
+                       tf.matmul(onehot, inv_disp), tf.matmul(onehot, logodds))
 
-    <span class="org-variable-name">train</span> = AMSGrad(learning_rate=learning_rate).minimize(-llik)
-    <span class="org-variable-name">opt</span> = [tf.log(mean), -tf.log(inv_disp)]
-    <span class="org-keyword">if</span> gene_dropout:
-      opt.append(dropout_params)
+    <span class="org-variable-name">loss</span> = -tf.reduce_mean(llik)
+    <span class="org-variable-name">train</span> = AMSGrad(learning_rate=learning_rate).minimize(loss)
+    <span class="org-variable-name">opt</span> = [tf.log(mean), -tf.log(inv_disp), logodds]
+    <span class="org-keyword">if</span> return_llik:
+      opt.append(tf.reduce_sum(llik, axis=0))
     <span class="org-variable-name">curr</span> = <span class="org-builtin">float</span>(<span class="org-string">'-inf'</span>)
     <span class="org-keyword">with</span> tf.Session() <span class="org-keyword">as</span> sess:
       sess.run(tf.global_variables_initializer())
       <span class="org-keyword">for</span> i <span class="org-keyword">in</span> <span class="org-builtin">range</span>(max_epochs):
-        <span class="org-variable-name">_</span>, <span class="org-variable-name">update</span> = sess.run([train, llik])
+        <span class="org-variable-name">_</span>, <span class="org-variable-name">update</span> = sess.run([train, loss])
         <span class="org-keyword">if</span> <span class="org-keyword">not</span> np.isfinite(update):
           <span class="org-keyword">raise</span> tf.train.NanLossDuringTrainingError
         <span class="org-keyword">if</span> <span class="org-keyword">not</span> i % 500:
@@ -581,26 +572,26 @@ perform gradient descent.
 </div>
 </div>
 
-<div id="outline-container-orgb129f69" class="outline-3">
-<h3 id="orgb129f69">Simulation</h3>
-<div class="outline-text-3" id="text-orgb129f69">
+<div id="outline-container-org7f7b292" class="outline-3">
+<h3 id="org7f7b292">Simulation</h3>
+<div class="outline-text-3" id="text-org7f7b292">
 <div class="org-src-container">
 <pre class="src src-ipython">&lt;&lt;zinb-imports&gt;&gt;
 &lt;&lt;tf-imports&gt;&gt;
-&lt;&lt;sim-impl2&gt;&gt;
+&lt;&lt;sim-impl&gt;&gt;
 &lt;&lt;tf-zinb-impl&gt;&gt;
 
 <span class="org-keyword">def</span> <span class="org-function-name">evaluate</span>(num_samples, num_mols, num_trials=10):
   <span class="org-comment-delimiter"># </span><span class="org-comment">This will be reset inside the simulation to generate counts, but we need to</span>
   <span class="org-comment-delimiter"># </span><span class="org-comment">fix it to get one design matrix for all the simulated genes</span>
-  np.random.seed(1000)
-  <span class="org-variable-name">design</span> = np.random.normal(size=(num_samples * num_trials, 1))
   <span class="org-comment-delimiter"># </span><span class="org-comment">def simulate(num_samples, size=None, log_mu=None, log_phi=None, logodds=None, seed=None, design=None, fold=None):</span>
-  <span class="org-variable-name">args</span> = [(num_samples * num_trials, num_mols, log_mu, log_phi, logodds, <span class="org-constant">None</span>, design, fold)
+  <span class="org-variable-name">design</span> = np.zeros((num_samples * num_trials, 1))
+  <span class="org-comment-delimiter"># </span><span class="org-comment">Important: generate all of the samples for each trial in one shot, and use</span>
+  <span class="org-comment-delimiter"># </span><span class="org-comment">one-hot encoding to get separate estimates</span>
+  <span class="org-variable-name">args</span> = [(num_samples * num_trials, num_mols, log_mu, log_phi, logodds, <span class="org-constant">None</span>, <span class="org-constant">None</span>, <span class="org-constant">None</span>)
           <span class="org-keyword">for</span> log_mu <span class="org-keyword">in</span> np.linspace(-12, -6, 7)
           <span class="org-keyword">for</span> log_phi <span class="org-keyword">in</span> np.linspace(-4, 0, 5)
-          <span class="org-keyword">for</span> logodds <span class="org-keyword">in</span> np.linspace(-3, 3, 7)
-          <span class="org-keyword">for</span> fold <span class="org-keyword">in</span> (1, 1.25, 6)]
+          <span class="org-keyword">for</span> logodds <span class="org-keyword">in</span> np.linspace(-3, 3, 7)]
   <span class="org-variable-name">umi</span> = np.concatenate([simulate(*a)[0][:,:1] <span class="org-keyword">for</span> a <span class="org-keyword">in</span> args], axis=1)
   <span class="org-variable-name">onehot</span> = np.zeros((num_samples * num_trials, num_trials))
   onehot[np.arange(onehot.shape[0]), np.arange(onehot.shape[0]) // num_samples] = 1
@@ -610,8 +601,6 @@ perform gradient descent.
     onehot=onehot.astype(np.float32),
     design=design.astype(np.float32),
     size_factor=(num_mols * np.ones((num_samples * num_trials, 1))).astype(np.float32),
-    gene_dropout=<span class="org-constant">True</span>,
-    ind_dropout=<span class="org-constant">True</span>,
     learning_rate=5e-2,
     max_epochs=4000)
   <span class="org-variable-name">result</span> = pd.DataFrame(
@@ -631,7 +620,7 @@ perform gradient descent.
   <span class="org-keyword">return</span> result
 
 <span class="org-variable-name">res</span> = pd.concat([evaluate(num_samples, num_mols)
-                 <span class="org-keyword">for</span> num_samples <span class="org-keyword">in</span> (10000, 95, 1000)
+                 <span class="org-keyword">for</span> num_samples <span class="org-keyword">in</span> (10000, 95)
                  <span class="org-keyword">for</span> num_mols <span class="org-keyword">in</span> (114026,)])
 res.to_csv(<span class="org-string">'simulation.txt.gz'</span>, compression=<span class="org-string">'gzip'</span>, sep=<span class="org-string">'\t'</span>)
 </pre>
@@ -646,7 +635,7 @@ python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-sim.py
 </div>
 
 <pre class="example">
-Submitted batch job 46100591
+Submitted batch job 46277656
 
 </pre>
 
@@ -662,7 +651,6 @@ Read the results.
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-variable-name">mu_pass</span> = result[<span class="org-string">'log_mu'</span>] &gt; -10
 <span class="org-variable-name">pi_pass</span> = result[<span class="org-string">'logodds'</span>] &lt; 0
-<span class="org-variable-name">fold_pass</span> = result[<span class="org-string">'fold'</span>] == 1
 </pre>
 </div>
 
@@ -677,19 +665,19 @@ plt.clf()
 <span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(1, 3)
 fig.set_size_inches(8.5, 3)
 
-<span class="org-variable-name">subset</span> = result.loc[np.logical_and.<span class="org-builtin">reduce</span>(np.vstack([sample_pass, pi_pass, fold_pass])),[<span class="org-string">'log_mu'</span>, <span class="org-string">'log_mu_hat'</span>]]
+<span class="org-variable-name">subset</span> = result.loc[np.logical_and.<span class="org-builtin">reduce</span>(np.vstack([sample_pass, pi_pass])),[<span class="org-string">'log_mu'</span>, <span class="org-string">'log_mu_hat'</span>]]
 ax[0].scatter(subset[<span class="org-string">'log_mu'</span>], subset[<span class="org-string">'log_mu_hat'</span>], s=2, c=<span class="org-string">'k'</span>)
 ax[0].plot(ax[0].get_xlim(), ax[0].get_xlim(), c=<span class="org-string">'r'</span>, ls=<span class="org-string">':'</span>, lw=1)
 ax[0].set_xlabel(<span class="org-string">'True $\ln(\mu)$'</span>)
 ax[0].set_ylabel(<span class="org-string">'Estimated $\ln(\mu)$'</span>)
 
-<span class="org-variable-name">subset</span> = result.loc[np.logical_and.<span class="org-builtin">reduce</span>(np.vstack([sample_pass, mu_pass, pi_pass, fold_pass])),[<span class="org-string">'log_phi'</span>, <span class="org-string">'log_phi_hat'</span>]]
+<span class="org-variable-name">subset</span> = result.loc[np.logical_and.<span class="org-builtin">reduce</span>(np.vstack([sample_pass, mu_pass, pi_pass])),[<span class="org-string">'log_phi'</span>, <span class="org-string">'log_phi_hat'</span>]]
 ax[1].scatter(subset[<span class="org-string">'log_phi'</span>], subset[<span class="org-string">'log_phi_hat'</span>], s=2, c=<span class="org-string">'k'</span>)
 ax[1].plot(ax[1].get_xlim(), ax[1].get_xlim(), c=<span class="org-string">'r'</span>, ls=<span class="org-string">':'</span>, lw=1)
 ax[1].set_xlabel(<span class="org-string">'True $\ln(\phi)$'</span>)
 ax[1].set_ylabel(<span class="org-string">'Estimated $\ln(\phi)$'</span>)
 
-<span class="org-variable-name">subset</span> = result.loc[np.logical_and.<span class="org-builtin">reduce</span>(np.vstack([sample_pass, fold_pass])),[<span class="org-string">'logodds'</span>, <span class="org-string">'logodds_hat'</span>]]
+<span class="org-variable-name">subset</span> = result.loc[sample_pass,[<span class="org-string">'logodds'</span>, <span class="org-string">'logodds_hat'</span>]]
 ax[2].scatter(subset[<span class="org-string">'logodds'</span>], subset[<span class="org-string">'logodds_hat'</span>], s=2, c=<span class="org-string">'k'</span>)
 ax[2].plot(ax[2].get_xlim(), ax[2].get_xlim(), c=<span class="org-string">'r'</span>, ls=<span class="org-string">':'</span>, lw=1)
 ax[2].set_xlabel(<span class="org-string">'True $\mathrm{logit}(\pi)$'</span>)
@@ -712,7 +700,7 @@ plt.clf()
 <span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(1, 3)
 fig.set_size_inches(8.5, 3)
 
-<span class="org-variable-name">subset</span> = result.loc[np.logical_and(sample_pass, pi_pass),[<span class="org-string">'log_mu'</span>, <span class="org-string">'log_mu_hat'</span>]]
+<span class="org-variable-name">subset</span> = result.loc[np.logical_and.<span class="org-builtin">reduce</span>(np.vstack([sample_pass, pi_pass])),[<span class="org-string">'log_mu'</span>, <span class="org-string">'log_mu_hat'</span>]]
 ax[0].scatter(subset[<span class="org-string">'log_mu'</span>], subset[<span class="org-string">'log_mu_hat'</span>], s=2, c=<span class="org-string">'k'</span>)
 ax[0].plot(ax[0].get_xlim(), ax[0].get_xlim(), c=<span class="org-string">'r'</span>, ls=<span class="org-string">':'</span>, lw=1)
 ax[0].set_xlabel(<span class="org-string">'True $\ln(\mu)$'</span>)
@@ -724,11 +712,11 @@ ax[1].plot(ax[1].get_xlim(), ax[1].get_xlim(), c=<span class="org-string">'r'</s
 ax[1].set_xlabel(<span class="org-string">'True $\ln(\phi)$'</span>)
 ax[1].set_ylabel(<span class="org-string">'Estimated $\ln(\phi)$'</span>)
 
-<span class="org-variable-name">subset</span> = result.loc[np.logical_and.<span class="org-builtin">reduce</span>(np.vstack([sample_pass, fold_pass])),[<span class="org-string">'logodds'</span>, <span class="org-string">'logodds_hat'</span>]]
+<span class="org-variable-name">subset</span> = result.loc[sample_pass,[<span class="org-string">'logodds'</span>, <span class="org-string">'logodds_hat'</span>]]
 ax[2].scatter(subset[<span class="org-string">'logodds'</span>], subset[<span class="org-string">'logodds_hat'</span>], s=2, c=<span class="org-string">'k'</span>)
 ax[2].plot(ax[2].get_xlim(), ax[2].get_xlim(), c=<span class="org-string">'r'</span>, ls=<span class="org-string">':'</span>, lw=1)
-ax[2].set_xlabel(<span class="org-string">'True $\ln(\pi)$'</span>)
-ax[2].set_ylabel(<span class="org-string">'Estimated $\ln(\pi)$'</span>)
+ax[2].set_xlabel(<span class="org-string">'True $\mathrm{logit}(\pi)$'</span>)
+ax[2].set_ylabel(<span class="org-string">'Estimated $\mathrm{logit}(\pi)$'</span>)
 
 fig.tight_layout()
 </pre>
@@ -811,8 +799,6 @@ parser.add_argument(<span class="org-string">'--design'</span>, <span class="org
   onehot=onehot.astype(np.float32),
   design=designs[args.design].astype(np.float32),
   size_factor=annotations[<span class="org-string">'mol_hs'</span>].astype(np.float32).values.reshape(-1, 1),
-  gene_dropout=<span class="org-constant">True</span>,
-  ind_dropout=<span class="org-constant">True</span>,
   learning_rate=5e-2,
   max_epochs=4000)
 pd.DataFrame(log_mu.T, index=index, columns=header).to_csv(<span class="org-string">'zi2-log-mu.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
@@ -862,730 +848,6 @@ rsync -FFau --delete . /project2/mstephens/aksarkar/projects/singlecell-qtl/data
 Submitted batch job 46253775
 
 </pre>
-</div>
-</div>
-</div>
-
-<div id="outline-container-orgd4b2b6e" class="outline-2">
-<h2 id="orgd4b2b6e">numpy/scipy implementation</h2>
-<div class="outline-text-2" id="text-orgd4b2b6e">
-<p>
-Optimize the negative log-likelihood.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython" id="orge4bffc2"><span class="org-keyword">def</span> <span class="org-function-name">log</span>(x):
-  <span class="org-doc">"""Numerically safe log"""</span>
-  <span class="org-keyword">return</span> np.log(x + 1e-8)
-
-<span class="org-keyword">def</span> <span class="org-function-name">sigmoid</span>(x):
-  <span class="org-doc">"""Numerically safe sigmoid"""</span>
-  <span class="org-variable-name">lim</span> = np.log(np.finfo(np.float64).resolution)
-  <span class="org-keyword">return</span> np.clip(sp.expit(x), lim, -lim)
-
-<span class="org-keyword">def</span> <span class="org-function-name">nb</span>(theta, x, size, onehot, design):
-  <span class="org-doc">"""Return the per-data point log likelihood</span>
-
-<span class="org-doc">  x ~ Poisson(size .* design' * theta[2 * m:k] * exp(onehot * theta[:m]) * u)</span>
-<span class="org-doc">  u ~ Gamma(exp(onehot * theta[m:2 * m]), exp(onehot * theta[m:2 * m]))</span>
-
-<span class="org-doc">  theta - (2 * m + k, 1)</span>
-<span class="org-doc">  x - (n, 1)</span>
-<span class="org-doc">  size - (n, 1)</span>
-<span class="org-doc">  onehot - (n, m)</span>
-<span class="org-doc">  design - (n, k)</span>
-
-<span class="org-doc">  """</span>
-  <span class="org-variable-name">n</span>, <span class="org-variable-name">m</span> = onehot.shape
-  <span class="org-keyword">assert</span> x.shape == (n,)
-  <span class="org-keyword">assert</span> size.shape == (n,)
-  <span class="org-keyword">assert</span> design.shape[0] == n
-  <span class="org-keyword">assert</span> theta.shape == (2 * m + design.shape[1],)
-  <span class="org-variable-name">mean</span> = size * np.exp(onehot.dot(theta[:m]) + design.dot(theta[2 * m:]))
-  <span class="org-keyword">assert</span> mean.shape == (n,)
-  <span class="org-variable-name">inv_disp</span> = onehot.dot(np.exp(theta[m:2 * m]))
-  <span class="org-keyword">assert</span> inv_disp.shape == (n,)
-  <span class="org-keyword">return</span> (x * log(mean / inv_disp) -
-          x * log(1 + mean / inv_disp) -
-          inv_disp * log(1 + mean / inv_disp) +
-          sp.gammaln(x + inv_disp) -
-          sp.gammaln(inv_disp) -
-          sp.gammaln(x + 1))
-
-<span class="org-keyword">def</span> <span class="org-function-name">_nb</span>(theta, x, size, onehot, design=<span class="org-constant">None</span>):
-  <span class="org-doc">"""Return the mean negative log likelihood of x"""</span>
-  <span class="org-keyword">return</span> -nb(theta, x, size, onehot, design).mean()
-
-<span class="org-keyword">def</span> <span class="org-function-name">zinb</span>(theta, x, size, onehot, design=<span class="org-constant">None</span>):
-  <span class="org-doc">"""Return the mean negative log likelihood of x"""</span>
-  <span class="org-variable-name">n</span>, <span class="org-variable-name">m</span> = onehot.shape
-  <span class="org-variable-name">logodds</span>, <span class="org-variable-name">theta</span> = theta[:m], theta[m:]
-  <span class="org-variable-name">case_non_zero</span> = -np.log1p(np.exp(onehot.dot(logodds))) + nb(theta, x, size, onehot, design)
-  <span class="org-variable-name">case_zero</span> = np.logaddexp(onehot.dot(logodds - np.log1p(np.exp(logodds))), case_non_zero)
-  <span class="org-keyword">return</span> -np.where(x &lt; 1, case_zero, case_non_zero).mean()
-
-<span class="org-keyword">def</span> <span class="org-function-name">_fit_gene</span>(chunk, onehot, design=<span class="org-constant">None</span>):
-  <span class="org-variable-name">n</span>, <span class="org-variable-name">m</span> = onehot.shape
-  <span class="org-keyword">assert</span> chunk.shape[0] == n
-  <span class="org-comment-delimiter"># </span><span class="org-comment">We need to take care here to initialize mu=-inf for all zero observations</span>
-  <span class="org-variable-name">x0</span> = np.log((onehot * chunk[:,:1]).<span class="org-builtin">sum</span>(axis=0) / onehot.<span class="org-builtin">sum</span>(axis=0)) - np.log(np.ma.masked_values(onehot, 0) * chunk[:,1:]).mean(axis=0).compressed()
-  <span class="org-variable-name">x0</span> = np.hstack((x0, np.zeros(m)))
-  <span class="org-keyword">if</span> design <span class="org-keyword">is</span> <span class="org-keyword">not</span> <span class="org-constant">None</span>:
-    <span class="org-keyword">assert</span> design.shape[0] == n
-    <span class="org-variable-name">design</span> -= design.mean(axis=0)
-    <span class="org-variable-name">x0</span> = np.hstack((x0, np.zeros(design.shape[1])))
-  <span class="org-variable-name">res0</span> = so.minimize(_nb, x0=x0, args=(chunk[:,0], chunk[:,1], onehot, design))
-  <span class="org-variable-name">res</span> = so.minimize(zinb, x0=<span class="org-builtin">list</span>(np.zeros(m)) + <span class="org-builtin">list</span>(res0.x), args=(chunk[:,0], chunk[:,1], onehot, design))
-  <span class="org-keyword">if</span> res0.fun &lt; res.fun:
-    <span class="org-comment-delimiter"># </span><span class="org-comment">This isn't a likelihood ratio test. Numerically, our implementation of</span>
-    <span class="org-comment-delimiter"># </span><span class="org-comment">ZINB can't represent pi = 0, so we need to use a separate implementation</span>
-    <span class="org-comment-delimiter"># </span><span class="org-comment">for it</span>
-    <span class="org-variable-name">log_mu</span> = res0.x[:m]
-    <span class="org-variable-name">neg_log_phi</span> = res0.x[m:2 * m]
-    <span class="org-variable-name">logit_pi</span> = np.zeros(m)
-    logit_pi.fill(-np.inf)
-  <span class="org-keyword">else</span>:
-    <span class="org-variable-name">logit_pi</span> = res.x[:m]
-    <span class="org-variable-name">log_mu</span> = res.x[m:2 * m]
-    <span class="org-variable-name">neg_log_phi</span> = res.x[2 * m:3 * m]
-  <span class="org-variable-name">mean_by_sample</span> = chunk[:,1] * onehot.dot(np.exp(log_mu))
-  <span class="org-variable-name">var_by_sample</span> = mean_by_sample + np.square(mean_by_sample) * onehot.dot(np.exp(-neg_log_phi))
-  <span class="org-variable-name">mean_by_ind</span> = np.ma.masked_equal(onehot * mean_by_sample.reshape(-1, 1), 0).mean(axis=0).filled(0)
-  <span class="org-variable-name">var_by_ind</span> = np.ma.masked_equal(onehot * (np.square(mean_by_sample - onehot.dot(mean_by_ind)) + var_by_sample).reshape(-1, 1), 0).mean(axis=0).filled(0)
-  <span class="org-keyword">return</span> [log_mu, -neg_log_phi, logit_pi, mean_by_ind, var_by_ind]
-
-<span class="org-keyword">def</span> <span class="org-function-name">fit_gene</span>(chunk, bootstraps=100):
-  <span class="org-variable-name">orig</span> = _fit_gene(chunk)
-  <span class="org-variable-name">B</span> = []
-  <span class="org-keyword">for</span> _ <span class="org-keyword">in</span> <span class="org-builtin">range</span>(bootstraps):
-    B.append(_fit_gene(chunk[np.random.choice(chunk.shape[0], chunk.shape[0], replace=<span class="org-constant">True</span>)]))
-  <span class="org-variable-name">se</span> = np.array(B)[:,:2].std(axis=0)
-  <span class="org-keyword">return</span> orig + <span class="org-builtin">list</span>(se.ravel())
-</pre>
-</div>
-
-<p>
-Computing analytic SE runs into numerical problems.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">_pois</span>(theta, x, size):
-  <span class="org-variable-name">mean</span> = np.exp(theta)
-  <span class="org-variable-name">mean</span> *= size
-  <span class="org-keyword">return</span> (x * log(mean) - mean - sp.gammaln(x + 1)).mean()
-
-<span class="org-keyword">def</span> <span class="org-function-name">_pois_jac</span>(theta, x, size):
-  <span class="org-variable-name">mean</span> = np.exp(theta)
-  <span class="org-keyword">return</span> mean * (x / mean - size).mean()
-
-<span class="org-keyword">def</span> <span class="org-function-name">_nb_jac</span>(theta, x, size):
-  <span class="org-variable-name">mean</span>, <span class="org-variable-name">inv_disp</span> = np.exp(theta)
-  <span class="org-variable-name">T</span> = (1 + size * mean / inv_disp)
-  <span class="org-keyword">return</span> mean * (x / mean - size / inv_disp * (x + inv_disp) / T).mean()
-
-<span class="org-keyword">def</span> <span class="org-function-name">check_gradients</span>(x, f, df, args=<span class="org-constant">None</span>, num_trials=100):
-  <span class="org-variable-name">x</span> = np.array(x)
-  <span class="org-variable-name">y</span> = f(x, *args)
-  <span class="org-variable-name">analytic_diff</span> = df(x, *args)
-  <span class="org-variable-name">error</span> = []
-  <span class="org-keyword">for</span> i <span class="org-keyword">in</span> <span class="org-builtin">range</span>(num_trials):
-    <span class="org-variable-name">eps</span> = np.random.normal(scale=1e-4, size=x.shape)
-    <span class="org-variable-name">num_diff</span> = (f(x + eps, *args) - y) / eps
-    error.append(<span class="org-builtin">abs</span>(num_diff - analytic_diff))
-  <span class="org-keyword">return</span> np.array(error)
-</pre>
-</div>
-</div>
-
-<div id="outline-container-org7f7b292" class="outline-3">
-<h3 id="org7f7b292">Simulation</h3>
-<div class="outline-text-3" id="text-org7f7b292">
-<p>
-Check the parameter estimation on simulated data.
-</p>
-
-<p>
-Assuming simulated confounders \(x\) are isotropic Gaussian, we can derive
-the scale of \(\beta\) to achieve a specified fold-change in relative
-abundance:
-</p>
-
-<p>
-\[ x \sim N(0, 1) \]
-</p>
-
-<p>
-Letting \(\tau\) denote precision:
-</p>
-
-<p>
-\[ \beta \sim N(0, \tau) \]
-</p>
-
-<p>
-\[ x\beta \sim N(0, 1 + \tau) \]
-</p>
-
-<p>
-\[ \mathbb{E}[x\beta] = y = \exp\left(\frac{1}{2 (1 + \tau)}\right) \]
-</p>
-
-<p>
-\[ \tau = \frac{1 - 2 \ln y}{2 \ln y} \]  
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython" id="orgebda222"><span class="org-keyword">def</span> <span class="org-function-name">simulate</span>(num_samples, size=<span class="org-constant">None</span>, log_mu=<span class="org-constant">None</span>, log_phi=<span class="org-constant">None</span>, logodds=<span class="org-constant">None</span>, seed=<span class="org-constant">None</span>, design=<span class="org-constant">None</span>, fold=<span class="org-constant">None</span>):
-  <span class="org-keyword">if</span> seed <span class="org-keyword">is</span> <span class="org-constant">None</span>:
-    <span class="org-variable-name">seed</span> = 0
-  np.random.seed(seed)
-  <span class="org-keyword">if</span> log_mu <span class="org-keyword">is</span> <span class="org-constant">None</span>:
-    <span class="org-variable-name">log_mu</span> = np.random.uniform(low=-12, high=-8)
-  <span class="org-keyword">if</span> log_phi <span class="org-keyword">is</span> <span class="org-constant">None</span>:
-    <span class="org-variable-name">log_phi</span> = np.random.uniform(low=-6, high=0)
-  <span class="org-keyword">if</span> size <span class="org-keyword">is</span> <span class="org-constant">None</span>:
-    <span class="org-variable-name">size</span> = 1e5
-  <span class="org-keyword">if</span> logodds <span class="org-keyword">is</span> <span class="org-constant">None</span>:
-    <span class="org-variable-name">prob</span> = np.random.uniform()
-  <span class="org-keyword">else</span>:
-    <span class="org-variable-name">prob</span> = sp.expit(logodds)
-  <span class="org-keyword">if</span> design <span class="org-keyword">is</span> <span class="org-constant">None</span>:
-    <span class="org-variable-name">design</span> = np.random.normal(size=(num_samples, 1))
-  <span class="org-keyword">else</span>:
-    <span class="org-keyword">assert</span> design.shape[0] == num_samples
-  <span class="org-keyword">if</span> fold <span class="org-keyword">is</span> <span class="org-constant">None</span> <span class="org-keyword">or</span> np.isclose(fold, 1):
-    <span class="org-variable-name">beta</span> = np.array([[0]])
-  <span class="org-keyword">else</span>:
-    <span class="org-keyword">assert</span> fold &gt; 1
-    <span class="org-variable-name">beta</span> = np.random.normal(size=(design.shape[1], 1), scale=2 * np.log(fold) / (1 - 2 * np.log(fold)))
-
-  <span class="org-variable-name">n</span> = np.exp(-log_phi)
-  <span class="org-variable-name">p</span> = 1 / (1 + size * np.exp(log_mu + design.dot(beta) + log_phi)).ravel()
-  <span class="org-variable-name">x</span> = np.where(np.random.uniform(size=num_samples) &lt; prob,
-               0,
-               np.random.negative_binomial(n=n, p=p, size=num_samples))
-  <span class="org-keyword">return</span> np.vstack((x, size * np.ones(num_samples))).T, design
-
-<span class="org-keyword">def</span> <span class="org-function-name">batch_design_matrix</span>(num_samples, num_batches):
-  <span class="org-doc">"""Return a matrix of binary indicators representing batch assignment"""</span>
-  <span class="org-variable-name">design</span> = np.zeros((num_samples, num_batches))
-  <span class="org-variable-name">design</span>[np.arange(num_samples), np.random.choice(num_batches, size=num_samples)] = 1
-  <span class="org-keyword">return</span> design
-
-<span class="org-keyword">def</span> <span class="org-function-name">evaluate</span>(num_samples, num_mols, log_mu, log_phi, logodds, fold, trial):
-  <span class="org-variable-name">x</span>, <span class="org-variable-name">design</span> = simulate(num_samples=num_samples, size=num_mols,
-                       log_mu=log_mu, log_phi=log_phi,
-                       logodds=logodds, design=<span class="org-constant">None</span>, fold=fold, seed=trial)
-  <span class="org-variable-name">onehot</span> = np.ones((num_samples, 1))
-  <span class="org-variable-name">keys</span> = [<span class="org-string">'num_samples'</span>, <span class="org-string">'num_mols'</span>, <span class="org-string">'log_mu'</span>, <span class="org-string">'log_phi'</span>, <span class="org-string">'logodds'</span>, <span class="org-string">'trial'</span>,
-          <span class="org-string">'fold'</span>, <span class="org-string">'log_mu_hat'</span>, <span class="org-string">'log_phi_hat'</span>, <span class="org-string">'logodds_hat'</span>, <span class="org-string">'mean'</span>, <span class="org-string">'var'</span>]
-  <span class="org-variable-name">result</span> = [num_samples, num_mols, log_mu, log_phi, logodds, trial, fold] + [param[0] <span class="org-keyword">for</span> param <span class="org-keyword">in</span> _fit_gene(x, onehot, design)]
-  <span class="org-variable-name">result</span> = {k: v <span class="org-keyword">for</span> k, v <span class="org-keyword">in</span> <span class="org-builtin">zip</span>(keys, result)}
-  <span class="org-variable-name">eps</span> = .5 / num_mols
-  <span class="org-variable-name">log_cpm</span> = (np.log(np.ma.masked_values(x[:,0], 0) + eps) - np.log(x[:,1] + 2 * eps) + 6 * np.log(10)).compressed()
-  <span class="org-variable-name">result</span>[<span class="org-string">'mean_log_cpm'</span>] = log_cpm.mean()
-  <span class="org-variable-name">result</span>[<span class="org-string">'var_log_cpm'</span>] = log_cpm.var()
-  <span class="org-keyword">return</span> result
-</pre>
-</div>
-
-<p>
-Check the implementation actually worked.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">x1</span>, <span class="org-variable-name">design1</span> = simulate(num_samples=1000, size=1e5, log_mu=-8, log_phi=-6, logodds=-3, seed=0, design=batch_design_matrix(1000, 2), fold=1.1)
-<span class="org-variable-name">x2</span>, <span class="org-variable-name">design2</span> = simulate(num_samples=1000, size=1e5, log_mu=-9, log_phi=-6, logodds=-3, seed=0, design=batch_design_matrix(1000, 2), fold=1.1)
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">x</span> = np.vstack((x1, x2))
-<span class="org-variable-name">design</span> = np.vstack((design1, design2))
-<span class="org-variable-name">onehot</span> = np.zeros((2000, 2))
-<span class="org-variable-name">onehot</span>[:1000,0] = 1
-<span class="org-variable-name">onehot</span>[1000:,1] = 1
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython">so.minimize(_nb, np.zeros(6), (x[:,0], x[:,1], onehot, design - design.mean(axis=0)))
-</pre>
-</div>
-
-<pre class="example">
-fun: 3.7693708861600173
-hess_inv: array([[ 2.95492914e-01, -2.26820271e-02, -6.88886930e-02,
-3.66568258e-02, -1.35008739e-02,  1.33990791e-02],
-[-2.26820271e-02,  2.76704513e-01,  4.55879587e-03,
-6.39326308e-02, -2.03557128e-02,  2.03675939e-02],
-[-6.88886930e-02,  4.55879587e-03,  8.40491928e+00,
-3.47009715e-01,  1.14991770e-02, -1.17004131e-02],
-[ 3.66568258e-02,  6.39326308e-02,  3.47009715e-01,
-1.93344347e+01, -8.18164095e-03,  6.19982324e-03],
-[-1.35008739e-02, -2.03557128e-02,  1.14991770e-02,
--8.18164095e-03,  6.45950264e-01,  3.54059802e-01],
-[ 1.33990791e-02,  2.03675939e-02, -1.17004131e-02,
-6.19982324e-03,  3.54059802e-01,  6.45930363e-01]])
-jac: array([ 6.82473183e-06,  8.34465027e-06,  1.07288361e-06,  8.34465027e-07,
-3.75509262e-06, -4.08291817e-06])
-message: 'Optimization terminated successfully.'
-nfev: 280
-nit: 30
-njev: 35
-status: 0
-success: True
-x: array([-7.79891405, -8.79063513,  2.05714587,  2.56621654,  0.16492975,
--0.16494031])
-</pre>
-
-<div class="org-src-container">
-<pre class="src src-ipython">so.minimize(zinb, np.zeros(8), (x[:,0], x[:,1], onehot, design - design.mean(axis=0)))
-</pre>
-</div>
-
-<pre class="example">
-fun: 3.1120455141161147
-hess_inv: array([[ 3.91509877e+01, -6.82255452e+00,  3.56651927e-03,
--3.60544664e-03,  1.89769061e-03, -3.67396633e-05,
--5.05335375e-03,  2.07017842e-03],
-[-6.82255452e+00,  3.63677578e+01, -2.89665006e-03,
-1.89766982e-03, -1.15515147e-03,  1.19995032e-04,
-4.03751660e-03, -1.28881738e-03],
-[ 3.56651927e-03, -2.89665006e-03,  1.00060484e-05,
--4.75805864e-06, -1.52866758e-06, -9.78212511e-07,
--7.93108063e-09, -9.33841063e-06],
-[-3.60544664e-03,  1.89766982e-03, -4.75805864e-06,
-9.43027846e-06, -1.92946942e-08, -1.76906831e-07,
--3.04179309e-07,  5.35291550e-06],
-[ 1.89769061e-03, -1.15515147e-03, -1.52866758e-06,
--1.92946942e-08,  2.96476652e-06,  1.16116940e-06,
--4.91977746e-06,  2.37359794e-06],
-[-3.67396633e-05,  1.19995032e-04, -9.78212511e-07,
--1.76906831e-07,  1.16116940e-06,  1.48628846e-06,
--1.36236523e-06,  7.97280863e-07],
-[-5.05335375e-03,  4.03751660e-03, -7.93108063e-09,
--3.04179309e-07, -4.91977746e-06, -1.36236523e-06,
-1.60495775e-05, -3.42044027e-06],
-[ 2.07017842e-03, -1.28881738e-03, -9.33841063e-06,
-5.35291550e-06,  2.37359794e-06,  7.97280863e-07,
--3.42044027e-06,  1.96937195e-05]])
-jac: array([-2.98023224e-07,  7.15255737e-07,  9.99987125e-04, -3.08364630e-04,
-5.21874428e-03,  7.71874189e-03,  1.99797750e-03,  9.57250595e-05])
-message: 'Desired error not necessarily achieved due to precision loss.'
-nfev: 1942
-nit: 80
-njev: 193
-status: 2
-success: False
-x: array([-3.07858135, -3.07854889, -7.75387174, -8.74631249, 12.91019024,
-13.26839552,  0.04538458, -0.28914969])
-</pre>
-
-<div class="org-src-container">
-<pre class="src src-ipython">_fit_gene(x, onehot)
-</pre>
-</div>
-
-<pre class="example">
-[array([-7.74001987, -8.73200364]),
-array([-3.50778747, -3.59795896]),
-array([-3.07854886, -3.07859407]),
-array([43.50629319, 16.13388663]),
-array([100.22044275,  23.26084595])]
-</pre>
-
-<div class="org-src-container">
-<pre class="src src-ipython">_fit_gene(x, onehot, design)
-</pre>
-</div>
-
-<pre class="example">
-[array([-7.74986202, -8.7418084 ]),
-array([-6.82644387, -6.09474886]),
-array([-3.0785687 , -3.07861418]),
-array([43.08019804, 15.97647082]),
-array([45.09331255, 16.55197158])]
-</pre>
-
-<p>
-Check what happens on all zero data.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">x</span> = np.concatenate((np.zeros((1000, 1)), 1e5 * np.ones((1000, 1))), axis=1)
-<span class="org-variable-name">onehot</span> = np.ones((1000, 1))
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython">np.log((onehot * x[:,:1]).<span class="org-builtin">sum</span>(axis=0) / onehot.<span class="org-builtin">sum</span>(axis=0)) - np.log(np.ma.masked_values(onehot, 0) * x[:,1:]).mean(axis=0).compressed()
-</pre>
-</div>
-
-<pre class="example">
-array([-inf])
-
-</pre>
-
-<div class="org-src-container">
-<pre class="src src-ipython">so.minimize(_nb, x0=(-np.inf, 0), args=(x[:,0], x[:,1], onehot))
-</pre>
-</div>
-
-<pre class="example">
-fun: 9.999999889225288e-09
-hess_inv: array([[1, 0],
-[0, 1]])
-jac: array([0.00000000e+00, 1.00000003e-08])
-message: 'Optimization terminated successfully.'
-nfev: 4
-nit: 0
-njev: 1
-status: 0
-success: True
-x: array([-inf,   0.])
-</pre>
-
-<div class="org-src-container">
-<pre class="src src-ipython">_fit_gene(x, onehot)
-</pre>
-</div>
-
-<pre class="example">
-[array([-inf]), array([-0.]), array([0.]), array([0.]), array([0.])]
-
-</pre>
-
-<div class="org-src-container">
-<pre class="src src-ipython">_fit_gene(x, onehot, design)
-</pre>
-</div>
-
-<pre class="example">
-[array([-7.75254245, -8.74529525]),
-array([-7.38635243, -6.45950176]),
-array([-3.07849171, -3.07866706]),
-array([42.9648789 , 15.92086032]),
-array([44.10874472, 16.3176927 ])]
-</pre>
-
-<p>
-Check the end-to-end evaluation.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">evaluate(num_samples=100, num_mols=1e5, log_mu=-8, log_phi=-6, logodds=-3, fold=1.1, trial=0)
-</pre>
-</div>
-
-<pre class="example">
-{'fold': 1.1,
-'log_mu': -8,
-'log_mu_hat': -7.980952099176061,
-'log_phi': -6,
-'log_phi_hat': -5.681342153408702,
-'logodds': -3,
-'logodds_hat': -2.7515411255776483,
-'mean': 34.19137317124226,
-'mean_log_cpm': 5.8224834413816415,
-'num_mols': 100000.0,
-'num_samples': 100,
-'trial': 0,
-'var': 38.1766412350187,
-'var_log_cpm': 0.23075096605184894}
-</pre>
-
-<div class="org-src-container">
-<pre class="src src-ipython">%timeit evaluate(num_samples=5000, num_mols=1e5, log_mu=-8, log_phi=-6, logodds=-3, fold=1.1, trial=0)
-</pre>
-</div>
-
-<p>
-1.41 s ± 449 µs per loop (mean ± std. dev. of 7 runs, 1 loop each)
-</p>
-
-<p>
-Investigate what happens as the number of confounders increases.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">design</span> = np.random.normal(size=(300, 20))
-<span class="org-variable-name">x</span>, <span class="org-variable-name">_</span> = simulate(num_samples=300, size=1e5, log_mu=-8, log_phi=-6, logodds=-3, seed=0, design=design, fold=1.1)
-_fit_gene(x, design)
-</pre>
-</div>
-
-<pre class="example">
-[-8.00649125343069,
--6.410804905890429,
--2.99891159295469,
-33.32921072894424,
-35.15509338485383]
-</pre>
-
-<p>
-Run the simulation on 28 CPUs.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">&lt;&lt;zinb-imports&gt;&gt;
-<span class="org-keyword">import</span> multiprocessing <span class="org-keyword">as</span> mp
-<span class="org-keyword">import</span> sqlite3
-&lt;&lt;np-zinb-impl2&gt;&gt;
-&lt;&lt;sim-impl2&gt;&gt;
-<span class="org-variable-name">args</span> = [(num_samples, num_mols, log_mu, log_phi, logodds, fold, trial)
-        <span class="org-keyword">for</span> num_samples <span class="org-keyword">in</span> np.linspace(100, 1000, 5).astype(<span class="org-builtin">int</span>)
-        <span class="org-keyword">for</span> num_mols <span class="org-keyword">in</span> 1e3 * np.linspace(100, 1000, 5).astype(<span class="org-builtin">int</span>)
-        <span class="org-keyword">for</span> log_mu <span class="org-keyword">in</span> np.linspace(-12, -6, 7)
-        <span class="org-keyword">for</span> log_phi <span class="org-keyword">in</span> np.linspace(-6, 0, 7)
-        <span class="org-keyword">for</span> logodds <span class="org-keyword">in</span> np.linspace(-3, 3, 7)
-        <span class="org-keyword">for</span> fold <span class="org-keyword">in</span> np.linspace(1, 1.25, 6)
-        <span class="org-keyword">for</span> trial <span class="org-keyword">in</span> <span class="org-builtin">range</span>(10)]
-<span class="org-keyword">with</span> mp.Pool() <span class="org-keyword">as</span> pool:
-  <span class="org-variable-name">result</span> = pd.DataFrame.from_dict(pool.starmap(evaluate, args))
-<span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'</span>) <span class="org-keyword">as</span> conn:
-  result.to_sql(name=<span class="org-string">'simulation'</span>, con=conn, index=<span class="org-constant">False</span>, if_exists=<span class="org-string">'replace'</span>)
-  conn.execute(<span class="org-string">'create index ix_simulation on simulation(num_samples, num_mols);'</span>)
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-sh">sbatch --partition=broadwl --mem=8G --job-name sim -n1 -c28 --exclusive --out sim.out
-<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
-<span class="org-builtin">source</span> activate scqtl
-python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/sim.py
-</pre>
-</div>
-
-<pre class="example">
-Submitted batch job 45559291
-
-</pre>
-
-<p>
-Use this to check the parameter estimation for a particular gene/individual.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">extract_data</span>(ind, gene):
-  <span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'</span>) <span class="org-keyword">as</span> conn:
-    <span class="org-variable-name">umi</span> = pd.read_sql(<span class="org-string">"""select umi.value, annotation.size from umi, annotation </span>
-<span class="org-string">    where annotation.chip_id == ? and gene == ? and </span>
-<span class="org-string">    umi.sample == annotation.sample;"""</span>, con=conn, params=(ind, gene))
-    <span class="org-keyword">return</span> umi
-</pre>
-</div>
-
-<p>
-Shard the data to parallelize over nodes. During this pass, write the data
-out to the database. 
-</p>
-
-<p>
-<b>Important notes:</b> 
-</p>
-
-<ol class="org-ol">
-<li>We need to use the actual number of molecules detected as the size factor,
-not the sum of QC'ed counts</li>
-<li>We need to estimate relative abundance for all genes (to match bulk), not
-just those which passed QC</li>
-<li>We need to recode categorical covariates as binary indicators. Although
-over the entire data set the number of indicators (in particular,
-<code>experiment</code>) might be larger than the number of observations, for each
-subproblem it will not be.</li>
-</ol>
-
-<p>
-Write the annotations to the database.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython" id="orgf6792ab"><span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
-<span class="org-variable-name">annotations</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
-<span class="org-variable-name">annotations</span>[<span class="org-string">'sample'</span>] = annotations.<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: <span class="org-string">'{chip_id}.{experiment:08d}.{well}'</span>.<span class="org-builtin">format</span>(**<span class="org-builtin">dict</span>(x)), axis=1)
-<span class="org-variable-name">annotations</span>[<span class="org-string">'size'</span>] = annotations[<span class="org-string">'mol_hs'</span>]
-<span class="org-variable-name">annotations</span> = annotations.loc[keep_samples.values.ravel(), [<span class="org-string">'sample'</span>, <span class="org-string">'chip_id'</span>, <span class="org-string">'size'</span>]]
-<span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'</span>) <span class="org-keyword">as</span> conn:
-  annotations.to_sql(name=<span class="org-string">'annotation'</span>, con=conn, if_exists=<span class="org-string">'replace'</span>)
-  conn.execute(<span class="org-string">'create index ix_annotation on annotation(chip_id, sample);'</span>)
-</pre>
-</div>
-
-<p>
-Recode categorical variables as binary indicators.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython" id="org76d27e5"><span class="org-keyword">def</span> <span class="org-function-name">recode</span>(annotations, key):
-  <span class="org-variable-name">n</span> = annotations.shape[0]
-  <span class="org-variable-name">cat</span> = <span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(annotations[key]))
-  <span class="org-variable-name">onehot</span> = np.zeros((n, <span class="org-builtin">len</span>(cat)))
-  onehot[np.arange(n), annotations[key].<span class="org-builtin">apply</span>(cat.index)] = 1
-  <span class="org-keyword">return</span> onehot
-</pre>
-</div>
-
-<p>
-Check that we will have enough data points to actually estimate effects:
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">annotations[keep_samples.values.ravel()].groupby(<span class="org-string">'chip_id'</span>).<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: pd.Series(recode(x, <span class="org-string">'experiment'</span>).shape)).describe()
-</pre>
-</div>
-
-<pre class="example">
-0          1
-count   54.000000  54.000000
-mean    96.685185   5.500000
-std     40.056952   1.969101
-min     19.000000   2.000000
-25%     78.000000   4.000000
-50%     88.500000   5.000000
-75%    102.250000   6.750000
-max    281.000000  14.000000
-</pre>
-
-<p>
-Show that <code>batch</code> is a linear combination of <code>experiment</code>.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">design</span> = np.concatenate([recode(annotations, k) <span class="org-keyword">for</span> k <span class="org-keyword">in</span> (<span class="org-string">'batch'</span>, <span class="org-string">'experiment'</span>)], axis=1)
-<span class="org-variable-name">u</span>, <span class="org-variable-name">d</span>, <span class="org-variable-name">v</span> = np.linalg.svd(design)
-design.shape[1] - (d &gt; 1e-2).<span class="org-builtin">sum</span>()
-</pre>
-</div>
-
-<pre class="example">
-6
-
-</pre>
-
-
-<div class="org-src-container">
-<pre class="src src-ipython">&lt;&lt;zinb-imports&gt;&gt;
-&lt;&lt;write-annotation-impl&gt;&gt;
-<span class="org-variable-name">i</span> = 0
-<span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'</span>) <span class="org-keyword">as</span> conn:
-  conn.execute(<span class="org-string">'drop table if exists umi;'</span>)
-  <span class="org-keyword">for</span> chunk <span class="org-keyword">in</span> pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>, index_col=0, chunksize=1000):
-    <span class="org-keyword">print</span>(<span class="org-string">'Processing chunk {}'</span>.<span class="org-builtin">format</span>(i))
-    <span class="org-variable-name">chunk</span> = (chunk
-             .loc[:,keep_samples.values.ravel()])
-    <span class="org-keyword">if</span> <span class="org-keyword">not</span> chunk.empty:
-      <span class="org-variable-name">chunk</span> = (chunk
-               .reset_index()
-               .melt(id_vars=<span class="org-string">'gene'</span>, var_name=<span class="org-string">'sample'</span>)
-               .merge(annotations, on=<span class="org-string">'sample'</span>)
-               .sort_values([<span class="org-string">'gene'</span>, <span class="org-string">'chip_id'</span>, <span class="org-string">'sample'</span>]))
-      chunk.to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/density-estimation/chunk-{}.txt.gz'</span>.<span class="org-builtin">format</span>(i), columns=[<span class="org-string">'gene'</span>, <span class="org-string">'chip_id'</span>, <span class="org-string">'sample'</span>, <span class="org-string">'value'</span>, <span class="org-string">'size'</span>], compression=<span class="org-string">'gzip'</span>, sep=<span class="org-string">'\t'</span>)
-      chunk[[<span class="org-string">'gene'</span>, <span class="org-string">'sample'</span>, <span class="org-string">'value'</span>]].to_sql(name=<span class="org-string">'umi'</span>, con=conn, index=<span class="org-constant">False</span>, if_exists=<span class="org-string">'append'</span>)
-      <span class="org-variable-name">i</span> += 1
-    <span class="org-keyword">del</span> chunk
-  conn.execute(<span class="org-string">'create index ix_umi on umi(gene, sample);'</span>)
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-sh">sbatch --partition=broadwl --mem=8G --job-name shard --out shard.out
-<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
-<span class="org-builtin">source</span> activate scqtl
-python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/shard.py
-</pre>
-</div>
-
-<pre class="example">
-Submitted batch job 45561618
-
-</pre>
-
-<p>
-Process each chunk in parallel.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython" id="org059bf51"><span class="org-keyword">def</span> <span class="org-function-name">compute_breaks</span>(chunk, by_ind=<span class="org-constant">False</span>):
-  <span class="org-comment-delimiter"># </span><span class="org-comment">Each subproblem has fixed size, so we can just split on integer indices</span>
-  <span class="org-comment-delimiter"># </span><span class="org-comment">(instead of grouping)</span>
-  <span class="org-variable-name">num_genes</span> = <span class="org-builtin">len</span>(<span class="org-builtin">set</span>(chunk[<span class="org-string">'gene'</span>]))
-  <span class="org-variable-name">num_samples</span> = <span class="org-builtin">len</span>(<span class="org-builtin">set</span>(chunk[<span class="org-string">'sample'</span>]))
-  <span class="org-variable-name">breaks</span> = num_samples * np.arange(num_genes).reshape(-1, 1)
-  <span class="org-keyword">if</span> by_ind:
-    <span class="org-variable-name">num_samples_per_ind</span> = chunk.iloc[:num_samples][<span class="org-string">'chip_id'</span>].value_counts().sort_index().values
-    <span class="org-comment-delimiter"># </span><span class="org-comment">This can't be written += because of broadcasting</span>
-    <span class="org-variable-name">breaks</span> = breaks + np.cumsum(num_samples_per_ind).reshape(1, -1)
-  <span class="org-keyword">else</span>:
-    <span class="org-comment-delimiter"># </span><span class="org-comment">We need to get the right end point of each subproblem (exclusive)</span>
-    <span class="org-variable-name">breaks</span> += num_samples
-  <span class="org-keyword">return</span> breaks.ravel()
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython">&lt;&lt;zinb-imports&gt;&gt;
-<span class="org-keyword">import</span> argparse
-<span class="org-keyword">import</span> gzip
-<span class="org-keyword">import</span> os
-<span class="org-keyword">import</span> multiprocessing <span class="org-keyword">as</span> mp
-<span class="org-keyword">import</span> sqlite3
-&lt;&lt;np-zinb-impl2&gt;&gt;
-&lt;&lt;recode-impl&gt;&gt;
-&lt;&lt;process-chunk-impl&gt;&gt;
-
-<span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
-<span class="org-variable-name">annotations</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
-<span class="org-variable-name">annotations</span> = annotations[keep_samples.values.ravel()]
-
-<span class="org-variable-name">onehot</span> = recode(annotations, <span class="org-string">'chip_id'</span>)
-<span class="org-variable-name">design</span> = np.concatenate([recode(annotations, k) <span class="org-keyword">for</span> k <span class="org-keyword">in</span> (<span class="org-string">'batch'</span>, <span class="org-string">'experiment'</span>)], axis=1)
-
-<span class="org-keyword">with</span> mp.Pool() <span class="org-keyword">as</span> pool:
-  <span class="org-variable-name">chunk</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/density-estimation/chunk-{}.txt.gz'</span>.<span class="org-builtin">format</span>(os.getenv(<span class="org-string">'SLURM_ARRAY_TASK_ID'</span>)))
-  <span class="org-variable-name">breaks</span> = compute_breaks(chunk)
-  <span class="org-variable-name">res</span> = pool.starmap(
-    _fit_gene,
-    <span class="org-builtin">zip</span>(np.split(chunk[[<span class="org-string">'value'</span>, <span class="org-string">'size'</span>]].values, breaks[:-1]),
-        (onehot <span class="org-keyword">for</span> b <span class="org-keyword">in</span> breaks),
-        (design <span class="org-keyword">for</span> b <span class="org-keyword">in</span> breaks)))
-
-<span class="org-keyword">with</span> gzip.<span class="org-builtin">open</span>(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/density-estimation/result-{}.txt.gz'</span>.<span class="org-builtin">format</span>(os.getenv(<span class="org-string">'SLURM_ARRAY_TASK_ID'</span>)), <span class="org-string">'wt'</span>) <span class="org-keyword">as</span> f:
-  <span class="org-keyword">for</span> b, est <span class="org-keyword">in</span> <span class="org-builtin">zip</span>(breaks, res):
-    <span class="org-variable-name">gene</span> = chunk.iloc[b - 1][<span class="org-string">'gene'</span>]
-    <span class="org-keyword">for</span> ind, record <span class="org-keyword">in</span> <span class="org-builtin">zip</span>(<span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>])), <span class="org-builtin">zip</span>(*est)):
-      <span class="org-keyword">print</span>(gene, ind, *record, sep=<span class="org-string">'\t'</span>, <span class="org-builtin">file</span>=f)
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-sh">sbatch --partition=broadwl --job-name=<span class="org-string">"np-zinb"</span> --mem=8G -a 0-20 -n1 -c28 --exclusive
-<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
-<span class="org-builtin">source</span> activate scqtl
-python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/zinb.py
-</pre>
-</div>
-
-<pre class="example">
-Submitted batch job 45588176
-
-</pre>
-
-<p>
-Populate the database.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'</span>) <span class="org-keyword">as</span> conn:
-  conn.execute(<span class="org-string">'drop table if exists params;'</span>)
-  <span class="org-keyword">for</span> i <span class="org-keyword">in</span> <span class="org-builtin">range</span>(21):
-    <span class="org-keyword">for</span> chunk <span class="org-keyword">in</span> pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/density-estimation/result-{}.txt.gz'</span>.<span class="org-builtin">format</span>(i), sep=<span class="org-string">' '</span>, header=<span class="org-constant">None</span>, chunksize=1000):
-      <span class="org-variable-name">chunk.columns</span> = [<span class="org-string">'gene'</span>, <span class="org-string">'ind'</span>, <span class="org-string">'log_mu'</span>, <span class="org-string">'log_phi'</span>, <span class="org-string">'logodds'</span>, <span class="org-string">'mean'</span>, <span class="org-string">'var'</span>, <span class="org-string">'log_mu_se'</span>, <span class="org-string">'log_phi_se'</span>]
-      chunk.to_sql(name=<span class="org-string">'params'</span>, con=conn, index=<span class="org-constant">False</span>, if_exists=<span class="org-string">'append'</span>)
-  conn.execute(<span class="org-string">'create index ix_params on params(gene, ind);'</span>)
-</pre>
-</div>
 </div>
 </div>
 </div>
@@ -2106,7 +1368,7 @@ Text(0,0.5,'Sample Fano factor')
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-05-29 Tue 14:59</p>
+<p class="date">Created: 2018-06-02 Sat 19:37</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>

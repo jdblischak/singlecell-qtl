@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-05-22 Tue 13:57 -->
+<!-- 2018-06-02 Sat 20:26 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Power to detect QTLs in single cell data</title>
@@ -227,6 +227,28 @@ for the JavaScript code in this tag.
  }
 /*]]>*///-->
 </script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+        displayAlign: "center",
+        displayIndent: "0em",
+
+        "HTML-CSS": { scale: 100,
+                        linebreaks: { automatic: "false" },
+                        webFont: "TeX"
+                       },
+        SVG: {scale: 100,
+              linebreaks: { automatic: "false" },
+              font: "TeX"},
+        NativeMML: {scale: 100},
+        TeX: { equationNumbers: {autoNumber: "AMS"},
+               MultLineWidth: "85%",
+               TagSide: "right",
+               TagIndent: ".8em"
+             }
+});
+</script>
+<script type="text/javascript"
+        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS_HTML"></script>
 </head>
 <body>
 <div id="content">
@@ -236,223 +258,380 @@ for the JavaScript code in this tag.
 <h2 id="orgb40523f">Introduction</h2>
 <div class="outline-text-2" id="text-orgb40523f">
 <p>
-Our goal here is estimate power to detect mean and variance-effect QTLs. The
-strategy is to resample the single cell RNA-Seq data to generate datasets
-with equal patterns of dropout, overdispersion, mean-variance
-dependence, etc.
+We <a href="qtl-mapping.html">previously found</a> that our study lost power to detect eQTLs, and was
+underpowered to directly detect dispersion-QTLs.
 </p>
+
+<p>
+Here, we estimate power to detect eQTLs and dispersion-QTLs as a function of:
+</p>
+
+<ul class="org-ul">
+<li>number of cells per individual</li>
+<li>number of molecules per cell</li>
+<li>number of individuals</li>
+</ul>
 </div>
 </div>
 
-<div id="outline-container-org25c6fde" class="outline-2">
-<h2 id="org25c6fde">Read and QC the single cell counts</h2>
-<div class="outline-text-2" id="text-org25c6fde">
+<div id="outline-container-orgb01a870" class="outline-2">
+<h2 id="orgb01a870">Differential dispersion</h2>
+<div class="outline-text-2" id="text-orgb01a870">
+<p>
+Perform a nested model comparison for each gene \(k\), comparing the model:
+</p>
+
+<p>
+\[ r_{ijk} \sim ZINB(\pi_{ik}, \mu_{ik}, \phi_{ik}) \]
+</p>
+
+<p>
+against the model:
+</p>
+
+<p>
+\[ r_{ijk} \sim ZINB(\pi_{ik}, \mu_{ik}, \phi_{i}) \]
+</p>
+
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">annotations</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
-<span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
-<span class="org-variable-name">keep_genes</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
-<span class="org-variable-name">annotations</span> = annotations.loc[keep_samples.values.ravel()]
+<pre class="src src-ipython" id="orga175848"><span class="org-keyword">def</span> <span class="org-function-name">lrt</span>(umi, onehot, design, size_factor):
+  <span class="org-variable-name">_</span>, <span class="org-variable-name">_</span>, <span class="org-variable-name">_</span>, <span class="org-variable-name">llik0</span> = fit(
+    umi=umi.values.T.astype(np.float32),
+    onehot=onehot.astype(np.float32),
+    design=design.astype(np.float32),
+    size_factor=size_factor.astype(np.float32),
+    fit_null=<span class="org-constant">True</span>,
+    return_llik=<span class="org-constant">True</span>,
+    learning_rate=5e-2,
+    max_epochs=4000)
+  <span class="org-variable-name">_</span>, <span class="org-variable-name">_</span>, <span class="org-variable-name">_</span>, <span class="org-variable-name">llik1</span> = fit(
+    umi=umi.values.T.astype(np.float32),
+    onehot=onehot.astype(np.float32),
+    design=design.astype(np.float32),
+    size_factor=size_factor.astype(np.float32),
+    return_llik=<span class="org-constant">True</span>,
+    learning_rate=5e-2,
+    max_epochs=4000)
+  <span class="org-variable-name">T</span> = 2 * (llik1 - llik0)
+  <span class="org-keyword">return</span> T, st.chi2(1).logsf(T)
+</pre>
+</div>
+</div>
+
+<div id="outline-container-org9a3e6cd" class="outline-3">
+<h3 id="org9a3e6cd">Null calibration via parametric bootstrap</h3>
+<div class="outline-text-3" id="text-org9a3e6cd">
+<p>
+Sample null data from the model, using empirical estimates of the parameters
+in the observed data.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">&lt;&lt;zinb-imports&gt;&gt;
+&lt;&lt;tf-imports&gt;&gt;
+&lt;&lt;tf-zinb-impl&gt;&gt;
+&lt;&lt;lrt-impl&gt;&gt;
+&lt;&lt;sim-impl&gt;&gt;
+
+<span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">log_phi</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-phi.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">logodds</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">params</span> = pd.DataFrame({<span class="org-string">'log_mu'</span>: log_mu[<span class="org-string">'NA18507'</span>],
+                       <span class="org-string">'log_phi'</span>: log_phi[<span class="org-string">'NA18507'</span>],
+                       <span class="org-string">'logodds'</span>: logodds[<span class="org-string">'NA18507'</span>]},
+                      index=log_mu.index)
+<span class="org-variable-name">params</span> = params[params[<span class="org-string">'log_mu'</span>] &gt; -10]
+<span class="org-variable-name">n</span> = 100
+<span class="org-variable-name">umi</span> = pd.DataFrame([simulate(2 * n, size=1e5, log_mu=log_mu, log_phi=log_phi, logodds=logodds)[0][:,0]
+                    <span class="org-keyword">for</span> _, (log_mu, log_phi, logodds) <span class="org-keyword">in</span> params.iterrows() <span class="org-keyword">if</span> log_mu &gt; -10], index=params.index)
+<span class="org-variable-name">onehot</span> = np.zeros((2 * n, 2))
+<span class="org-variable-name">onehot</span>[:n,0] = 1
+<span class="org-variable-name">onehot</span>[n:,1] = 1
+<span class="org-variable-name">design</span> = np.zeros((2 * n, 1))
+<span class="org-variable-name">size_factor</span> = 1e5 * np.ones((2 * n, 1))
+<span class="org-variable-name">T</span>, <span class="org-variable-name">P</span> = lrt(umi, onehot, design, size_factor)
+pd.DataFrame({<span class="org-string">'chi2'</span>: T, <span class="org-string">'logp'</span>: P}, index=umi.index).to_csv(<span class="org-string">'null-calibration-p.txt.gz'</span>, sep=<span class="org-string">'\t'</span>, compression=<span class="org-string">'gzip'</span>)
 </pre>
 </div>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">umi</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>, index_col=0)
-<span class="org-variable-name">umi</span> = umi.loc[keep_genes.values.ravel(),keep_samples.values.ravel()]
+<pre class="src src-sh">sbatch --partition=gpu --gres=gpu:1 --mem=16G --job-name=tf-lrt-null --output=tf-lrt-null-parametric.out
+<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
+<span class="org-builtin">source</span> activate scqtl
+python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-lrt-null-parametric.py
 </pre>
 </div>
-</div>
-</div>
 
-<div id="outline-container-orgd964d3d" class="outline-2">
-<h2 id="orgd964d3d">Resample scRNA-Seq</h2>
-<div class="outline-text-2" id="text-orgd964d3d">
-<p>
-Assuming the true single cells all came from one individual, generate new
-single cells by sampling counts for each gene iid. with replacement. This
-method assumes genes are independent, which is justified only if we perform
-analysis one gene at a time.
-</p>
+<pre class="example">
+Submitted batch job 46322399
+
+</pre>
 
 <p>
-To generate a new data set (with multiple individuals), randomly sample
-individuals with replacement, and generate a new set of single cells for each
-sampled individual.
+Plot the QQ-plot.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="orge69d093"><span class="org-keyword">def</span> <span class="org-function-name">sample_cells</span>(umi, n=1):
-  <span class="org-doc">"""Return a sampled matrix of UMI counts</span>
-
-<span class="org-doc">  Assume the input matrix is UMI for a single individal. Sample gene counts</span>
-<span class="org-doc">  i.i.d. from the empirical distribution of counts</span>
-
-<span class="org-doc">  """</span>
-  <span class="org-variable-name">result</span> = np.zeros((umi.shape[0], n))
-  <span class="org-keyword">for</span> i, row <span class="org-keyword">in</span> <span class="org-builtin">enumerate</span>(umi.values):
-    <span class="org-variable-name">result</span>[i] = np.random.choice(row, size=n, replace=<span class="org-constant">True</span>)
-  <span class="org-keyword">return</span> pd.DataFrame(result, index=umi.index)
-
-<span class="org-keyword">def</span> <span class="org-function-name">sample_individuals</span>(umi, annotations, num_individuals=<span class="org-constant">None</span>, num_cells=100):
-  <span class="org-doc">"""Return a sampled matrix of UMI counts for multiple individuals</span>
-
-<span class="org-doc">  num_individuals - # individuals to sample (default: equal number)</span>
-<span class="org-doc">  num_cells - # cells to sample for each sampled individual</span>
-
-<span class="org-doc">  Returns:</span>
-
-<span class="org-doc">  umi - matrix of counts</span>
-<span class="org-doc">  individuals - list of resampled IDs</span>
-
-<span class="org-doc">  """</span>
-  <span class="org-keyword">if</span> num_individuals <span class="org-keyword">is</span> <span class="org-constant">None</span>:
-    <span class="org-variable-name">num_individuals</span> = <span class="org-builtin">len</span>(lookup)
-  <span class="org-variable-name">individuals</span> = <span class="org-builtin">list</span>(np.random.choice(annotations[<span class="org-string">'chip_id'</span>].unique(), size=num_individuals, replace=<span class="org-constant">True</span>))
-  <span class="org-variable-name">result</span> = pd.DataFrame(index=umi.index)
-  <span class="org-keyword">for</span> k <span class="org-keyword">in</span> individuals:
-    <span class="org-variable-name">result</span> = result.merge(
-      sample_cells(umi.loc[:,(annotations[<span class="org-string">'chip_id'</span>] == k).values], n=num_cells),
-      left_index=<span class="org-constant">True</span>,
-      right_index=<span class="org-constant">True</span>)
-  <span class="org-keyword">return</span> result, individuals
+<pre class="src src-ipython"><span class="org-variable-name">null_lrt</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/null-calibration-p.txt.gz'</span>)
+<span class="org-variable-name">N</span> = null_lrt.shape[0]
+plt.clf()
+plt.gcf().set_size_inches(4, 4)
+plt.scatter(st.chi2(1).ppf(np.linspace(0, 1 - 1 / N, N)), null_lrt[<span class="org-string">'chi2'</span>].sort_values(), c=<span class="org-string">'k'</span>, s=2, alpha=0.25)
+<span class="org-variable-name">lim</span> = [0, 1.1 * null_lrt[<span class="org-string">'chi2'</span>].<span class="org-builtin">max</span>()]
+plt.plot(lim, lim, c=<span class="org-string">'r'</span>, ls=<span class="org-string">':'</span>, lw=1)
+plt.xlim(lim)
+plt.ylim(lim)
+plt.xlabel(<span class="org-string">'Expected $\chi^2$ statistic'</span>)
+<span class="org-variable-name">_</span> = plt.ylabel(<span class="org-string">'Observed $\chi^2$ statistic'</span>)
 </pre>
 </div>
-</div>
-</div>
-
-<div id="outline-container-org45f1010" class="outline-2">
-<h2 id="org45f1010">Plot concordance between simulated and real data</h2>
-<div class="outline-text-2" id="text-org45f1010">
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">pools</span> = [cpm(sample_cells(umi.loc[:,(annotations[<span class="org-string">'chip_id'</span>] == <span class="org-string">'NA18507'</span>).values], n=100).agg(np.<span class="org-builtin">sum</span>, axis=1), log2=<span class="org-constant">True</span>).to_frame()
-         <span class="org-keyword">for</span> _ <span class="org-keyword">in</span> <span class="org-builtin">range</span>(2)]
-
-plot_concordance(
-  x=pools[0],
-  xlabel=<span class="org-string">'Simulated single cell $\log_2(CPM + 1)$'</span>,
-  y=bulk[<span class="org-string">'NA18507'</span>].to_frame(),
-  ylabel=<span class="org-string">'Bulk $\log_2(TPM + 1)$'</span>,
-  title=<span class="org-string">'NA18507'</span>,
-  filename=<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/sim/sc-vs-bulk.png'</span>)
-plot_concordance(
-  x=pools[0],
-  xlabel=<span class="org-string">'Simulated single cell $\log_2(CPM + 1)$'</span>,
-  y=pools[1],
-  ylabel=<span class="org-string">'Simulated single cell $\log_2(CPM + 1)$'</span>,
-  title=<span class="org-string">'NA18507'</span>,
-  filename=<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/sim/sc-vs-sc.png'</span>,
-  gridsize=15)
-</pre>
-</div>
-
-<p>
-The true concordance, <a href="sc-vs-bulk.html#orgdda3a9f">as previously computed</a>:
-</p>
-
-<p>
-<img src="figure/sc-vs-bulk.org/normed/NA18507.png" alt="NA18507.png">
-<img src="figure/sc-vs-bulk.org/subsets/NA18507-100.png" alt="NA18507-100.png">
-</p>
-
-<p>
-Generated single cell. vs bulk and single cell vs. single cell concordance:
-</p>
-
-<p>
-<img src="figure/power.org/sim/sc-vs-bulk.png" alt="sc-vs-bulk.png">
-<img src="figure/power.org/sim/sc-vs-sc.png" alt="sc-vs-sc.png">
-</p>
-</div>
-</div>
-
-<div id="outline-container-org6c86703" class="outline-2">
-<h2 id="org6c86703">Simulate at a bulk RNA-Seq QTL</h2>
-<div class="outline-text-2" id="text-org6c86703">
-<p>
-Consider the gene <i>ZWIM7</i>, for which the strongest mean eQTL is
-<code>rs73276049</code>. We previously plotted the distribution of UMI counts stratified
-by genotype:
-</p>
 
 
 <div class="figure">
-<p><img src="figure/sc-stratified-geno.org/214941.png" alt="214941.png">
+<p><img src="figure/power.org/null-calibration-p.png" alt="null-calibration-p.png">
 </p>
 </div>
 
 <p>
-Get the genotype for each individual:
+Report how many genes were simulated.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">extract_genotypes</span>(f, rsid):
-  <span class="org-variable-name">head</span> = <span class="org-builtin">next</span>(f).split()
-  <span class="org-keyword">for</span> line <span class="org-keyword">in</span> f:
-    <span class="org-variable-name">record</span> = line.split()
-    <span class="org-keyword">if</span> record[2] == rsid:
-      <span class="org-keyword">return</span> {<span class="org-string">'NA{}'</span>.<span class="org-builtin">format</span>(k): <span class="org-builtin">int</span>(np.<span class="org-builtin">round</span>(<span class="org-builtin">float</span>(v))) <span class="org-keyword">for</span> k, v <span class="org-keyword">in</span> <span class="org-builtin">zip</span>(head, record) <span class="org-keyword">if</span> k[0] == <span class="org-string">'1'</span>}
-  <span class="org-keyword">return</span> <span class="org-builtin">dict</span>()
+<pre class="src src-ipython">N
+</pre>
+</div>
+
+<pre class="example">
+1832
+
+</pre>
+</div>
+</div>
+
+<div id="outline-container-org56b8159" class="outline-3">
+<h3 id="org56b8159">Power</h3>
+<div class="outline-text-3" id="text-org56b8159">
+<p>
+Sample from the assumed model.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">&lt;&lt;zinb-imports&gt;&gt;
+&lt;&lt;tf-imports&gt;&gt;
+&lt;&lt;tf-zinb-impl&gt;&gt;
+&lt;&lt;lrt-impl&gt;&gt;
+&lt;&lt;sim-impl&gt;&gt;
+
+<span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">log_phi</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-phi.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">logodds</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">params</span> = pd.DataFrame({<span class="org-string">'log_mu'</span>: log_mu[<span class="org-string">'NA18507'</span>],
+                       <span class="org-string">'log_phi'</span>: log_phi[<span class="org-string">'NA18507'</span>],
+                       <span class="org-string">'logodds'</span>: logodds[<span class="org-string">'NA18507'</span>]},
+                      index=log_mu.index)
+<span class="org-variable-name">params</span> = params[params[<span class="org-string">'log_mu'</span>] &gt; -10].sample(n=100)
+
+<span class="org-variable-name">sample_sizes</span> = np.array([100, 1000, 10000])
+<span class="org-variable-name">log_fold_changes</span> = np.log(np.geomspace(1.1, 2, 5))
+<span class="org-variable-name">depths</span> = np.array([1e4, 1e5, 1e6])
+
+<span class="org-variable-name">result</span> = []
+<span class="org-keyword">for</span> num_mols <span class="org-keyword">in</span> depths:
+  <span class="org-keyword">for</span> log_fc <span class="org-keyword">in</span> log_fold_changes:
+    <span class="org-keyword">for</span> num_samples <span class="org-keyword">in</span> sample_sizes:
+      <span class="org-variable-name">umi</span> = []
+      <span class="org-keyword">for</span> _, (log_mu, log_phi, logodds) <span class="org-keyword">in</span> params.iterrows():
+        umi.append(np.hstack([
+          simulate(num_samples, size=num_mols, log_mu=log_mu, log_phi=log_phi, logodds=logodds)[0][:,0],
+          simulate(num_samples, size=num_mols, log_mu=log_mu, log_phi=log_phi + log_fc, logodds=logodds)[0][:,0]
+        ]))
+      <span class="org-variable-name">umi</span> = pd.DataFrame(umi, index=params.index)
+      <span class="org-variable-name">onehot</span> = np.zeros((umi.shape[1], 2))
+      <span class="org-variable-name">onehot</span>[:num_samples,0] = 1
+      <span class="org-variable-name">onehot</span>[num_samples:,1] = 1
+      <span class="org-variable-name">design</span> = np.zeros((umi.shape[1], 1))
+      <span class="org-variable-name">size_factor</span> = num_mols * np.ones((umi.shape[1], 1))
+      <span class="org-variable-name">T</span>, <span class="org-variable-name">P</span> = lrt(umi, onehot, design, size_factor)
+      result.append(pd.DataFrame({
+        <span class="org-string">'num_mols'</span>: num_mols,
+        <span class="org-string">'num_samples'</span>: num_samples,
+        <span class="org-string">'log_fold_change'</span>: log_fc,
+        <span class="org-string">'chi2'</span>: T,
+        <span class="org-string">'logp'</span>: P}))
+pd.concat(result).to_csv(<span class="org-string">'lrt-power.txt.gz'</span>, sep=<span class="org-string">'\t'</span>, compression=<span class="org-string">'gzip'</span>) 
 </pre>
 </div>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">with</span> gzip.<span class="org-builtin">open</span>(<span class="org-string">'/project/compbio/jointLCLs/genotype/hg19/YRI/genotypesYRI.gen.txt.gz'</span>, <span class="org-string">'rt'</span>) <span class="org-keyword">as</span> f:
-  <span class="org-variable-name">lookup</span> = extract_genotypes(f, <span class="org-string">'rs73276049'</span>)
+<pre class="src src-sh">sbatch --partition=gpu --gres=gpu:1 --mem=16G --job-name=tf-lrt-power --output=tf-lrt-power.out
+<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
+<span class="org-builtin">source</span> activate scqtl
+python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-lrt-power.py
+</pre>
+</div>
+
+<pre class="example">
+Submitted batch job 46358533
+
+</pre>
+
+<p>
+Read the results.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">lrt_power</span> = (pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/power/lrt-power.txt.gz'</span>, index_col=0)
+             .reindex()
+             .groupby([<span class="org-string">'num_mols'</span>, <span class="org-string">'num_samples'</span>, <span class="org-string">'log_fold_change'</span>])
+             .<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: (np.exp(x[<span class="org-string">'logp'</span>]) &lt; 0.05).<span class="org-builtin">sum</span>() / x.shape[0])
+             .to_frame()
+             .reset_index())
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">lrt_power.head()
+</pre>
+</div>
+
+<pre class="example">
+num_mols  num_samples  log_fold_change     0
+0   10000.0          100         0.095310  0.00
+1   10000.0          100         0.244769  0.00
+2   10000.0          100         0.394229  0.00
+3   10000.0          100         0.543688  0.00
+4   10000.0          100         0.693147  0.01
+</pre>
+
+<p>
+Fit a GP to the results.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">f</span> = (skgp.GaussianProcessRegressor(kernel=skgp.kernels.RBF(), n_restarts_optimizer=10)
+     .fit(lrt_power.loc[:,[<span class="org-string">'num_mols'</span>, <span class="org-string">'num_samples'</span>, <span class="org-string">'log_fold_change'</span>]],
+          lrt_power.loc[:,0]))
 </pre>
 </div>
 
 <p>
-Simulate new cohorts varying the sample size, stratify on genotype, and plot:
+Plot the results.
 </p>
 
-<ol class="org-ol">
-<li>the distribution of simulated UMI counts</li>
-<li>the mean UMI count</li>
-</ol>
-
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">colors</span> = {k: matplotlib.cm.get_cmap(<span class="org-string">'Set1'</span>).colors[k] <span class="org-keyword">for</span> k <span class="org-keyword">in</span> <span class="org-builtin">range</span>(-1, 3)}
-<span class="org-keyword">for</span> n <span class="org-keyword">in</span> [20, 40, 60, 80]:
-  <span class="org-variable-name">sampled_umi</span>, <span class="org-variable-name">individuals</span> = sample_individuals(umi, annotations, num_individuals=n)
-  plt.clf()
-  <span class="org-comment-delimiter"># </span><span class="org-comment">We need to handle missing genotypes because NA19092 isn't in the genotype</span>
-  <span class="org-comment-delimiter"># </span><span class="org-comment">matrix</span>
-  <span class="org-keyword">for</span> k, g <span class="org-keyword">in</span> sampled_umi.loc[<span class="org-string">'ENSG00000214941'</span>].groupby([lookup.get(k, -1) <span class="org-keyword">for</span> k <span class="org-keyword">in</span> individuals <span class="org-keyword">for</span> _ <span class="org-keyword">in</span> <span class="org-builtin">range</span>(100)]):
-    <span class="org-keyword">if</span> k &gt;= 0:
-      plt.hist(g, histtype=<span class="org-string">'step'</span>, bins=np.arange(g.<span class="org-builtin">max</span>()).astype(np.float32), color=colors[k])
-      plt.axvline(x=g.mean(), color=colors[k], label=<span class="org-builtin">int</span>(k))
-  plt.title(<span class="org-string">'ZWIM7, {} individuals, 100 cells'</span>.<span class="org-builtin">format</span>(n))
-  plt.ylabel(<span class="org-string">'Number of cells'</span>)
-  plt.xlabel(<span class="org-string">'UMI count'</span>)
-  plt.gca().legend()
-  plt.savefig(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/figure/power.org/sim/ZWIM7-{}.png'</span>.<span class="org-builtin">format</span>(n))
+<pre class="src src-ipython">plt.clf()
+plt.gcf().set_size_inches(4, 4)
+<span class="org-variable-name">grid</span> = np.log(np.linspace(1.1, 2, 100))
+<span class="org-keyword">for</span> n <span class="org-keyword">in</span> <span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(lrt_power[<span class="org-string">'num_samples'</span>])):
+  <span class="org-variable-name">color</span> = colorcet.cm[<span class="org-string">'inferno'</span>](np.log(n) / np.log(lrt_power[<span class="org-string">'num_samples'</span>].<span class="org-builtin">max</span>()))
+  <span class="org-variable-name">subset</span> = lrt_power[np.logical_and(lrt_power[<span class="org-string">'num_mols'</span>] == 10000, lrt_power[<span class="org-string">'num_samples'</span>] == n)]
+  plt.scatter(np.exp(subset[<span class="org-string">'log_fold_change'</span>]), subset[0], s=3, c=color, label=n)
+  <span class="org-variable-name">post_mean</span>, <span class="org-variable-name">post_std</span> = f.predict(np.vstack([10000 * np.ones(100), n * np.ones(100), grid]).T, return_std=<span class="org-constant">True</span>)
+  plt.plot(np.exp(grid), post_mean, color=color)
+  plt.fill_between(np.exp(grid), post_mean - 1.96 * post_std, post_mean + 1.96 * post_std, color=color, alpha=0.25)
+plt.legend(title=<span class="org-string">'# samples'</span>, frameon=<span class="org-constant">False</span>, markerscale=2)
+plt.xlabel(<span class="org-string">'Fold change in dispersion'</span>)
+plt.ylabel(<span class="org-string">'Power'</span>)
 </pre>
 </div>
 
+<pre class="example">
+Text(0,0.5,'Power')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/power.org/lrt-power.png" alt="lrt-power.png">
+</p>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.gcf().set_size_inches(4, 4)
+<span class="org-variable-name">grid</span> = np.log(np.linspace(1.1, 2, 100))
+<span class="org-keyword">for</span> n <span class="org-keyword">in</span> <span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(lrt_power[<span class="org-string">'num_mols'</span>])):
+  <span class="org-variable-name">color</span> = colorcet.cm[<span class="org-string">'inferno'</span>](np.log(n) / np.log(lrt_power[<span class="org-string">'num_mols'</span>].<span class="org-builtin">max</span>()))
+  <span class="org-variable-name">subset</span> = lrt_power[np.logical_and(lrt_power[<span class="org-string">'num_mols'</span>] == n, lrt_power[<span class="org-string">'num_samples'</span>] == 1000)]
+  plt.scatter(np.exp(subset[<span class="org-string">'log_fold_change'</span>]), subset[0], s=4, c=color, label=<span class="org-string">'$10^{:.0f}$'</span>.<span class="org-builtin">format</span>(np.log(n) / np.log(10)))
+  <span class="org-variable-name">post_mean</span>, <span class="org-variable-name">post_std</span> = f.predict(np.vstack([n * np.ones(100), 1000 * np.ones(100), grid]).T, return_std=<span class="org-constant">True</span>)
+  plt.plot(np.exp(grid), post_mean, color=color, lw=1)
+  plt.fill_between(np.exp(grid), post_mean - 1.96 * post_std, post_mean + 1.96 * post_std, color=color, alpha=0.25)
+plt.legend(title=<span class="org-string">'# molecules'</span>, frameon=<span class="org-constant">False</span>, markerscale=2)
+plt.xlabel(<span class="org-string">'Fold change in dispersion'</span>)
+plt.ylabel(<span class="org-string">'Power'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0,0.5,'Power')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/power.org/lrt-power-fixed-samples.png" alt="lrt-power-fixed-samples.png">
+</p>
+</div>
+</div>
+</div>
+</div>
+
+<div id="outline-container-orgf0c1940" class="outline-2">
+<h2 id="orgf0c1940">eQTL discovery</h2>
+<div class="outline-text-2" id="text-orgf0c1940">
 <p>
-<img src="figure/power.org/sim/ZWIM7-20.png" alt="ZWIM7-20.png">
-<img src="figure/power.org/sim/ZWIM7-40.png" alt="ZWIM7-40.png">
-<img src="figure/power.org/sim/ZWIM7-60.png" alt="ZWIM7-60.png">
-<img src="figure/power.org/sim/ZWIM7-80.png" alt="ZWIM7-80.png">
+We assume expression is generated from \(m\) causal effects (out of \(p\)
+variants) following a linear model:
+</p>
+
+<p>
+\[ \ln\mu = \mathbf{X} \bm{\beta} + \bm{\epsilon} \]
+</p>
+
+<p>
+\[ \mathbb{E}[x_i] = 0, \mathbb{V}[x_i] = 1 \]
+</p>
+
+<p>
+\[ \bm{\beta} \sim (1 - \frac{m}{p}) \delta_0 + \frac{m}{p} N(0, \sigma^2_g / m) \]
+</p>
+
+<p>
+\[ \bm{\epsilon} \sim N(0, \sigma^2_e) \]
+</p>
+
+<p>
+The key insight is that the single cell experiment size changes the standard
+error of the mean estimator.
+</p>
+
+<p>
+\[ \ln{\hat\mu} \sim N(\ln\mu, \sigma^2) \]
+</p>
+
+<p>
+We estimate the standard error as a function of the experiment size from the
+simulation.
 </p>
 </div>
 </div>
 
-<div id="outline-container-org59478ab" class="outline-2">
-<h2 id="org59478ab">Open problems</h2>
-<div class="outline-text-2" id="text-org59478ab">
-<ol class="org-ol">
-<li>If we estimate the effect size distribution from real data, and use the
-estimated effect sizes to perform the power calculation, we need to
-account for winner's curse</li>
-<li>Confounder correction on the UMI counts</li>
-<li>Confounder correction on the genotypes</li>
-</ol>
+<div id="outline-container-org8b4615b" class="outline-2">
+<h2 id="org8b4615b">Dispersion-QTL discovery</h2>
+<div class="outline-text-2" id="text-org8b4615b">
+<p>
+We assume dispersions are generated from \(m\) causal effects following a
+linear model:
+</p>
+
+<p>
+\[ \ln{\hat\phi} \sim N(\mathbf{X} \bm{\beta}, \sigma^2_e + \sigma^2) \]
+</p>
 </div>
 </div>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-05-22 Tue 13:57</p>
+<p class="date">Created: 2018-06-02 Sat 20:26</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>

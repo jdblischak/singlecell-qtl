@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-05-29 Tue 15:03 -->
+<!-- 2018-06-02 Sat 20:26 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>QTL mapping pipeline</title>
@@ -275,7 +275,6 @@ Here, we solve (2).
 <li><a href="#orgd9fac3a">We call mean/variance/CV/Fano QTLs</a> using sample moments</li>
 <li><a href="#orgcd0f4fc">We call mean/variance/CV/Fano QTLs</a> using ZINB parameters</li>
 <li><a href="#orgbfd2e9d">We test replication/overlap</a> between different QTL calls</li>
-<li>We <a href="#org5761a0b">find genes likely to have variance-effects</a> using multivariate adaptive shrinkage</li>
 </ol>
 </div>
 </div>
@@ -1548,9 +1547,9 @@ Take QTLs with \(\mathrm{FDR} < 0.1\).
 </div>
 </div>
 
-<div id="outline-container-org55c408b" class="outline-3">
-<h3 id="org55c408b">Call mean-QTLs</h3>
-<div class="outline-text-3" id="text-org55c408b">
+<div id="outline-container-org2466941" class="outline-3">
+<h3 id="org2466941">Call mean-QTLs</h3>
+<div class="outline-text-3" id="text-org2466941">
 <p>
 Throw out individuals with fewer than 50 cells.
 </p>
@@ -1721,9 +1720,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-org8572232" class="outline-3">
-<h3 id="org8572232">Call variance-QTLs</h3>
-<div class="outline-text-3" id="text-org8572232">
+<div id="outline-container-org6137a33" class="outline-3">
+<h3 id="org6137a33">Call variance-QTLs</h3>
+<div class="outline-text-3" id="text-org6137a33">
 <p>
 Throw out individuals with fewer than 50 cells.
 </p>
@@ -1841,9 +1840,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-orgc5a85ca" class="outline-3">
-<h3 id="orgc5a85ca">Call CV-QTLs</h3>
-<div class="outline-text-3" id="text-orgc5a85ca">
+<div id="outline-container-org4a915c2" class="outline-3">
+<h3 id="org4a915c2">Call CV-QTLs</h3>
+<div class="outline-text-3" id="text-org4a915c2">
 <p>
 Throw out individuals with fewer than 50 cells.
 </p>
@@ -1950,9 +1949,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-org857b48b" class="outline-3">
-<h3 id="org857b48b">Call Fano-QTLs</h3>
-<div class="outline-text-3" id="text-org857b48b">
+<div id="outline-container-org55b50b6" class="outline-3">
+<h3 id="org55b50b6">Call Fano-QTLs</h3>
+<div class="outline-text-3" id="text-org55b50b6">
 <p>
 Throw out individuals with fewer than 50 cells.
 </p>
@@ -2420,9 +2419,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-org2466941" class="outline-3">
-<h3 id="org2466941">Call mean-QTLs</h3>
-<div class="outline-text-3" id="text-org2466941">
+<div id="outline-container-org2e6e5f9" class="outline-3">
+<h3 id="org2e6e5f9">Call mean-QTLs</h3>
+<div class="outline-text-3" id="text-org2e6e5f9">
 <p>
 We have \(r_{ijk} \sim g_{ijk}(\cdot)\), where \(g\) is the ZINB density <a href="zinb.html">as
 previously defined</a>.
@@ -2548,9 +2547,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-org6137a33" class="outline-3">
-<h3 id="org6137a33">Call variance-QTLs</h3>
-<div class="outline-text-3" id="text-org6137a33">
+<div id="outline-container-orgb0792e5" class="outline-3">
+<h3 id="orgb0792e5">Call variance-QTLs</h3>
+<div class="outline-text-3" id="text-orgb0792e5">
 <p>
 We have \(r_{ijk} \sim g_{ijk}(\cdot)\), where \(g\) is the ZINB density <a href="zinb.html">as
 previously defined</a>.
@@ -2675,9 +2674,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-org4a915c2" class="outline-3">
-<h3 id="org4a915c2">Call CV-QTLs</h3>
-<div class="outline-text-3" id="text-org4a915c2">
+<div id="outline-container-org4387bc0" class="outline-3">
+<h3 id="org4387bc0">Call CV-QTLs</h3>
+<div class="outline-text-3" id="text-org4387bc0">
 <p>
 Estimate the coefficient of variation.
 </p>
@@ -2779,9 +2778,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-org55b50b6" class="outline-3">
-<h3 id="org55b50b6">Call Fano-QTLs</h3>
-<div class="outline-text-3" id="text-org55b50b6">
+<div id="outline-container-orgd281fa2" class="outline-3">
+<h3 id="orgd281fa2">Call Fano-QTLs</h3>
+<div class="outline-text-3" id="text-orgd281fa2">
 <p>
 Estimate the coefficient of variation.
 </p>
@@ -2924,8 +2923,8 @@ Read the QTLs and normalized expression matrices.
 
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-variable-name">prefix</span> = <span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/'</span>
-<span class="org-variable-name">qtls</span> = {pheno: (pd.read_table(<span class="org-string">'{}/{}.txt.gz'</span>.<span class="org-builtin">format</span>(prefix, pheno), sep=<span class="org-string">' '</span>),
-                pd.read_table(<span class="org-string">'{}/{}.bed.gz'</span>.<span class="org-builtin">format</span>(prefix, pheno)).set_index(<span class="org-string">'pid'</span>).<span class="org-builtin">filter</span>(like=<span class="org-string">'NA'</span>, axis=<span class="org-string">'columns'</span>))
+<span class="org-variable-name">qtls</span> = {pheno: [pd.read_table(<span class="org-string">'{}/{}.txt.gz'</span>.<span class="org-builtin">format</span>(prefix, pheno), sep=<span class="org-string">' '</span>),
+                pd.read_table(<span class="org-string">'{}/{}.bed.gz'</span>.<span class="org-builtin">format</span>(prefix, pheno)).set_index(<span class="org-string">'pid'</span>).<span class="org-builtin">filter</span>(like=<span class="org-string">'NA'</span>, axis=<span class="org-string">'columns'</span>)]
         <span class="org-keyword">for</span> pheno <span class="org-keyword">in</span> [<span class="org-string">'bulk'</span>, <span class="org-string">'pooled'</span>, <span class="org-string">'log_mu'</span>, <span class="org-string">'log_phi'</span>, <span class="org-string">'mean'</span>, <span class="org-string">'variance'</span>, <span class="org-string">'cv'</span>, <span class="org-string">'fano'</span>]}
 </pre>
 </div>
@@ -2937,6 +2936,17 @@ The bulk QTL gene names need to be munged.
 <div class="org-src-container">
 <pre class="src src-ipython">qtls[<span class="org-string">'bulk'</span>][0][<span class="org-string">'gene'</span>] = qtls[<span class="org-string">'bulk'</span>][0][<span class="org-string">'gene'</span>].<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: x.split(<span class="org-string">'.'</span>)[0])
 qtls[<span class="org-string">'bulk'</span>][1]<span class="org-variable-name">.index</span> = [x.split(<span class="org-string">'.'</span>)[0] <span class="org-keyword">for</span> x <span class="org-keyword">in</span> qtls[<span class="org-string">'bulk'</span>][1].index]
+</pre>
+</div>
+
+<p>
+The CV-QTLs are expected to have the opposite sign from the mean QTLs (under
+the Poisson, \(\mathrm{CV} \propto 1 / \sqrt(\lambda)\))
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">qtls[<span class="org-string">'cv'</span>][0][<span class="org-string">'beta'</span>] *= -1
+qtls[<span class="org-string">'cv'</span>][1] *= -1
 </pre>
 </div>
 
@@ -2997,84 +3007,11 @@ Estimate the rate at which variance QTLs replicate as mean QTLs (and vice versa)
 
 <pre class="example">
 Mean  Variance   CV  Fano
-Mean       100      99.3  4.3  91.8
-Variance  99.3       100 9.46   100
-CV           0      3.45  100   6.9
-Fano      96.3       100 14.8   100
+Mean       100      99.3 88.9  91.8
+Variance  99.3       100 79.1   100
+CV         100      96.6  100  89.7
+Fano      96.3       100 77.8   100
 </pre>
-
-<p>
-Extract the CV QTLs for the browser.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">X</span>, <span class="org-variable-name">Y</span> = extract_qtl_gene_pair(qtls[<span class="org-string">'cv'</span>][0][qtls[<span class="org-string">'cv'</span>][0][<span class="org-string">'fdr_pass'</span>]], qtls[<span class="org-string">'cv'</span>][1], <span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz'</span>)
-<span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
-<span class="org-variable-name">log_phi</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-log-phi.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
-<span class="org-variable-name">logodds</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-logodds.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">mean</span> = pd.DataFrame(mean_by_ind.T, index=log_mu.index, columns=log_mu.columns)
-<span class="org-variable-name">variance</span> = pd.DataFrame(var_by_ind.T, index=log_mu.index, columns=log_mu.columns)
-<span class="org-variable-name">fano</span> = variance / mean
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'</span>) <span class="org-keyword">as</span> conn:
-  (qtls[<span class="org-string">'cv'</span>][0][qtls[<span class="org-string">'cv'</span>][0][<span class="org-string">'fdr_pass'</span>]]
-   .set_index(<span class="org-string">'gene'</span>)
-   .merge(gene_info, left_index=<span class="org-constant">True</span>, right_index=<span class="org-constant">True</span>)
-   .reset_index()[[<span class="org-string">'gene'</span>, <span class="org-string">'name'</span>, <span class="org-string">'id'</span>, <span class="org-string">'p_beta'</span>, <span class="org-string">'beta'</span>]]
-   .to_sql(<span class="org-string">'cv_qtls'</span>, conn, index=<span class="org-constant">False</span>, if_exists=<span class="org-string">'replace'</span>))
-  conn.execute(<span class="org-string">'create index ix_cv_qtls on cv_qtls("gene");'</span>)
-
-  (X.reset_index()
-   .melt(id_vars=<span class="org-string">'index'</span>, var_name=<span class="org-string">'ind'</span>)
-   .rename(columns={<span class="org-string">'index'</span>: <span class="org-string">'gene'</span>})
-   .to_sql(<span class="org-string">'cv_qtl_geno'</span>, conn, index=<span class="org-constant">False</span>, if_exists=<span class="org-string">'replace'</span>))
-  conn.execute(<span class="org-string">'create index ix_cv_qtl_geno on cv_qtl_geno("gene", "ind");'</span>)
-
-  (Y.reset_index()
-   .melt(id_vars=<span class="org-string">'index'</span>, var_name=<span class="org-string">'ind'</span>)
-   .rename(columns={<span class="org-string">'index'</span>: <span class="org-string">'gene'</span>, <span class="org-string">'value'</span>: <span class="org-string">'cv'</span>})
-   .merge(
-     log_mu.reset_index().melt(id_vars=<span class="org-string">'gene'</span>, var_name=<span class="org-string">'ind'</span>).rename(columns={<span class="org-string">'value'</span>: <span class="org-string">'log_mu'</span>})
-   )
-   .merge(
-     log_phi.reset_index().melt(id_vars=<span class="org-string">'gene'</span>, var_name=<span class="org-string">'ind'</span>).rename(columns={<span class="org-string">'value'</span>: <span class="org-string">'log_phi'</span>})
-   )
-   .merge(
-     logodds.reset_index().melt(id_vars=<span class="org-string">'gene'</span>, var_name=<span class="org-string">'ind'</span>).rename(columns={<span class="org-string">'value'</span>: <span class="org-string">'logodds'</span>})     
-   )
-   .merge(
-     mean.reset_index().melt(id_vars=<span class="org-string">'gene'</span>, var_name=<span class="org-string">'ind'</span>).rename(columns={<span class="org-string">'value'</span>: <span class="org-string">'mean'</span>})
-   )
-   .merge(
-     variance.reset_index().melt(id_vars=<span class="org-string">'gene'</span>, var_name=<span class="org-string">'ind'</span>).rename(columns={<span class="org-string">'value'</span>: <span class="org-string">'variance'</span>})
-   )
-   .merge(
-     fano.reset_index().melt(id_vars=<span class="org-string">'gene'</span>, var_name=<span class="org-string">'ind'</span>).rename(columns={<span class="org-string">'value'</span>: <span class="org-string">'fano'</span>})     
-   )
-   .to_sql(<span class="org-string">'params'</span>, conn, index=<span class="org-constant">False</span>, if_exists=<span class="org-string">'replace'</span>))
-  conn.execute(<span class="org-string">'create index ix_params on params("gene", "ind");'</span>)
-
-
-  (umi.loc[qtls[<span class="org-string">'cv'</span>][0].loc[qtls[<span class="org-string">'cv'</span>][0][<span class="org-string">'fdr_pass'</span>], <span class="org-string">'gene'</span>]]
-   .reset_index()
-   .melt(id_vars=<span class="org-string">'gene'</span>, var_name=<span class="org-string">'sample'</span>)
-   .to_sql(<span class="org-string">'umi'</span>, conn, index=<span class="org-constant">False</span>, if_exists=<span class="org-string">'replace'</span>))
-  conn.execute(<span class="org-string">'create index ix_umi on umi("gene", "ind");'</span>)
-
-  <span class="org-variable-name">annotations</span>[<span class="org-string">'sample'</span>] = annotations.<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: <span class="org-string">'{chip_id}.{experiment:08d}.{well}'</span>.<span class="org-builtin">format</span>(**<span class="org-builtin">dict</span>(x)), axis=1)
-  <span class="org-variable-name">annotations</span>[<span class="org-string">'size'</span>] = annotations[<span class="org-string">'mol_hs'</span>]
-  (annotations.loc[keep_samples.values.ravel(), [<span class="org-string">'sample'</span>, <span class="org-string">'chip_id'</span>, <span class="org-string">'size'</span>]]
-   .to_sql(<span class="org-string">'annotation'</span>, conn, con=conn, if_exists=<span class="org-string">'replace'</span>))
-  conn.execute(<span class="org-string">'create index ix_annotation on annotation(chip_id, sample);'</span>)
-</pre>
-</div>
 </div>
 </div>
 
@@ -3175,11 +3112,11 @@ Look at the gene with max difference in estimated effect size.
 </div>
 
 <pre class="example">
-beta              0.901
-gene    ENSG00000085491
-p              8.19e-10
-se                0.147
-Name: 17, dtype: object
+beta             -0.327
+gene    ENSG00000138587
+p                0.0795
+se                0.186
+Name: 108, dtype: object
 </pre>
 
 <p>
@@ -3202,14 +3139,14 @@ Investigate whether analytic SEs are reasonable:
 </div>
 
 <pre class="example">
-count      279
-mean    0.0548
-std      0.038
-min     0.0126
-25%     0.0274
-50%     0.0404
-75%     0.0716
-max      0.192
+count      315
+mean    0.0468
+std     0.0332
+min     0.0118
+25%     0.0257
+50%     0.0355
+75%     0.0549
+max      0.212
 Name: se, dtype: float64
 </pre>
 
@@ -3219,14 +3156,14 @@ Name: se, dtype: float64
 </div>
 
 <pre class="example">
-count     279
-mean    0.241
-std     0.249
-min     0.109
-25%     0.164
-50%     0.199
-75%     0.255
-max      4.06
+count     315
+mean    0.235
+std     0.285
+min      0.11
+25%     0.162
+50%     0.195
+75%     0.238
+max      4.45
 Name: bootstrap_se, dtype: float64
 </pre>
 
@@ -3347,13 +3284,13 @@ plt.xlabel(<span class="org-string">'$\log_2(\mathrm{relative\ abundance})$'</sp
 </div>
 
 <p>
-Investigate whether variance QTL \(z\)-scores are correlated with pooled QTL
+Investigate whether variance QTL \(z\)-scores are correlated with mean QTL
 \(z\)-scores.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">Xm</span>, <span class="org-variable-name">Ym</span> = extract_qtl_gene_pair(variance_qtls[thresh_pass], qtls[<span class="org-string">'pooled'</span>][1], dosages=<span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz'</span>)
-<span class="org-variable-name">Cm</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/pooled-covars.txt'</span>)
+<pre class="src src-ipython"><span class="org-variable-name">Xm</span>, <span class="org-variable-name">Ym</span> = extract_qtl_gene_pair(variance_qtls[thresh_pass], qtls[<span class="org-string">'mean'</span>][1], dosages=<span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz'</span>)
+<span class="org-variable-name">Cm</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/mean-covars.txt'</span>)
 <span class="org-variable-name">Cm</span> = Cm.align(Xm, axis=<span class="org-string">'columns'</span>, join=<span class="org-string">'inner'</span>)[0]
 <span class="org-variable-name">var_qtl_stats</span>[<span class="org-string">'mean_beta'</span>] = replication_tests(Xm, Ym, Cm).set_index(<span class="org-string">'gene'</span>)[<span class="org-string">'beta'</span>]
 <span class="org-variable-name">var_qtl_stats</span>[<span class="org-string">'mean_z'</span>] = var_qtl_stats[<span class="org-string">'mean_beta'</span>] / bootstrap_se(Xm, Ym, Cm)
@@ -3367,18 +3304,17 @@ Plot variance QTL \(z\)-scores against pooled QTL \(z\)-scores.
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-variable-name">lim</span> = [-12, 12]
 plt.clf()
-plt.gcf().set_size_inches(6, 6)
+plt.gcf().set_size_inches(4, 4)
 plt.plot(lim, lim, c=<span class="org-string">'r'</span>, ls=<span class="org-string">':'</span>, lw=1)
 plt.scatter(var_qtl_stats[fdr_pass][<span class="org-string">'z'</span>], var_qtl_stats[fdr_pass][<span class="org-string">'mean_z'</span>], c=<span class="org-string">'r'</span>, s=3, label=<span class="org-string">'FDR 10%'</span>)
-plt.scatter(var_qtl_stats[~fdr_pass][<span class="org-string">'z'</span>], var_qtl_stats[~fdr_pass][<span class="org-string">'mean_z'</span>], c=<span class="org-string">'k'</span>, s=3, label=<span class="org-string">'Permuted p &lt; 0.01'</span>)
+plt.scatter(var_qtl_stats[~fdr_pass][<span class="org-string">'z'</span>], var_qtl_stats[~fdr_pass][<span class="org-string">'mean_z'</span>], c=<span class="org-string">'k'</span>, s=3, label=<span class="org-string">'$p &lt; 10^{-2}$'</span>)
 plt.legend(frameon=<span class="org-constant">False</span>)
 plt.axhline(y=0, c=<span class="org-string">'k'</span>, lw=1)
 plt.axvline(x=0, c=<span class="org-string">'k'</span>, lw=1)
 plt.xlim(lim)
 plt.ylim(lim)
-plt.title(<span class="org-string">'Variance-effect SNP-gene pairs'</span>)
 plt.xlabel(<span class="org-string">'Variance QTL $z$-score'</span>)
-<span class="org-variable-name">_</span> = plt.ylabel(<span class="org-string">'Pooled QTL $z$-score'</span>)
+<span class="org-variable-name">_</span> = plt.ylabel(<span class="org-string">'Mean QTL $z$-score'</span>)
 </pre>
 </div>
 
@@ -3393,9 +3329,9 @@ Compute the same in the other direction.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">mean_qtl_stats</span> = qtls[<span class="org-string">'pooled'</span>][0]
+<pre class="src src-ipython"><span class="org-variable-name">mean_qtl_stats</span> = qtls[<span class="org-string">'mean'</span>][0]
 <span class="org-variable-name">mean_qtl_stats</span> = mean_qtl_stats[mean_qtl_stats[<span class="org-string">'fdr_pass'</span>]].copy()
-<span class="org-variable-name">X</span>, <span class="org-variable-name">Y</span> = extract_qtl_gene_pair(mean_qtl_stats, qtls[<span class="org-string">'pooled'</span>][1], dosages=<span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz'</span>)
+<span class="org-variable-name">X</span>, <span class="org-variable-name">Y</span> = extract_qtl_gene_pair(mean_qtl_stats, qtls[<span class="org-string">'mean'</span>][1], dosages=<span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz'</span>)
 <span class="org-variable-name">z</span> = mean_qtl_stats.set_index(<span class="org-string">'gene'</span>)[<span class="org-string">'beta'</span>] / bootstrap_se(X, Y, Cm)
 
 <span class="org-variable-name">X</span>, <span class="org-variable-name">Y</span> = extract_qtl_gene_pair(mean_qtl_stats, qtls[<span class="org-string">'variance'</span>][1], dosages=<span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz'</span>)
@@ -3421,7 +3357,7 @@ Plot mean vs. variance \(z\)-scores at eQTL SNP-gene pairs.
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-variable-name">lim</span> = [-18, 18]
 plt.clf()
-plt.gcf().set_size_inches(6, 6)
+plt.gcf().set_size_inches(4, 4)
 plt.plot(lim, lim, c=<span class="org-string">'r'</span>, ls=<span class="org-string">':'</span>, lw=1)
 plt.scatter(mean_qtl_stats.loc[mean_qtl_stats[<span class="org-string">'var_fdr_pass'</span>], <span class="org-string">'var_z'</span>],
             mean_qtl_stats.loc[mean_qtl_stats[<span class="org-string">'var_fdr_pass'</span>], <span class="org-string">'z'</span>], c=<span class="org-string">'r'</span>,
@@ -3434,7 +3370,6 @@ plt.axhline(y=0, c=<span class="org-string">'k'</span>, lw=1)
 plt.axvline(x=0, c=<span class="org-string">'k'</span>, lw=1)
 plt.xlim(lim)
 plt.ylim(lim)
-plt.title(<span class="org-string">'Mean-effect SNP-gene pairs'</span>)
 plt.xlabel(<span class="org-string">'Variance QTL $z$-score'</span>)
 <span class="org-variable-name">_</span> = plt.ylabel(<span class="org-string">'Pooled QTL $z$-score'</span>)
 </pre>
@@ -3453,14 +3388,14 @@ Plot single cell eQTL \(z\)-scores against bulk eQTL \(z\)-scores.
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-variable-name">lim</span> = [-12, 12]
 plt.clf()
-plt.gcf().set_size_inches(6, 6)
+plt.gcf().set_size_inches(4, 4)
 plt.plot(lim, lim, c=<span class="org-string">'r'</span>, ls=<span class="org-string">':'</span>, lw=1)
 plt.scatter(mean_qtl_stats[<span class="org-string">'z'</span>], mean_qtl_stats[<span class="org-string">'bulk_z'</span>], c=<span class="org-string">'k'</span>, s=3)
 plt.axhline(y=0, c=<span class="org-string">'k'</span>, lw=1)
 plt.axvline(x=0, c=<span class="org-string">'k'</span>, lw=1)
 plt.xlim(lim)
 plt.ylim(lim)
-plt.xlabel(<span class="org-string">'Pooled single cell eQTL $z$-score'</span>)
+plt.xlabel(<span class="org-string">'Single cell eQTL $z$-score'</span>)
 <span class="org-variable-name">_</span> = plt.ylabel(<span class="org-string">'Bulk eQTL $z$-score'</span>)
 
 </pre>
@@ -3468,7 +3403,7 @@ plt.xlabel(<span class="org-string">'Pooled single cell eQTL $z$-score'</span>)
 
 
 <div class="figure">
-<p><img src="figure/qtl-mapping.org/pooled-qtl-vs-mean-qtl.png" alt="pooled-qtl-vs-mean-qtl.png">
+<p><img src="figure/qtl-mapping.org/bulk-qtl-vs-mean-qtl.png" alt="bulk-qtl-vs-mean-qtl.png">
 </p>
 </div>
 </div>
@@ -3485,13 +3420,15 @@ precision and recall of variance (mean) QTLs.
 <div class="org-src-container">
 <pre class="src src-ipython">plt.clf()
 plt.gcf().set_size_inches(4, 4)
-<span class="org-variable-name">Y</span>, <span class="org-variable-name">P</span> = qtls[<span class="org-string">'pooled'</span>][0][<span class="org-string">'fdr_pass'</span>].align(qtls[<span class="org-string">'variance'</span>][0][<span class="org-string">'p_beta'</span>].dropna(), join=<span class="org-string">'inner'</span>)
+<span class="org-variable-name">Y</span>, <span class="org-variable-name">P</span> = qtls[<span class="org-string">'mean'</span>][0][<span class="org-string">'fdr_pass'</span>].align(qtls[<span class="org-string">'variance'</span>][0][<span class="org-string">'p_beta'</span>].dropna(), join=<span class="org-string">'inner'</span>)
 <span class="org-variable-name">p</span>, <span class="org-variable-name">r</span>, <span class="org-variable-name">_</span> = sklearn.metrics.precision_recall_curve(Y.astype(<span class="org-builtin">int</span>), -np.log(P))
+<span class="org-variable-name">auprc_mean_var</span> = sklearn.metrics.average_precision_score(Y.astype(<span class="org-builtin">int</span>), -np.log(P))
 plt.plot(r[::10], p[::10], lw=1, c=<span class="org-string">'k'</span>, label=<span class="org-string">'Variance'</span>)
-<span class="org-variable-name">Y</span>, <span class="org-variable-name">P</span> = qtls[<span class="org-string">'variance'</span>][0][<span class="org-string">'fdr_pass'</span>].align(qtls[<span class="org-string">'pooled'</span>][0][<span class="org-string">'p_beta'</span>].dropna(), join=<span class="org-string">'inner'</span>)
+<span class="org-variable-name">Y</span>, <span class="org-variable-name">P</span> = qtls[<span class="org-string">'variance'</span>][0][<span class="org-string">'fdr_pass'</span>].align(qtls[<span class="org-string">'mean'</span>][0][<span class="org-string">'p_beta'</span>].dropna(), join=<span class="org-string">'inner'</span>)
 <span class="org-variable-name">p</span>, <span class="org-variable-name">r</span>, <span class="org-variable-name">_</span> = sklearn.metrics.precision_recall_curve(Y.astype(<span class="org-builtin">int</span>), -np.log(P))
+<span class="org-variable-name">auprc_var_mean</span> = sklearn.metrics.average_precision_score(Y.astype(<span class="org-builtin">int</span>), -np.log(P))
 plt.plot(r[::10], p[::10], lw=1, c=<span class="org-string">'r'</span>, label=<span class="org-string">'Mean'</span>)
-plt.legend()
+plt.legend(frameon=<span class="org-constant">False</span>)
 plt.xlabel(<span class="org-string">'Recall of QTLs at FDR 10%'</span>)
 <span class="org-variable-name">_</span> = plt.ylabel(<span class="org-string">'Precision of QTLs at FDR 10%'</span>)
 </pre>
@@ -3504,19 +3441,35 @@ plt.xlabel(<span class="org-string">'Recall of QTLs at FDR 10%'</span>)
 </div>
 
 <p>
+Tabulate the AUPRC.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">auprc_mean_var, auprc_var_mean
+</pre>
+</div>
+
+<pre class="example">
+(0.5212419583724434, 0.6044457996921822)
+
+</pre>
+
+<p>
 Track sensitivity and specificity of mean QTLs.
 </p>
 
 <div class="org-src-container">
 <pre class="src src-ipython">plt.clf()
 plt.gcf().set_size_inches(4, 4)
-<span class="org-variable-name">Y</span>, <span class="org-variable-name">P</span> = qtls[<span class="org-string">'pooled'</span>][0][<span class="org-string">'fdr_pass'</span>].align(qtls[<span class="org-string">'variance'</span>][0][<span class="org-string">'p_beta'</span>].dropna(), join=<span class="org-string">'inner'</span>)
+<span class="org-variable-name">Y</span>, <span class="org-variable-name">P</span> = qtls[<span class="org-string">'mean'</span>][0][<span class="org-string">'fdr_pass'</span>].align(qtls[<span class="org-string">'variance'</span>][0][<span class="org-string">'p_beta'</span>].dropna(), join=<span class="org-string">'inner'</span>)
 <span class="org-variable-name">fpr</span>, <span class="org-variable-name">tpr</span>, <span class="org-variable-name">_</span> = sklearn.metrics.roc_curve(Y.astype(<span class="org-builtin">int</span>), -np.log(P))
+<span class="org-variable-name">auroc_mean_var</span> = sklearn.metrics.roc_auc_score(Y.astype(<span class="org-builtin">int</span>), -np.log(P))
 plt.plot(fpr[::10], tpr[::10], lw=1, c=<span class="org-string">'k'</span>, label=<span class="org-string">'Variance'</span>)
-<span class="org-variable-name">Y</span>, <span class="org-variable-name">P</span> = qtls[<span class="org-string">'variance'</span>][0][<span class="org-string">'fdr_pass'</span>].align(qtls[<span class="org-string">'pooled'</span>][0][<span class="org-string">'p_beta'</span>].dropna(), join=<span class="org-string">'inner'</span>)
+<span class="org-variable-name">Y</span>, <span class="org-variable-name">P</span> = qtls[<span class="org-string">'variance'</span>][0][<span class="org-string">'fdr_pass'</span>].align(qtls[<span class="org-string">'mean'</span>][0][<span class="org-string">'p_beta'</span>].dropna(), join=<span class="org-string">'inner'</span>)
 <span class="org-variable-name">fpr</span>, <span class="org-variable-name">tpr</span>, <span class="org-variable-name">_</span> = sklearn.metrics.roc_curve(Y.astype(<span class="org-builtin">int</span>), -np.log(P))
+<span class="org-variable-name">auroc_var_mean</span> = sklearn.metrics.roc_auc_score(Y.astype(<span class="org-builtin">int</span>), -np.log(P))
 plt.plot(fpr[::10], tpr[::10], lw=1, c=<span class="org-string">'r'</span>, label=<span class="org-string">'Mean'</span>)
-plt.legend()
+plt.legend(frameon=<span class="org-constant">False</span>)
 plt.xlabel(<span class="org-string">'False positive rate of QTLs at FDR 10%'</span>)
 <span class="org-variable-name">_</span> = plt.ylabel(<span class="org-string">'True positive rate of QTLs at FDR 10%'</span>)
 </pre>
@@ -3527,227 +3480,146 @@ plt.xlabel(<span class="org-string">'False positive rate of QTLs at FDR 10%'</sp
 <p><img src="figure/qtl-mapping.org/var-qtl-mean-qtl-roc.png" alt="var-qtl-mean-qtl-roc.png">
 </p>
 </div>
-</div>
-</div>
 
-<div id="outline-container-org5761a0b" class="outline-3">
-<h3 id="org5761a0b">Multivariate adaptive shrinkage</h3>
-<div class="outline-text-3" id="text-org5761a0b">
 <p>
-Write out a subset of the phenotype matrix to get SNP-level summary stats for
-<code>mash</code>.
+Tabulate the AUROC.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython">write_pheno_file(qtls[<span class="org-string">'variance'</span>][1].<span class="org-builtin">filter</span>(items=qtls[<span class="org-string">'variance'</span>][0][thresh_pass][<span class="org-string">'gene'</span>], axis=<span class="org-string">'index'</span>),
-                 gene_info, <span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/variance-fdr-pass.bed'</span>, holdout=<span class="org-constant">False</span>)
-</pre>
-</div>
-
-<p>
-Index the phenotype file.
-</p>
-
-<pre class="example">
-Submitted batch job 45396919
-
-</pre>
-
-<p>
-Run the nominal pass.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-sh">sbatch --partition=broadwl --mem=8G --wait
-<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
-<span class="org-builtin">source</span> activate scqtl
-qtltools cis --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --bed variance-fdr-pass.bed.gz --cov variance-covars.txt --window 100000 --nominal 1 --out variance-fdr-pass-nominal.txt
+<pre class="src src-ipython">auroc_mean_var, auroc_var_mean
 </pre>
 </div>
 
 <pre class="example">
-Submitted batch job 45396920
+(0.8968614143396433, 0.9555166119581557)
 
 </pre>
 
 <p>
-Compute \(\hat\beta\) and bootstrap SE ourselves to check whether we can
-simply inverse CDF transform from the nominal \(p\)-values.
+Find the threshold at which 90% of eQTLs are recovered.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">test_var_qtl_stats</span> = estimate_beta_se(Yv.head(n=1), <span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz'</span>, gene_info, Cv)
-<span class="org-variable-name">test_var_qtl_stats</span>[<span class="org-string">'z'</span>] = test_var_qtl_stats[<span class="org-string">'beta'</span>] / test_var_qtl_stats[<span class="org-string">'se'</span>]
-</pre>
-</div>
-
-<p>
-Read the results.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">nominal_var_qtl_stats</span> = read_nominal_pass(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/variance-fdr-pass-nominal.txt'</span>)
-</pre>
-</div>
-
-<p>
-Check our \(z\)-scores against inverse CDF-derived \(z\)-scores.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">M</span> = test_var_qtl_stats.merge(nominal_var_qtl_stats, left_on=[<span class="org-string">'gene'</span>, <span class="org-string">'snp'</span>], right_on=[<span class="org-string">'gene'</span>, <span class="org-string">'id'</span>])
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython">plt.clf()
-plt.gcf().set_size_inches(4, 4)
-<span class="org-variable-name">lim</span> = [-6, 6]
-plt.scatter(M[<span class="org-string">'z_x'</span>], M[<span class="org-string">'z_y'</span>], c=<span class="org-string">'k'</span>, s=3)
-plt.axhline(y=0, c=<span class="org-string">'k'</span>, lw=1)
-plt.axvline(x=0, c=<span class="org-string">'k'</span>, lw=1)
-plt.plot(lim, lim, c=<span class="org-string">'r'</span>, ls=<span class="org-string">':'</span>, lw=1)
-plt.xlim(lim)
-plt.ylim(lim)
-plt.xlabel(<span class="org-string">'Bootstrap $z$ scores'</span>)
-<span class="org-variable-name">_</span> = plt.ylabel(<span class="org-string">'Inverse CDF $z$ scores'</span>)
-</pre>
-</div>
-
-
-<div class="figure">
-<p><img src="figure/qtl-mapping.org/bootstrap-z-vs-nominal-p-inverse-cdf.png" alt="bootstrap-z-vs-nominal-p-inverse-cdf.png">
-</p>
-</div>
-
-<p>
-Subset the pooled expression matrix at the variance QTL genes.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">write_pheno_file(qtls[<span class="org-string">'pooled'</span>][1].<span class="org-builtin">filter</span>(items=qtls[<span class="org-string">'variance'</span>][0][thresh_pass][<span class="org-string">'gene'</span>], axis=<span class="org-string">'index'</span>),
-                 gene_info, <span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/pooled-fdr-pass.bed'</span>, holdout=<span class="org-constant">False</span>)
-</pre>
-</div>
-
-<p>
-Index the phenotype file.
-</p>
-
-<pre class="example">
-Submitted batch job 45397009
-
-</pre>
-
-<p>
-Run the nominal pass.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-sh">sbatch --partition=broadwl --mem=4G --wait
-<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
-<span class="org-builtin">source</span> activate scqtl
-qtltools cis --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --bed pooled-fdr-pass.bed.gz --cov pooled-covars.txt --window 100000 --nominal 1 --out pooled-fdr-pass-nominal.txt
+<pre class="src src-ipython"><span class="org-variable-name">Y</span>, <span class="org-variable-name">P</span> = qtls[<span class="org-string">'variance'</span>][0].set_index(<span class="org-string">'gene'</span>)[<span class="org-string">'fdr_pass'</span>].align(qtls[<span class="org-string">'mean'</span>][0].set_index(<span class="org-string">'gene'</span>)[<span class="org-string">'p_beta'</span>].dropna(), join=<span class="org-string">'inner'</span>)
+<span class="org-variable-name">fpr</span>, <span class="org-variable-name">tpr</span>, <span class="org-variable-name">thresh</span> = sklearn.metrics.roc_curve(Y.astype(<span class="org-builtin">int</span>), -np.log(P))
+np.exp(-thresh[np.where(tpr &lt;= 0.9)].<span class="org-builtin">min</span>())
 </pre>
 </div>
 
 <pre class="example">
-Submitted batch job 45397011
+0.05222859999999999
 
 </pre>
 
 <p>
-Read the results
+Find the vQTLs which are not predictive of eQTLs.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">nominal_pooled_qtl_stats</span> = read_nominal_pass(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/pooled-fdr-pass-nominal.txt'</span>)
-</pre>
-</div>
-
-<p>
-Prepare the summary statistics for <code>mash</code> EB estimation.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">Z</span> = nominal_var_qtl_stats.merge(nominal_pooled_qtl_stats, on=[<span class="org-string">'gene'</span>, <span class="org-string">'id'</span>]).set_index([<span class="org-string">'gene'</span>, <span class="org-string">'id'</span>])[[<span class="org-string">'z_x'</span>, <span class="org-string">'z_y'</span>]]
-</pre>
-</div>
-
-<p>
-Run two-condition <code>mash</code>.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">data</span> = mashr.mash_set_data(numpy2ri(Z_sub.values), numpy2ri(np.ones(Z_sub.shape)))
-<span class="org-variable-name">V</span> = mashr.estimate_null_correlation(data)
-<span class="org-variable-name">data</span> = mashr.mash_set_data(numpy2ri(Z_sub.values), numpy2ri(np.ones(Z_sub.shape)), V=V)
-<span class="org-variable-name">U</span> = mashr.cov_canonical(data)
-<span class="org-variable-name">mash_result</span> = mashr.mash(data, U, verbose=<span class="org-constant">False</span>)
-</pre>
-</div>
-
-<p>
-Write out the intermediate representation of the mash result.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">with</span> <span class="org-builtin">open</span>(<span class="org-string">'mash-result.pkl'</span>, <span class="org-string">'wb'</span>) <span class="org-keyword">as</span> f:
-  pickle.dump(mash_result, f)
-</pre>
-</div>
-
-<p>
-Read the intermediate representation.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">with</span> <span class="org-builtin">open</span>(<span class="org-string">'mash-result.pkl'</span>, <span class="org-string">'rb'</span>) <span class="org-keyword">as</span> f:
-  <span class="org-variable-name">mash_result</span> = pickle.load(f)
-</pre>
-</div>
-
-<p>
-Recover the estimated mixture weights.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">{k: v <span class="org-keyword">for</span> k, v <span class="org-keyword">in</span> <span class="org-builtin">zip</span>([<span class="org-string">'pointmass'</span>] + <span class="org-builtin">list</span>(U.names),
-                      np.array(mashr.get_estimated_pi(mash_result)))}
+<pre class="src src-ipython"><span class="org-variable-name">true_negatives</span> = Y[np.logical_and(Y, -np.log(P) &lt; thresh[np.where(tpr &lt;= 0.9)].<span class="org-builtin">min</span>())].to_frame().merge(gene_info, left_index=<span class="org-constant">True</span>, right_index=<span class="org-constant">True</span>)[[<span class="org-string">'name'</span>]]
+true_negatives
 </pre>
 </div>
 
 <pre class="example">
-{'equal_effects': 0.6304740345396695,
-'identity': 3.222654477200791e-07,
-'pointmass': 0.2799479785087344,
-'simple_het_1': 3.3854982953530273e-07,
-'simple_het_2': 3.6256921592961205e-07,
-'simple_het_3': 0.08957557566393076,
-'singletons_1': 1.10893521460435e-06,
-'singletons_2': 2.7896795759335475e-07}
+name
+gene
+ENSG00000122574      WIPF3
+ENSG00000112367       FIG4
+ENSG00000121481       RNF2
+ENSG00000214194  LINC00998
+ENSG00000133935    C14orf1
+ENSG00000243725       TTC4
+ENSG00000132849      INADL
+ENSG00000171130   ATP6V0E2
+ENSG00000129518       EAPP
+ENSG00000182400   TRAPPC6B
+ENSG00000182117      NOP10
+ENSG00000068024      HDAC4
+ENSG00000169714       CNBP
+ENSG00000133030      MPRIP
+ENSG00000108528   SLC25A11
 </pre>
 
 <p>
-Recover the estimated sharing of effects.
+Extract the QTLs for the browser.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython">np.array(mashr.get_pairwise_sharing(mash_result))
+<pre class="src src-ipython"><span class="org-variable-name">X</span>, <span class="org-variable-name">Y</span> = extract_qtl_gene_pair(qtls[<span class="org-string">'cv'</span>][0][qtls[<span class="org-string">'cv'</span>][0][<span class="org-string">'fdr_pass'</span>]], qtls[<span class="org-string">'cv'</span>][1], <span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz'</span>)
+<span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">log_phi</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-log-phi.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">logodds</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-logodds.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
 </pre>
 </div>
 
-<pre class="example">
-array([[1.        , 0.96786156],
-[0.96786156, 1.        ]])
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">mean</span> = pd.DataFrame(mean_by_ind.T, index=log_mu.index, columns=log_mu.columns)
+<span class="org-variable-name">variance</span> = pd.DataFrame(var_by_ind.T, index=log_mu.index, columns=log_mu.columns)
+<span class="org-variable-name">fano</span> = variance / mean
 </pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'</span>) <span class="org-keyword">as</span> conn:
+  (qtls[<span class="org-string">'cv'</span>][0][qtls[<span class="org-string">'cv'</span>][0][<span class="org-string">'fdr_pass'</span>]]
+   .set_index(<span class="org-string">'gene'</span>)
+   .merge(gene_info, left_index=<span class="org-constant">True</span>, right_index=<span class="org-constant">True</span>)
+   .reset_index()[[<span class="org-string">'gene'</span>, <span class="org-string">'name'</span>, <span class="org-string">'id'</span>, <span class="org-string">'p_beta'</span>, <span class="org-string">'beta'</span>]]
+   .to_sql(<span class="org-string">'cv_qtls'</span>, conn, index=<span class="org-constant">False</span>, if_exists=<span class="org-string">'replace'</span>))
+  conn.execute(<span class="org-string">'create index ix_cv_qtls on cv_qtls("gene");'</span>)
+
+  (X.reset_index()
+   .melt(id_vars=<span class="org-string">'index'</span>, var_name=<span class="org-string">'ind'</span>)
+   .rename(columns={<span class="org-string">'index'</span>: <span class="org-string">'gene'</span>})
+   .to_sql(<span class="org-string">'cv_qtl_geno'</span>, conn, index=<span class="org-constant">False</span>, if_exists=<span class="org-string">'replace'</span>))
+  conn.execute(<span class="org-string">'create index ix_cv_qtl_geno on cv_qtl_geno("gene", "ind");'</span>)
+
+  (Y.reset_index()
+   .melt(id_vars=<span class="org-string">'index'</span>, var_name=<span class="org-string">'ind'</span>)
+   .rename(columns={<span class="org-string">'index'</span>: <span class="org-string">'gene'</span>, <span class="org-string">'value'</span>: <span class="org-string">'cv'</span>})
+   .merge(
+     log_mu.reset_index().melt(id_vars=<span class="org-string">'gene'</span>, var_name=<span class="org-string">'ind'</span>).rename(columns={<span class="org-string">'value'</span>: <span class="org-string">'log_mu'</span>})
+   )
+   .merge(
+     log_phi.reset_index().melt(id_vars=<span class="org-string">'gene'</span>, var_name=<span class="org-string">'ind'</span>).rename(columns={<span class="org-string">'value'</span>: <span class="org-string">'log_phi'</span>})
+   )
+   .merge(
+     logodds.reset_index().melt(id_vars=<span class="org-string">'gene'</span>, var_name=<span class="org-string">'ind'</span>).rename(columns={<span class="org-string">'value'</span>: <span class="org-string">'logodds'</span>})     
+   )
+   .merge(
+     mean.reset_index().melt(id_vars=<span class="org-string">'gene'</span>, var_name=<span class="org-string">'ind'</span>).rename(columns={<span class="org-string">'value'</span>: <span class="org-string">'mean'</span>})
+   )
+   .merge(
+     variance.reset_index().melt(id_vars=<span class="org-string">'gene'</span>, var_name=<span class="org-string">'ind'</span>).rename(columns={<span class="org-string">'value'</span>: <span class="org-string">'variance'</span>})
+   )
+   .merge(
+     fano.reset_index().melt(id_vars=<span class="org-string">'gene'</span>, var_name=<span class="org-string">'ind'</span>).rename(columns={<span class="org-string">'value'</span>: <span class="org-string">'fano'</span>})     
+   )
+   .to_sql(<span class="org-string">'params'</span>, conn, index=<span class="org-constant">False</span>, if_exists=<span class="org-string">'replace'</span>))
+  conn.execute(<span class="org-string">'create index ix_params on params("gene", "ind");'</span>)
+
+
+  (umi.loc[qtls[<span class="org-string">'cv'</span>][0].loc[qtls[<span class="org-string">'cv'</span>][0][<span class="org-string">'fdr_pass'</span>], <span class="org-string">'gene'</span>]]
+   .reset_index()
+   .melt(id_vars=<span class="org-string">'gene'</span>, var_name=<span class="org-string">'sample'</span>)
+   .to_sql(<span class="org-string">'umi'</span>, conn, index=<span class="org-constant">False</span>, if_exists=<span class="org-string">'replace'</span>))
+  conn.execute(<span class="org-string">'create index ix_umi on umi("gene", "ind");'</span>)
+
+  <span class="org-variable-name">annotations</span>[<span class="org-string">'sample'</span>] = annotations.<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: <span class="org-string">'{chip_id}.{experiment:08d}.{well}'</span>.<span class="org-builtin">format</span>(**<span class="org-builtin">dict</span>(x)), axis=1)
+  <span class="org-variable-name">annotations</span>[<span class="org-string">'size'</span>] = annotations[<span class="org-string">'mol_hs'</span>]
+  (annotations.loc[keep_samples.values.ravel(), [<span class="org-string">'sample'</span>, <span class="org-string">'chip_id'</span>, <span class="org-string">'size'</span>]]
+   .to_sql(<span class="org-string">'annotation'</span>, conn, con=conn, if_exists=<span class="org-string">'replace'</span>))
+  conn.execute(<span class="org-string">'create index ix_annotation on annotation(chip_id, sample);'</span>)
+</pre>
+</div>
 </div>
 </div>
 </div>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-05-29 Tue 15:03</p>
+<p class="date">Created: 2018-06-02 Sat 20:26</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
