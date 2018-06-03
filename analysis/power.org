@@ -25,7 +25,7 @@
   #+CALL: ipython3(memory="4G", venv="scqtl")
 
   #+RESULTS:
-  : Submitted batch job 46351694
+  : Submitted batch job 46365482
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -39,11 +39,12 @@
     import numpy as np
     import pandas as pd
     import scipy.stats as st
+    import sklearn.gaussian_process as skgp
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[1]:
+  # Out[102]:
   :END:
 
 * Differential dispersion
@@ -267,7 +268,7 @@
                             'log_phi': log_phi['NA18507'],
                             'logodds': logodds['NA18507']},
                            index=log_mu.index)
-     params = params[params['log_mu'] > -10]
+     params = params[params['log_mu'] > -10].sample(n=100)
 
      sample_sizes = np.array([100, 1000, 10000])
      log_fold_changes = np.log(np.geomspace(1.1, 2, 5))
@@ -307,7 +308,102 @@
    #+END_SRC
 
    #+RESULTS:
-   : Submitted batch job 46356053
+   : Submitted batch job 46358533
+
+   Read the results.
+
+   #+BEGIN_SRC ipython
+     lrt_power = (pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/power/lrt-power.txt.gz', index_col=0)
+                  .reindex()
+                  .groupby(['num_mols', 'num_samples', 'log_fold_change'])
+                  .apply(lambda x: (np.exp(x['logp']) < 0.05).sum() / x.shape[0])
+                  .to_frame()
+                  .reset_index())
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[26]:
+   :END:
+
+   #+BEGIN_SRC ipython
+     lrt_power.head()
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[28]:
+   #+BEGIN_EXAMPLE
+     num_mols  num_samples  log_fold_change     0
+     0   10000.0          100         0.095310  0.00
+     1   10000.0          100         0.244769  0.00
+     2   10000.0          100         0.394229  0.00
+     3   10000.0          100         0.543688  0.00
+     4   10000.0          100         0.693147  0.01
+   #+END_EXAMPLE
+   :END:
+
+   Fit a GP to the results.
+
+   #+BEGIN_SRC ipython
+     f = (skgp.GaussianProcessRegressor(kernel=skgp.kernels.RBF(), n_restarts_optimizer=10)
+          .fit(lrt_power.loc[:,['num_mols', 'num_samples', 'log_fold_change']],
+               lrt_power.loc[:,0]))
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[63]:
+   :END:
+
+   Plot the results.
+
+   #+BEGIN_SRC ipython :ipyfile figure/power.org/lrt-power.png
+     plt.clf()
+     plt.gcf().set_size_inches(4, 4)
+     grid = np.log(np.linspace(1.1, 2, 100))
+     for n in sorted(set(lrt_power['num_samples'])):
+       color = colorcet.cm['inferno'](np.log(n) / np.log(lrt_power['num_samples'].max()))
+       subset = lrt_power[np.logical_and(lrt_power['num_mols'] == 10000, lrt_power['num_samples'] == n)]
+       plt.scatter(np.exp(subset['log_fold_change']), subset[0], s=3, c=color, label=n)
+       post_mean, post_std = f.predict(np.vstack([10000 * np.ones(100), n * np.ones(100), grid]).T, return_std=True)
+       plt.plot(np.exp(grid), post_mean, color=color)
+       plt.fill_between(np.exp(grid), post_mean - 1.96 * post_std, post_mean + 1.96 * post_std, color=color, alpha=0.25)
+     plt.legend(title='# samples', frameon=False, markerscale=2)
+     plt.xlabel('Fold change in dispersion')
+     plt.ylabel('Power')
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[122]:
+   : Text(0,0.5,'Power')
+   [[file:figure/power.org/lrt-power.png]]
+   :END:
+
+   #+BEGIN_SRC ipython :ipyfile figure/power.org/lrt-power-fixed-samples.png
+     plt.clf()
+     plt.gcf().set_size_inches(4, 4)
+     grid = np.log(np.linspace(1.1, 2, 100))
+     for n in sorted(set(lrt_power['num_mols'])):
+       color = colorcet.cm['inferno'](np.log(n) / np.log(lrt_power['num_mols'].max()))
+       subset = lrt_power[np.logical_and(lrt_power['num_mols'] == n, lrt_power['num_samples'] == 1000)]
+       plt.scatter(np.exp(subset['log_fold_change']), subset[0], s=4, c=color, label='$10^{:.0f}$'.format(np.log(n) / np.log(10)))
+       post_mean, post_std = f.predict(np.vstack([n * np.ones(100), 1000 * np.ones(100), grid]).T, return_std=True)
+       plt.plot(np.exp(grid), post_mean, color=color, lw=1)
+       plt.fill_between(np.exp(grid), post_mean - 1.96 * post_std, post_mean + 1.96 * post_std, color=color, alpha=0.25)
+     plt.legend(title='# molecules', frameon=False, markerscale=2)
+     plt.xlabel('Fold change in dispersion')
+     plt.ylabel('Power')
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[120]:
+   : Text(0,0.5,'Power')
+   [[file:figure/power.org/lrt-power-fixed-samples.png]]
+   :END:
+
 
 * eQTL discovery
 
