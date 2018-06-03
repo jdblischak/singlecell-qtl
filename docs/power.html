@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-06-02 Sat 20:26 -->
+<!-- 2018-06-03 Sun 16:31 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Power to detect QTLs in single cell data</title>
@@ -368,28 +368,13 @@ Submitted batch job 46322399
 </pre>
 
 <p>
-Plot the QQ-plot.
+Read the results.
 </p>
 
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-variable-name">null_lrt</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/null-calibration-p.txt.gz'</span>)
 <span class="org-variable-name">N</span> = null_lrt.shape[0]
-plt.clf()
-plt.gcf().set_size_inches(4, 4)
-plt.scatter(st.chi2(1).ppf(np.linspace(0, 1 - 1 / N, N)), null_lrt[<span class="org-string">'chi2'</span>].sort_values(), c=<span class="org-string">'k'</span>, s=2, alpha=0.25)
-<span class="org-variable-name">lim</span> = [0, 1.1 * null_lrt[<span class="org-string">'chi2'</span>].<span class="org-builtin">max</span>()]
-plt.plot(lim, lim, c=<span class="org-string">'r'</span>, ls=<span class="org-string">':'</span>, lw=1)
-plt.xlim(lim)
-plt.ylim(lim)
-plt.xlabel(<span class="org-string">'Expected $\chi^2$ statistic'</span>)
-<span class="org-variable-name">_</span> = plt.ylabel(<span class="org-string">'Observed $\chi^2$ statistic'</span>)
 </pre>
-</div>
-
-
-<div class="figure">
-<p><img src="figure/power.org/null-calibration-p.png" alt="null-calibration-p.png">
-</p>
 </div>
 
 <p>
@@ -405,6 +390,40 @@ Report how many genes were simulated.
 1832
 
 </pre>
+
+<p>
+Estimate bootstrap CIs for the quantiles.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">B</span> = np.sort(st.chi2(1).rvs((N, 100)), axis=0)
+<span class="org-variable-name">ci</span> = np.percentile(B, [2.5, 97.5], axis=1)
+</pre>
+</div>
+
+<p>
+Plot the QQ-plot.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.gcf().set_size_inches(4, 4)
+<span class="org-variable-name">grid</span> = st.chi2(1).ppf(np.linspace(0, 1 - 1 / N, N))
+plt.scatter(grid, null_lrt[<span class="org-string">'chi2'</span>].sort_values(), c=<span class="org-string">'k'</span>, s=2)
+plt.fill_between(grid, ci[0], ci[1], color=<span class="org-string">'k'</span>, alpha=0.1)
+<span class="org-variable-name">lim</span> = [0, 1.01 * grid.<span class="org-builtin">max</span>()]
+plt.plot(lim, lim, c=<span class="org-string">'r'</span>, lw=1)
+plt.xlim(lim)
+plt.xlabel(<span class="org-string">'Expected $\chi^2$ statistic'</span>)
+<span class="org-variable-name">_</span> = plt.ylabel(<span class="org-string">'Observed $\chi^2$ statistic'</span>)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/power.org/null-calibration-p.png" alt="null-calibration-p.png">
+</p>
+</div>
 </div>
 </div>
 
@@ -429,11 +448,11 @@ Sample from the assumed model.
                        <span class="org-string">'log_phi'</span>: log_phi[<span class="org-string">'NA18507'</span>],
                        <span class="org-string">'logodds'</span>: logodds[<span class="org-string">'NA18507'</span>]},
                       index=log_mu.index)
-<span class="org-variable-name">params</span> = params[params[<span class="org-string">'log_mu'</span>] &gt; -10].sample(n=100)
+<span class="org-variable-name">params</span> = params[params[<span class="org-string">'log_mu'</span>] &gt; -10].sample(n=50)
 
-<span class="org-variable-name">sample_sizes</span> = np.array([100, 1000, 10000])
+<span class="org-variable-name">sample_sizes</span> = np.geomspace(1e2, 1e5, 5).astype(<span class="org-builtin">int</span>)
 <span class="org-variable-name">log_fold_changes</span> = np.log(np.geomspace(1.1, 2, 5))
-<span class="org-variable-name">depths</span> = np.array([1e4, 1e5, 1e6])
+<span class="org-variable-name">depths</span> = np.geomspace(1e4, 1e6, 5)
 
 <span class="org-variable-name">result</span> = []
 <span class="org-keyword">for</span> num_mols <span class="org-keyword">in</span> depths:
@@ -471,46 +490,46 @@ python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-lrt-power.py
 </div>
 
 <pre class="example">
-Submitted batch job 46358533
+Submitted batch job 46367157
 
 </pre>
+
+<div class="org-src-container">
+<pre class="src src-sh">sacct -j 46367157 -o Elapsed
+</pre>
+</div>
+
+<pre class="example">
+   Elapsed 
+---------- 
+  06:59:58 
+  06:59:58 
+  06:59:58 
+
+</pre>
+
+<p>
+Move the results to permanent storage.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">rsync -FFau /scratch/midway2/aksarkar/singlecell/power /project2/mstephens/aksarkar/projects/singlecell-qtl/data/power/
+</pre>
+</div>
 
 <p>
 Read the results.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">lrt_power</span> = (pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/power/lrt-power.txt.gz'</span>, index_col=0)
-             .reindex()
-             .groupby([<span class="org-string">'num_mols'</span>, <span class="org-string">'num_samples'</span>, <span class="org-string">'log_fold_change'</span>])
+<pre class="src src-ipython"><span class="org-variable-name">lrt_results</span> = (pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/power/lrt-power.txt.gz'</span>, index_col=0)
+             .reindex())
+<span class="org-variable-name">features</span> = [<span class="org-string">'num_mols'</span>, <span class="org-string">'num_samples'</span>, <span class="org-string">'log_fold_change'</span>]
+<span class="org-variable-name">lrt_power</span> = (lrt_results
+             .groupby(features)
              .<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: (np.exp(x[<span class="org-string">'logp'</span>]) &lt; 0.05).<span class="org-builtin">sum</span>() / x.shape[0])
              .to_frame()
              .reset_index())
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython">lrt_power.head()
-</pre>
-</div>
-
-<pre class="example">
-num_mols  num_samples  log_fold_change     0
-0   10000.0          100         0.095310  0.00
-1   10000.0          100         0.244769  0.00
-2   10000.0          100         0.394229  0.00
-3   10000.0          100         0.543688  0.00
-4   10000.0          100         0.693147  0.01
-</pre>
-
-<p>
-Fit a GP to the results.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">f</span> = (skgp.GaussianProcessRegressor(kernel=skgp.kernels.RBF(), n_restarts_optimizer=10)
-     .fit(lrt_power.loc[:,[<span class="org-string">'num_mols'</span>, <span class="org-string">'num_samples'</span>, <span class="org-string">'log_fold_change'</span>]],
-          lrt_power.loc[:,0]))
 </pre>
 </div>
 
@@ -521,22 +540,22 @@ Plot the results.
 <div class="org-src-container">
 <pre class="src src-ipython">plt.clf()
 plt.gcf().set_size_inches(4, 4)
+<span class="org-variable-name">num_mols</span> = 1e5
 <span class="org-variable-name">grid</span> = np.log(np.linspace(1.1, 2, 100))
-<span class="org-keyword">for</span> n <span class="org-keyword">in</span> <span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(lrt_power[<span class="org-string">'num_samples'</span>])):
-  <span class="org-variable-name">color</span> = colorcet.cm[<span class="org-string">'inferno'</span>](np.log(n) / np.log(lrt_power[<span class="org-string">'num_samples'</span>].<span class="org-builtin">max</span>()))
-  <span class="org-variable-name">subset</span> = lrt_power[np.logical_and(lrt_power[<span class="org-string">'num_mols'</span>] == 10000, lrt_power[<span class="org-string">'num_samples'</span>] == n)]
-  plt.scatter(np.exp(subset[<span class="org-string">'log_fold_change'</span>]), subset[0], s=3, c=color, label=n)
-  <span class="org-variable-name">post_mean</span>, <span class="org-variable-name">post_std</span> = f.predict(np.vstack([10000 * np.ones(100), n * np.ones(100), grid]).T, return_std=<span class="org-constant">True</span>)
-  plt.plot(np.exp(grid), post_mean, color=color)
-  plt.fill_between(np.exp(grid), post_mean - 1.96 * post_std, post_mean + 1.96 * post_std, color=color, alpha=0.25)
-plt.legend(title=<span class="org-string">'# samples'</span>, frameon=<span class="org-constant">False</span>, markerscale=2)
+<span class="org-variable-name">groups</span> = <span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(lrt_power[<span class="org-string">'num_samples'</span>]))
+<span class="org-keyword">for</span> i, n <span class="org-keyword">in</span> <span class="org-builtin">enumerate</span>(groups):
+  <span class="org-variable-name">color</span> = colorcet.cm[<span class="org-string">'inferno'</span>]((i + 1 / (2 * <span class="org-builtin">len</span>(groups))) / <span class="org-builtin">len</span>(groups))
+  <span class="org-variable-name">subset</span> = lrt_power[np.logical_and(lrt_power[<span class="org-string">'num_mols'</span>] == num_mols, lrt_power[<span class="org-string">'num_samples'</span>] == n)]
+  plt.plot(np.exp(subset[<span class="org-string">'log_fold_change'</span>]), subset[0], lw=1, marker=<span class="org-string">'.'</span>, ms=8, c=color,
+           label=<span class="org-string">'$10^{{{:.1f}}}$'</span>.<span class="org-builtin">format</span>(np.log(n) / np.log(10)))
+plt.legend(title=<span class="org-string">'# samples'</span>, frameon=<span class="org-constant">False</span>, loc=<span class="org-string">'center left'</span>, bbox_to_anchor=(1, .5))
 plt.xlabel(<span class="org-string">'Fold change in dispersion'</span>)
-plt.ylabel(<span class="org-string">'Power'</span>)
+plt.ylabel(<span class="org-string">'Power at level 0.05'</span>)
 </pre>
 </div>
 
 <pre class="example">
-Text(0,0.5,'Power')
+Text(0,0.5,'Power at level 0.05')
 
 </pre>
 
@@ -548,22 +567,20 @@ Text(0,0.5,'Power')
 <div class="org-src-container">
 <pre class="src src-ipython">plt.clf()
 plt.gcf().set_size_inches(4, 4)
-<span class="org-variable-name">grid</span> = np.log(np.linspace(1.1, 2, 100))
-<span class="org-keyword">for</span> n <span class="org-keyword">in</span> <span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(lrt_power[<span class="org-string">'num_mols'</span>])):
-  <span class="org-variable-name">color</span> = colorcet.cm[<span class="org-string">'inferno'</span>](np.log(n) / np.log(lrt_power[<span class="org-string">'num_mols'</span>].<span class="org-builtin">max</span>()))
-  <span class="org-variable-name">subset</span> = lrt_power[np.logical_and(lrt_power[<span class="org-string">'num_mols'</span>] == n, lrt_power[<span class="org-string">'num_samples'</span>] == 1000)]
-  plt.scatter(np.exp(subset[<span class="org-string">'log_fold_change'</span>]), subset[0], s=4, c=color, label=<span class="org-string">'$10^{:.0f}$'</span>.<span class="org-builtin">format</span>(np.log(n) / np.log(10)))
-  <span class="org-variable-name">post_mean</span>, <span class="org-variable-name">post_std</span> = f.predict(np.vstack([n * np.ones(100), 1000 * np.ones(100), grid]).T, return_std=<span class="org-constant">True</span>)
-  plt.plot(np.exp(grid), post_mean, color=color, lw=1)
-  plt.fill_between(np.exp(grid), post_mean - 1.96 * post_std, post_mean + 1.96 * post_std, color=color, alpha=0.25)
-plt.legend(title=<span class="org-string">'# molecules'</span>, frameon=<span class="org-constant">False</span>, markerscale=2)
+<span class="org-variable-name">num_samples</span> = 100
+<span class="org-variable-name">groups</span> = <span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(lrt_power[<span class="org-string">'num_mols'</span>]))
+<span class="org-keyword">for</span> i, n <span class="org-keyword">in</span> <span class="org-builtin">enumerate</span>(groups):
+  <span class="org-variable-name">color</span> = colorcet.cm[<span class="org-string">'inferno'</span>]((i + 1 / (2 * <span class="org-builtin">len</span>(groups))) / <span class="org-builtin">len</span>(groups))
+  <span class="org-variable-name">subset</span> = lrt_power[np.logical_and(lrt_power[<span class="org-string">'num_mols'</span>] == n, lrt_power[<span class="org-string">'num_samples'</span>] == num_samples)]
+  plt.plot(np.exp(subset[<span class="org-string">'log_fold_change'</span>]), subset[0], lw=1, marker=<span class="org-string">'.'</span>, ms=8, c=color, label=<span class="org-string">'$10^{{{:.1f}}}$'</span>.<span class="org-builtin">format</span>(np.log(n) / np.log(10)))
+plt.legend(title=<span class="org-string">'# molecules'</span>, frameon=<span class="org-constant">False</span>, loc=<span class="org-string">'center left'</span>, bbox_to_anchor=(1, .5))
 plt.xlabel(<span class="org-string">'Fold change in dispersion'</span>)
-plt.ylabel(<span class="org-string">'Power'</span>)
+plt.ylabel(<span class="org-string">'Power at level 0.05'</span>)
 </pre>
 </div>
 
 <pre class="example">
-Text(0,0.5,'Power')
+Text(0,0.5,'Power at level 0.05')
 
 </pre>
 
@@ -584,7 +601,7 @@ variants) following a linear model:
 </p>
 
 <p>
-\[ \ln\mu = \mathbf{X} \bm{\beta} + \bm{\epsilon} \]
+\[ \ln\mu_i = \sum_j X_{ij} \beta_j + \epsilon_i \]
 </p>
 
 <p>
@@ -592,12 +609,96 @@ variants) following a linear model:
 </p>
 
 <p>
-\[ \bm{\beta} \sim (1 - \frac{m}{p}) \delta_0 + \frac{m}{p} N(0, \sigma^2_g / m) \]
+\[ \beta_j \sim N(0, h^2 / m) \text{if \(j\) causal}\]
 </p>
 
 <p>
-\[ \bm{\epsilon} \sim N(0, \sigma^2_e) \]
+\[ \epsilon_i \sim N(0, 1 - h^2) \]
 </p>
+
+<div class="org-src-container">
+<pre class="src src-ipython" id="org2dcef1f"><span class="org-keyword">def</span> <span class="org-function-name">read_dosage</span>(row, dose_file, window=100000):
+  <span class="org-variable-name">x</span> = np.array([record[9:] <span class="org-keyword">for</span> record <span class="org-keyword">in</span> dose_file.query(row[<span class="org-string">'chr'</span>], row[<span class="org-string">'start'</span>] - window, row[<span class="org-string">'start'</span>] + window)]).astype(np.<span class="org-builtin">float</span>).T
+  <span class="org-variable-name">x</span> -= x.mean(axis=0)
+  <span class="org-variable-name">x</span> /= x.std(axis=0)
+  <span class="org-keyword">return</span> x
+
+<span class="org-keyword">def</span> <span class="org-function-name">generate_pheno</span>(x, pve, m=1):
+  <span class="org-variable-name">n</span>, <span class="org-variable-name">p</span> = x.shape
+  <span class="org-variable-name">theta</span> = np.zeros(p)
+  <span class="org-comment-delimiter"># </span><span class="org-comment">Assume x standardized</span>
+  <span class="org-variable-name">theta</span>[np.random.choice(p, m, replace=<span class="org-constant">False</span>)] = np.random.normal(size=m)
+  <span class="org-variable-name">y</span> = x.dot(theta)
+  <span class="org-variable-name">y</span> += np.random.normal(scale=np.sqrt(y.var() * (1 / pve - 1)), size=n)
+  <span class="org-keyword">return</span> y.reshape(-1, 1)
+
+<span class="org-variable-name">_sf</span> = st.chi2(1).sf
+
+<span class="org-keyword">def</span> <span class="org-function-name">nominal_test</span>(x, y):
+  <span class="org-variable-name">n</span> = y.shape[0]
+  <span class="org-comment-delimiter"># </span><span class="org-comment">Assume x standardized, so diag(X' X) = n I</span>
+  <span class="org-variable-name">beta</span> = x.T.dot(y) / n
+  <span class="org-variable-name">df</span> = n - 1
+  <span class="org-variable-name">rss</span> = ((y ** 2).<span class="org-builtin">sum</span>() - beta ** 2 * n)
+  <span class="org-variable-name">sigma2</span> = rss / df
+  <span class="org-keyword">return</span> _sf(beta ** 2 / sigma2)
+
+<span class="org-keyword">def</span> <span class="org-function-name">beta_llik</span>(theta, x):
+  <span class="org-keyword">return</span> -st.beta.logpdf(x, *theta).mean()
+
+<span class="org-keyword">def</span> <span class="org-function-name">permutation_test</span>(x, y, num_trials=100):
+  <span class="org-variable-name">pval</span> = nominal_test(x, y).<span class="org-builtin">min</span>()
+  <span class="org-variable-name">null_pheno</span> = y.copy()
+  <span class="org-variable-name">null_pvals</span> = []
+  <span class="org-keyword">for</span> _ <span class="org-keyword">in</span> <span class="org-builtin">range</span>(num_trials):
+    np.random.shuffle(y)
+    null_pvals.append(nominal_test(x, null_pheno).<span class="org-builtin">min</span>())
+  <span class="org-variable-name">null_pvals</span> = np.array(null_pvals)
+  <span class="org-variable-name">theta</span> = np.ones(2)
+  <span class="org-variable-name">opt</span> = so.minimize(beta_llik, x0=theta, args=(null_pvals,))
+  <span class="org-keyword">if</span> opt.success:
+    <span class="org-variable-name">theta</span> = opt.x
+  <span class="org-keyword">else</span>:
+    <span class="org-comment-delimiter"># </span><span class="org-comment">Method of moments</span>
+    <span class="org-variable-name">theta</span> = np.array([1, (1 / null_pvals.mean() - 1)])
+    <span class="org-variable-name">theta</span> *= np.square(null_pvals.mean()) * ((1 - null_pvals.mean()) / null_pvals.var() - 1)
+  <span class="org-keyword">return</span> st.beta.cdf(pval, *theta)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">&lt;&lt;power-imports&gt;&gt;
+&lt;&lt;eqtl-sim-impl&gt;&gt;
+
+<span class="org-variable-name">yri</span> = tabix.<span class="org-builtin">open</span>(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz'</span>)
+<span class="org-comment-delimiter"># </span><span class="org-comment">Restrict to genes where we previously successfully mapped eQTLs</span>
+<span class="org-variable-name">eqtls</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/pooled.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0).dropna()
+
+np.random.seed(0)
+<span class="org-variable-name">query</span> = eqtls.sample(n=100)
+<span class="org-variable-name">result</span> = []
+<span class="org-keyword">for</span> pve <span class="org-keyword">in</span> np.geomspace(.01, 1, 10):
+  <span class="org-keyword">for</span> _, record <span class="org-keyword">in</span> query.iterrows():
+    <span class="org-variable-name">x</span> = read_dosage(record, yri)
+    <span class="org-variable-name">y</span> = generate_pheno(x, pve)
+    <span class="org-variable-name">pval</span> = permutation_test(x, y)
+    result.append({<span class="org-string">'gene'</span>: record.name, <span class="org-string">'p'</span>: x.shape[1], <span class="org-string">'pve'</span>: pve, <span class="org-string">'pval'</span>: pval})
+pd.DataFrame.from_dict(result).to_csv(<span class="org-string">'eqtl-power.txt.gz'</span>, compression=<span class="org-string">'gzip'</span>, sep=<span class="org-string">'\t'</span>)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-sh">sbatch --partition=broadwl -n1 -c28 --exclusive --mem=16G --job-name=eqtl-power --output=eqtl-power.out
+<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
+<span class="org-builtin">source</span> activate scqtl
+python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/eqtl-power.py
+</pre>
+</div>
+
+<pre class="example">
+Submitted batch job 46369347
+
+</pre>
 
 <p>
 The key insight is that the single cell experiment size changes the standard
@@ -606,6 +707,14 @@ error of the mean estimator.
 
 <p>
 \[ \ln{\hat\mu} \sim N(\ln\mu, \sigma^2) \]
+</p>
+
+<p>
+This is the same as changing effective PVE:
+</p>
+
+<p>
+\[ h^2_{eff} = \frac{h^2}{1 + \sigma^2} \]
 </p>
 
 <p>
@@ -631,7 +740,7 @@ linear model:
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-06-02 Sat 20:26</p>
+<p class="date">Created: 2018-06-03 Sun 16:31</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
