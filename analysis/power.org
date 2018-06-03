@@ -25,7 +25,7 @@
   #+CALL: ipython3(memory="4G", venv="scqtl")
 
   #+RESULTS:
-  : Submitted batch job 46365482
+  : Submitted batch job 46368762
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -36,16 +36,21 @@
     import gzip
     import io
     import matplotlib.pyplot as plt
-    import numpy as np
-    import pandas as pd
-    import scipy.stats as st
-    import sklearn.gaussian_process as skgp
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[102]:
+  # Out[1]:
   :END:
+
+  #+NAME: power-imports
+  #+BEGIN_SRC ipython
+    import numpy as np
+    import pandas as pd
+    import scipy.optimize as so
+    import scipy.stats as st
+    import tabix
+  #+END_SRC
 
 * Differential dispersion
 
@@ -123,26 +128,16 @@
    #+RESULTS:
    : Submitted batch job 46322399
 
-   Plot the QQ-plot.
+   Read the results.
 
-   #+BEGIN_SRC ipython :ipyfile figure/power.org/null-calibration-p.png
+   #+BEGIN_SRC ipython
      null_lrt = pd.read_table('/scratch/midway2/aksarkar/singlecell/power/null-calibration-p.txt.gz')
      N = null_lrt.shape[0]
-     plt.clf()
-     plt.gcf().set_size_inches(4, 4)
-     plt.scatter(st.chi2(1).ppf(np.linspace(0, 1 - 1 / N, N)), null_lrt['chi2'].sort_values(), c='k', s=2, alpha=0.25)
-     lim = [0, 1.1 * null_lrt['chi2'].max()]
-     plt.plot(lim, lim, c='r', ls=':', lw=1)
-     plt.xlim(lim)
-     plt.ylim(lim)
-     plt.xlabel('Expected $\chi^2$ statistic')
-     _ = plt.ylabel('Observed $\chi^2$ statistic')
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[12]:
-   [[file:figure/power.org/null-calibration-p.png]]
+   # Out[2]:
    :END:
 
    Report how many genes were simulated.
@@ -153,8 +148,41 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[13]:
+   # Out[3]:
    : 1832
+   :END:
+
+   Estimate bootstrap CIs for the quantiles.
+
+   #+BEGIN_SRC ipython
+     B = np.sort(st.chi2(1).rvs((N, 100)), axis=0)
+     ci = np.percentile(B, [2.5, 97.5], axis=1)
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[18]:
+   :END:
+
+   Plot the QQ-plot.
+
+   #+BEGIN_SRC ipython :ipyfile figure/power.org/null-calibration-p.png
+     plt.clf()
+     plt.gcf().set_size_inches(4, 4)
+     grid = st.chi2(1).ppf(np.linspace(0, 1 - 1 / N, N))
+     plt.scatter(grid, null_lrt['chi2'].sort_values(), c='k', s=2)
+     plt.fill_between(grid, ci[0], ci[1], color='k', alpha=0.1)
+     lim = [0, 1.01 * grid.max()]
+     plt.plot(lim, lim, c='r', lw=1)
+     plt.xlim(lim)
+     plt.xlabel('Expected $\chi^2$ statistic')
+     _ = plt.ylabel('Observed $\chi^2$ statistic')
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[40]:
+   [[file:figure/power.org/null-calibration-p.png]]
    :END:
 
 ** Null calibration via nonparametric bootstrap                    :noexport:
@@ -268,11 +296,11 @@
                             'log_phi': log_phi['NA18507'],
                             'logodds': logodds['NA18507']},
                            index=log_mu.index)
-     params = params[params['log_mu'] > -10].sample(n=100)
+     params = params[params['log_mu'] > -10].sample(n=50)
 
-     sample_sizes = np.array([100, 1000, 10000])
+     sample_sizes = np.geomspace(1e2, 1e5, 5).astype(int)
      log_fold_changes = np.log(np.geomspace(1.1, 2, 5))
-     depths = np.array([1e4, 1e5, 1e6])
+     depths = np.geomspace(1e4, 1e6, 5)
 
      result = []
      for num_mols in depths:
@@ -308,14 +336,35 @@
    #+END_SRC
 
    #+RESULTS:
-   : Submitted batch job 46358533
+   : Submitted batch job 46367157
+
+   #+BEGIN_SRC sh
+     sacct -j 46367157 -o Elapsed
+   #+END_SRC
+
+   #+RESULTS:
+   :    Elapsed 
+   : ---------- 
+   :   06:59:58 
+   :   06:59:58 
+   :   06:59:58 
+
+   Move the results to permanent storage.
+
+   #+BEGIN_SRC sh
+     rsync -FFau /scratch/midway2/aksarkar/singlecell/power /project2/mstephens/aksarkar/projects/singlecell-qtl/data/power/
+   #+END_SRC
+
+   #+RESULTS:
 
    Read the results.
 
    #+BEGIN_SRC ipython
-     lrt_power = (pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/power/lrt-power.txt.gz', index_col=0)
-                  .reindex()
-                  .groupby(['num_mols', 'num_samples', 'log_fold_change'])
+     lrt_results = (pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/power/lrt-power.txt.gz', index_col=0)
+                  .reindex())
+     features = ['num_mols', 'num_samples', 'log_fold_change']
+     lrt_power = (lrt_results
+                  .groupby(features)
                   .apply(lambda x: (np.exp(x['logp']) < 0.05).sum() / x.shape[0])
                   .to_frame()
                   .reset_index())
@@ -323,37 +372,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[26]:
-   :END:
-
-   #+BEGIN_SRC ipython
-     lrt_power.head()
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[28]:
-   #+BEGIN_EXAMPLE
-     num_mols  num_samples  log_fold_change     0
-     0   10000.0          100         0.095310  0.00
-     1   10000.0          100         0.244769  0.00
-     2   10000.0          100         0.394229  0.00
-     3   10000.0          100         0.543688  0.00
-     4   10000.0          100         0.693147  0.01
-   #+END_EXAMPLE
-   :END:
-
-   Fit a GP to the results.
-
-   #+BEGIN_SRC ipython
-     f = (skgp.GaussianProcessRegressor(kernel=skgp.kernels.RBF(), n_restarts_optimizer=10)
-          .fit(lrt_power.loc[:,['num_mols', 'num_samples', 'log_fold_change']],
-               lrt_power.loc[:,0]))
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[63]:
+   # Out[46]:
    :END:
 
    Plot the results.
@@ -361,46 +380,44 @@
    #+BEGIN_SRC ipython :ipyfile figure/power.org/lrt-power.png
      plt.clf()
      plt.gcf().set_size_inches(4, 4)
+     num_mols = 1e5
      grid = np.log(np.linspace(1.1, 2, 100))
-     for n in sorted(set(lrt_power['num_samples'])):
-       color = colorcet.cm['inferno'](np.log(n) / np.log(lrt_power['num_samples'].max()))
-       subset = lrt_power[np.logical_and(lrt_power['num_mols'] == 10000, lrt_power['num_samples'] == n)]
-       plt.scatter(np.exp(subset['log_fold_change']), subset[0], s=3, c=color, label=n)
-       post_mean, post_std = f.predict(np.vstack([10000 * np.ones(100), n * np.ones(100), grid]).T, return_std=True)
-       plt.plot(np.exp(grid), post_mean, color=color)
-       plt.fill_between(np.exp(grid), post_mean - 1.96 * post_std, post_mean + 1.96 * post_std, color=color, alpha=0.25)
-     plt.legend(title='# samples', frameon=False, markerscale=2)
+     groups = sorted(set(lrt_power['num_samples']))
+     for i, n in enumerate(groups):
+       color = colorcet.cm['inferno']((i + 1 / (2 * len(groups))) / len(groups))
+       subset = lrt_power[np.logical_and(lrt_power['num_mols'] == num_mols, lrt_power['num_samples'] == n)]
+       plt.plot(np.exp(subset['log_fold_change']), subset[0], lw=1, marker='.', ms=8, c=color,
+                label='$10^{{{:.1f}}}$'.format(np.log(n) / np.log(10)))
+     plt.legend(title='# samples', frameon=False, loc='center left', bbox_to_anchor=(1, .5))
      plt.xlabel('Fold change in dispersion')
-     plt.ylabel('Power')
+     plt.ylabel('Power at level 0.05')
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[122]:
-   : Text(0,0.5,'Power')
+   # Out[83]:
+   : Text(0,0.5,'Power at level 0.05')
    [[file:figure/power.org/lrt-power.png]]
    :END:
 
    #+BEGIN_SRC ipython :ipyfile figure/power.org/lrt-power-fixed-samples.png
      plt.clf()
      plt.gcf().set_size_inches(4, 4)
-     grid = np.log(np.linspace(1.1, 2, 100))
-     for n in sorted(set(lrt_power['num_mols'])):
-       color = colorcet.cm['inferno'](np.log(n) / np.log(lrt_power['num_mols'].max()))
-       subset = lrt_power[np.logical_and(lrt_power['num_mols'] == n, lrt_power['num_samples'] == 1000)]
-       plt.scatter(np.exp(subset['log_fold_change']), subset[0], s=4, c=color, label='$10^{:.0f}$'.format(np.log(n) / np.log(10)))
-       post_mean, post_std = f.predict(np.vstack([n * np.ones(100), 1000 * np.ones(100), grid]).T, return_std=True)
-       plt.plot(np.exp(grid), post_mean, color=color, lw=1)
-       plt.fill_between(np.exp(grid), post_mean - 1.96 * post_std, post_mean + 1.96 * post_std, color=color, alpha=0.25)
-     plt.legend(title='# molecules', frameon=False, markerscale=2)
+     num_samples = 100
+     groups = sorted(set(lrt_power['num_mols']))
+     for i, n in enumerate(groups):
+       color = colorcet.cm['inferno']((i + 1 / (2 * len(groups))) / len(groups))
+       subset = lrt_power[np.logical_and(lrt_power['num_mols'] == n, lrt_power['num_samples'] == num_samples)]
+       plt.plot(np.exp(subset['log_fold_change']), subset[0], lw=1, marker='.', ms=8, c=color, label='$10^{{{:.1f}}}$'.format(np.log(n) / np.log(10)))
+     plt.legend(title='# molecules', frameon=False, loc='center left', bbox_to_anchor=(1, .5))
      plt.xlabel('Fold change in dispersion')
-     plt.ylabel('Power')
+     plt.ylabel('Power at level 0.05')
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[120]:
-   : Text(0,0.5,'Power')
+   # Out[87]:
+   : Text(0,0.5,'Power at level 0.05')
    [[file:figure/power.org/lrt-power-fixed-samples.png]]
    :END:
 
@@ -409,18 +426,151 @@
   We assume expression is generated from \(m\) causal effects (out of \(p\)
   variants) following a linear model:
 
-  \[ \ln\mu = \mathbf{X} \bm{\beta} + \bm{\epsilon} \]
+  \[ \ln\mu_i = \sum_j X_{ij} \beta_j + \epsilon_i \]
 
   \[ \mathbb{E}[x_i] = 0, \mathbb{V}[x_i] = 1 \]
 
-  \[ \bm{\beta} \sim (1 - \frac{m}{p}) \delta_0 + \frac{m}{p} N(0, \sigma^2_g / m) \]
+  \[ \beta_j \sim N(0, h^2 / m) \text{if \(j\) causal}\]
 
-  \[ \bm{\epsilon} \sim N(0, \sigma^2_e) \]
+  \[ \epsilon_i \sim N(0, 1 - h^2) \]
 
-  The key insight is that the single cell experiment size changes the standard
-  error of the mean estimator.
+  #+NAME: eqtl-sim-impl
+  #+BEGIN_SRC ipython
+    def read_dosage(row, dose_file, window=100000):
+      x = np.array([record[9:] for record in dose_file.query(row['chr'], row['start'] - window, row['start'] + window)]).astype(np.float).T
+      x -= x.mean(axis=0)
+      x /= x.std(axis=0)
+      return x
 
-  \[ \ln{\hat\mu} \sim N(\ln\mu, \sigma^2) \]
+    def generate_pheno(x, pve, m=1):
+      n, p = x.shape
+      theta = np.zeros(p)
+      # Assume x standardized
+      theta[np.random.choice(p, m, replace=False)] = np.random.normal(size=m)
+      y = x.dot(theta)
+      y += np.random.normal(scale=np.sqrt(y.var() * (1 / pve - 1)), size=n)
+      return y.reshape(-1, 1)
+
+    _sf = st.chi2(1).sf
+
+    def nominal_test(x, y):
+      n = y.shape[0]
+      # Assume x standardized, so diag(X' X) = n I
+      beta = x.T.dot(y) / n
+      df = n - 1
+      rss = ((y ** 2).sum() - beta ** 2 * n)
+      sigma2 = rss / df
+      return _sf(beta ** 2 / sigma2)
+
+    def beta_llik(theta, x):
+      return -st.beta.logpdf(x, *theta).mean()
+
+    def permutation_test(x, y, num_trials=100):
+      pval = nominal_test(x, y).min()
+      null_pheno = y.copy()
+      null_pvals = []
+      for _ in range(num_trials):
+        np.random.shuffle(null_pheno)
+        null_pvals.append(nominal_test(x, null_pheno).min())
+      null_pvals = np.array(null_pvals)
+      theta = np.ones(2)
+      opt = so.minimize(beta_llik, x0=theta, args=(null_pvals,))
+      if opt.success:
+        theta = opt.x
+      else:
+        # Method of moments
+        theta = np.array([1, (1 / null_pvals.mean() - 1)])
+        theta *= np.square(null_pvals.mean()) * ((1 - null_pvals.mean()) / null_pvals.var() - 1)
+      return st.beta.cdf(pval, *theta)
+  #+END_SRC
+
+  #+RESULTS: eqtl-sim-impl
+  :RESULTS:
+  # Out[297]:
+  :END:
+
+  Re-QC dosages for 120 YRI individuals.
+
+  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
+    sbatch --partition=broadwl --job-name=reprocess-dosage --out=reprocess-dosage.out
+    #!/bin/bash
+    set -e
+    source activate scqtl
+    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/reprocess-dosage.py
+    bgzip dosages.vcf
+    tabix dosages.vcf.gz
+  #+END_SRC
+
+  #+RESULTS:
+  : Submitted batch job 46369493
+
+  #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/eqtl-power.py
+    <<power-imports>>
+    <<eqtl-sim-impl>>
+
+    yri = tabix.open('/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz')
+    # Restrict to genes where we previously successfully mapped eQTLs
+    eqtls = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/pooled.txt.gz', sep=' ', index_col=0).dropna()
+
+    np.random.seed(0)
+    query = eqtls.sample(n=100)
+    result = []
+    for pve in np.geomspace(.01, 1, 10):
+      for _, record in query.iterrows():
+        x = read_dosage(record, yri)
+        y = generate_pheno(x, pve)
+        pval = permutation_test(x, y)
+        result.append({'gene': record.name, 'p': x.shape[1], 'pve': pve, 'pval': pval})
+    pd.DataFrame.from_dict(result).to_csv('eqtl-power.txt.gz', compression='gzip', sep='\t')
+  #+END_SRC
+
+  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/power/
+    sbatch --partition=broadwl -n1 -c28 --exclusive --mem=16G --job-name=eqtl-power --output=eqtl-power.out
+    #!/bin/bash
+    source activate scqtl
+    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/eqtl-power.py
+  #+END_SRC
+
+  #+RESULTS:
+  : Submitted batch job 46369383
+
+  Read the results.
+
+  #+BEGIN_SRC ipython
+    qtl_results = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/power/eqtl-power.txt.gz', index_col=0)
+    qtl_power = qtl_results.groupby('pve').apply(lambda x: (x['pval'] < 0.05).sum() / x.shape[0]).reset_index().rename(columns={0: 'power'})
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[303]:
+  :END:
+
+  Plot the results.
+
+  #+BEGIN_SRC ipython :ipyfile figure/power.org/eqtl-power.png
+    plt.clf()
+    plt.gcf().set_size_inches(4, 4)
+    plt.plot(qtl_power['pve'], qtl_power['power'], marker='.', c='k', lw=1, ms=8)
+    plt.xlabel('Proportion of variance explained')
+    _ = plt.ylabel('Power at level 0.05')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[307]:
+  [[file:figure/power.org/eqtl-power.png]]
+  :END:
+
+  The key insight is that the single cell experiment size determines the
+  standard error of the estimator, which can be thought of as measurement
+  error.
+
+  \[ \hat\theta \sim N(\theta, \sigma^2) \]
+
+  This is the same as changing effective PVE:
+
+  \[ h^2_{\mathrm{eff}} = \frac{h^2}{1 + \sigma^2} \]
 
   We estimate the standard error as a function of the experiment size from the
   simulation.
