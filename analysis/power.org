@@ -508,7 +508,7 @@
     <<power-imports>>
     <<eqtl-sim-impl>>
 
-    yri = tabix.open('/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz')
+    yri = tabix.open('/scratch/midway2/aksarkar/singlecell/scqtl-mapping/dosages.vcf.gz')
     # Restrict to genes where we previously successfully mapped eQTLs
     eqtls = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/pooled.txt.gz', sep=' ', index_col=0).dropna()
 
