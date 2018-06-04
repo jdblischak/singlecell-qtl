@@ -25,7 +25,7 @@
   #+CALL: ipython3(memory="4G", venv="scqtl")
 
   #+RESULTS:
-  : Submitted batch job 46368762
+  : Submitted batch job 46371363
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -45,12 +45,18 @@
 
   #+NAME: power-imports
   #+BEGIN_SRC ipython
+    import multiprocessing as mp
     import numpy as np
     import pandas as pd
     import scipy.optimize as so
     import scipy.stats as st
     import tabix
   #+END_SRC
+
+  #+RESULTS: power-imports
+  :RESULTS:
+  # Out[2]:
+  :END:
 
 * Differential dispersion
 
@@ -482,11 +488,36 @@
         theta = np.array([1, (1 / null_pvals.mean() - 1)])
         theta *= np.square(null_pvals.mean()) * ((1 - null_pvals.mean()) / null_pvals.var() - 1)
       return st.beta.cdf(pval, *theta)
+
+    # Important: tabix read doesn't appear to be thread-safe
+    read_lock = mp.Lock()
+
+    def evaluate(num_individuals, num_causal, pve, num_genes=100):
+      query = eqtls.sample(n=num_genes)
+      result = []
+      for _, record in query.iterrows():
+        read_lock.acquire()
+        try:
+          x = read_dosage(record, yri)
+        finally:
+          read_lock.release()
+        keep = np.random.choice(x.shape[0], num_individuals, replace=False)
+        x = x[keep]
+        y = generate_pheno(x, pve=pve, m=num_causal)
+        pval = permutation_test(x, y)
+        result.append({
+          'gene': record.name,
+          'num_individuals': x.shape[0],
+          'num_snps': x.shape[1],
+          'num_causal': num_causal,
+          'pve': pve,
+          'pval': pval})
+      return pd.DataFrame.from_dict(result)
   #+END_SRC
 
   #+RESULTS: eqtl-sim-impl
   :RESULTS:
-  # Out[297]:
+  # Out[3]:
   :END:
 
   Re-QC dosages for 120 YRI individuals.
@@ -504,6 +535,8 @@
   #+RESULTS:
   : Submitted batch job 46369493
 
+  Run the power calculation on 28 CPUs.
+
   #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/eqtl-power.py
     <<power-imports>>
     <<eqtl-sim-impl>>
@@ -512,16 +545,15 @@
     # Restrict to genes where we previously successfully mapped eQTLs
     eqtls = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/pooled.txt.gz', sep=' ', index_col=0).dropna()
 
+    args = [(n, m, pve)
+            for n in (53, 75, 100, 120)
+            for m in (1, 2, 3)
+            for pve in np.geomspace(.01, 0.5, 5)]
+
     np.random.seed(0)
-    query = eqtls.sample(n=100)
-    result = []
-    for pve in np.geomspace(.01, 1, 10):
-      for _, record in query.iterrows():
-        x = read_dosage(record, yri)
-        y = generate_pheno(x, pve)
-        pval = permutation_test(x, y)
-        result.append({'gene': record.name, 'p': x.shape[1], 'pve': pve, 'pval': pval})
-    pd.DataFrame.from_dict(result).to_csv('eqtl-power.txt.gz', compression='gzip', sep='\t')
+    with mp.Pool() as pool:
+      result = pool.starmap(evaluate, args)
+    pd.concat(result).to_csv('eqtl-power.txt.gz', compression='gzip', sep='\t')
   #+END_SRC
 
   #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/power/
@@ -532,7 +564,7 @@
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 46369383
+  : Submitted batch job 46371621
 
   Read the results.
 
