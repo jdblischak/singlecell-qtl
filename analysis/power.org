@@ -566,31 +566,50 @@
   #+RESULTS:
   : Submitted batch job 46371621
 
+  #+BEGIN_SRC sh
+    sacct -j 46371621 -o Elapsed
+  #+END_SRC
+
+  #+RESULTS:
+  :    Elapsed 
+  : ---------- 
+  :   00:21:38 
+  :   00:21:38 
+  :   00:21:38 
+
   Read the results.
 
   #+BEGIN_SRC ipython
     qtl_results = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/power/eqtl-power.txt.gz', index_col=0)
-    qtl_power = qtl_results.groupby('pve').apply(lambda x: (x['pval'] < 0.05).sum() / x.shape[0]).reset_index().rename(columns={0: 'power'})
+    qtl_power = qtl_results.groupby(['num_individuals', 'num_causal', 'pve']).apply(lambda x: (x['pval'] < 0.05).sum() / x.shape[0]).reset_index().rename(columns={0: 'power'})
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[303]:
+  # Out[22]:
   :END:
 
   Plot the results.
 
   #+BEGIN_SRC ipython :ipyfile figure/power.org/eqtl-power.png
     plt.clf()
-    plt.gcf().set_size_inches(4, 4)
-    plt.plot(qtl_power['pve'], qtl_power['power'], marker='.', c='k', lw=1, ms=8)
-    plt.xlabel('Proportion of variance explained')
-    _ = plt.ylabel('Power at level 0.05')
+    fig, ax = plt.subplots(1, 3, sharey=True)
+    fig.set_size_inches(8, 3)
+    for i, m in enumerate([1, 2, 3]):
+      for n in [53, 75, 100, 120]:
+        subset = np.logical_and(qtl_power['num_individuals'] == n, qtl_power['num_causal'] == m)
+        color = colorcet.cm['inferno'](.9 * (n - 53) / (120 - 53))
+        ax[i].plot(qtl_power.loc[subset, 'pve'], qtl_power.loc[subset, 'power'], marker='.', c=color, lw=1, ms=8, label=n)
+        ax[i].set_title('{} causal'.format(m))
+    ax[1].set_xlabel('Proportion of variance explained')
+    ax[0].set_ylabel('Power at level 0.05')
+    ax[-1].legend(title='# individuals', frameon=False, loc='center left', bbox_to_anchor=(1, .5))
+    fig.tight_layout()
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[307]:
+  # Out[43]:
   [[file:figure/power.org/eqtl-power.png]]
   :END:
 
