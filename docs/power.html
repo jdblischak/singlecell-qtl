@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-06-03 Sun 16:31 -->
+<!-- 2018-06-03 Sun 21:53 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Power to detect QTLs in single cell data</title>
@@ -609,11 +609,11 @@ variants) following a linear model:
 </p>
 
 <p>
-\[ \beta_j \sim N(0, h^2 / m) \text{if \(j\) causal}\]
+\[ \beta_j \sim N(0, 1) \text{\ if \(j\) causal}\]
 </p>
 
 <p>
-\[ \epsilon_i \sim N(0, 1 - h^2) \]
+\[ \epsilon_i \sim N(0, \mathbb{V[X \beta]} (1 / h^2 - 1)) \]
 </p>
 
 <div class="org-src-container">
@@ -630,6 +630,8 @@ variants) following a linear model:
   <span class="org-variable-name">theta</span>[np.random.choice(p, m, replace=<span class="org-constant">False</span>)] = np.random.normal(size=m)
   <span class="org-variable-name">y</span> = x.dot(theta)
   <span class="org-variable-name">y</span> += np.random.normal(scale=np.sqrt(y.var() * (1 / pve - 1)), size=n)
+  <span class="org-variable-name">y</span> -= y.mean()
+  <span class="org-variable-name">y</span> /= y.std()
   <span class="org-keyword">return</span> y.reshape(-1, 1)
 
 <span class="org-variable-name">_sf</span> = st.chi2(1).sf
@@ -651,7 +653,7 @@ variants) following a linear model:
   <span class="org-variable-name">null_pheno</span> = y.copy()
   <span class="org-variable-name">null_pvals</span> = []
   <span class="org-keyword">for</span> _ <span class="org-keyword">in</span> <span class="org-builtin">range</span>(num_trials):
-    np.random.shuffle(y)
+    np.random.shuffle(null_pheno)
     null_pvals.append(nominal_test(x, null_pheno).<span class="org-builtin">min</span>())
   <span class="org-variable-name">null_pvals</span> = np.array(null_pvals)
   <span class="org-variable-name">theta</span> = np.ones(2)
@@ -663,27 +665,75 @@ variants) following a linear model:
     <span class="org-variable-name">theta</span> = np.array([1, (1 / null_pvals.mean() - 1)])
     <span class="org-variable-name">theta</span> *= np.square(null_pvals.mean()) * ((1 - null_pvals.mean()) / null_pvals.var() - 1)
   <span class="org-keyword">return</span> st.beta.cdf(pval, *theta)
+
+<span class="org-comment-delimiter"># </span><span class="org-comment">Important: tabix read doesn't appear to be thread-safe</span>
+<span class="org-variable-name">read_lock</span> = mp.Lock()
+
+<span class="org-keyword">def</span> <span class="org-function-name">evaluate</span>(num_individuals, num_causal, pve, num_genes=100):
+  <span class="org-variable-name">query</span> = eqtls.sample(n=num_genes)
+  <span class="org-variable-name">result</span> = []
+  <span class="org-keyword">for</span> _, record <span class="org-keyword">in</span> query.iterrows():
+    read_lock.acquire()
+    <span class="org-keyword">try</span>:
+      <span class="org-variable-name">x</span> = read_dosage(record, yri)
+    <span class="org-keyword">finally</span>:
+      read_lock.release()
+    <span class="org-variable-name">keep</span> = np.random.choice(x.shape[0], num_individuals, replace=<span class="org-constant">False</span>)
+    <span class="org-variable-name">x</span> = x[keep]
+    <span class="org-variable-name">y</span> = generate_pheno(x, pve=pve, m=num_causal)
+    <span class="org-variable-name">pval</span> = permutation_test(x, y)
+    result.append({
+      <span class="org-string">'gene'</span>: record.name,
+      <span class="org-string">'num_individuals'</span>: x.shape[0],
+      <span class="org-string">'num_snps'</span>: x.shape[1],
+      <span class="org-string">'num_causal'</span>: num_causal,
+      <span class="org-string">'pve'</span>: pve,
+      <span class="org-string">'pval'</span>: pval})
+  <span class="org-keyword">return</span> pd.DataFrame.from_dict(result)
 </pre>
 </div>
+
+<p>
+Re-QC dosages for 120 YRI individuals.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">sbatch --partition=broadwl --job-name=reprocess-dosage --out=reprocess-dosage.out
+<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
+<span class="org-builtin">set</span> -e
+<span class="org-builtin">source</span> activate scqtl
+python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/reprocess-dosage.py
+bgzip dosages.vcf
+tabix dosages.vcf.gz
+</pre>
+</div>
+
+<pre class="example">
+Submitted batch job 46369493
+
+</pre>
+
+<p>
+Run the power calculation on 28 CPUs.
+</p>
 
 <div class="org-src-container">
 <pre class="src src-ipython">&lt;&lt;power-imports&gt;&gt;
 &lt;&lt;eqtl-sim-impl&gt;&gt;
 
-<span class="org-variable-name">yri</span> = tabix.<span class="org-builtin">open</span>(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz'</span>)
+<span class="org-variable-name">yri</span> = tabix.<span class="org-builtin">open</span>(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/dosages.vcf.gz'</span>)
 <span class="org-comment-delimiter"># </span><span class="org-comment">Restrict to genes where we previously successfully mapped eQTLs</span>
 <span class="org-variable-name">eqtls</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/pooled.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0).dropna()
 
+<span class="org-variable-name">args</span> = [(n, m, pve)
+        <span class="org-keyword">for</span> n <span class="org-keyword">in</span> (53, 75, 100, 120)
+        <span class="org-keyword">for</span> m <span class="org-keyword">in</span> (1, 2, 3)
+        <span class="org-keyword">for</span> pve <span class="org-keyword">in</span> np.geomspace(.01, 0.5, 5)]
+
 np.random.seed(0)
-<span class="org-variable-name">query</span> = eqtls.sample(n=100)
-<span class="org-variable-name">result</span> = []
-<span class="org-keyword">for</span> pve <span class="org-keyword">in</span> np.geomspace(.01, 1, 10):
-  <span class="org-keyword">for</span> _, record <span class="org-keyword">in</span> query.iterrows():
-    <span class="org-variable-name">x</span> = read_dosage(record, yri)
-    <span class="org-variable-name">y</span> = generate_pheno(x, pve)
-    <span class="org-variable-name">pval</span> = permutation_test(x, y)
-    result.append({<span class="org-string">'gene'</span>: record.name, <span class="org-string">'p'</span>: x.shape[1], <span class="org-string">'pve'</span>: pve, <span class="org-string">'pval'</span>: pval})
-pd.DataFrame.from_dict(result).to_csv(<span class="org-string">'eqtl-power.txt.gz'</span>, compression=<span class="org-string">'gzip'</span>, sep=<span class="org-string">'\t'</span>)
+<span class="org-keyword">with</span> mp.Pool() <span class="org-keyword">as</span> pool:
+  <span class="org-variable-name">result</span> = pool.starmap(evaluate, args)
+pd.concat(result).to_csv(<span class="org-string">'eqtl-power.txt.gz'</span>, compression=<span class="org-string">'gzip'</span>, sep=<span class="org-string">'\t'</span>)
 </pre>
 </div>
 
@@ -692,21 +742,74 @@ pd.DataFrame.from_dict(result).to_csv(<span class="org-string">'eqtl-power.txt.g
 <span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
 <span class="org-builtin">source</span> activate scqtl
 python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/eqtl-power.py
+rsync -FFau ./ /project2/mstephens/aksarkar/projects/singlecell-qtl/data/power/
 </pre>
 </div>
 
 <pre class="example">
-Submitted batch job 46369347
+Submitted batch job 46372142
+
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-sh">sacct -j 46372142 -o Elapsed
+</pre>
+</div>
+
+<pre class="example">
+   Elapsed 
+---------- 
+  00:21:47 
+  00:21:47 
+  00:21:47 
 
 </pre>
 
 <p>
-The key insight is that the single cell experiment size changes the standard
-error of the mean estimator.
+Read the results.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">qtl_results</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/power/eqtl-power.txt.gz'</span>, index_col=0)
+<span class="org-variable-name">qtl_power</span> = qtl_results.groupby([<span class="org-string">'num_individuals'</span>, <span class="org-string">'num_causal'</span>, <span class="org-string">'pve'</span>]).<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: (x[<span class="org-string">'pval'</span>] &lt; 0.05).<span class="org-builtin">sum</span>() / x.shape[0]).reset_index().rename(columns={0: <span class="org-string">'power'</span>})
+</pre>
+</div>
+
+<p>
+Plot the results.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+<span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(1, 3, sharey=<span class="org-constant">True</span>)
+fig.set_size_inches(8, 3)
+<span class="org-keyword">for</span> i, m <span class="org-keyword">in</span> <span class="org-builtin">enumerate</span>([1, 2, 3]):
+  <span class="org-keyword">for</span> n <span class="org-keyword">in</span> [53, 75, 100, 120]:
+    <span class="org-variable-name">subset</span> = np.logical_and(qtl_power[<span class="org-string">'num_individuals'</span>] == n, qtl_power[<span class="org-string">'num_causal'</span>] == m)
+    <span class="org-variable-name">color</span> = colorcet.cm[<span class="org-string">'inferno'</span>](.9 * (n - 53) / (120 - 53))
+    ax[i].plot(qtl_power.loc[subset, <span class="org-string">'pve'</span>], qtl_power.loc[subset, <span class="org-string">'power'</span>], marker=<span class="org-string">'.'</span>, c=color, lw=1, ms=8, label=n)
+    ax[i].set_title(<span class="org-string">'{} causal'</span>.<span class="org-builtin">format</span>(m))
+ax[1].set_xlabel(<span class="org-string">'Proportion of variance explained'</span>)
+ax[0].set_ylabel(<span class="org-string">'Power at level 0.05'</span>)
+ax[-1].legend(title=<span class="org-string">'# individuals'</span>, frameon=<span class="org-constant">False</span>, loc=<span class="org-string">'center left'</span>, bbox_to_anchor=(1, .5))
+fig.tight_layout()
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/power.org/eqtl-power.png" alt="eqtl-power.png">
+</p>
+</div>
+
+<p>
+The key insight is that the single cell experiment size determines the
+standard error of the estimator, which can be thought of as measurement
+error.
 </p>
 
 <p>
-\[ \ln{\hat\mu} \sim N(\ln\mu, \sigma^2) \]
+\[ \hat\theta \sim N(\theta, \sigma^2) \]
 </p>
 
 <p>
@@ -714,7 +817,7 @@ This is the same as changing effective PVE:
 </p>
 
 <p>
-\[ h^2_{eff} = \frac{h^2}{1 + \sigma^2} \]
+\[ h^2_{\mathrm{eff}} = \frac{h^2}{1 + \sigma^2} \]
 </p>
 
 <p>
@@ -740,7 +843,7 @@ linear model:
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-06-03 Sun 16:31</p>
+<p class="date">Created: 2018-06-03 Sun 21:53</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>

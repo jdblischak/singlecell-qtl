@@ -55,7 +55,7 @@
 
   #+RESULTS: power-imports
   :RESULTS:
-  # Out[2]:
+  # Out[45]:
   :END:
 
 * Differential dispersion
@@ -436,9 +436,9 @@
 
   \[ \mathbb{E}[x_i] = 0, \mathbb{V}[x_i] = 1 \]
 
-  \[ \beta_j \sim N(0, h^2 / m) \text{if \(j\) causal}\]
+  \[ \beta_j \sim N(0, 1) \text{\ if \(j\) causal}\]
 
-  \[ \epsilon_i \sim N(0, 1 - h^2) \]
+  \[ \epsilon_i \sim N(0, \mathbb{V[X \beta]} (1 / h^2 - 1)) \]
 
   #+NAME: eqtl-sim-impl
   #+BEGIN_SRC ipython
@@ -455,6 +455,8 @@
       theta[np.random.choice(p, m, replace=False)] = np.random.normal(size=m)
       y = x.dot(theta)
       y += np.random.normal(scale=np.sqrt(y.var() * (1 / pve - 1)), size=n)
+      y -= y.mean()
+      y /= y.std()
       return y.reshape(-1, 1)
 
     _sf = st.chi2(1).sf
@@ -517,7 +519,7 @@
 
   #+RESULTS: eqtl-sim-impl
   :RESULTS:
-  # Out[3]:
+  # Out[46]:
   :END:
 
   Re-QC dosages for 120 YRI individuals.
@@ -561,21 +563,22 @@
     #!/bin/bash
     source activate scqtl
     python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/eqtl-power.py
+    rsync -FFau ./ /project2/mstephens/aksarkar/projects/singlecell-qtl/data/power/
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 46371621
+  : Submitted batch job 46372142
 
   #+BEGIN_SRC sh
-    sacct -j 46371621 -o Elapsed
+    sacct -j 46372142 -o Elapsed
   #+END_SRC
 
   #+RESULTS:
   :    Elapsed 
   : ---------- 
-  :   00:21:38 
-  :   00:21:38 
-  :   00:21:38 
+  :   00:21:47 
+  :   00:21:47 
+  :   00:21:47 
 
   Read the results.
 
@@ -586,7 +589,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[22]:
+  # Out[68]:
   :END:
 
   Plot the results.
@@ -609,7 +612,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[43]:
+  # Out[69]:
   [[file:figure/power.org/eqtl-power.png]]
   :END:
 

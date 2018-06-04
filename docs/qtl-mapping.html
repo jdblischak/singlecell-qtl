@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-06-03 Sun 16:31 -->
+<!-- 2018-06-03 Sun 21:16 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>QTL mapping pipeline</title>
@@ -1317,39 +1317,49 @@ dosage matrix.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sh">rsync -nva -f <span class="org-string">'+ */'</span> -f <span class="org-string">'+ *.impute2.gz'</span> -f <span class="org-string">'+ YRI_samples.txt'</span> -f <span class="org-string">'- *'</span> ./ aksarkar@midway2.rcc.uchicago.edu:/scratch/midway2/aksarkar/singlecell/scqtl-mapping/
+<pre class="src src-sh">rsync -au -f <span class="org-string">'+ */'</span> -f <span class="org-string">'+ *.impute2.gz'</span> -f <span class="org-string">'+ YRI_samples.txt'</span> -f <span class="org-string">'- *'</span> /mnt/lustre/data/internal/genotypes/hg19/YRI/ aksarkar@midway2.rcc.uchicago.edu:/scratch/midway2/aksarkar/singlecell/scqtl-mapping/
 </pre>
 </div>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">import</span> glob
+<pre class="src src-ipython"><span class="org-keyword">import</span> argparse
+<span class="org-keyword">import</span> glob
 <span class="org-keyword">import</span> gzip
 <span class="org-keyword">import</span> numpy <span class="org-keyword">as</span> np
 <span class="org-keyword">import</span> pandas <span class="org-keyword">as</span> pd
 <span class="org-keyword">import</span> sqlite3
 
-<span class="org-keyword">def</span> <span class="org-function-name">convert_impute2_vcf</span>(<span class="org-builtin">file</span>, mask, chrom, outfile, min_maf=0.05):
+<span class="org-keyword">def</span> <span class="org-function-name">convert_impute2_vcf</span>(<span class="org-builtin">file</span>, chrom, outfile, min_maf=0.05, mask=<span class="org-constant">None</span>):
   <span class="org-keyword">for</span> line <span class="org-keyword">in</span> <span class="org-builtin">file</span>:
     <span class="org-variable-name">record</span> = line.split()
     <span class="org-variable-name">posterior</span> = np.array([<span class="org-builtin">float</span>(x) <span class="org-keyword">for</span> x <span class="org-keyword">in</span> record[5:]])
-    <span class="org-variable-name">dose</span> = posterior.reshape(-1, 3).dot(np.arange(3))[mask]
+    <span class="org-variable-name">dose</span> = posterior.reshape(-1, 3).dot(np.arange(3))
+    <span class="org-keyword">if</span> mask <span class="org-keyword">is</span> <span class="org-keyword">not</span> <span class="org-constant">None</span>:
+      <span class="org-variable-name">dose</span> = dose[mask]
     <span class="org-keyword">if</span> min_maf &lt;= dose.mean() / 2 &lt;= 1 - min_maf:
       <span class="org-keyword">print</span>(chrom, record[2], <span class="org-string">'{}.{}.{}'</span>.<span class="org-builtin">format</span>(record[1], chrom, record[2]),
             record[3], record[4], <span class="org-string">'.'</span>, <span class="org-string">'.'</span>, <span class="org-string">'.'</span>, <span class="org-string">'DS'</span>,
             *[<span class="org-string">'{:.3f}'</span>.<span class="org-builtin">format</span>(x) <span class="org-keyword">for</span> x <span class="org-keyword">in</span> dose], sep=<span class="org-string">'\t'</span>, <span class="org-builtin">file</span>=outfile)
 
+<span class="org-variable-name">parser</span> = argparse.ArgumentParser()
+parser.add_argument(<span class="org-string">'-s'</span>, <span class="org-string">'--subset'</span>, <span class="org-builtin">help</span>=<span class="org-string">'Sample inclusion list'</span>, <span class="org-builtin">type</span>=pd.read_table, default=<span class="org-constant">None</span>)
+parser.add_argument(<span class="org-string">'-o'</span>, <span class="org-string">'--output'</span>, <span class="org-builtin">help</span>=<span class="org-string">'Output file'</span>, default=<span class="org-string">'dosages.vcf'</span>)
+<span class="org-variable-name">args</span> = parser.parse_args()
+
 <span class="org-variable-name">samples</span> = pd.read_table(<span class="org-string">'YRI_samples.txt'</span>, header=<span class="org-constant">None</span>, sep=<span class="org-string">' '</span>)
-<span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'</span>) <span class="org-keyword">as</span> conn:
-  <span class="org-variable-name">keep</span> = pd.read_sql(<span class="org-string">'select chip_id from annotation group by chip_id having count(*) &gt;= 50;'</span>, conn)
-<span class="org-variable-name">mask</span> = samples[0].isin(keep[<span class="org-string">'chip_id'</span>]).values
-<span class="org-keyword">assert</span> mask.<span class="org-builtin">sum</span>() == 53
-<span class="org-keyword">with</span> <span class="org-builtin">open</span>(<span class="org-string">'yri-120-dosages.vcf'</span>, <span class="org-string">'w'</span>) <span class="org-keyword">as</span> f:
+<span class="org-keyword">if</span> args.subset <span class="org-keyword">is</span> <span class="org-keyword">not</span> <span class="org-constant">None</span>:
+  <span class="org-variable-name">mask</span> = samples[0].isin(args.subset).values
+  <span class="org-variable-name">samples</span> = samples.loc[mask.values.ravel(), 0]
+<span class="org-keyword">else</span>:
+  <span class="org-variable-name">mask</span> = <span class="org-constant">None</span>
+  <span class="org-variable-name">samples</span> = samples.loc[:,0]
+<span class="org-keyword">with</span> <span class="org-builtin">open</span>(args.output, <span class="org-string">'w'</span>) <span class="org-keyword">as</span> f:
   <span class="org-keyword">print</span>(<span class="org-string">'##fileformat=VCFv4.2'</span>, <span class="org-builtin">file</span>=f)
   <span class="org-keyword">print</span>(<span class="org-string">'##FORMAT=&lt;ID=DS,Number=1,Type=Float&gt;'</span>, <span class="org-builtin">file</span>=f)
-  <span class="org-keyword">print</span>(<span class="org-string">'#CHROM'</span>, <span class="org-string">'POS'</span>, <span class="org-string">'ID'</span>, <span class="org-string">'REF'</span>, <span class="org-string">'ALT'</span>, <span class="org-string">'QUAL'</span>, <span class="org-string">'FILTER'</span>, <span class="org-string">'INFO'</span>, <span class="org-string">'FORMAT'</span>, *samples[0][mask], sep=<span class="org-string">'\t'</span>, <span class="org-builtin">file</span>=f)
+  <span class="org-keyword">print</span>(<span class="org-string">'#CHROM'</span>, <span class="org-string">'POS'</span>, <span class="org-string">'ID'</span>, <span class="org-string">'REF'</span>, <span class="org-string">'ALT'</span>, <span class="org-string">'QUAL'</span>, <span class="org-string">'FILTER'</span>, <span class="org-string">'INFO'</span>, <span class="org-string">'FORMAT'</span>, *samples, sep=<span class="org-string">'\t'</span>, <span class="org-builtin">file</span>=f)
   <span class="org-keyword">for</span> c <span class="org-keyword">in</span> <span class="org-builtin">range</span>(1, 23):
     <span class="org-keyword">with</span> gzip.<span class="org-builtin">open</span>(<span class="org-string">'chr{}.hg19.impute2.gz'</span>.<span class="org-builtin">format</span>(c), <span class="org-string">'rt'</span>) <span class="org-keyword">as</span> g:
-      convert_impute2_vcf(g, mask, <span class="org-string">'chr{}'</span>.<span class="org-builtin">format</span>(c), outfile=f)
+      convert_impute2_vcf(g, <span class="org-string">'chr{}'</span>.<span class="org-builtin">format</span>(c), outfile=f, mask=mask)
 </pre>
 </div>
 
@@ -1547,9 +1557,9 @@ Take QTLs with \(\mathrm{FDR} < 0.1\).
 </div>
 </div>
 
-<div id="outline-container-org2e6e5f9" class="outline-3">
-<h3 id="org2e6e5f9">Call mean-QTLs</h3>
-<div class="outline-text-3" id="text-org2e6e5f9">
+<div id="outline-container-org1471a9f" class="outline-3">
+<h3 id="org1471a9f">Call mean-QTLs</h3>
+<div class="outline-text-3" id="text-org1471a9f">
 <p>
 Throw out individuals with fewer than 50 cells.
 </p>
@@ -1720,9 +1730,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-orgb0792e5" class="outline-3">
-<h3 id="orgb0792e5">Call variance-QTLs</h3>
-<div class="outline-text-3" id="text-orgb0792e5">
+<div id="outline-container-orgbc3a0b3" class="outline-3">
+<h3 id="orgbc3a0b3">Call variance-QTLs</h3>
+<div class="outline-text-3" id="text-orgbc3a0b3">
 <p>
 Throw out individuals with fewer than 50 cells.
 </p>
@@ -1840,9 +1850,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-org4387bc0" class="outline-3">
-<h3 id="org4387bc0">Call CV-QTLs</h3>
-<div class="outline-text-3" id="text-org4387bc0">
+<div id="outline-container-orgca4eca7" class="outline-3">
+<h3 id="orgca4eca7">Call CV-QTLs</h3>
+<div class="outline-text-3" id="text-orgca4eca7">
 <p>
 Throw out individuals with fewer than 50 cells.
 </p>
@@ -1949,9 +1959,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-orgd281fa2" class="outline-3">
-<h3 id="orgd281fa2">Call Fano-QTLs</h3>
-<div class="outline-text-3" id="text-orgd281fa2">
+<div id="outline-container-orgef10218" class="outline-3">
+<h3 id="orgef10218">Call Fano-QTLs</h3>
+<div class="outline-text-3" id="text-orgef10218">
 <p>
 Throw out individuals with fewer than 50 cells.
 </p>
@@ -2419,9 +2429,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-org1471a9f" class="outline-3">
-<h3 id="org1471a9f">Call mean-QTLs</h3>
-<div class="outline-text-3" id="text-org1471a9f">
+<div id="outline-container-org8d409d2" class="outline-3">
+<h3 id="org8d409d2">Call mean-QTLs</h3>
+<div class="outline-text-3" id="text-org8d409d2">
 <p>
 We have \(r_{ijk} \sim g_{ijk}(\cdot)\), where \(g\) is the ZINB density <a href="zinb.html">as
 previously defined</a>.
@@ -2547,9 +2557,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-orgbc3a0b3" class="outline-3">
-<h3 id="orgbc3a0b3">Call variance-QTLs</h3>
-<div class="outline-text-3" id="text-orgbc3a0b3">
+<div id="outline-container-orgac6d2d3" class="outline-3">
+<h3 id="orgac6d2d3">Call variance-QTLs</h3>
+<div class="outline-text-3" id="text-orgac6d2d3">
 <p>
 We have \(r_{ijk} \sim g_{ijk}(\cdot)\), where \(g\) is the ZINB density <a href="zinb.html">as
 previously defined</a>.
@@ -2674,9 +2684,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-orgca4eca7" class="outline-3">
-<h3 id="orgca4eca7">Call CV-QTLs</h3>
-<div class="outline-text-3" id="text-orgca4eca7">
+<div id="outline-container-org2445d88" class="outline-3">
+<h3 id="org2445d88">Call CV-QTLs</h3>
+<div class="outline-text-3" id="text-org2445d88">
 <p>
 Estimate the coefficient of variation.
 </p>
@@ -2778,9 +2788,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-orgef10218" class="outline-3">
-<h3 id="orgef10218">Call Fano-QTLs</h3>
-<div class="outline-text-3" id="text-orgef10218">
+<div id="outline-container-orgcfc9389" class="outline-3">
+<h3 id="orgcfc9389">Call Fano-QTLs</h3>
+<div class="outline-text-3" id="text-orgcfc9389">
 <p>
 Estimate the coefficient of variation.
 </p>
@@ -3619,7 +3629,7 @@ Extract the QTLs for the browser.
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-06-03 Sun 16:31</p>
+<p class="date">Created: 2018-06-03 Sun 21:16</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
