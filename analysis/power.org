@@ -25,7 +25,7 @@
   #+CALL: ipython3(memory="4G", venv="scqtl")
 
   #+RESULTS:
-  : Submitted batch job 46371363
+  : Submitted batch job 46380630
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -55,7 +55,7 @@
 
   #+RESULTS: power-imports
   :RESULTS:
-  # Out[45]:
+  # Out[2]:
   :END:
 
 * Differential dispersion
@@ -427,16 +427,16 @@
    [[file:figure/power.org/lrt-power-fixed-samples.png]]
    :END:
 
-* eQTL discovery
+* QTL discovery
 
-  We assume expression is generated from \(m\) causal effects (out of \(p\)
+  We assume the phenotype is generated from \(m\) causal effects (out of \(p\)
   variants) following a linear model:
 
-  \[ \ln\mu_i = \sum_j X_{ij} \beta_j + \epsilon_i \]
+  \[ \theta_i = \sum_j X_{ij} \beta_j + \epsilon_i \]
 
   \[ \mathbb{E}[x_i] = 0, \mathbb{V}[x_i] = 1 \]
 
-  \[ \beta_j \sim N(0, 1) \text{\ if \(j\) causal}\]
+  \[ \beta_j \sim N(0, 1) \text{ if \(j\) causal}\]
 
   \[ \epsilon_i \sim N(0, \mathbb{V[X \beta]} (1 / h^2 - 1)) \]
 
@@ -448,11 +448,14 @@
       x /= x.std(axis=0)
       return x
 
-    def generate_pheno(x, pve, m=1):
+    def generate_pheno(x, pve, m=None):
       n, p = x.shape
-      theta = np.zeros(p)
-      # Assume x standardized
-      theta[np.random.choice(p, m, replace=False)] = np.random.normal(size=m)
+      if m is None:
+        theta = np.random.normal(size=p)
+      else:
+        theta = np.zeros(p)
+        # Assume x standardized
+        theta[np.random.choice(p, m, replace=False)] = np.random.normal(size=m)
       y = x.dot(theta)
       y += np.random.normal(scale=np.sqrt(y.var() * (1 / pve - 1)), size=n)
       y -= y.mean()
@@ -549,7 +552,7 @@
 
     args = [(n, m, pve)
             for n in (53, 75, 100, 120)
-            for m in (1, 2, 3)
+            for m in (1, None)
             for pve in np.geomspace(.01, 0.5, 5)]
 
     np.random.seed(0)
@@ -567,7 +570,7 @@
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 46372142
+  : Submitted batch job 46381725
 
   #+BEGIN_SRC sh
     sacct -j 46372142 -o Elapsed
@@ -583,27 +586,28 @@
   Read the results.
 
   #+BEGIN_SRC ipython
-    qtl_results = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/power/eqtl-power.txt.gz', index_col=0)
+    qtl_results = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/power/eqtl-power.txt.gz', index_col=0).fillna(-1)
     qtl_power = qtl_results.groupby(['num_individuals', 'num_causal', 'pve']).apply(lambda x: (x['pval'] < 0.05).sum() / x.shape[0]).reset_index().rename(columns={0: 'power'})
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[68]:
+  # Out[40]:
   :END:
 
   Plot the results.
 
   #+BEGIN_SRC ipython :ipyfile figure/power.org/eqtl-power.png
     plt.clf()
-    fig, ax = plt.subplots(1, 3, sharey=True)
-    fig.set_size_inches(8, 3)
-    for i, m in enumerate([1, 2, 3]):
+    fig, ax = plt.subplots(1, 2, sharey=True)
+    fig.set_size_inches(6, 3)
+    for i, m in enumerate([1, -1]):
       for n in [53, 75, 100, 120]:
         subset = np.logical_and(qtl_power['num_individuals'] == n, qtl_power['num_causal'] == m)
         color = colorcet.cm['inferno'](.9 * (n - 53) / (120 - 53))
         ax[i].plot(qtl_power.loc[subset, 'pve'], qtl_power.loc[subset, 'power'], marker='.', c=color, lw=1, ms=8, label=n)
-        ax[i].set_title('{} causal'.format(m))
+    ax[0].set_title('1 causal')
+    ax[1].set_title('Infinitesimal')
     ax[1].set_xlabel('Proportion of variance explained')
     ax[0].set_ylabel('Power at level 0.05')
     ax[-1].legend(title='# individuals', frameon=False, loc='center left', bbox_to_anchor=(1, .5))
@@ -612,7 +616,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[69]:
+  # Out[44]:
   [[file:figure/power.org/eqtl-power.png]]
   :END:
 
@@ -629,9 +633,61 @@
   We estimate the standard error as a function of the experiment size from the
   simulation.
 
-* Dispersion-QTL discovery
+  #+BEGIN_SRC ipython
+    sim_results = pd.read_table('/scratch/midway2/aksarkar/singlecell/density-estimation/simulation.txt.gz', index_col=0)
+    mu_pass = sim_results['log_mu'] > -10
+    pi_pass = sim_results['logodds'] <= 0
+  #+END_SRC
 
-  We assume dispersions are generated from \(m\) causal effects following a
-  linear model:
+  #+RESULTS:
+  :RESULTS:
+  # Out[28]:
+  :END:
 
-  \[ \ln{\hat\phi} \sim N(\mathbf{X} \bm{\beta}, \sigma^2_e + \sigma^2) \]
+  #+BEGIN_SRC ipython
+    sim_results[pi_pass].groupby(['num_samples', 'num_mols', 'log_mu']).apply(lambda x: 1 / (1 + np.var(x['log_mu_hat']))).reset_index()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[45]:
+  #+BEGIN_EXAMPLE
+    num_samples  num_mols  log_mu         0
+    0            95    114026     -12  0.943735
+    1            95    114026     -11  0.975032
+    2            95    114026     -10  0.984130
+    3            95    114026      -9  0.988944
+    4            95    114026      -8  0.990610
+    5            95    114026      -7  0.995300
+    6            95    114026      -6  0.992922
+    7         10000    114026     -12  0.970102
+    8         10000    114026     -11  0.980160
+    9         10000    114026     -10  0.992239
+    10        10000    114026      -9  0.995632
+    11        10000    114026      -8  0.998242
+    12        10000    114026      -7  0.999954
+    13        10000    114026      -6  0.999969
+  #+END_EXAMPLE
+  :END:
+
+  #+BEGIN_SRC ipython
+    sim_results[np.logical_and(mu_pass, pi_pass)].groupby(['num_samples', 'num_mols', 'log_phi']).apply(lambda x: 1 / (1 + np.var(x['log_phi_hat']))).reset_index()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[46]:
+  #+BEGIN_EXAMPLE
+    num_samples  num_mols  log_phi         0
+    0           95    114026       -4  0.867270
+    1           95    114026       -3  0.916724
+    2           95    114026       -2  0.950310
+    3           95    114026       -1  0.969675
+    4           95    114026        0  0.904745
+    5        10000    114026       -4  0.996827
+    6        10000    114026       -3  0.999260
+    7        10000    114026       -2  0.999752
+    8        10000    114026       -1  0.999300
+    9        10000    114026        0  0.933499
+  #+END_EXAMPLE
+  :END:
