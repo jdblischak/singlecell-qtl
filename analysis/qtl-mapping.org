@@ -62,7 +62,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[1]:
+  # Out[49]:
   :END:
 
 * Implementation
@@ -2767,7 +2767,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[34]:
+  # Out[47]:
   :END:
 
   The bulk QTL gene names need to be munged.
@@ -2779,7 +2779,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[35]:
+  # Out[48]:
   :END:
 
   The CV-QTLs are expected to have the opposite sign from the mean QTLs (under

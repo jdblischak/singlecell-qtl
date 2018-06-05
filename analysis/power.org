@@ -25,7 +25,7 @@
   #+CALL: ipython3(memory="4G", venv="scqtl")
 
   #+RESULTS:
-  : Submitted batch job 46380630
+  : Submitted batch job 46397657
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -378,53 +378,46 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[46]:
+   # Out[23]:
    :END:
 
    Plot the results.
 
    #+BEGIN_SRC ipython :ipyfile figure/power.org/lrt-power.png
      plt.clf()
-     plt.gcf().set_size_inches(4, 4)
+     fig, ax = plt.subplots(1, 2)
+     fig.set_size_inches(6, 3)
+
+     num_samples = 100
+     groups = sorted(set(lrt_power['num_mols']))
+     for i, n in enumerate(groups):
+       color = colorcet.cm['inferno']((i + 1 / (2 * len(groups))) / len(groups))
+       subset = lrt_power[np.logical_and(lrt_power['num_mols'] == n, lrt_power['num_samples'] == num_samples)]
+       ax[0].plot(np.exp(subset['log_fold_change']), subset[0], lw=1, marker='.', ms=8, c=color, label='$10^{{{:.1f}}}$'.format(np.log(n) / np.log(10)))
+     ax[0].legend(title='# molecules', frameon=False)
+     ax[0].set_xlabel('Fold change in dispersion')
+     ax[0].set_ylabel('Power at level 0.05')
+     ax[0].set_title('100 cells')
+
      num_mols = 1e5
      grid = np.log(np.linspace(1.1, 2, 100))
      groups = sorted(set(lrt_power['num_samples']))
      for i, n in enumerate(groups):
        color = colorcet.cm['inferno']((i + 1 / (2 * len(groups))) / len(groups))
        subset = lrt_power[np.logical_and(lrt_power['num_mols'] == num_mols, lrt_power['num_samples'] == n)]
-       plt.plot(np.exp(subset['log_fold_change']), subset[0], lw=1, marker='.', ms=8, c=color,
-                label='$10^{{{:.1f}}}$'.format(np.log(n) / np.log(10)))
-     plt.legend(title='# samples', frameon=False, loc='center left', bbox_to_anchor=(1, .5))
-     plt.xlabel('Fold change in dispersion')
-     plt.ylabel('Power at level 0.05')
+       ax[1].plot(np.exp(subset['log_fold_change']), subset[0], lw=1, marker='.', ms=8, c=color, label='$10^{{{:.1f}}}$'.format(np.log(n) / np.log(10)))
+     ax[1].legend(title='# samples', frameon=False, loc='center left', bbox_to_anchor=(1, .5))
+     ax[1].set_xlabel('Fold change in dispersion')
+     ax[1].set_ylabel('Power at level 0.05')
+     ax[1].set_title('$10^5$ molecules')
+
+     fig.tight_layout()
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[83]:
-   : Text(0,0.5,'Power at level 0.05')
+   # Out[45]:
    [[file:figure/power.org/lrt-power.png]]
-   :END:
-
-   #+BEGIN_SRC ipython :ipyfile figure/power.org/lrt-power-fixed-samples.png
-     plt.clf()
-     plt.gcf().set_size_inches(4, 4)
-     num_samples = 100
-     groups = sorted(set(lrt_power['num_mols']))
-     for i, n in enumerate(groups):
-       color = colorcet.cm['inferno']((i + 1 / (2 * len(groups))) / len(groups))
-       subset = lrt_power[np.logical_and(lrt_power['num_mols'] == n, lrt_power['num_samples'] == num_samples)]
-       plt.plot(np.exp(subset['log_fold_change']), subset[0], lw=1, marker='.', ms=8, c=color, label='$10^{{{:.1f}}}$'.format(np.log(n) / np.log(10)))
-     plt.legend(title='# molecules', frameon=False, loc='center left', bbox_to_anchor=(1, .5))
-     plt.xlabel('Fold change in dispersion')
-     plt.ylabel('Power at level 0.05')
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[87]:
-   : Text(0,0.5,'Power at level 0.05')
-   [[file:figure/power.org/lrt-power-fixed-samples.png]]
    :END:
 
 * QTL discovery
@@ -525,6 +518,20 @@
   # Out[46]:
   :END:
 
+  Process and QC the GEUVADIS dosages.
+
+  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/power/
+    sbatch --partition=broadwl --job-name=geuvadis --out=geuvadis.out
+    #!/bin/bash
+    source activate scqtl
+    bcftools concat -o geuvadis.vcf /project/compbio/geuvadis/genotypes/GEUVADIS.*.vcf.gz
+    bgzip geuvadis.vcf
+    tabix geuvadis.vcf.gz
+  #+END_SRC
+
+  #+RESULTS:
+  : Submitted batch job 46400442
+
   Re-QC dosages for 120 YRI individuals.
 
   #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
@@ -592,7 +599,22 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[40]:
+  # Out[47]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    qtl_results['sig'] = qtl_results.apply(lambda x: x['pval'] < 0.05, axis=1).astype(int)
+    qtl_power = (qtl_results
+                 .groupby(['num_individuals', 'num_causal', 'pve'])['sig']
+                 .agg([np.mean, np.std])
+                 .reset_index()
+                 .rename(columns={'mean': 'power', 'std': 'se'}))
+    qtl_power['se'] /= 10
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[60]:
   :END:
 
   Plot the results.
@@ -605,7 +627,13 @@
       for n in [53, 75, 100, 120]:
         subset = np.logical_and(qtl_power['num_individuals'] == n, qtl_power['num_causal'] == m)
         color = colorcet.cm['inferno'](.9 * (n - 53) / (120 - 53))
-        ax[i].plot(qtl_power.loc[subset, 'pve'], qtl_power.loc[subset, 'power'], marker='.', c=color, lw=1, ms=8, label=n)
+        ax[i].plot(qtl_power.loc[subset, 'pve'],
+                   qtl_power.loc[subset, 'power'],
+                   marker='.', c=color, lw=1, ms=8, label=n)
+        ax[i].fill_between(qtl_power.loc[subset, 'pve'],
+                           qtl_power.loc[subset, 'power'] - 1.96 * qtl_power.loc[subset, 'se'],
+                           qtl_power.loc[subset, 'power'] + 1.96 * qtl_power.loc[subset, 'se'],
+                           color=color, alpha=0.1)
     ax[0].set_title('1 causal')
     ax[1].set_title('Infinitesimal')
     ax[1].set_xlabel('Proportion of variance explained')
@@ -616,8 +644,53 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[44]:
+  # Out[77]:
   [[file:figure/power.org/eqtl-power.png]]
+  :END:
+
+  Look at the empirical CDF of /cis/-heritability of gene expression ([[http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1006423][Wheeler
+  et al 2016]]). The results are [[https://github.com/WheelerLab/GenArchDB][available on github]].
+
+  #+BEGIN_SRC ipython
+    import sqlite3
+    with sqlite3.connect('/project2/mstephens/aksarkar/.local/src/GenArchDB/genarch.db') as conn:
+      cis_h2g = pd.read_sql('select * from results where tissue == "DGN-WB";', conn)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[3]:
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/power.org/eqtl-heritability.png
+    plt.clf()
+    plt.gcf().set_size_inches(3, 3)
+    n, bins, _ = plt.hist(cis_h2g['pve'], bins=100, histtype='step', color='k', cumulative=True)
+    plt.axvline(x=0.4, c='r', ls=':', lw=1)
+    plt.axhline(y=n[np.where(bins >= 0.4)[0].min()], c='r', ls=':', lw=1)
+    plt.xlabel('Proportion of variance explained')
+    plt.ylabel('Cumulative number of genes')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[8]:
+  : Text(0,0.5,'Cumulative number of genes')
+  [[file:figure/power.org/eqtl-heritability.png]]
+  :END:
+
+  Estimate how many genes we had power to detect.
+
+  #+BEGIN_SRC ipython
+    m = (.95 * cis_h2g['pve'] > 0.4).sum()
+    p = .7
+    m * p, np.sqrt(m * p * (1 - p))
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[22]:
+  : (614.5999999999999, 13.57865972767563)
   :END:
 
   The key insight is that the single cell experiment size determines the
@@ -645,12 +718,12 @@
   :END:
 
   #+BEGIN_SRC ipython
-    sim_results[pi_pass].groupby(['num_samples', 'num_mols', 'log_mu']).apply(lambda x: 1 / (1 + np.var(x['log_mu_hat']))).reset_index()
+    sim_results[pi_pass].groupby(['num_samples', 'num_mols', 'log_mu']).apply(lambda x: pd.Series(1 / (1 + np.var(x['log_mu_hat'])))).reset_index()
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[45]:
+  # Out[98]:
   #+BEGIN_EXAMPLE
     num_samples  num_mols  log_mu         0
     0            95    114026     -12  0.943735
@@ -690,4 +763,72 @@
     8        10000    114026       -1  0.999300
     9        10000    114026        0  0.933499
   #+END_EXAMPLE
+  :END:
+
+* True discovery proportion                                        :noexport:
+
+  Power characterizes a single test; however, in a typical study we are
+  performing multiple hypothesis tests and controlling the FDR.
+
+  Read the QTLs and normalized expression matrices.
+
+  #+BEGIN_SRC ipython
+    prefix = '/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/'
+    qtls = {pheno: [pd.read_table('{}/{}.txt.gz'.format(prefix, pheno), sep=' '),
+                    pd.read_table('{}/{}.bed.gz'.format(prefix, pheno)).set_index('pid').filter(like='NA', axis='columns')]
+            for pheno in ['bulk', 'pooled', 'log_mu', 'log_phi', 'mean', 'variance', 'cv', 'fano']}
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[47]:
+  :END:
+
+  Estimate \(\pi_0\) via Storey's procedure.
+
+  #+BEGIN_SRC ipython
+    import rpy2.robjects.packages
+    import rpy2.robjects.pandas2ri
+
+    qvalue = rpy2.robjects.packages.importr('qvalue')
+
+    rpy2.robjects.pandas2ri.activate()
+
+    pd.DataFrame.from_dict({k: np.array(qvalue.pi0est(qtls[k][0]['p_beta'])[0]) for k in qtls}, orient='index').sort_values(0)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[77]:
+  #+BEGIN_EXAMPLE
+    0
+    bulk      0.534070
+    log_mu    0.728419
+    pooled    0.739354
+    mean      0.741717
+    variance  0.747747
+    fano      0.871923
+    cv        0.895591
+    log_phi   0.971077
+  #+END_EXAMPLE
+  :END:
+
+  Plot the p-value distribution.
+
+  #+BEGIN_SRC ipython :ipyfile figure/power.org/p-value-dist.png
+    plt.clf()
+    plt.gcf().set_size_inches(3, 3)
+    grid = np.linspace(0, 1, 100)
+    plt.hist(qtls['bulk'][0]['p_beta'].dropna(), bins=100, histtype='step', color='k', lw=1, label='Bulk')
+    plt.hist(qtls['pooled'][0]['p_beta'].dropna(), bins=100, histtype='step', color='r', lw=1, label='Single cell')
+    plt.legend(frameon=False)
+    plt.xlabel('$p$-value')
+    plt.ylabel('Number of genes')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[87]:
+  : Text(0,0.5,'Number of genes')
+  [[file:figure/power.org/p-value-dist.png]]
   :END:
