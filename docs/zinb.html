@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-06-02 Sat 19:37 -->
+<!-- 2018-06-07 Thu 01:43 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mean/dispersion estimation</title>
@@ -620,7 +620,7 @@ perform gradient descent.
   <span class="org-keyword">return</span> result
 
 <span class="org-variable-name">res</span> = pd.concat([evaluate(num_samples, num_mols)
-                 <span class="org-keyword">for</span> num_samples <span class="org-keyword">in</span> (10000, 95)
+                 <span class="org-keyword">for</span> num_samples <span class="org-keyword">in</span> (10000, 1000, 95)
                  <span class="org-keyword">for</span> num_mols <span class="org-keyword">in</span> (114026,)])
 res.to_csv(<span class="org-string">'simulation.txt.gz'</span>, compression=<span class="org-string">'gzip'</span>, sep=<span class="org-string">'\t'</span>)
 </pre>
@@ -635,7 +635,7 @@ python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-sim.py
 </div>
 
 <pre class="example">
-Submitted batch job 46277656
+Submitted batch job 46403960
 
 </pre>
 
@@ -1368,7 +1368,7 @@ Text(0,0.5,'Sample Fano factor')
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-06-02 Sat 19:37</p>
+<p class="date">Created: 2018-06-07 Thu 01:43</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
