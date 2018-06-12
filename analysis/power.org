@@ -1,5 +1,6 @@
 #+TITLE: Power to detect QTLs in single cell data
 #+SETUPFILE: setup.org
+#+OPTIONS: toc:t
 
 * Introduction
 
@@ -14,27 +15,23 @@
 
 * Setup                                                            :noexport:
  
- #+BEGIN_SRC emacs-lisp
+  #+BEGIN_SRC emacs-lisp
     (org-babel-lob-ingest "~/.emacs.d/org-templates/library.org")
-    (org-babel-lob-ingest "/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/zinb.org")
   #+END_SRC
 
   #+RESULTS:
   : 18
 
-  #+CALL: ipython3(memory="4G", venv="scqtl")
+  #+CALL: ipython3(memory="8G", venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 46397657
+  : Submitted batch job 46534316
 
   #+BEGIN_SRC ipython
     %matplotlib inline
     %config InlineBackend.figure_formats = set(['retina'])
 
-    import collections
     import colorcet
-    import gzip
-    import io
     import matplotlib.pyplot as plt
   #+END_SRC
 
@@ -45,12 +42,19 @@
 
   #+NAME: power-imports
   #+BEGIN_SRC ipython
-    import multiprocessing as mp
     import numpy as np
     import pandas as pd
+    import pickle
+    import rpy2.robjects.numpy2ri
+    import rpy2.robjects.packages
+    import rpy2.robjects.pandas2ri
     import scipy.optimize as so
     import scipy.stats as st
     import tabix
+
+    rpy2.robjects.numpy2ri.activate()
+    rpy2.robjects.pandas2ri.activate()
+    ashr = rpy2.robjects.packages.importr('ashr')
   #+END_SRC
 
   #+RESULTS: power-imports
@@ -62,11 +66,11 @@
 
   Perform a nested model comparison for each gene \(k\), comparing the model:
 
-  \[ r_{ijk} \sim ZINB(\pi_{ik}, \mu_{ik}, \phi_{ik}) \]
+  \[ r_{ijk} \sim \mathrm{ZINB}(\pi_{ik}, \mu_{ik}, \phi_{ik}) \]
 
   against the model:
 
-  \[ r_{ijk} \sim ZINB(\pi_{ik}, \mu_{ik}, \phi_{i}) \]
+  \[ r_{ijk} \sim \mathrm{ZINB}(\pi_{ik}, \mu_{ik}, \phi_{i}) \]
 
   #+NAME: lrt-impl
   #+BEGIN_SRC ipython :eval never
@@ -435,36 +439,58 @@
 
   #+NAME: eqtl-sim-impl
   #+BEGIN_SRC ipython
-    def read_dosage(row, dose_file, window=100000):
-      x = np.array([record[9:] for record in dose_file.query(row['chr'], row['start'] - window, row['start'] + window)]).astype(np.float).T
-      x -= x.mean(axis=0)
-      x /= x.std(axis=0)
-      return x
+    def read_dosage(vcf, row, window=100000):
+      records = list(vcf.query(row['#Chr'], row['start'] - window, row['start'] + window))
+      if records:
+        x = np.array([record[9:] for record in records]).astype(np.float).T
+        x -= x.mean(axis=0)
+        x /= x.std(axis=0)
+        x = pd.DataFrame(x, columns=[record[2] for record in records])
+        return x
+      else:
+        return None
+
+    def read_vcf_geno(vcf, chrom, start, end):
+      records = list(vcf.query(chrom, start, end))
+      if records:
+        x = (np.array([[_.split('/') for record in records for _ in record[9:]]])
+             .reshape(len(records), -1, 2)
+             .astype(float)
+             .sum(axis=-1))
+        return np.array(x)
+      else:
+        return None
 
     def generate_pheno(x, pve, m=None):
+      x = x[:,x.mean(axis=0) / 2 > 0.05]
       n, p = x.shape
       if m is None:
         theta = np.random.normal(size=p)
       else:
         theta = np.zeros(p)
-        # Assume x standardized
         theta[np.random.choice(p, m, replace=False)] = np.random.normal(size=m)
+      x -= x.mean(axis=0)
+      x /= x.std(axis=0)
       y = x.dot(theta)
       y += np.random.normal(scale=np.sqrt(y.var() * (1 / pve - 1)), size=n)
       y -= y.mean()
       y /= y.std()
       return y.reshape(-1, 1)
 
-    _sf = st.chi2(1).sf
-
-    def nominal_test(x, y):
+    def lm(x, y):
       n = y.shape[0]
-      # Assume x standardized, so diag(X' X) = n I
       beta = x.T.dot(y) / n
       df = n - 1
       rss = ((y ** 2).sum() - beta ** 2 * n)
       sigma2 = rss / df
-      return _sf(beta ** 2 / sigma2)
+      se = np.sqrt(sigma2 / n)
+      return beta, se
+
+    _sf = st.chi2(1).sf
+
+    def nominal_test(x, y):
+      beta, se = lm(x, y)
+      return _sf((beta / se) ** 2)
 
     def beta_llik(theta, x):
       return -st.beta.logpdf(x, *theta).mean()
@@ -487,18 +513,14 @@
         theta *= np.square(null_pvals.mean()) * ((1 - null_pvals.mean()) / null_pvals.var() - 1)
       return st.beta.cdf(pval, *theta)
 
-    # Important: tabix read doesn't appear to be thread-safe
-    read_lock = mp.Lock()
-
-    def evaluate(num_individuals, num_causal, pve, num_genes=100):
+    def evaluate(vcf, eqtls, num_individuals, num_causal, pve, num_genes=100):
       query = eqtls.sample(n=num_genes)
       result = []
       for _, record in query.iterrows():
-        read_lock.acquire()
-        try:
-          x = read_dosage(record, yri)
-        finally:
-          read_lock.release()
+        # Important: GEUVADIS chromosomes are coded 1-22
+        x = read_vcf_geno(vcf, record['chr'][3:], record['start'] - 100000, record['start'] + 100000)
+        if x is None:
+          continue
         keep = np.random.choice(x.shape[0], num_individuals, replace=False)
         x = x[keep]
         y = generate_pheno(x, pve=pve, m=num_causal)
@@ -515,37 +537,36 @@
 
   #+RESULTS: eqtl-sim-impl
   :RESULTS:
-  # Out[46]:
+  # Out[44]:
   :END:
 
-  Process and QC the GEUVADIS dosages.
+  QC the GEUVADIS genotypes.
 
   #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/power/
-    sbatch --partition=broadwl --job-name=geuvadis --out=geuvadis.out
+    sbatch --partition=broadwl --mem=4G --job-name=plink -a 1-22
     #!/bin/bash
+    plink --memory 4000 --vcf /project/compbio/geuvadis/genotypes/GEUVADIS.chr${SLURM_ARRAY_TASK_ID}.*.vcf.gz --maf 0.05 --geno 0.01 --make-bed --out geuvadis-$SLURM_ARRAY_TASK_ID
+  #+END_SRC
+
+  #+RESULTS:
+  : Submitted batch job 46479117
+
+  Write out and index the QC'ed VCF.
+
+  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/power/
+    sbatch --partition=broadwl --mem=4G --job-name=geuvadis --out=geuvadis.out
+    #!/bin/bash
+    set -e
+    module load parallel
     source activate scqtl
-    bcftools concat -o geuvadis.vcf /project/compbio/geuvadis/genotypes/GEUVADIS.*.vcf.gz
+    parallel echo geuvadis-{} ::: $(seq 1 22) >merge.txt
+    plink --memory 4000 --merge-list merge.txt --recode vcf-iid --out geuvadis
     bgzip geuvadis.vcf
     tabix geuvadis.vcf.gz
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 46400442
-
-  Re-QC dosages for 120 YRI individuals.
-
-  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
-    sbatch --partition=broadwl --job-name=reprocess-dosage --out=reprocess-dosage.out
-    #!/bin/bash
-    set -e
-    source activate scqtl
-    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/reprocess-dosage.py
-    bgzip dosages.vcf
-    tabix dosages.vcf.gz
-  #+END_SRC
-
-  #+RESULTS:
-  : Submitted batch job 46369493
+  : Submitted batch job 46404341
 
   Run the power calculation on 28 CPUs.
 
@@ -553,23 +574,22 @@
     <<power-imports>>
     <<eqtl-sim-impl>>
 
-    yri = tabix.open('/scratch/midway2/aksarkar/singlecell/scqtl-mapping/dosages.vcf.gz')
+    vcf = tabix.open('/scratch/midway2/aksarkar/singlecell/power/geuvadis.vcf.gz')
     # Restrict to genes where we previously successfully mapped eQTLs
     eqtls = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/pooled.txt.gz', sep=' ', index_col=0).dropna()
 
-    args = [(n, m, pve)
-            for n in (53, 75, 100, 120)
+    args = [(vcf, eqtls, n, m, pve)
+            for n in (53, 100, 200, 400)
             for m in (1, None)
-            for pve in np.geomspace(.01, 0.5, 5)]
+            for pve in np.linspace(0.01, 0.5, 10)]
 
     np.random.seed(0)
-    with mp.Pool() as pool:
-      result = pool.starmap(evaluate, args)
+    result = [evaluate(*a) for a in args]
     pd.concat(result).to_csv('eqtl-power.txt.gz', compression='gzip', sep='\t')
   #+END_SRC
 
   #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/power/
-    sbatch --partition=broadwl -n1 -c28 --exclusive --mem=16G --job-name=eqtl-power --output=eqtl-power.out
+    sbatch --partition=broadwl -n1 -c28 --exclusive --time=4:00:00 --mem=16G --job-name=eqtl-power --output=eqtl-power.out
     #!/bin/bash
     source activate scqtl
     python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/eqtl-power.py
@@ -577,18 +597,7 @@
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 46381725
-
-  #+BEGIN_SRC sh
-    sacct -j 46372142 -o Elapsed
-  #+END_SRC
-
-  #+RESULTS:
-  :    Elapsed 
-  : ---------- 
-  :   00:21:47 
-  :   00:21:47 
-  :   00:21:47 
+  : Submitted batch job 46481028
 
   Read the results.
 
@@ -765,70 +774,358 @@
   #+END_EXAMPLE
   :END:
 
-* True discovery proportion                                        :noexport:
+* Distribution of effect sizes.
 
-  Power characterizes a single test; however, in a typical study we are
-  performing multiple hypothesis tests and controlling the FDR.
+  Use ~ash~ to estimate the distribution of true effect sizes, borrowing
+  information across genes.
 
-  Read the QTLs and normalized expression matrices.
+  We need to compute regression standard errors ourselves.
 
+  #+NAME: nominal-pass-def
   #+BEGIN_SRC ipython
-    prefix = '/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/'
-    qtls = {pheno: [pd.read_table('{}/{}.txt.gz'.format(prefix, pheno), sep=' '),
-                    pd.read_table('{}/{}.bed.gz'.format(prefix, pheno)).set_index('pid').filter(like='NA', axis='columns')]
-            for pheno in ['bulk', 'pooled', 'log_mu', 'log_phi', 'mean', 'variance', 'cv', 'fano']}
+    def run_nominal_pass(vcf, pheno, header, cov=None):
+      # Annihilator matrix I - X X^+
+      M = None
+      result = []
+      for _, record in pheno.iterrows():
+        x = read_dosage(vcf, record)
+        if x is not None:
+          x.index = header
+          y = record
+          x, y = x.align(y, axis='index', join='inner')
+          y = y.astype(float)
+          if M is None and cov is not None:
+            cov = cov.T.align(y, axis='index', join='inner')[0]
+            C = np.array(cov - cov.mean(axis=0))
+            M = np.eye(C.shape[0]) - C.dot(np.linalg.pinv(C))
+          if M is not None:
+            y = M.dot(y)
+          y -= y.mean()
+          y /= y.std()
+          beta, se = lm(x, y)
+          result.append(pd.DataFrame({'gene': record.name, 'beta': beta, 'se': se}))
+      return pd.concat(result)
   #+END_SRC
 
-  #+RESULTS:
+  #+RESULTS: nominal-pass-def
   :RESULTS:
-  # Out[47]:
+  # Out[24]:
   :END:
 
-  Estimate \(\pi_0\) via Storey's procedure.
+  #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py
+    <<power-imports>>
+    import argparse
+    <<eqtl-sim-impl>>
+    <<nominal-pass-def>>
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--vcf', required=True)
+    parser.add_argument('--pheno', required=True)
+    parser.add_argument('--cov')
+    parser.add_argument('--out', default=None)
+    args = parser.parse_args()
+
+    vcf = tabix.open(args.vcf)
+    header = pd.read_table(args.vcf, skiprows=2, nrows=1, header=0).columns[9:]
+    pheno = pd.read_table(args.pheno, index_col=4)
+    if args.cov is not None:
+      cov = pd.read_table(args.cov, sep=r'\s+', engine='python', index_col=0)
+    else:
+      cov = None
+
+    result = run_nominal_pass(vcf, pheno, header, cov)
+    if args.out is None:
+      out = 'nominal-pass.txt.gz'
+    else:
+      out = args.out
+    result.to_csv(out, sep='\t', compression='gzip')
+  #+END_SRC
+
+  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/power/
+    sbatch --partition=broadwl -n1 -c28 --exclusive --job-name=nominal --out nominal.out --time=60:00
+    #!/bin/bash
+    source activate scqtl
+    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /scratch/midway2/aksarkar/singlecell/scqtl-mapping/log_phi.bed.gz --out log_phi.txt.gz
+    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/log_mu.bed.gz --cov /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/log_mu-covars.txt --out log_mu.txt.gz
+    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/bulk.bed.gz --cov /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/bulk-covars.txt --out bulk.txt.gz
+  #+END_SRC
+
+  #+RESULTS:
+  : Submitted batch job 46516912
+
+  Compare standard error computations.
 
   #+BEGIN_SRC ipython
-    import rpy2.robjects.packages
-    import rpy2.robjects.pandas2ri
+    def jacknife(x, y):
+      n = y.shape[0]
+      # pandas is too clever here
+      xty = x.values.T * y.values
+      beta = xty.sum(axis=1) / n
+      se = np.array([(n * beta - xty[:,i]) / (n - 1) for i in range(y.shape[0])]).std(axis=0)
+      return beta, se
 
-    qvalue = rpy2.robjects.packages.importr('qvalue')
+    def bootstrap(x, y, b):
+      n = y.shape[0]
+      beta = x.values.T.dot(y.values) / n
+      B = []
+      for _ in range(b):
+        index = np.random.choice(n, n, replace=True)
+        B.append(x.iloc[index].values.T.dot(y.iloc[index]) / n)
+      se = np.array(B).std(axis=0)
+      return beta, se
 
-    rpy2.robjects.pandas2ri.activate()
-
-    pd.DataFrame.from_dict({k: np.array(qvalue.pi0est(qtls[k][0]['p_beta'])[0]) for k in qtls}, orient='index').sort_values(0)
+    def run_se_pass(vcf, pheno, header):
+      np.random.seed(0)
+      result = []
+      for _, record in pheno.iterrows():
+        x = read_dosage(vcf, record)
+        if x is not None:
+          x.index = header
+          y = record
+          x, y = x.align(y, axis='index', join='inner')
+          y = y.astype(float)
+          beta0, se0 = lm(x, y)
+          _, se1 = jacknife(x, y)
+          _, se2 = bootstrap(x, y, 100)
+          result.append(pd.DataFrame({'gene': record.name, 'beta0': beta0, 'se0': se0, 'se1': se1, 'se2': se2}))
+      return pd.concat(result)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[77]:
+  # Out[57]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    header = pd.read_table('/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz', skiprows=2, nrows=1, header=0).columns[9:]
+    vcf = tabix.open('/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz')
+    pheno = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/bulk.bed.gz', index_col=4)
+    cov = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/bulk-covars.txt', sep=r'\s+', engine='python', index_col=0)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[54]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    res = run_se_pass(vcf, pheno.sample(n=100), header)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/power.org/standard-errors.png
+    ticks = ['Analytic', 'Jacknife', 'Bootstrap']
+    plt.clf()
+    fig, ax = plt.subplots(3, 3, sharex=True, sharey=True)
+    fig.set_size_inches(8, 8)
+    for y in range(3):
+      for x in range(3):
+        if y <= x:
+          ax[y, x].set_axis_off()
+        else:
+          ax[y, x].scatter(res['se{}'.format(x)], res['se{}'.format(y)], s=2, c='k', alpha=0.25)
+          ax[y, x].plot([0, .4], [0, .4], c='r', ls=':', lw=1)
+    for y in range(3):
+      ax[y, 0].set_ylabel(ticks[y])
+    for x in range(3):
+      ax[-1, x].set_xlabel(ticks[x])
+    fig.tight_layout()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[59]:
+  [[file:figure/power.org/standard-errors.png]]
+  :END:
+
+  Downsample variants per gene like in [[http://dx.doi.org/10.1101/096552][Urbut et al 2016]] to make the estimation
+  problem easier.
+
+  #+NAME: downsample-impl
+  #+BEGIN_SRC ipython
+    def downsample(x, n):
+      assert n >= 0
+      if x.shape[0] >= n:
+        return x.loc[np.random.choice(x.index, n, replace=False),['beta', 'se']]
+      else:
+        return x.loc[:,['beta', 'se']]
+
+    def fit_ash(summary_stats):
+      summary_stats = pd.read_table(summary_stats).groupby('gene').apply(downsample, n=10)
+      return ashr.ash(summary_stats['beta'], summary_stats['se'], method='fdr')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[60]:
+  :END:
+
+  Fit ~ash~.
+
+  #+BEGIN_SRC ipython
+    ash_results = {x: fit_ash('/scratch/midway2/aksarkar/singlecell/power/{}.txt.gz'.format(x))
+                   for x in ('log_phi', 'log_mu', 'bulk')}
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  :END:
+
+  Serialize the results.
+
+  #+BEGIN_SRC ipython
+    with open('/scratch/midway2/aksarkar/singlecell/power/ash-results.pkl', 'wb') as f:
+      pickle.dump(ash_results, f)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[28]:
+  :END:
+
+  Read the results.
+
+  #+BEGIN_SRC ipython
+    with open('/scratch/midway2/aksarkar/singlecell/power/ash-results.pkl', 'rb') as f:
+      ash_results = pickle.load(f)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[95]:
+  :END:
+
+  Plot the estimated distributions of effect sizes.
+
+  #+BEGIN_SRC ipython :ipyfile figure/power.org/ash-fitted-g.png
+    plt.clf()
+    plt.gcf().set_size_inches(3, 3)
+    grid = np.linspace(-.5, .5, num=1000)
+    plt.plot(grid, np.array(ashr.cdf_ash(ash_results['log_phi'], grid).rx2('y')).ravel(), c='r', lw=1, label='$\hat{g}_{\mathrm{dispersion}}$')
+    plt.plot(grid, np.array(ashr.cdf_ash(ash_results['log_mu'], grid).rx2('y')).ravel(), c='k', lw=1, label='$\hat{g}_{\mathrm{abundance}}$')
+    plt.plot(grid, np.array(ashr.cdf_ash(ash_results['bulk'], grid).rx2('y')).ravel(), c='b', lw=1, label='$\hat{g}_{\mathrm{bulk}}$')
+    plt.plot(grid, st.norm().cdf(grid), c='.75', lw=1, label='N(0, 1)')
+    plt.legend(frameon=False, loc='center left', bbox_to_anchor=(1, .5))
+    plt.xlabel('Effect size')
+    plt.ylabel('Cumulative density')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[66]:
+  : Text(0,0.5,'Cumulative density')
+  [[file:figure/power.org/ash-fitted-g.png]]
+  :END:
+
+  Recover ~ash~ \(\pi_0\).
+
+  #+BEGIN_SRC ipython
+    pd.Series({k: np.array(ashr.get_pi0(v)) for k, v in ash_results.items()})
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[71]:
   #+BEGIN_EXAMPLE
-    0
-    bulk      0.534070
-    log_mu    0.728419
-    pooled    0.739354
-    mean      0.741717
-    variance  0.747747
-    fano      0.871923
-    cv        0.895591
-    log_phi   0.971077
+    bulk       [0.6348257407005274]
+    log_mu     [0.6454298511988216]
+    log_phi    [0.8401024820462243]
+    dtype: object
   #+END_EXAMPLE
   :END:
 
-  Plot the p-value distribution.
+* Distribution of PVE
 
-  #+BEGIN_SRC ipython :ipyfile figure/power.org/p-value-dist.png
-    plt.clf()
-    plt.gcf().set_size_inches(3, 3)
-    grid = np.linspace(0, 1, 100)
-    plt.hist(qtls['bulk'][0]['p_beta'].dropna(), bins=100, histtype='step', color='k', lw=1, label='Bulk')
-    plt.hist(qtls['pooled'][0]['p_beta'].dropna(), bins=100, histtype='step', color='r', lw=1, label='Single cell')
-    plt.legend(frameon=False)
-    plt.xlabel('$p$-value')
-    plt.ylabel('Number of genes')
+  We can use shrunk marginal effect size estimates to bound the proportion of
+  phenotypic variance explained. We claim:
+
+  \[ h^2 \geq \arg\max_j E[\beta_j \mid \hat\beta]^2 \]
+
+  *Frequentist argument.* If the maximizer \(j\) is causal, this is a lower
+  bound on PVE because \(h^2 = \sum_k \beta_k^2\) and other variants \(k\)
+  could be causal, and because the estimate is shrunk towards zero.
+
+  If it is not causal, then the true marginal effect size is \(R_ij beta_i\),
+  where \(i\) is causal and \(R_ij = \mathrm{Corr}(X_i, X_j)\). \(R_ij <= 1\),
+  so this is still a lower bound
+
+  *Bayesian argument.* 
+
+  \[ h^2 \geq \beta_j^2 \text{ for all \(j\)} \]
+
+  \[ E[h^2 \mid \hat\beta] \geq E[\beta_j^2 \mid \hat\beta] \text{ for all \(j\)} \]
+
+  \[ E[h^2 \mid \hat\beta] \geq \arg\max_j E[\beta_j^2 \mid \hat\beta] \]
+
+  #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/estimate-pve.py
+    <<power-imports>>
+    <<downsample-impl>>
+
+    def get_pve(summary_stats, ash_result):
+      res = ashr.ash(summary_stats['beta'], summary_stats['se'], fixg=True,
+                     g=ash_result.rx2('fitted_g'))
+      pve = np.square(pd.Series(np.square(ashr.get_sd(res)) + ashr.get_pm(res),
+                                index=summary_stats['gene']))
+      return pve.groupby(level=0).agg(max)
+
+    np.random.seed(0)
+    stats = {x: (pd.read_table('/scratch/midway2/aksarkar/singlecell/power/{}.txt.gz'.format(x))
+                 .groupby('gene')
+                 .agg(lambda x: x.loc[x['beta'].idxmax()])
+                 .reset_index())
+             for x in ('log_phi', 'log_mu', 'bulk')}
+    # Munge gene names in bulk summary statistics
+    stats['bulk']['gene'] = [x.split('.')[0] for x in stats['bulk']['gene']]
+    with open('/scratch/midway2/aksarkar/singlecell/power/ash-results.pkl', 'rb') as f:
+      ash_results = pickle.load(f)
+    (pd.DataFrame({k: get_pve(v, ash_results[k]) for k, v in stats.items()})
+     .to_csv('estimated-pve.txt.gz', sep='\t', compression='gzip'))
+  #+END_SRC
+
+  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/power/
+    sbatch --partition=broadwl --time=10:00 --mem=4G -n1 -c28 --exclusive --job-name estimate-pve --out estimate-pve.out
+    #!/bin/bash
+    source activate scqtl
+    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/estimate-pve.py
+  #+END_SRC
+
+  #+RESULTS:
+  : Submitted batch job 46537844
+
+  Read the results.
+
+  #+BEGIN_SRC ipython
+    estimated_pve = pd.read_table('/scratch/midway2/aksarkar/singlecell/power/estimated-pve.txt.gz', index_col=0)
+    estimated_pve.columns = ['Bulk', 'Abundance', 'Dispersion']
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[87]:
-  : Text(0,0.5,'Number of genes')
-  [[file:figure/power.org/p-value-dist.png]]
+  # Out[42]:
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/power.org/estimated-pve.png
+    plt.clf()
+    plt.gcf().set_size_inches(3, 3)
+    M = 0.1
+    grid = np.linspace(0, M, 100)
+    for k, c in zip(estimated_pve, ['k', 'r', 'b']):
+      f = st.gaussian_kde(estimated_pve[k].dropna())
+      plt.plot(grid, f(grid), c=c, lw=1, label=k)
+      plt.fill_between(grid, f(grid), color=c, alpha=0.1)
+    plt.legend(frameon=False)
+    plt.xlim(0, M)
+    plt.ylim(0, plt.ylim()[1])
+    plt.xlabel('Proportion of variance explained')
+    plt.ylabel('Density')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[43]:
+  : Text(0,0.5,'Density')
+  [[file:figure/power.org/estimated-pve.png]]
   :END:
