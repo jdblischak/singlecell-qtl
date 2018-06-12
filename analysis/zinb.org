@@ -389,7 +389,7 @@
        return result
 
      res = pd.concat([evaluate(num_samples, num_mols)
-                      for num_samples in (10000, 95)
+                      for num_samples in (10000, 1000, 95)
                       for num_mols in (114026,)])
      res.to_csv('simulation.txt.gz', compression='gzip', sep='\t')
    #+END_SRC
@@ -402,7 +402,7 @@
    #+END_SRC
 
    #+RESULTS:
-   : Submitted batch job 46277656
+   : Submitted batch job 46403960
 
    Read the results.
 
