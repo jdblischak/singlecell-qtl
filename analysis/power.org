@@ -25,7 +25,7 @@
   #+CALL: ipython3(memory="8G", venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 46541646
+  : Submitted batch job 46544191
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -688,7 +688,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[28]:
+  # Out[27]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -697,7 +697,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[98]:
+  # Out[28]:
   #+BEGIN_EXAMPLE
     num_samples  num_mols  log_mu         0
     0            95    114026     -12  0.943735
@@ -707,13 +707,20 @@
     4            95    114026      -8  0.990610
     5            95    114026      -7  0.995300
     6            95    114026      -6  0.992922
-    7         10000    114026     -12  0.970102
-    8         10000    114026     -11  0.980160
-    9         10000    114026     -10  0.992239
-    10        10000    114026      -9  0.995632
-    11        10000    114026      -8  0.998242
-    12        10000    114026      -7  0.999954
-    13        10000    114026      -6  0.999969
+    7          1000    114026     -12  0.968472
+    8          1000    114026     -11  0.979160
+    9          1000    114026     -10  0.991243
+    10         1000    114026      -9  0.994651
+    11         1000    114026      -8  0.997622
+    12         1000    114026      -7  0.999581
+    13         1000    114026      -6  0.999661
+    14        10000    114026     -12  0.970102
+    15        10000    114026     -11  0.980160
+    16        10000    114026     -10  0.992239
+    17        10000    114026      -9  0.995632
+    18        10000    114026      -8  0.998242
+    19        10000    114026      -7  0.999954
+    20        10000    114026      -6  0.999969
   #+END_EXAMPLE
   :END:
 
@@ -1056,7 +1063,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[54]:
+  # Out[3]:
   :END:
 
   #+BEGIN_SRC ipython :ipyfile figure/power.org/estimated-pve.png
@@ -1082,6 +1089,60 @@
   [[file:figure/power.org/estimated-pve.png]]
   :END:
 
+  Plot the expected density of mean expression PVE assuming measurement noise
+  from the simulation.
+
+  #+BEGIN_SRC ipython
+    (estimated_pve['Abundance'] / estimated_pve['Bulk']).describe()  
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[42]:
+  #+BEGIN_EXAMPLE
+    count    8462.000000
+    mean        1.587743
+    std         3.075250
+    min         0.002746
+    25%         0.268501
+    50%         0.672904
+    75%         1.638187
+    max        62.349105
+    dtype: float64
+  #+END_EXAMPLE
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/power.org/effective-pve.png
+    plt.clf()
+    plt.gcf().set_size_inches(3, 3)
+    M = 0.1
+    grid = np.linspace(0, M, 100)
+    f0 = st.gaussian_kde(estimated_pve['Bulk'].dropna())
+    plt.plot(grid, f0(grid), c='b', lw=1, label='Bulk')
+    plt.fill_between(grid, f0(grid), color='b', alpha=0.1)
+
+    f1 = st.gaussian_kde(.67 * estimated_pve['Bulk'].dropna())
+    plt.plot(grid, f1(grid), c='c', lw=1, label='Bulk + noise')
+    plt.fill_between(grid, f1(grid), color='c', alpha=0.1)
+
+    f2 = st.gaussian_kde(estimated_pve['Abundance'].dropna())
+    plt.plot(grid, f2(grid), c='k', lw=1, label='SC')
+    plt.fill_between(grid, f2(grid), color='k', alpha=0.1)
+
+    plt.legend(frameon=False)
+    plt.xlim(0, M)
+    plt.ylim(0, plt.ylim()[1])
+    plt.xlabel('Proportion of variance explained')
+    plt.ylabel('Density')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[43]:
+  : Text(0,0.5,'Density')
+  [[file:figure/power.org/effective-pve.png]]
+  :END:
+
   Estimate the quantiles of the distribution of dispersion PVE.
 
   #+BEGIN_SRC ipython
@@ -1093,6 +1154,20 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[85]:
+  # Out[4]:
   : 0.01001001001001001
+  :END:
+
+  Estimate the same for mean PVE
+
+  #+BEGIN_SRC ipython
+    f = st.gaussian_kde(estimated_pve['Bulk'].dropna())
+    x = np.linspace(0, 1, 1000)
+    x[np.where(si.cumtrapz(f(x), x) > 0.9)[0].min()]
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[6]:
+  : 0.1041041041041041
   :END:

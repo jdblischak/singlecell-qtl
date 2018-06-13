@@ -412,7 +412,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[3]:
+   # Out[21]:
    :END:
 
    #+BEGIN_SRC ipython
@@ -422,7 +422,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[12]:
+   # Out[22]:
    :END:
 
    Plot the results.
@@ -1365,14 +1365,14 @@
   Read the estimated parameters.
 
   #+BEGIN_SRC ipython
-    log_mu = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-log-mu.txt.gz', comment='g', index_col=0, header=None, sep=' ')
-    log_phi = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-log-phi.txt.gz', comment='g', index_col=0, header=None, sep=' ')
-    logodds = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-logodds.txt.gz', comment='g', sep=' ', header=None, index_col=0)
+    log_mu = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz', comment='g', index_col=0, header=None, sep=' ')
+    log_phi = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-phi.txt.gz', comment='g', index_col=0, header=None, sep=' ')
+    logodds = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-logodds.txt.gz', comment='g', sep=' ', header=None, index_col=0)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[4]:
+  # Out[46]:
   :END:
 
   Look at the joint distribution.
@@ -1388,15 +1388,15 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[5]:
+  # Out[47]:
   #+BEGIN_EXAMPLE
     log_mu   log_phi   logodds
     0
-    ENSG00000000003  -9.462710 -2.643550 -7.151637
-    ENSG00000000419  -9.935146 -2.985955 -6.948550
-    ENSG00000000457 -12.004859 -1.351802  0.296795
-    ENSG00000000460 -11.058336 -2.431379 -3.075272
-    ENSG00000001036 -11.060452 -2.294582 -2.765176
+    ENSG00000000003  -9.462848 -2.740221 -7.077608
+    ENSG00000000419  -9.933007 -3.115943 -6.635574
+    ENSG00000000457 -12.046886 -1.583684  0.290843
+    ENSG00000000460 -11.072902 -2.532334 -3.202983
+    ENSG00000001036 -11.083558 -2.455776 -2.901292
   #+END_EXAMPLE
   :END:
 
@@ -1424,7 +1424,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[6]:
+  # Out[58]:
   [[file:figure/zinb.org/joint-distribution.png]]
   :END:
 
