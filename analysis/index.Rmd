@@ -3,41 +3,33 @@ title: "Overview"
 output: html_document
 ---
 
-## Introduction
-
 Phenotypic heterogeneity in cell populations has been shown to play critical
 roles in determining biologically and clinically significant phenotypes. The
 goal of this project is to identify _robustness QTLs_, loci in the human genome
 that are associated with within-individual variation in gene expression levels.
 
-## Data collection 
+## Data collection and quality control
 
 We [collected single cell RNA-seq data](data-collection.html) from YRI
 invididuals using the C1 platform. We [pooled and sequenced](totals.html) each
 C1 chip on an Illumina HiSeq 2500.
 
-We identified sample swaps and [matched samples to individuals](identity.html)
-using verifyBamID.
+We [matched samples to individuals](identity.html) using `verifyBamID`.
 
-Next, we [filtered low quality samples](sampleqc.html) and both [over- and
+We [filtered low quality samples](sampleqc.html) and both [over- and
  lowly-expressed genes](filter-gene.html) for downstream analysis.
 
-We then [performed dimensionality reduction](dim-reduction.html) on the
+We [performed dimensionality reduction](dim-reduction.html) on the
 quality-controlled samples and genes to identify the remaining major sources of
 variation.
 
 ## QTL mapping
 
-We first [investigated the concordance between scRNA-Seq and matched bulk
-RNA-seq data](sc-vs-bulk.html).
+We [estimated means and dispersions](zinb.html) per individual per gene using
+zero-inflated negative binomial models.
 
-We then built an [interactive
-browser](https://hpimentel.shinyapps.io/eqtl-shiny/) to view the distribution
-of scRNA-Seq counts stratified by genotype at top eQTLs in the matched bulk
-RNA-Seq data.
+We [derived continuous phenotypes from the fitted models and mapped
+QTLs](qtl-mapping.html) using QTLtools.
 
-Next, we [estimated means and dispersions](zinb.html) per individual per
-gene. We then [treated these as continuous phenotypes and mapped
-QTLs](qtl-mapping.html) using QTLtools. We built an [interactive
-browser](http://shiny.stephenslab.uchicago.edu:5006/fano-qtls) to view the
-discovered robustness QTLs.
+We [estimated the power to detect dispersion effects](power.html) as a function
+of the single cell experiment size.
