@@ -25,7 +25,7 @@
   #+CALL: ipython3(memory="8G", venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 46544191
+  : Submitted batch job 46550825
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -921,9 +921,9 @@
     def downsample(x, n):
       assert n >= 0
       if x.shape[0] >= n:
-        return x.loc[np.random.choice(x.index, n, replace=False),['beta', 'se']]
+        return x.loc[np.random.choice(x.index, n, replace=False)]
       else:
-        return x.loc[:,['beta', 'se']]
+        return x
 
     def fit_ash(summary_stats):
       summary_stats = pd.read_table(summary_stats).groupby('gene').apply(downsample, n=10)
@@ -932,7 +932,7 @@
 
   #+RESULTS: downsample-impl
   :RESULTS:
-  # Out[36]:
+  # Out[33]:
   :END:
 
   #+RESULTS:
@@ -993,6 +993,118 @@
   # Out[52]:
   : Text(0,0.5,'Cumulative density')
   [[file:figure/power.org/ash-fitted-g.png]]
+  :END:
+
+  Run nominal passes on variance phenotypes.
+
+  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/power/
+    sbatch --partition=broadwl -n1 -c28 --exclusive --job-name=nominal --out nominal.out --time=60:00
+    #!/bin/bash
+    source activate scqtl
+    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /scratch/midway2/aksarkar/singlecell/scqtl-mapping/variance.bed.gz --cov /scratch/midway2/aksarkar/singlecell/scqtl-mapping/variance-covars.txt --out variance.txt.gz
+    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/fano.bed.gz --out fano.txt.gz
+    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/cv.bed.gz --out cv.txt.gz
+  #+END_SRC
+
+  #+RESULTS:
+  : Submitted batch job 46548862
+
+  Read the summary statistics.
+
+  #+BEGIN_SRC ipython
+    stats = {x: pd.read_table('/scratch/midway2/aksarkar/singlecell/power/{}.txt.gz'.format(x), index_col=[0, 2])
+             for x in ('log_mu', 'variance', 'fano', 'cv')}
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[30]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    betahat = pd.DataFrame({k: v['beta'] for k, v in stats.items()})
+    betahat = (betahat
+               .groupby(level=1)
+               .apply(downsample, n=10))
+    se = pd.DataFrame({k: v['se'] for k, v in stats.items()})
+    # betahat, se = betahat.align(se, axis='index', join='inner')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[41]:
+  :END:
+
+  Fit ~mash~.
+
+  #+BEGIN_SRC ipython
+    data = mashr.mash_set_data(betahat, se)
+    V = mashr.estimate_null_correlation(data)
+    data = mashr.mash_set_data(betahat, se, V=V)
+    U = mashr.cov_canonical(data)
+    mash_result = mashr.mash(data, U, verbose=False)
+  #+END_SRC
+
+  Serialize the ~mash~ result.
+
+  #+BEGIN_SRC ipython
+     with open('/scratch/midway2/aksarkar/singlecell/power/mash-result.pkl', 'wb') as f:
+       pickle.dump(mash_result, f)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[197]:
+  :END:
+
+  Read the results.
+
+  #+BEGIN_SRC ipython
+     with open('/scratch/midway2/aksarkar/singlecell/power/mash-result.pkl', 'rb') as f:
+       mash_result = pickle.load(f)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[2]:
+  :END:
+
+  Recover the estimated mixture weights.
+
+  #+BEGIN_SRC ipython
+    pd.Series({k: v for k, v in
+               zip(['pointmass'] + list(U.names),
+                   np.array(mashr.get_estimated_pi(mash_result)))})
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[198]:
+  #+BEGIN_EXAMPLE
+    {'equal_effects': 0.6304740345396695,
+    'identity': 3.222654477200791e-07,
+    'pointmass': 0.2799479785087344,
+    'simple_het_1': 3.3854982953530273e-07,
+    'simple_het_2': 3.6256921592961205e-07,
+    'simple_het_3': 0.08957557566393076,
+    'singletons_1': 1.10893521460435e-06,
+    'singletons_2': 2.7896795759335475e-07}
+  #+END_EXAMPLE
+  :END:
+
+  Recover the estimated sharing of effects.
+
+  #+BEGIN_SRC ipython
+     np.array(mashr.get_pairwise_sharing(mash_result))
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[203]:
+  #+BEGIN_EXAMPLE
+    array([[1.        , 0.96786156],
+    [0.96786156, 1.        ]])
+  #+END_EXAMPLE
   :END:
 
 * Distribution of PVE
@@ -1063,7 +1175,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[3]:
+  # Out[6]:
   :END:
 
   #+BEGIN_SRC ipython :ipyfile figure/power.org/estimated-pve.png
@@ -1170,4 +1282,50 @@
   :RESULTS:
   # Out[6]:
   : 0.1041041041041041
+  :END:
+
+  Compare the distribution of PVE for iPSCs against DGN whole blood ([[http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1006423][Wheeler et
+  al 2016]]). The results are [[https://github.com/WheelerLab/GenArchDB][available on github]].
+
+  #+BEGIN_SRC ipython
+    import sqlite3
+    with sqlite3.connect('/project2/mstephens/aksarkar/.local/src/GenArchDB/genarch.db') as conn:
+      dgn_pve = pd.read_sql('select * from results where tissue == "DGN-WB";', conn)
+      gtex_pve = pd.read_sql('select * from results where tissue == "WholeBlood_TW" and pve != "NA";', conn)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[27]:
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/power.org/ipsc-vs-dgn-pve.png
+    plt.clf()
+    plt.gcf().set_size_inches(3, 3)
+    M = 0.1
+    grid = np.linspace(0, 1, 100)
+    f0 = st.gaussian_kde(estimated_pve['Bulk'].dropna())
+    plt.plot(grid, f0(grid), c='k', lw=1, label='iPSC')
+    plt.fill_between(grid, f0(grid), color='k', alpha=0.1)
+
+    f1 = st.gaussian_kde(dgn_pve['pve'].dropna())
+    plt.plot(grid, f1(grid), c='g', lw=1, label='Whole blood (DGN)')
+    plt.fill_between(grid, f1(grid), color='g', alpha=0.1)
+
+    f2 = st.gaussian_kde(gtex_pve['pve'].dropna())
+    plt.plot(grid, f2(grid), c='c', lw=1, label='Whole blood (GTEx)')
+    plt.fill_between(grid, f2(grid), color='c', alpha=0.1)
+
+    plt.legend(frameon=False)
+    plt.xlim(0, 1)
+    plt.ylim(0, plt.ylim()[1])
+    plt.xlabel('Proportion of variance explained')
+    plt.ylabel('Density')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[29]:
+  : Text(0,0.5,'Density')
+  [[file:figure/power.org/ipsc-vs-dgn-pve.png]]
   :END:
