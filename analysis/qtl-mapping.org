@@ -28,7 +28,7 @@
   #+CALL: ipython3(memory="16G", venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 46270150
+  : Submitted batch job 46438138
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -62,7 +62,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[49]:
+  # Out[1]:
   :END:
 
 * Implementation
@@ -351,7 +351,7 @@
 
   #+RESULTS: replication-tests-def
   :RESULTS:
-  # Out[40]:
+  # Out[8]:
   :END:
 
   #+NAME: bootstrap-def
@@ -1858,8 +1858,8 @@
    \(\mathbb{E}[\lambda_{ijk}] = (1 - \pi_{ik}) \mu_{ik}\).
 
    #+BEGIN_SRC ipython
-     log_mu = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-log-mu.txt.gz', index_col=0, sep=' ')
-     logodds = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-logodds.txt.gz', index_col=0, sep=' ')
+     log_mu = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz', index_col=0, sep=' ')
+     logodds = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-logodds.txt.gz', index_col=0, sep=' ')
      # Important: log(sigmoid(x)) = -softplus(-x)
      log_mu -= np.log1p(np.exp(logodds))
      del log_mu['NA18498']
@@ -1974,7 +1974,7 @@
    Read the estimated parameters. Exclude individuals with fewer than 50 cells.
 
    #+BEGIN_SRC ipython
-     log_phi = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-log-phi.txt.gz', index_col=0, sep=' ')
+     log_phi = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-phi.txt.gz', index_col=0, sep=' ')
      del log_phi['NA18498']
    #+END_SRC
 
@@ -2075,7 +2075,7 @@
    Read the estimated parameters. Exclude individuals with fewer than 50 cells.
 
    #+BEGIN_SRC ipython
-     logodds = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-logodds.txt.gz', index_col=0, sep=' ')
+     logodds = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-logodds.txt.gz', index_col=0, sep=' ')
      del logodds['NA18498']
    #+END_SRC
 
@@ -2176,9 +2176,9 @@
    Read the estimated parameters.
 
    #+BEGIN_SRC ipython
-     log_mu = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-log-mu.txt.gz', index_col=0, sep=' ')
-     log_phi = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-log-phi.txt.gz', index_col=0, sep=' ')
-     logodds = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-logodds.txt.gz', index_col=0, sep=' ')
+     log_mu = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz', index_col=0, sep=' ')
+     log_phi = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-phi.txt.gz', index_col=0, sep=' ')
+     logodds = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-logodds.txt.gz', index_col=0, sep=' ')
    #+END_SRC
 
    #+RESULTS:
@@ -2309,9 +2309,9 @@
    Read the estimated parameters.
 
    #+BEGIN_SRC ipython
-     log_mu = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-log-mu.txt.gz', index_col=0, sep=' ')
-     log_phi = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-log-phi.txt.gz', index_col=0, sep=' ')
-     logodds = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-logodds.txt.gz', index_col=0, sep=' ')
+     log_mu = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz', index_col=0, sep=' ')
+     log_phi = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-phi.txt.gz', index_col=0, sep=' ')
+     logodds = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-logodds.txt.gz', index_col=0, sep=' ')
    #+END_SRC
 
    #+RESULTS:
@@ -2767,7 +2767,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[47]:
+  # Out[3]:
   :END:
 
   The bulk QTL gene names need to be munged.
@@ -3028,7 +3028,7 @@
 
    #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/var-qtl-se.png
      plt.clf()
-     plt.gcf().set_size_inches(4, 4)
+     plt.gcf().set_size_inches(3, 3)
      plt.scatter(var_qtl_stats['se'], var_qtl_stats['bootstrap_se'], s=1, c='k')
      plt.plot([0, 1], [0, 1], c='r', ls=':', lw=1)
      plt.xlim([0, 1])
@@ -3069,7 +3069,7 @@
 
    #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/bootstrap-z-vs-nominal-p-inverse-cdf.png
      plt.clf()
-     plt.gcf().set_size_inches(4, 4)
+     plt.gcf().set_size_inches(3, 3)
      plt.scatter(var_qtl_stats['z'], var_qtl_stats['isf_z'], s=3, c='k')
      plt.axhline(y=0, c='k', lw=1)
      plt.axvline(x=0, c='k', lw=1)
@@ -3154,7 +3154,7 @@
    #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/var-qtl-vs-mean-qtl.png
      lim = [-12, 12]
      plt.clf()
-     plt.gcf().set_size_inches(4, 4)
+     plt.gcf().set_size_inches(3, 3)
      plt.plot(lim, lim, c='r', ls=':', lw=1)
      plt.scatter(var_qtl_stats[fdr_pass]['z'], var_qtl_stats[fdr_pass]['mean_z'], c='r', s=3, label='FDR 10%')
      plt.scatter(var_qtl_stats[~fdr_pass]['z'], var_qtl_stats[~fdr_pass]['mean_z'], c='k', s=3, label='$p < 10^{-2}$')
@@ -3206,7 +3206,7 @@
    #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/mean-qtl-vs-var-qtl.png
      lim = [-18, 18]
      plt.clf()
-     plt.gcf().set_size_inches(4, 4)
+     plt.gcf().set_size_inches(3, 3)
      plt.plot(lim, lim, c='r', ls=':', lw=1)
      plt.scatter(mean_qtl_stats.loc[mean_qtl_stats['var_fdr_pass'], 'var_z'],
                  mean_qtl_stats.loc[mean_qtl_stats['var_fdr_pass'], 'z'], c='r',
@@ -3234,7 +3234,7 @@
    #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/bulk-qtl-vs-mean-qtl.png
      lim = [-12, 12]
      plt.clf()
-     plt.gcf().set_size_inches(4, 4)
+     plt.gcf().set_size_inches(3, 3)
      plt.plot(lim, lim, c='r', ls=':', lw=1)
      plt.scatter(mean_qtl_stats['z'], mean_qtl_stats['bulk_z'], c='k', s=3)
      plt.axhline(y=0, c='k', lw=1)
@@ -3259,7 +3259,7 @@
 
    #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/var-qtl-mean-qtl-prc.png
      plt.clf()
-     plt.gcf().set_size_inches(4, 4)
+     plt.gcf().set_size_inches(3, 3)
      Y, P = qtls['mean'][0]['fdr_pass'].align(qtls['variance'][0]['p_beta'].dropna(), join='inner')
      p, r, _ = sklearn.metrics.precision_recall_curve(Y.astype(int), -np.log(P))
      auprc_mean_var = sklearn.metrics.average_precision_score(Y.astype(int), -np.log(P))
@@ -3295,7 +3295,7 @@
 
    #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/var-qtl-mean-qtl-roc.png
      plt.clf()
-     plt.gcf().set_size_inches(4, 4)
+     plt.gcf().set_size_inches(3, 3)
      Y, P = qtls['mean'][0]['fdr_pass'].align(qtls['variance'][0]['p_beta'].dropna(), join='inner')
      fpr, tpr, _ = sklearn.metrics.roc_curve(Y.astype(int), -np.log(P))
      auroc_mean_var = sklearn.metrics.roc_auc_score(Y.astype(int), -np.log(P))
@@ -3540,7 +3540,7 @@
 
    #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/bootstrap-z-vs-nominal-p-inverse-cdf.png
     plt.clf()
-    plt.gcf().set_size_inches(4, 4)
+    plt.gcf().set_size_inches(3, 3)
     lim = [-6, 6]
     plt.scatter(M['z_x'], M['z_y'], c='k', s=3)
     plt.axhline(y=0, c='k', lw=1)
