@@ -20,12 +20,12 @@
   #+END_SRC
 
   #+RESULTS:
-  : 18
+  : 1
 
   #+CALL: ipython3(memory="8G", venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 46534316
+  : Submitted batch job 46541646
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -382,20 +382,20 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[23]:
+   # Out[3]:
    :END:
 
    Plot the results.
 
    #+BEGIN_SRC ipython :ipyfile figure/power.org/lrt-power.png
      plt.clf()
-     fig, ax = plt.subplots(1, 2)
-     fig.set_size_inches(6, 3)
+     fig, ax = plt.subplots(1, 2, sharey=True)
+     fig.set_size_inches(5.5, 3)
 
      num_samples = 100
      groups = sorted(set(lrt_power['num_mols']))
      for i, n in enumerate(groups):
-       color = colorcet.cm['inferno']((i + 1 / (2 * len(groups))) / len(groups))
+       color = colorcet.cm['kbc']((i + .5) / len(groups))
        subset = lrt_power[np.logical_and(lrt_power['num_mols'] == n, lrt_power['num_samples'] == num_samples)]
        ax[0].plot(np.exp(subset['log_fold_change']), subset[0], lw=1, marker='.', ms=8, c=color, label='$10^{{{:.1f}}}$'.format(np.log(n) / np.log(10)))
      ax[0].legend(title='# molecules', frameon=False)
@@ -407,12 +407,11 @@
      grid = np.log(np.linspace(1.1, 2, 100))
      groups = sorted(set(lrt_power['num_samples']))
      for i, n in enumerate(groups):
-       color = colorcet.cm['inferno']((i + 1 / (2 * len(groups))) / len(groups))
+       color = colorcet.cm['kgy']((i + .5) / len(groups))
        subset = lrt_power[np.logical_and(lrt_power['num_mols'] == num_mols, lrt_power['num_samples'] == n)]
        ax[1].plot(np.exp(subset['log_fold_change']), subset[0], lw=1, marker='.', ms=8, c=color, label='$10^{{{:.1f}}}$'.format(np.log(n) / np.log(10)))
      ax[1].legend(title='# samples', frameon=False, loc='center left', bbox_to_anchor=(1, .5))
      ax[1].set_xlabel('Fold change in dispersion')
-     ax[1].set_ylabel('Power at level 0.05')
      ax[1].set_title('$10^5$ molecules')
 
      fig.tight_layout()
@@ -420,7 +419,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[45]:
+   # Out[9]:
    [[file:figure/power.org/lrt-power.png]]
    :END:
 
@@ -457,13 +456,15 @@
              .reshape(len(records), -1, 2)
              .astype(float)
              .sum(axis=-1))
-        return np.array(x)
+        return np.array(x).T
       else:
         return None
 
     def generate_pheno(x, pve, m=None):
-      x = x[:,x.mean(axis=0) / 2 > 0.05]
+      x = x[:,np.logical_and(x.mean(axis=0) / 2 > 0.05, x.std(axis=0) > 0)]
       n, p = x.shape
+      if p == 0:
+        return None
       if m is None:
         theta = np.random.normal(size=p)
       else:
@@ -521,14 +522,18 @@
         x = read_vcf_geno(vcf, record['chr'][3:], record['start'] - 100000, record['start'] + 100000)
         if x is None:
           continue
-        keep = np.random.choice(x.shape[0], num_individuals, replace=False)
-        x = x[keep]
-        y = generate_pheno(x, pve=pve, m=num_causal)
-        pval = permutation_test(x, y)
+        y = None
+        while y is None:
+          # Important: rejection sampling is needed to get a subset of individuals
+          # with enough variable SNPs
+          keep = np.random.choice(x.shape[0], num_individuals, replace=False)
+          z = x[keep]
+          y = generate_pheno(z, pve=pve, m=num_causal)
+        pval = permutation_test(z, y)
         result.append({
           'gene': record.name,
-          'num_individuals': x.shape[0],
-          'num_snps': x.shape[1],
+          'num_individuals': z.shape[0],
+          'num_snps': z.shape[1],
           'num_causal': num_causal,
           'pve': pve,
           'pval': pval})
@@ -579,9 +584,9 @@
     eqtls = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/pooled.txt.gz', sep=' ', index_col=0).dropna()
 
     args = [(vcf, eqtls, n, m, pve)
-            for n in (53, 100, 200, 400)
+            for n in (53, 100, 200, 300, 400)
             for m in (1, None)
-            for pve in np.linspace(0.01, 0.5, 10)]
+            for pve in np.linspace(0.01, 0.1, 10)]
 
     np.random.seed(0)
     result = [evaluate(*a) for a in args]
@@ -589,29 +594,20 @@
   #+END_SRC
 
   #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/power/
-    sbatch --partition=broadwl -n1 -c28 --exclusive --time=4:00:00 --mem=16G --job-name=eqtl-power --output=eqtl-power.out
+    sbatch --partition=broadwl -n1 -c28 --exclusive --time=3:00:00 --mem=16G --job-name=eqtl-power --output=eqtl-power.out
     #!/bin/bash
     source activate scqtl
     python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/eqtl-power.py
-    rsync -FFau ./ /project2/mstephens/aksarkar/projects/singlecell-qtl/data/power/
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 46481028
+  : Submitted batch job 46541021
 
   Read the results.
 
   #+BEGIN_SRC ipython
+    # Important: we used None for infinitesimal, which gets parsed as missing
     qtl_results = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/power/eqtl-power.txt.gz', index_col=0).fillna(-1)
-    qtl_power = qtl_results.groupby(['num_individuals', 'num_causal', 'pve']).apply(lambda x: (x['pval'] < 0.05).sum() / x.shape[0]).reset_index().rename(columns={0: 'power'})
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[47]:
-  :END:
-
-  #+BEGIN_SRC ipython
     qtl_results['sig'] = qtl_results.apply(lambda x: x['pval'] < 0.05, axis=1).astype(int)
     qtl_power = (qtl_results
                  .groupby(['num_individuals', 'num_causal', 'pve'])['sig']
@@ -623,19 +619,30 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[60]:
+  # Out[15]:
   :END:
 
   Plot the results.
 
+  #+BEGIN_SRC ipython
+    colorcet.cm.keys()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[23]:
+  : odict_keys(['cyclic_grey_15_85_c0', 'cyclic_grey_15_85_c0_r', 'cyclic_grey_15_85_c0_s25', 'cyclic_grey_15_85_c0_s25_r', 'cyclic_mrybm_35_75_c68', 'cyclic_mrybm_35_75_c68_r', 'cyclic_mrybm_35_75_c68_s25', 'cyclic_mrybm_35_75_c68_s25_r', 'cyclic_mygbm_30_95_c78', 'cyclic_mygbm_30_95_c78_r', 'cyclic_mygbm_30_95_c78_s25', 'cyclic_mygbm_30_95_c78_s25_r', 'colorwheel', 'colorwheel_r', 'cyclic_wrwbw_40_90_c42', 'cyclic_wrwbw_40_90_c42_r', 'cyclic_wrwbw_40_90_c42_s25', 'cyclic_wrwbw_40_90_c42_s25_r', 'diverging_isoluminant_cjm_75_c23', 'diverging_isoluminant_cjm_75_c23_r', 'diverging_isoluminant_cjm_75_c24', 'diverging_isoluminant_cjm_75_c24_r', 'diverging_isoluminant_cjo_70_c25', 'diverging_isoluminant_cjo_70_c25_r', 'diverging_linear_bjr_30_55_c53', 'diverging_linear_bjr_30_55_c53_r', 'diverging_linear_bjy_30_90_c45', 'diverging_linear_bjy_30_90_c45_r', 'bjy', 'bjy_r', 'diverging_rainbow_bgymr_45_85_c67', 'diverging_rainbow_bgymr_45_85_c67_r', 'diverging_bkr_55_10_c35', 'diverging_bkr_55_10_c35_r', 'bkr', 'bkr_r', 'diverging_bky_60_10_c30', 'diverging_bky_60_10_c30_r', 'bky', 'bky_r', 'diverging_bwr_40_95_c42', 'diverging_bwr_40_95_c42_r', 'coolwarm', 'coolwarm_r', 'diverging_bwr_55_98_c37', 'diverging_bwr_55_98_c37_r', 'diverging_cwm_80_100_c22', 'diverging_cwm_80_100_c22_r', 'diverging_gkr_60_10_c40', 'diverging_gkr_60_10_c40_r', 'diverging_gwr_55_95_c38', 'diverging_gwr_55_95_c38_r', 'diverging_gwv_55_95_c39', 'diverging_gwv_55_95_c39_r', 'gwv', 'gwv_r', 'isoluminant_cgo_70_c39', 'isoluminant_cgo_70_c39_r', 'isoluminant_cgo_80_c38', 'isoluminant_cgo_80_c38_r', 'isolum', 'isolum_r', 'isoluminant_cm_70_c39', 'isoluminant_cm_70_c39_r', 'linear_bgy_10_95_c74', 'linear_bgy_10_95_c74_r', 'bgy', 'bgy_r', 'linear_bgyw_15_100_c67', 'linear_bgyw_15_100_c67_r', 'linear_bgyw_15_100_c68', 'linear_bgyw_15_100_c68_r', 'bgyw', 'bgyw_r', 'linear_blue_5_95_c73', 'linear_blue_5_95_c73_r', 'kbc', 'kbc_r', 'linear_blue_95_50_c20', 'linear_blue_95_50_c20_r', 'blues', 'blues_r', 'linear_bmw_5_95_c86', 'linear_bmw_5_95_c86_r', 'linear_bmw_5_95_c89', 'linear_bmw_5_95_c89_r', 'bmw', 'bmw_r', 'linear_bmy_10_95_c71', 'linear_bmy_10_95_c71_r', 'linear_bmy_10_95_c78', 'linear_bmy_10_95_c78_r', 'inferno', 'inferno_r', 'linear_gow_60_85_c27', 'linear_gow_60_85_c27_r', 'linear_gow_65_90_c35', 'linear_gow_65_90_c35_r', 'linear_green_5_95_c69', 'linear_green_5_95_c69_r', 'kgy', 'kgy_r', 'linear_grey_0_100_c0', 'linear_grey_0_100_c0_r', 'gray', 'gray_r', 'linear_grey_10_95_c0', 'linear_grey_10_95_c0_r', 'dimgray', 'dimgray_r', 'linear_kry_5_95_c72', 'linear_kry_5_95_c72_r', 'linear_kry_5_98_c75', 'linear_kry_5_98_c75_r', 'linear_kryw_0_100_c71', 'linear_kryw_0_100_c71_r', 'fire', 'fire_r', 'linear_kryw_5_100_c64', 'linear_kryw_5_100_c64_r', 'linear_kryw_5_100_c67', 'linear_kryw_5_100_c67_r', 'linear_ternary_blue_0_44_c57', 'linear_ternary_blue_0_44_c57_r', 'kb', 'kb_r', 'linear_ternary_green_0_46_c42', 'linear_ternary_green_0_46_c42_r', 'kg', 'kg_r', 'linear_ternary_red_0_50_c52', 'linear_ternary_red_0_50_c52_r', 'kr', 'kr_r', 'rainbow_bgyr_35_85_c72', 'rainbow_bgyr_35_85_c72_r', 'rainbow_bgyr_35_85_c73', 'rainbow_bgyr_35_85_c73_r', 'rainbow', 'rainbow_r', 'rainbow_bgyrm_35_85_c69', 'rainbow_bgyrm_35_85_c69_r', 'rainbow_bgyrm_35_85_c71', 'rainbow_bgyrm_35_85_c71_r'])
+  :END:
+
   #+BEGIN_SRC ipython :ipyfile figure/power.org/eqtl-power.png
     plt.clf()
     fig, ax = plt.subplots(1, 2, sharey=True)
-    fig.set_size_inches(6, 3)
+    fig.set_size_inches(5.5, 3)
+    groups = sorted(set(qtl_power['num_individuals']))
     for i, m in enumerate([1, -1]):
-      for n in [53, 75, 100, 120]:
+      for n in groups:
         subset = np.logical_and(qtl_power['num_individuals'] == n, qtl_power['num_causal'] == m)
-        color = colorcet.cm['inferno'](.9 * (n - 53) / (120 - 53))
+        color = colorcet.cm['linear_kry_5_95_c72']((n - 53) / (max(groups) - 25))
         ax[i].plot(qtl_power.loc[subset, 'pve'],
                    qtl_power.loc[subset, 'power'],
                    marker='.', c=color, lw=1, ms=8, label=n)
@@ -645,66 +652,24 @@
                            color=color, alpha=0.1)
     ax[0].set_title('1 causal')
     ax[1].set_title('Infinitesimal')
-    ax[1].set_xlabel('Proportion of variance explained')
     ax[0].set_ylabel('Power at level 0.05')
     ax[-1].legend(title='# individuals', frameon=False, loc='center left', bbox_to_anchor=(1, .5))
+
+    for a in ax:
+      a.set_xlabel('Proportion of variance explained')
+      a.set_xlim(0.005, .105)
+
     fig.tight_layout()
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[77]:
+  # Out[35]:
   [[file:figure/power.org/eqtl-power.png]]
   :END:
 
-  Look at the empirical CDF of /cis/-heritability of gene expression ([[http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1006423][Wheeler
-  et al 2016]]). The results are [[https://github.com/WheelerLab/GenArchDB][available on github]].
-
-  #+BEGIN_SRC ipython
-    import sqlite3
-    with sqlite3.connect('/project2/mstephens/aksarkar/.local/src/GenArchDB/genarch.db') as conn:
-      cis_h2g = pd.read_sql('select * from results where tissue == "DGN-WB";', conn)
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[3]:
-  :END:
-
-  #+BEGIN_SRC ipython :ipyfile figure/power.org/eqtl-heritability.png
-    plt.clf()
-    plt.gcf().set_size_inches(3, 3)
-    n, bins, _ = plt.hist(cis_h2g['pve'], bins=100, histtype='step', color='k', cumulative=True)
-    plt.axvline(x=0.4, c='r', ls=':', lw=1)
-    plt.axhline(y=n[np.where(bins >= 0.4)[0].min()], c='r', ls=':', lw=1)
-    plt.xlabel('Proportion of variance explained')
-    plt.ylabel('Cumulative number of genes')
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[8]:
-  : Text(0,0.5,'Cumulative number of genes')
-  [[file:figure/power.org/eqtl-heritability.png]]
-  :END:
-
-  Estimate how many genes we had power to detect.
-
-  #+BEGIN_SRC ipython
-    m = (.95 * cis_h2g['pve'] > 0.4).sum()
-    p = .7
-    m * p, np.sqrt(m * p * (1 - p))
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[22]:
-  : (614.5999999999999, 13.57865972767563)
-  :END:
-
-  The key insight is that the single cell experiment size determines the
-  standard error of the estimator, which can be thought of as measurement
-  error.
+  The single cell experiment size determines the standard error of the
+  estimator, which can be thought of as measurement error.
 
   \[ \hat\theta \sim N(\theta, \sigma^2) \]
 
@@ -955,8 +920,13 @@
 
     def fit_ash(summary_stats):
       summary_stats = pd.read_table(summary_stats).groupby('gene').apply(downsample, n=10)
-      return ashr.ash(summary_stats['beta'], summary_stats['se'], method='fdr')
+      return ashr.ash(summary_stats['beta'], summary_stats['se'], method='fdr', mixcompdist='normal')
   #+END_SRC
+
+  #+RESULTS: downsample-impl
+  :RESULTS:
+  # Out[36]:
+  :END:
 
   #+RESULTS:
   :RESULTS:
@@ -983,7 +953,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[28]:
+  # Out[39]:
   :END:
 
   Read the results.
@@ -1004,10 +974,8 @@
     plt.clf()
     plt.gcf().set_size_inches(3, 3)
     grid = np.linspace(-.5, .5, num=1000)
-    plt.plot(grid, np.array(ashr.cdf_ash(ash_results['log_phi'], grid).rx2('y')).ravel(), c='r', lw=1, label='$\hat{g}_{\mathrm{dispersion}}$')
-    plt.plot(grid, np.array(ashr.cdf_ash(ash_results['log_mu'], grid).rx2('y')).ravel(), c='k', lw=1, label='$\hat{g}_{\mathrm{abundance}}$')
-    plt.plot(grid, np.array(ashr.cdf_ash(ash_results['bulk'], grid).rx2('y')).ravel(), c='b', lw=1, label='$\hat{g}_{\mathrm{bulk}}$')
-    plt.plot(grid, st.norm().cdf(grid), c='.75', lw=1, label='N(0, 1)')
+    for k, c, l in zip(ash_results, ['r', 'b', 'k'], ['Dispersion', 'Abundance', 'Bulk']):
+      plt.plot(grid, np.array(ashr.cdf_ash(ash_results[k], grid).rx2('y')).ravel(), c=c, lw=1, label=l)
     plt.legend(frameon=False, loc='center left', bbox_to_anchor=(1, .5))
     plt.xlabel('Effect size')
     plt.ylabel('Cumulative density')
@@ -1015,26 +983,9 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[66]:
+  # Out[52]:
   : Text(0,0.5,'Cumulative density')
   [[file:figure/power.org/ash-fitted-g.png]]
-  :END:
-
-  Recover ~ash~ \(\pi_0\).
-
-  #+BEGIN_SRC ipython
-    pd.Series({k: np.array(ashr.get_pi0(v)) for k, v in ash_results.items()})
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[71]:
-  #+BEGIN_EXAMPLE
-    bulk       [0.6348257407005274]
-    log_mu     [0.6454298511988216]
-    log_phi    [0.8401024820462243]
-    dtype: object
-  #+END_EXAMPLE
   :END:
 
 * Distribution of PVE
@@ -1093,18 +1044,19 @@
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 46537844
+  : Submitted batch job 46541723
 
   Read the results.
 
   #+BEGIN_SRC ipython
     estimated_pve = pd.read_table('/scratch/midway2/aksarkar/singlecell/power/estimated-pve.txt.gz', index_col=0)
     estimated_pve.columns = ['Bulk', 'Abundance', 'Dispersion']
+    estimated_pve = estimated_pve[['Dispersion', 'Abundance', 'Bulk']]
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[42]:
+  # Out[54]:
   :END:
 
   #+BEGIN_SRC ipython :ipyfile figure/power.org/estimated-pve.png
@@ -1112,7 +1064,7 @@
     plt.gcf().set_size_inches(3, 3)
     M = 0.1
     grid = np.linspace(0, M, 100)
-    for k, c in zip(estimated_pve, ['k', 'r', 'b']):
+    for k, c in zip(estimated_pve, ['r', 'b', 'k']):
       f = st.gaussian_kde(estimated_pve[k].dropna())
       plt.plot(grid, f(grid), c=c, lw=1, label=k)
       plt.fill_between(grid, f(grid), color=c, alpha=0.1)
@@ -1125,7 +1077,22 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[43]:
+  # Out[55]:
   : Text(0,0.5,'Density')
   [[file:figure/power.org/estimated-pve.png]]
+  :END:
+
+  Estimate the quantiles of the distribution of dispersion PVE.
+
+  #+BEGIN_SRC ipython
+    import scipy.integrate as si
+    f = st.gaussian_kde(estimated_pve['Dispersion'].dropna())
+    x = np.linspace(0, 1, 1000)
+    x[np.where(si.cumtrapz(f(x), x) > 0.9)[0].min()]
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[85]:
+  : 0.01001001001001001
   :END:
