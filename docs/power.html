@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-06-13 Wed 01:36 -->
+<!-- 2018-06-14 Thu 20:25 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Power to detect QTLs in single cell data</title>
@@ -905,13 +905,20 @@ num_samples  num_mols  log_mu         0
 4            95    114026      -8  0.990610
 5            95    114026      -7  0.995300
 6            95    114026      -6  0.992922
-7         10000    114026     -12  0.970102
-8         10000    114026     -11  0.980160
-9         10000    114026     -10  0.992239
-10        10000    114026      -9  0.995632
-11        10000    114026      -8  0.998242
-12        10000    114026      -7  0.999954
-13        10000    114026      -6  0.999969
+7          1000    114026     -12  0.968472
+8          1000    114026     -11  0.979160
+9          1000    114026     -10  0.991243
+10         1000    114026      -9  0.994651
+11         1000    114026      -8  0.997622
+12         1000    114026      -7  0.999581
+13         1000    114026      -6  0.999661
+14        10000    114026     -12  0.970102
+15        10000    114026     -11  0.980160
+16        10000    114026     -10  0.992239
+17        10000    114026      -9  0.995632
+18        10000    114026      -8  0.998242
+19        10000    114026      -7  0.999954
+20        10000    114026      -6  0.999969
 </pre>
 
 <div class="org-src-container">
@@ -1107,9 +1114,9 @@ problem easier.
 <pre class="src src-ipython" id="org2afa836"><span class="org-keyword">def</span> <span class="org-function-name">downsample</span>(x, n):
   <span class="org-keyword">assert</span> n &gt;= 0
   <span class="org-keyword">if</span> x.shape[0] &gt;= n:
-    <span class="org-keyword">return</span> x.loc[np.random.choice(x.index, n, replace=<span class="org-constant">False</span>),[<span class="org-string">'beta'</span>, <span class="org-string">'se'</span>]]
+    <span class="org-keyword">return</span> x.loc[np.random.choice(x.index, n, replace=<span class="org-constant">False</span>)]
   <span class="org-keyword">else</span>:
-    <span class="org-keyword">return</span> x.loc[:,[<span class="org-string">'beta'</span>, <span class="org-string">'se'</span>]]
+    <span class="org-keyword">return</span> x
 
 <span class="org-keyword">def</span> <span class="org-function-name">fit_ash</span>(summary_stats):
   <span class="org-variable-name">summary_stats</span> = pd.read_table(summary_stats).groupby(<span class="org-string">'gene'</span>).<span class="org-builtin">apply</span>(downsample, n=10)
@@ -1172,6 +1179,82 @@ Text(0,0.5,'Cumulative density')
 <p><img src="figure/power.org/ash-fitted-g.png" alt="ash-fitted-g.png">
 </p>
 </div>
+
+<p>
+Run nominal passes on variance phenotypes.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">sbatch --partition=broadwl -n1 -c28 --exclusive --job-name=nominal --out nominal.out --time=60:00
+<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
+<span class="org-builtin">source</span> activate scqtl
+python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /scratch/midway2/aksarkar/singlecell/scqtl-mapping/variance.bed.gz --cov /scratch/midway2/aksarkar/singlecell/scqtl-mapping/variance-covars.txt --out variance.txt.gz
+python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/fano.bed.gz --out fano.txt.gz
+python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/cv.bed.gz --out cv.txt.gz
+</pre>
+</div>
+
+<pre class="example">
+Submitted batch job 46548862
+
+</pre>
+
+<p>
+Fit <code>mash</code>.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">fit_mash</span>(df, g=<span class="org-constant">None</span>):
+  <span class="org-variable-name">betahat</span> = df.iloc[:,:df.shape[1] // 2]
+  <span class="org-variable-name">se</span> = df.iloc[:,df.shape[1] // 2:]
+  <span class="org-variable-name">data</span> = mashr.mash_set_data(betahat, se)
+  <span class="org-variable-name">U</span> = mashr.cov_canonical(data)
+  <span class="org-keyword">if</span> g <span class="org-keyword">is</span> <span class="org-constant">None</span>:
+    <span class="org-variable-name">V</span> = mashr.estimate_null_correlation(data)
+    <span class="org-variable-name">data</span> = mashr.mash_set_data(betahat, se, V=V)
+    <span class="org-keyword">return</span> mashr.mash(data, U, verbose=<span class="org-constant">True</span>)
+  <span class="org-keyword">else</span>:
+    <span class="org-keyword">return</span> mashr.mash(data, verbose=<span class="org-constant">True</span>, fixg=<span class="org-constant">True</span>, g=g)
+
+<span class="org-keyword">def</span> <span class="org-function-name">train_test_split</span>(betahat, se, train_subsample=10, test_thresh=9):
+  <span class="org-variable-name">df</span> = pd.DataFrame(np.concatenate([betahat, se], axis=-1))
+  <span class="org-variable-name">training_set</span> = df.groupby(stats[0][<span class="org-string">'gene'</span>]).<span class="org-builtin">apply</span>(downsample, n=train_subsample)
+  <span class="org-variable-name">test_set</span> = df[(np.square(betahat / se) &gt; test_thresh).<span class="org-builtin">any</span>(axis=1)]
+  <span class="org-keyword">return</span> training_set, test_set
+
+<span class="org-keyword">def</span> <span class="org-function-name">get_pairwise_sharing</span>(stats):
+  <span class="org-variable-name">common</span> = functools.<span class="org-builtin">reduce</span>(<span class="org-keyword">lambda</span> x, y: x.merge(y, on=[<span class="org-string">'id'</span>, <span class="org-string">'gene'</span>], how=<span class="org-string">'inner'</span>)[[<span class="org-string">'id'</span>, <span class="org-string">'gene'</span>]], stats)
+  <span class="org-variable-name">betahat</span> = np.vstack([s.merge(common, on=[<span class="org-string">'id'</span>, <span class="org-string">'gene'</span>], how=<span class="org-string">'inner'</span>)[<span class="org-string">'beta'</span>] <span class="org-keyword">for</span> s <span class="org-keyword">in</span> stats]).T
+  <span class="org-variable-name">se</span> = np.vstack([s.merge(common, on=[<span class="org-string">'id'</span>, <span class="org-string">'gene'</span>], how=<span class="org-string">'inner'</span>)[<span class="org-string">'se'</span>] <span class="org-keyword">for</span> s <span class="org-keyword">in</span> stats]).T
+  <span class="org-variable-name">training_set</span>, <span class="org-variable-name">test_set</span> = train_test_split(betahat, se)
+  <span class="org-variable-name">mash_result0</span> = fit_mash(training_set)
+  <span class="org-variable-name">mash_result1</span> = fit_mash(test_set, g=mash_result0.rx2(<span class="org-string">'fitted_g'</span>))
+  <span class="org-keyword">return</span> np.array(mashr.get_pairwise_sharing(mash_result1))
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">stats</span> = [pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/{}.txt.gz'</span>.<span class="org-builtin">format</span>(f)).rename(columns={<span class="org-string">'Unnamed: 0'</span>: <span class="org-string">'id'</span>})
+         <span class="org-keyword">for</span> f <span class="org-keyword">in</span> (<span class="org-string">'bulk'</span>, <span class="org-string">'log_mu'</span>,<span class="org-string">'variance'</span>,<span class="org-string">'fano'</span>,<span class="org-string">'cv'</span>)]
+<span class="org-comment-delimiter"># </span><span class="org-comment">Bulk gene names need to be munged</span>
+stats[0][<span class="org-string">'gene'</span>] = [x.split(<span class="org-string">'.'</span>)[0] <span class="org-keyword">for</span> x <span class="org-keyword">in</span> stats[0][<span class="org-string">'gene'</span>]]
+<span class="org-comment-delimiter"># </span><span class="org-comment">CV effect sizes are expected to be anti-correlated to all others</span>
+stats[-1][<span class="org-string">'beta'</span>] *= -1
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">get_pairwise_sharing(stats)
+</pre>
+</div>
+
+<pre class="example">
+array([[1.        , 0.94283656, 0.94073996, 0.94026625, 0.94153343],
+[0.94283656, 1.        , 0.99865977, 0.9935249 , 0.97356074],
+[0.94073996, 0.99865977, 1.        , 0.9997103 , 0.9710184 ],
+[0.94026625, 0.9935249 , 0.9997103 , 1.        , 0.97188708],
+[0.94153343, 0.97356074, 0.9710184 , 0.97188708, 1.        ]])
+</pre>
 </div>
 </div>
 
@@ -1293,6 +1376,63 @@ Text(0,0.5,'Density')
 </div>
 
 <p>
+Plot the expected density of mean expression PVE assuming measurement noise
+from the simulation.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">(estimated_pve[<span class="org-string">'Abundance'</span>] / estimated_pve[<span class="org-string">'Bulk'</span>]).describe()  
+</pre>
+</div>
+
+<pre class="example">
+count    8462.000000
+mean        1.587743
+std         3.075250
+min         0.002746
+25%         0.268501
+50%         0.672904
+75%         1.638187
+max        62.349105
+dtype: float64
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.gcf().set_size_inches(3, 3)
+<span class="org-variable-name">M</span> = 0.1
+<span class="org-variable-name">grid</span> = np.linspace(0, M, 100)
+<span class="org-variable-name">f0</span> = st.gaussian_kde(estimated_pve[<span class="org-string">'Bulk'</span>].dropna())
+plt.plot(grid, f0(grid), c=<span class="org-string">'b'</span>, lw=1, label=<span class="org-string">'Bulk'</span>)
+plt.fill_between(grid, f0(grid), color=<span class="org-string">'b'</span>, alpha=0.1)
+
+<span class="org-variable-name">f1</span> = st.gaussian_kde(.67 * estimated_pve[<span class="org-string">'Bulk'</span>].dropna())
+plt.plot(grid, f1(grid), c=<span class="org-string">'c'</span>, lw=1, label=<span class="org-string">'Bulk + noise'</span>)
+plt.fill_between(grid, f1(grid), color=<span class="org-string">'c'</span>, alpha=0.1)
+
+<span class="org-variable-name">f2</span> = st.gaussian_kde(estimated_pve[<span class="org-string">'Abundance'</span>].dropna())
+plt.plot(grid, f2(grid), c=<span class="org-string">'k'</span>, lw=1, label=<span class="org-string">'SC'</span>)
+plt.fill_between(grid, f2(grid), color=<span class="org-string">'k'</span>, alpha=0.1)
+
+plt.legend(frameon=<span class="org-constant">False</span>)
+plt.xlim(0, M)
+plt.ylim(0, plt.ylim()[1])
+plt.xlabel(<span class="org-string">'Proportion of variance explained'</span>)
+plt.ylabel(<span class="org-string">'Density'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0,0.5,'Density')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/power.org/effective-pve.png" alt="effective-pve.png">
+</p>
+</div>
+
+<p>
 Estimate the quantiles of the distribution of dispersion PVE.
 </p>
 
@@ -1308,12 +1448,76 @@ x[np.where(si.cumtrapz(f(x), x) &gt; 0.9)[0].<span class="org-builtin">min</span
 0.01001001001001001
 
 </pre>
+
+<p>
+Estimate the same for mean PVE
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">f</span> = st.gaussian_kde(estimated_pve[<span class="org-string">'Bulk'</span>].dropna())
+<span class="org-variable-name">x</span> = np.linspace(0, 1, 1000)
+x[np.where(si.cumtrapz(f(x), x) &gt; 0.9)[0].<span class="org-builtin">min</span>()]
+</pre>
+</div>
+
+<pre class="example">
+0.1041041041041041
+
+</pre>
+
+<p>
+Compare the distribution of PVE for iPSCs against DGN whole blood (<a href="http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1006423">Wheeler et
+al 2016</a>). The results are <a href="https://github.com/WheelerLab/GenArchDB">available on github</a>.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">import</span> sqlite3
+<span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/.local/src/GenArchDB/genarch.db'</span>) <span class="org-keyword">as</span> conn:
+  <span class="org-variable-name">dgn_pve</span> = pd.read_sql(<span class="org-string">'select * from results where tissue == "DGN-WB";'</span>, conn)
+  <span class="org-variable-name">gtex_pve</span> = pd.read_sql(<span class="org-string">'select * from results where tissue == "WholeBlood_TW" and pve != "NA";'</span>, conn)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.gcf().set_size_inches(3, 3)
+<span class="org-variable-name">M</span> = 0.1
+<span class="org-variable-name">grid</span> = np.linspace(0, 1, 100)
+<span class="org-variable-name">f0</span> = st.gaussian_kde(estimated_pve[<span class="org-string">'Bulk'</span>].dropna())
+plt.plot(grid, f0(grid), c=<span class="org-string">'k'</span>, lw=1, label=<span class="org-string">'iPSC'</span>)
+plt.fill_between(grid, f0(grid), color=<span class="org-string">'k'</span>, alpha=0.1)
+
+<span class="org-variable-name">f1</span> = st.gaussian_kde(dgn_pve[<span class="org-string">'pve'</span>].dropna())
+plt.plot(grid, f1(grid), c=<span class="org-string">'g'</span>, lw=1, label=<span class="org-string">'Whole blood (DGN)'</span>)
+plt.fill_between(grid, f1(grid), color=<span class="org-string">'g'</span>, alpha=0.1)
+
+<span class="org-variable-name">f2</span> = st.gaussian_kde(gtex_pve[<span class="org-string">'pve'</span>].dropna())
+plt.plot(grid, f2(grid), c=<span class="org-string">'c'</span>, lw=1, label=<span class="org-string">'Whole blood (GTEx)'</span>)
+plt.fill_between(grid, f2(grid), color=<span class="org-string">'c'</span>, alpha=0.1)
+
+plt.legend(frameon=<span class="org-constant">False</span>)
+plt.xlim(0, 1)
+plt.ylim(0, plt.ylim()[1])
+plt.xlabel(<span class="org-string">'Proportion of variance explained'</span>)
+plt.ylabel(<span class="org-string">'Density'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0,0.5,'Density')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/power.org/ipsc-vs-dgn-pve.png" alt="ipsc-vs-dgn-pve.png">
+</p>
+</div>
 </div>
 </div>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-06-13 Wed 01:36</p>
+<p class="date">Created: 2018-06-14 Thu 20:25</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>

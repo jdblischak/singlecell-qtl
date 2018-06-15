@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-06-07 Thu 01:43 -->
+<!-- 2018-06-14 Thu 20:25 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mean/dispersion estimation</title>
@@ -865,9 +865,9 @@ Read the estimated parameters.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-log-mu.txt.gz'</span>, comment=<span class="org-string">'g'</span>, index_col=0, header=<span class="org-constant">None</span>, sep=<span class="org-string">' '</span>)
-<span class="org-variable-name">log_phi</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-log-phi.txt.gz'</span>, comment=<span class="org-string">'g'</span>, index_col=0, header=<span class="org-constant">None</span>, sep=<span class="org-string">' '</span>)
-<span class="org-variable-name">logodds</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-logodds.txt.gz'</span>, comment=<span class="org-string">'g'</span>, sep=<span class="org-string">' '</span>, header=<span class="org-constant">None</span>, index_col=0)
+<pre class="src src-ipython"><span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, comment=<span class="org-string">'g'</span>, index_col=0, header=<span class="org-constant">None</span>, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">log_phi</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-phi.txt.gz'</span>, comment=<span class="org-string">'g'</span>, index_col=0, header=<span class="org-constant">None</span>, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">logodds</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-logodds.txt.gz'</span>, comment=<span class="org-string">'g'</span>, sep=<span class="org-string">' '</span>, header=<span class="org-constant">None</span>, index_col=0)
 </pre>
 </div>
 
@@ -888,11 +888,11 @@ J.head()
 <pre class="example">
 log_mu   log_phi   logodds
 0
-ENSG00000000003  -9.462710 -2.643550 -7.151637
-ENSG00000000419  -9.935146 -2.985955 -6.948550
-ENSG00000000457 -12.004859 -1.351802  0.296795
-ENSG00000000460 -11.058336 -2.431379 -3.075272
-ENSG00000001036 -11.060452 -2.294582 -2.765176
+ENSG00000000003  -9.462848 -2.740221 -7.077608
+ENSG00000000419  -9.933007 -3.115943 -6.635574
+ENSG00000000457 -12.046886 -1.583684  0.290843
+ENSG00000000460 -11.072902 -2.532334 -3.202983
+ENSG00000001036 -11.083558 -2.455776 -2.901292
 </pre>
 
 <div class="org-src-container">
@@ -1368,7 +1368,7 @@ Text(0,0.5,'Sample Fano factor')
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-06-07 Thu 01:43</p>
+<p class="date">Created: 2018-06-14 Thu 20:25</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>

@@ -25,7 +25,7 @@
   #+CALL: ipython3(memory="8G", venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 46575762
+  : Submitted batch job 46586407
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -1057,7 +1057,7 @@
   :END:
 
   #+BEGIN_SRC ipython
-    get_pairwise_sharing(stats)
+    res = get_pairwise_sharing(stats)
   #+END_SRC
 
   #+RESULTS:
@@ -1072,6 +1072,25 @@
   #+END_EXAMPLE
   :END:
 
+  #+BEGIN_SRC ipython
+    pd.options.display.float_format = '{:.3g}'.format
+    ticks = ['Bulk', 'Abundance', 'Variance', 'Fano', 'CV']
+    pd.DataFrame(100 * res, columns=ticks, index=ticks)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[16]:
+  #+BEGIN_EXAMPLE
+    Bulk  Abundance  Variance  Fano   CV
+    Bulk        100       94.3      94.1    94 94.2
+    Abundance  94.3        100      99.9  99.4 97.4
+    Variance   94.1       99.9       100   100 97.1
+    Fano         94       99.4       100   100 97.2
+    CV         94.2       97.4      97.1  97.2  100
+  #+END_EXAMPLE
+  :END:
+
 * Distribution of PVE
 
   We can use shrunk marginal effect size estimates to bound the proportion of
@@ -1083,9 +1102,9 @@
   bound on PVE because \(h^2 = \sum_k \beta_k^2\) and other variants \(k\)
   could be causal, and because the estimate is shrunk towards zero.
 
-  If it is not causal, then the true marginal effect size is \(R_ij beta_i\),
-  where \(i\) is causal and \(R_ij = \mathrm{Corr}(X_i, X_j)\). \(R_ij <= 1\),
-  so this is still a lower bound
+  If it is not causal, then the true marginal effect size is \(\sum_i R_{ij}
+  \beta_i\), where \(R_{ij} = \mathrm{Corr}(X_i, X_j)\). \(R_ij \leq 1\), so
+  this is still a lower bound
 
   *Bayesian argument.* 
 
@@ -1095,17 +1114,20 @@
 
   \[ E[h^2 \mid \hat\beta] \geq \arg\max_j E[\beta_j^2 \mid \hat\beta] \]
 
-  #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/estimate-pve.py
-    <<power-imports>>
-    <<downsample-impl>>
-
+  #+NAME: get-pve-impl
+  #+BEGIN_SRC ipython
     def get_pve(summary_stats, ash_result):
       res = ashr.ash(summary_stats['beta'], summary_stats['se'], fixg=True,
                      g=ash_result.rx2('fitted_g'))
       pve = np.square(pd.Series(np.square(ashr.get_sd(res)) + ashr.get_pm(res),
                                 index=summary_stats['gene']))
       return pve.groupby(level=0).agg(max)
+  #+END_SRC
 
+  #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/estimate-pve.py
+    <<power-imports>>
+    <<downsample-impl>>
+    <<get-pve-impl>>
     np.random.seed(0)
     stats = {x: (pd.read_table('/scratch/midway2/aksarkar/singlecell/power/{}.txt.gz'.format(x))
                  .groupby('gene')

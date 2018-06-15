@@ -43,7 +43,7 @@
   #+CALL: ipython3(memory="16G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 46233805
+  : Submitted batch job 46583128
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -88,7 +88,7 @@
 
   #+RESULTS: read-data-qc
   :RESULTS:
-  # Out[5]:
+  # Out[3]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -97,8 +97,8 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[6]:
-  : (10099, 5566)
+  # Out[4]:
+  : (10060, 5531)
   :END:
 
 * Principal components analysis
