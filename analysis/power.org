@@ -364,7 +364,7 @@
    Move the results to permanent storage.
 
    #+BEGIN_SRC sh
-     rsync -FFau /scratch/midway2/aksarkar/singlecell/power /project2/mstephens/aksarkar/projects/singlecell-qtl/data/power/
+     rsync -FFau /scratch/midway2/aksarkar/singlecell/power/ /project2/mstephens/aksarkar/projects/singlecell-qtl/data/power/
    #+END_SRC
 
    #+RESULTS:
