@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-06-14 Thu 20:25 -->
+<!-- 2018-06-18 Mon 18:51 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>QTL mapping pipeline</title>
@@ -1557,9 +1557,9 @@ Take QTLs with \(\mathrm{FDR} < 0.1\).
 </div>
 </div>
 
-<div id="outline-container-orgb6ba02f" class="outline-3">
-<h3 id="orgb6ba02f">Call mean-QTLs</h3>
-<div class="outline-text-3" id="text-orgb6ba02f">
+<div id="outline-container-orga786ad9" class="outline-3">
+<h3 id="orga786ad9">Call mean-QTLs</h3>
+<div class="outline-text-3" id="text-orga786ad9">
 <p>
 Throw out individuals with fewer than 50 cells.
 </p>
@@ -1730,9 +1730,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-orgf04b923" class="outline-3">
-<h3 id="orgf04b923">Call variance-QTLs</h3>
-<div class="outline-text-3" id="text-orgf04b923">
+<div id="outline-container-orgda99993" class="outline-3">
+<h3 id="orgda99993">Call variance-QTLs</h3>
+<div class="outline-text-3" id="text-orgda99993">
 <p>
 Throw out individuals with fewer than 50 cells.
 </p>
@@ -1850,9 +1850,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-orgd35495c" class="outline-3">
-<h3 id="orgd35495c">Call CV-QTLs</h3>
-<div class="outline-text-3" id="text-orgd35495c">
+<div id="outline-container-org34cd780" class="outline-3">
+<h3 id="org34cd780">Call CV-QTLs</h3>
+<div class="outline-text-3" id="text-org34cd780">
 <p>
 Throw out individuals with fewer than 50 cells.
 </p>
@@ -1959,9 +1959,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-orge768350" class="outline-3">
-<h3 id="orge768350">Call Fano-QTLs</h3>
-<div class="outline-text-3" id="text-orge768350">
+<div id="outline-container-orgac9727d" class="outline-3">
+<h3 id="orgac9727d">Call Fano-QTLs</h3>
+<div class="outline-text-3" id="text-orgac9727d">
 <p>
 Throw out individuals with fewer than 50 cells.
 </p>
@@ -2429,9 +2429,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-orga786ad9" class="outline-3">
-<h3 id="orga786ad9">Call mean-QTLs</h3>
-<div class="outline-text-3" id="text-orga786ad9">
+<div id="outline-container-orgae094aa" class="outline-3">
+<h3 id="orgae094aa">Call mean-QTLs</h3>
+<div class="outline-text-3" id="text-orgae094aa">
 <p>
 We have \(r_{ijk} \sim g_{ijk}(\cdot)\), where \(g\) is the ZINB density <a href="zinb.html">as
 previously defined</a>.
@@ -2568,9 +2568,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-orgda99993" class="outline-3">
-<h3 id="orgda99993">Call variance-QTLs</h3>
-<div class="outline-text-3" id="text-orgda99993">
+<div id="outline-container-org3b0633a" class="outline-3">
+<h3 id="org3b0633a">Call variance-QTLs</h3>
+<div class="outline-text-3" id="text-org3b0633a">
 <p>
 We have \(r_{ijk} \sim g_{ijk}(\cdot)\), where \(g\) is the ZINB density <a href="zinb.html">as
 previously defined</a>.
@@ -2695,9 +2695,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-org34cd780" class="outline-3">
-<h3 id="org34cd780">Call CV-QTLs</h3>
-<div class="outline-text-3" id="text-org34cd780">
+<div id="outline-container-org21118da" class="outline-3">
+<h3 id="org21118da">Call CV-QTLs</h3>
+<div class="outline-text-3" id="text-org21118da">
 <p>
 Estimate the coefficient of variation.
 </p>
@@ -2799,9 +2799,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-orgac9727d" class="outline-3">
-<h3 id="orgac9727d">Call Fano-QTLs</h3>
-<div class="outline-text-3" id="text-orgac9727d">
+<div id="outline-container-org4bb2576" class="outline-3">
+<h3 id="org4bb2576">Call Fano-QTLs</h3>
+<div class="outline-text-3" id="text-org4bb2576">
 <p>
 Estimate the coefficient of variation.
 </p>
@@ -3429,6 +3429,94 @@ plt.xlabel(<span class="org-string">'Single cell eQTL $z$-score'</span>)
 </div>
 </div>
 
+<div id="outline-container-orgb262ee2" class="outline-3">
+<h3 id="orgb262ee2">Joint distribution of summary statistics</h3>
+<div class="outline-text-3" id="text-orgb262ee2">
+<p>
+Read the nominal summary statistics.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">stats</span> = {x: pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/power/{}.txt.gz'</span>.<span class="org-builtin">format</span>(x), index_col=0)
+         <span class="org-keyword">for</span> x <span class="org-keyword">in</span> (<span class="org-string">'bulk'</span>, <span class="org-string">'log_mu'</span>, <span class="org-string">'variance'</span>, <span class="org-string">'fano'</span>, <span class="org-string">'cv'</span>)}
+</pre>
+</div>
+
+<p>
+Compute \(z\)-scores.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">for</span> k <span class="org-keyword">in</span> stats:
+  stats[k][<span class="org-string">'z'</span>] = stats[k][<span class="org-string">'beta'</span>] / stats[k][<span class="org-string">'se'</span>]
+</pre>
+</div>
+
+<p>
+Munge the bulk gene names.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">stats[<span class="org-string">'bulk'</span>][<span class="org-string">'gene'</span>] = [x.split(<span class="org-string">'.'</span>)[0] <span class="org-keyword">for</span> x <span class="org-keyword">in</span> stats[<span class="org-string">'bulk'</span>][<span class="org-string">'gene'</span>]]
+</pre>
+</div>
+
+<p>
+Plot the joint distribution of bulk/mean \(z\)-scores.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">J</span> = stats[<span class="org-string">'log_mu'</span>].reset_index().merge(stats[<span class="org-string">'bulk'</span>].reset_index(), on=[<span class="org-string">'index'</span>, <span class="org-string">'gene'</span>])[[<span class="org-string">'z_x'</span>, <span class="org-string">'z_y'</span>]]
+plt.clf()
+plt.gcf().set_size_inches(3, 4)
+plt.hexbin(J[<span class="org-string">'z_x'</span>], J[<span class="org-string">'z_y'</span>], gridsize=30, extent=[-10, 10, -10, 10], bins=<span class="org-string">'log'</span>, cmap=colorcet.cm[<span class="org-string">'gray_r'</span>])
+plt.gca().set_aspect(<span class="org-string">'equal'</span>)
+plt.xlim(-10, 10)
+plt.ylim(-10, 10)
+plt.plot(plt.ylim(), plt.ylim(), c=<span class="org-string">'r'</span>, ls=<span class="org-string">':'</span>, lw=1)
+<span class="org-variable-name">cb</span> = plt.colorbar(orientation=<span class="org-string">'horizontal'</span>)
+cb.set_label(<span class="org-string">'$\log_{10}$ number of SNP-gene pairs'</span>)
+plt.xlabel(<span class="org-string">'Single cell eQTL $z$-score'</span>)
+plt.ylabel(<span class="org-string">'Bulk eQTL $z$-score'</span>)
+plt.tight_layout()
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/qtl-mapping.org/bulk-sc-mean-joint-z.png" alt="bulk-sc-mean-joint-z.png">
+</p>
+</div>
+
+<p>
+Plot the joint distribution of mean/variance \(z\)-scores.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">J</span> = stats[<span class="org-string">'log_mu'</span>].reset_index().merge(stats[<span class="org-string">'variance'</span>].reset_index(), on=[<span class="org-string">'index'</span>, <span class="org-string">'gene'</span>])[[<span class="org-string">'z_x'</span>, <span class="org-string">'z_y'</span>]]
+plt.clf()
+plt.gcf().set_size_inches(3, 4)
+plt.hexbin(J[<span class="org-string">'z_x'</span>], J[<span class="org-string">'z_y'</span>], gridsize=30, extent=[-10, 10, -10, 10], bins=<span class="org-string">'log'</span>, cmap=colorcet.cm[<span class="org-string">'gray_r'</span>])
+plt.gca().set_aspect(<span class="org-string">'equal'</span>)
+plt.xlim(-10, 10)
+plt.ylim(-10, 10)
+plt.plot(plt.ylim(), plt.ylim(), c=<span class="org-string">'r'</span>, ls=<span class="org-string">'--'</span>, lw=1)
+<span class="org-variable-name">cb</span> = plt.colorbar(orientation=<span class="org-string">'horizontal'</span>)
+cb.set_label(<span class="org-string">'$\log_{10}$ number of SNP-gene pairs'</span>)
+plt.xlabel(<span class="org-string">'Single cell eQTL $z$-score'</span>)
+plt.ylabel(<span class="org-string">'vQTL $z$-score'</span>)
+plt.tight_layout()
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/qtl-mapping.org/sc-mean-variance-joint-z.png" alt="sc-mean-variance-joint-z.png">
+</p>
+</div>
+</div>
+</div>
+
 <div id="outline-container-orgcaa7c69" class="outline-3">
 <h3 id="orgcaa7c69">Predicting mean QTLs from variance QTLs</h3>
 <div class="outline-text-3" id="text-orgcaa7c69">
@@ -3639,7 +3727,7 @@ Extract the QTLs for the browser.
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-06-14 Thu 20:25</p>
+<p class="date">Created: 2018-06-18 Mon 18:51</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-06-14 Thu 20:25 -->
+<!-- 2018-06-21 Thu 11:23 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Power to detect QTLs in single cell data</title>
@@ -530,7 +530,7 @@ Move the results to permanent storage.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sh">rsync -FFau /scratch/midway2/aksarkar/singlecell/power /project2/mstephens/aksarkar/projects/singlecell-qtl/data/power/
+<pre class="src src-sh">rsync -FFau /scratch/midway2/aksarkar/singlecell/power/ /project2/mstephens/aksarkar/projects/singlecell-qtl/data/power/
 </pre>
 </div>
 
@@ -1163,8 +1163,8 @@ Plot the estimated distributions of effect sizes.
 plt.gcf().set_size_inches(3, 3)
 <span class="org-variable-name">grid</span> = np.linspace(-.5, .5, num=1000)
 <span class="org-keyword">for</span> k, c, l <span class="org-keyword">in</span> <span class="org-builtin">zip</span>(ash_results, [<span class="org-string">'r'</span>, <span class="org-string">'b'</span>, <span class="org-string">'k'</span>], [<span class="org-string">'Dispersion'</span>, <span class="org-string">'Abundance'</span>, <span class="org-string">'Bulk'</span>]):
-  plt.plot(grid, np.array(ashr.cdf_ash(ash_results[k], grid).rx2(<span class="org-string">'y'</span>)).ravel(), c=c, lw=1, label=l)
-plt.legend(frameon=<span class="org-constant">False</span>, loc=<span class="org-string">'center left'</span>, bbox_to_anchor=(1, .5))
+  <span class="org-variable-name">y</span> = np.array(ashr.cdf_ash(ash_results[k], grid).rx2(<span class="org-string">'y'</span>)).ravel()
+  plt.plot(grid, y, c=c, lw=1, label=l)
 plt.xlabel(<span class="org-string">'Effect size'</span>)
 plt.ylabel(<span class="org-string">'Cumulative density'</span>)
 </pre>
@@ -1244,7 +1244,7 @@ stats[-1][<span class="org-string">'beta'</span>] *= -1
 </div>
 
 <div class="org-src-container">
-<pre class="src src-ipython">get_pairwise_sharing(stats)
+<pre class="src src-ipython"><span class="org-variable-name">res</span> = get_pairwise_sharing(stats)
 </pre>
 </div>
 
@@ -1254,6 +1254,22 @@ array([[1.        , 0.94283656, 0.94073996, 0.94026625, 0.94153343],
 [0.94073996, 0.99865977, 1.        , 0.9997103 , 0.9710184 ],
 [0.94026625, 0.9935249 , 0.9997103 , 1.        , 0.97188708],
 [0.94153343, 0.97356074, 0.9710184 , 0.97188708, 1.        ]])
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">pd.options.display.float_format</span> = <span class="org-string">'{:.3g}'</span>.<span class="org-builtin">format</span>
+<span class="org-variable-name">ticks</span> = [<span class="org-string">'Bulk'</span>, <span class="org-string">'Abundance'</span>, <span class="org-string">'Variance'</span>, <span class="org-string">'Fano'</span>, <span class="org-string">'CV'</span>]
+pd.DataFrame(100 * res, columns=ticks, index=ticks)
+</pre>
+</div>
+
+<pre class="example">
+Bulk  Abundance  Variance  Fano   CV
+Bulk        100       94.3      94.1    94 94.2
+Abundance  94.3        100      99.9  99.4 97.4
+Variance   94.1       99.9       100   100 97.1
+Fano         94       99.4       100   100 97.2
+CV         94.2       97.4      97.1  97.2  100
 </pre>
 </div>
 </div>
@@ -1277,9 +1293,9 @@ could be causal, and because the estimate is shrunk towards zero.
 </p>
 
 <p>
-If it is not causal, then the true marginal effect size is \(R_ij beta_i\),
-where \(i\) is causal and \(R_ij = \mathrm{Corr}(X_i, X_j)\). \(R_ij <= 1\),
-so this is still a lower bound
+If it is not causal, then the true marginal effect size is \(\sum_i R_{ij}
+  \beta_i\), where \(R_{ij} = \mathrm{Corr}(X_i, X_j)\). \(R_ij \leq 1\), so
+this is still a lower bound
 </p>
 
 <p>
@@ -1299,16 +1315,19 @@ so this is still a lower bound
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython">&lt;&lt;power-imports&gt;&gt;
-&lt;&lt;downsample-impl&gt;&gt;
-
-<span class="org-keyword">def</span> <span class="org-function-name">get_pve</span>(summary_stats, ash_result):
+<pre class="src src-ipython" id="org2793091"><span class="org-keyword">def</span> <span class="org-function-name">get_pve</span>(summary_stats, ash_result):
   <span class="org-variable-name">res</span> = ashr.ash(summary_stats[<span class="org-string">'beta'</span>], summary_stats[<span class="org-string">'se'</span>], fixg=<span class="org-constant">True</span>,
                  g=ash_result.rx2(<span class="org-string">'fitted_g'</span>))
   <span class="org-variable-name">pve</span> = np.square(pd.Series(np.square(ashr.get_sd(res)) + ashr.get_pm(res),
                             index=summary_stats[<span class="org-string">'gene'</span>]))
   <span class="org-keyword">return</span> pve.groupby(level=0).agg(<span class="org-builtin">max</span>)
+</pre>
+</div>
 
+<div class="org-src-container">
+<pre class="src src-ipython">&lt;&lt;power-imports&gt;&gt;
+&lt;&lt;downsample-impl&gt;&gt;
+&lt;&lt;get-pve-impl&gt;&gt;
 np.random.seed(0)
 <span class="org-variable-name">stats</span> = {x: (pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/{}.txt.gz'</span>.<span class="org-builtin">format</span>(x))
              .groupby(<span class="org-string">'gene'</span>)
@@ -1517,7 +1536,7 @@ Text(0,0.5,'Density')
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-06-14 Thu 20:25</p>
+<p class="date">Created: 2018-06-21 Thu 11:23</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>

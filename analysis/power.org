@@ -25,7 +25,7 @@
   #+CALL: ipython3(memory="8G", venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 46586407
+  : Submitted batch job 46684282
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -37,7 +37,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[1]:
+  # Out[3]:
   :END:
 
   #+NAME: power-imports
@@ -61,7 +61,7 @@
 
   #+RESULTS: power-imports
   :RESULTS:
-  # Out[8]:
+  # Out[2]:
   :END:
 
 * Differential dispersion
@@ -969,7 +969,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[95]:
+  # Out[4]:
   :END:
 
   Plot the estimated distributions of effect sizes.
@@ -979,15 +979,15 @@
     plt.gcf().set_size_inches(3, 3)
     grid = np.linspace(-.5, .5, num=1000)
     for k, c, l in zip(ash_results, ['r', 'b', 'k'], ['Dispersion', 'Abundance', 'Bulk']):
-      plt.plot(grid, np.array(ashr.cdf_ash(ash_results[k], grid).rx2('y')).ravel(), c=c, lw=1, label=l)
-    plt.legend(frameon=False, loc='center left', bbox_to_anchor=(1, .5))
+      y = np.array(ashr.cdf_ash(ash_results[k], grid).rx2('y')).ravel()
+      plt.plot(grid, y, c=c, lw=1, label=l)
     plt.xlabel('Effect size')
     plt.ylabel('Cumulative density')
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[52]:
+  # Out[5]:
   : Text(0,0.5,'Cumulative density')
   [[file:figure/power.org/ash-fitted-g.png]]
   :END:
