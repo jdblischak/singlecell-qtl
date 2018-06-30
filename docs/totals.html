@@ -321,10 +321,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2018-06-01</p>
+<p><strong>Last updated:</strong> 2018-06-30</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> 6b81757</p>
+<p><strong>Code version:</strong> 0ebbfcc</p>
 <p>This analysis explores the total counts of reads and molecules mapped to each source (human, fly, worm, and ERCC).</p>
 <div id="setup" class="section level2">
 <h2>Setup</h2>
@@ -355,12 +355,12 @@ anno_qc &lt;- pData(eset_qc)</code></pre>
                                   &quot;Molecules mapped\nto genome&quot;)))
 head(totals_long)</code></pre>
 <pre><code>  experiment well      type   count
-1   02192018  A01 Raw reads 3619750
-2   02192018  A02 Raw reads 1470655
-3   02192018  A03 Raw reads 3647472
-4   02192018  A04 Raw reads 5045594
-5   02192018  A05 Raw reads 6617139
-6   02192018  A06 Raw reads 5295282</code></pre>
+1   02192018  A01 Raw reads 4755105
+2   02192018  A02 Raw reads 1955271
+3   02192018  A03 Raw reads 4876011
+4   02192018  A04 Raw reads 6770341
+5   02192018  A05 Raw reads 8782029
+6   02192018  A06 Raw reads 7043643</code></pre>
 <pre class="r"><code>ggplot(totals_long, aes(x = type, y = count)) +
   geom_boxplot() +
   labs(x = &quot;Classification&quot;, y = &quot;Number of sequences&quot;,
@@ -378,26 +378,26 @@ head(totals_long)</code></pre>
 <tbody>
 <tr class="odd">
 <td>Raw reads</td>
-<td>4.81112710^{6}</td>
-<td>2.198589410^{6}</td>
+<td>5.023019510^{6}</td>
+<td>2.253564210^{6}</td>
 <td>1.00</td>
 </tr>
 <tr class="even">
 <td>Reads with UMI</td>
-<td>3.173026110^{6}</td>
-<td>1.497057710^{6}</td>
+<td>3.309334110^{6}</td>
+<td>1.518695810^{6}</td>
 <td>0.65</td>
 </tr>
 <tr class="odd">
 <td>Reads mapped to genome</td>
-<td>2.239983610^{6}</td>
-<td>1.102816810^{6}</td>
+<td>2.33680210^{6}</td>
+<td>1.119883110^{6}</td>
 <td>0.46</td>
 </tr>
 <tr class="even">
 <td>Molecules mapped to genome</td>
-<td>1.155035110^{5}</td>
-<td>5.313022810^{4}</td>
+<td>1.183215110^{5}</td>
+<td>5.3484410^{4}</td>
 <td>0.03</td>
 </tr>
 </tbody>
@@ -436,56 +436,8 @@ ggplot(mapped_sum, aes(x = experiment, y = total)) +
 </thead>
 <tbody>
 <tr class="odd">
-<td align="left">03052018</td>
-<td align="right">132.5719</td>
-</tr>
-<tr class="even">
-<td align="left">03062018</td>
-<td align="right">133.0558</td>
-</tr>
-<tr class="odd">
-<td align="left">04132017</td>
-<td align="right">155.8150</td>
-</tr>
-<tr class="even">
-<td align="left">04142017</td>
-<td align="right">155.9650</td>
-</tr>
-<tr class="odd">
-<td align="left">03312017</td>
-<td align="right">157.8991</td>
-</tr>
-<tr class="even">
-<td align="left">04072017</td>
-<td align="right">158.0969</td>
-</tr>
-<tr class="odd">
 <td align="left">12042017</td>
 <td align="right">159.2927</td>
-</tr>
-<tr class="even">
-<td align="left">08142017</td>
-<td align="right">164.2358</td>
-</tr>
-<tr class="odd">
-<td align="left">08152017</td>
-<td align="right">164.4480</td>
-</tr>
-<tr class="even">
-<td align="left">10052017</td>
-<td align="right">164.6800</td>
-</tr>
-<tr class="odd">
-<td align="left">02192018</td>
-<td align="right">168.3123</td>
-</tr>
-<tr class="even">
-<td align="left">04052017</td>
-<td align="right">171.8213</td>
-</tr>
-<tr class="odd">
-<td align="left">10042017</td>
-<td align="right">171.9275</td>
 </tr>
 <tr class="even">
 <td align="left">10022017</td>
@@ -636,12 +588,20 @@ ggplot(mapped_sum, aes(x = experiment, y = total)) +
 <td align="right">198.0889</td>
 </tr>
 <tr class="odd">
+<td align="left">10052017</td>
+<td align="right">200.7256</td>
+</tr>
+<tr class="even">
 <td align="left">03072018</td>
 <td align="right">201.6887</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">11282017</td>
 <td align="right">202.5115</td>
+</tr>
+<tr class="even">
+<td align="left">04072017</td>
+<td align="right">202.9047</td>
 </tr>
 <tr class="odd">
 <td align="left">11092017</td>
@@ -652,20 +612,36 @@ ggplot(mapped_sum, aes(x = experiment, y = total)) +
 <td align="right">204.4532</td>
 </tr>
 <tr class="odd">
+<td align="left">04142017</td>
+<td align="right">204.9052</td>
+</tr>
+<tr class="even">
 <td align="left">08102017</td>
 <td align="right">205.5988</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">12142017</td>
 <td align="right">205.7184</td>
+</tr>
+<tr class="even">
+<td align="left">10042017</td>
+<td align="right">207.0857</td>
 </tr>
 <tr class="odd">
 <td align="left">10102017</td>
 <td align="right">208.4722</td>
 </tr>
 <tr class="even">
+<td align="left">08152017</td>
+<td align="right">208.7694</td>
+</tr>
+<tr class="odd">
 <td align="left">12052017</td>
 <td align="right">209.0949</td>
+</tr>
+<tr class="even">
+<td align="left">03312017</td>
+<td align="right">210.1042</td>
 </tr>
 <tr class="odd">
 <td align="left">08282017</td>
@@ -680,48 +656,72 @@ ggplot(mapped_sum, aes(x = experiment, y = total)) +
 <td align="right">211.7339</td>
 </tr>
 <tr class="even">
+<td align="left">04132017</td>
+<td align="right">212.3782</td>
+</tr>
+<tr class="odd">
+<td align="left">08142017</td>
+<td align="right">215.3691</td>
+</tr>
+<tr class="even">
+<td align="left">04052017</td>
+<td align="right">215.4493</td>
+</tr>
+<tr class="odd">
 <td align="left">08212017</td>
 <td align="right">217.3511</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">03302017</td>
 <td align="right">219.8773</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">08302017</td>
 <td align="right">219.9493</td>
 </tr>
+<tr class="even">
+<td align="left">02192018</td>
+<td align="right">226.0620</td>
+</tr>
 <tr class="odd">
+<td align="left">03052018</td>
+<td align="right">227.0483</td>
+</tr>
+<tr class="even">
 <td align="left">11072017</td>
 <td align="right">230.4075</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">02272018</td>
 <td align="right">233.8705</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">10112017</td>
 <td align="right">235.2866</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">11132017</td>
 <td align="right">238.0722</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">08242017</td>
 <td align="right">239.1506</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">12072017</td>
 <td align="right">239.5364</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">10162017</td>
 <td align="right">241.1949</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">08312017</td>
 <td align="right">241.8290</td>
+</tr>
+<tr class="even">
+<td align="left">03062018</td>
+<td align="right">241.9799</td>
 </tr>
 <tr class="odd">
 <td align="left">11062017</td>
