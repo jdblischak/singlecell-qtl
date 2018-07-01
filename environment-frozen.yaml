@@ -8,6 +8,12 @@ channels:
 - defaults
 - anaconda
 dependencies:
+- blas=1.0=mkl
+- libgfortran-ng=7.2.0=hdf63c60_3
+- libopenblas=0.2.20=h9ac9557_7
+- numpy=1.14.3=py35hcd700cb_2
+- numpy-base=1.14.3=py35h0ea5e3f_1
+- scipy=1.0.0=py35hcbbe4a2_0
 - bcftools=1.6=0
 - bioconductor-annotationdbi=1.40.0=r3.4.1_0
 - bioconductor-biobase=2.38.0=r3.4.1_0
@@ -41,7 +47,6 @@ dependencies:
 - backports.functools_lru_cache=1.4=py35_1
 - backports.weakref=1.0rc1=py35_1
 - biopython=1.70=py35_2
-- blas=1.1=openblas
 - bleach=1.5.0=py35_0
 - bzip2=1.0.6=1
 - ca-certificates=2017.11.5=0
@@ -70,11 +75,11 @@ dependencies:
 - future=0.16.0=py35_0
 - gettext=0.19.7=1
 - git=2.14.2=3
-- git-lfs=2.3.3=0
+- git-lfs=2.4.2=0
 - glib=2.55.0=0
 - gmp=6.1.2=0
 - graphite2=1.3.10=0
-- gsl=2.2.1=blas_openblas_4
+- gsl=2.1=2
 - gst-plugins-base=1.8.0=0
 - gstreamer=1.8.0=1
 - harfbuzz=1.7.1=0
@@ -109,6 +114,8 @@ dependencies:
 - markupsafe=1.0=py35_0
 - matplotlib=2.1.1=py35_2
 - mistune=0.8.3=py_0
+- mkl_fft=1.0.2=py35_0
+- mkl_random=1.0.1=py35_0
 - mmtf-python=1.0.10=py_0
 - msgpack-python=0.4.8=py35_0
 - multidict=2.1.4=py35_0
@@ -118,7 +125,6 @@ dependencies:
 - networkx=1.11=py35_0
 - nlopt=2.4.2=py35_2
 - notebook=5.2.2=py35_1
-- numpy=1.14.0=py35_blas_openblas_200
 - olefile=0.44=py35_0
 - openblas=0.2.20=6
 - openssl=1.0.2n=0
@@ -275,7 +281,6 @@ dependencies:
 - regex=2017.12.12=py35_0
 - requests=2.13.0=py35_0
 - rpy2=2.8.5=py35r3.4.1_0
-- scipy=1.0.0=py35_blas_openblas_201
 - setuptools=38.4.0=py35_0
 - simplegeneric=0.8.1=py35_0
 - simplejson=3.11.1=py35_0
@@ -338,6 +343,8 @@ dependencies:
   - jupyter-client==5.2.1
   - jupyter-console==5.2.0
   - jupyter-core==4.4.0
+  - mkl-fft==1.0.2
+  - mkl-random==1.0.1
   - prompt-toolkit==1.0.15
   - tensorflow==1.3.0
   - umi-tools==0.5.3
