@@ -12,7 +12,8 @@
 # the organism.
 #
 # Notes:
-# + This includes only coding genes, i.e. gene_biotype == "protein_coding"
+# + This includes only coding genes, i.e. gene_biotype == "protein_coding" and
+#   transcript_biotype == "protein_coding"
 # + Output is in Simplified Annotation Format (SAF)
 #     + Columns: GeneID, Chr, Start, End, Strand
 #     + Coordinates are 1-based, inclusive on both ends
@@ -60,11 +61,12 @@ exons_all <- getBM(attributes = c("ensembl_gene_id", "ensembl_exon_id",
                                   "chromosome_name", "exon_chrom_start",
                                   "exon_chrom_end", "strand",
                                   att_gene_name,
-                                  "gene_biotype"),
+                                  "gene_biotype", "transcript_biotype"),
                    mart = ensembl)
 # Filter by chromosomes and biotype (only include protein_coding)
 exons_final <- exons_all[exons_all$chromosome_name %in% chroms &
-                         exons_all$gene_biotype == "protein_coding",
+                         exons_all$gene_biotype == "protein_coding" &
+                         exons_all$transcript_biotype == "protein_coding",
                          c("ensembl_gene_id", "chromosome_name", "exon_chrom_start",
                            "exon_chrom_end", "strand", att_gene_name)]
 colnames(exons_final) <- c("GeneID", "Chr", "Start", "End", "Strand", "Name")
