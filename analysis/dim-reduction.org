@@ -52,7 +52,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[1]:
+  # Out[23]:
   :END:
 
   #+NAME: dim-reduction-imports
@@ -69,7 +69,7 @@
 
   #+RESULTS: dim-reduction-imports
   :RESULTS:
-  # Out[2]:
+  # Out[24]:
   :END:
 
 * Read the data
@@ -88,7 +88,7 @@
 
   #+RESULTS: read-data-qc
   :RESULTS:
-  # Out[3]:
+  # Out[25]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -97,8 +97,8 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[4]:
-  : (10060, 5531)
+  # Out[26]:
+  : (9957, 5597)
   :END:
 
 * Principal components analysis
@@ -115,7 +115,7 @@
 
   #+RESULTS: normalize
   :RESULTS:
-  # Out[9]:
+  # Out[27]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -125,7 +125,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[10]:
+  # Out[28]:
   :END:
 
   #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/pca.png
@@ -145,7 +145,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[11]:
+  # Out[29]:
   [[file:figure/dim-reduction.org/pca.png]]
   :END:
 
@@ -224,7 +224,7 @@
 
   #+RESULTS: corr-def
   :RESULTS:
-  # Out[17]:
+  # Out[30]:
   :END:
 
   #+NAME: extract-covars
@@ -236,7 +236,7 @@
 
   #+RESULTS: extract-covars
   :RESULTS:
-  # Out[18]:
+  # Out[31]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -248,7 +248,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[19]:
+  # Out[32]:
   :END:
 
   #+NAME: plot-covars-def
@@ -276,7 +276,7 @@
 
   #+RESULTS: plot-covars-def
   :RESULTS:
-  # Out[24]:
+  # Out[33]:
   :END:
 
   #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/pca-vs-covars.svg
@@ -286,7 +286,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[25]:
+  # Out[34]:
   [[file:figure/dim-reduction.org/pca-vs-covars.svg]]
   :END:
 
@@ -302,7 +302,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[20]:
+  # Out[35]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -317,7 +317,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[21]:
+  # Out[36]:
   :END:
 
   For genes with high proportion of zero counts, the low-rank approximation is
@@ -788,15 +788,17 @@
       plt.clf()
       plt.gcf().set_size_inches(4, 4)
       for q, v in zip(quantiles, vals):
-        plt.scatter(annotations['detect_hs'] / keep_genes.shape[0], v, c=colorcet.cm['inferno'](q), label='{:.2f}'.format(q), s=2)
-      plt.legend(title='Quantile', frameon=False, fancybox=False, bbox_to_anchor=(1, .5), loc='center left')
+        plt.scatter(annotations['detect_hs'] / keep_genes.shape[0], v, c=colorcet.cm['inferno'](q), label='{:.2f}'.format(.9 * q), s=2)
+      plt.legend(title='Quantile', frameon=False, fancybox=False,
+                 bbox_to_anchor=(.5, -.35), loc='lower center', markerscale=4, ncol=5,
+                 columnspacing=1, handletextpad=0)
       plt.xlabel('Proportion of genes detected')
       plt.ylabel(label)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[26]:
+  # Out[60]:
   :END:
 
   We recapitulate the main result of Hicks et al in our data.
@@ -808,7 +810,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[27]:
+  # Out[61]:
   [[file:figure/dim-reduction.org/umi-quantiles-vs-detection.png]]
   :END:
 
@@ -826,7 +828,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[28]:
+  # Out[62]:
   [[file:figure/dim-reduction.org/umi-quantiles-vs-detection-1.png]]
   :END:
 
@@ -836,7 +838,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[29]:
+  # Out[63]:
   [[file:figure/dim-reduction.org/umi-quantiles-vs-detection-1e-3.png]]
   :END:
 
@@ -884,35 +886,35 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[30]:
+  # Out[64]:
   :END:
 
   #+CALL: normalize()
 
   #+RESULTS:
   :RESULTS:
-  # Out[31]:
+  # Out[65]:
   :END:
 
   #+CALL: corr-def()
 
   #+RESULTS:
   :RESULTS:
-  # Out[32]:
+  # Out[66]:
   :END:
 
   #+CALL: extract-covars()
 
   #+RESULTS:
   :RESULTS:
-  # Out[33]:
+  # Out[67]:
   :END:
 
   #+CALL: plot-covars-def()
 
   #+RESULTS:
   :RESULTS:
-  # Out[34]:
+  # Out[68]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -929,7 +931,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[35]:
+  # Out[69]:
   :END:
 
   #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/pca-bicentered-covars.svg
@@ -939,7 +941,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[36]:
+  # Out[70]:
   [[file:figure/dim-reduction.org/pca-bicentered-covars.svg]]
   :END:
 
@@ -971,7 +973,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[37]:
+  # Out[71]:
   :END:
 
   #+NAME: plot-kpca-covars
@@ -991,7 +993,7 @@
 
   #+RESULTS: plot-kpca-covars
   :RESULTS:
-  # Out[38]:
+  # Out[72]:
   [[file:figure/dim-reduction.org/kpca-covars.svg]]
   :END:
 
@@ -1019,7 +1021,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[39]:
+  # Out[73]:
   :END:
 
   #+BEGIN_SRC ipython :async t
@@ -1028,7 +1030,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[40]:
+  # Out[74]:
   :END:
 
   #+BEGIN_SRC ipython :ipyfile figure/dim-reduction.org/pca-expr-residual-covars.svg
@@ -1038,7 +1040,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[43]:
+  # Out[75]:
   [[file:figure/dim-reduction.org/pca-expr-residual-covars.svg]]
   :END:
 

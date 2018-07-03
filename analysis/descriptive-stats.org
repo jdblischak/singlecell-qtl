@@ -13,7 +13,7 @@
   #+CALL: ipython3(memory="16G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 42635448
+  : Submitted batch job 47227399
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -22,7 +22,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[75]:
+  # Out[1]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -37,7 +37,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[96]:
+  # Out[2]:
   :END:
 
 * Read the data
@@ -50,7 +50,7 @@
 
   #+RESULTS: read-data
   :RESULTS:
-  # Out[13]:
+  # Out[3]:
   :END:
 
   Apply the QC filters.
@@ -62,8 +62,8 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[14]:
-  : (3910, 40)
+  # Out[4]:
+  : (5597, 40)
   :END:
 
 * Distributions of read counts
@@ -80,7 +80,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[97]:
+  # Out[5]:
   : Text(0.5,1,'Read count by cell')
   [[file:figure/descriptive-stats.org/reads-by-cell.svg]]
   :END:
@@ -99,7 +99,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[98]:
+  # Out[6]:
   : Text(0.5,1,'Read count by batch')
   [[file:figure/descriptive-stats.org/reads-by-cell-batch-hist.svg]]
   :END:
@@ -120,7 +120,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[99]:
+  # Out[7]:
   : Text(0.5,1,'Read count by batch')
   [[file:figure/descriptive-stats.org/reads-by-cell-batch.svg]]
   :END:
@@ -137,7 +137,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[100]:
+  # Out[8]:
   [[file:figure/descriptive-stats.org/reads-by-ind.svg]]
   :END:
 
@@ -157,7 +157,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[101]:
+  # Out[9]:
   : Text(0.5,0.98,'Read count by individual/batch')
   [[file:figure/descriptive-stats.org/reads-by-ind-batch.svg]]
   :END:
@@ -181,7 +181,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[102]:
+  # Out[10]:
   : Text(0.5,0.98,'ERCC read count by individual')
   [[file:figure/descriptive-stats.org/ercc-reads-by-ind.svg]]
   :END:
@@ -204,7 +204,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[103]:
+  # Out[11]:
   : Text(0.5,0.98,'D. mel. read count by individual')
   [[file:figure/descriptive-stats.org/dm-reads-by-ind.svg]]
   :END:
@@ -228,7 +228,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[104]:
+  # Out[12]:
   : Text(0.5,0.98,'C. elegans read count by individual')
   [[file:figure/descriptive-stats.org/ce-reads-by-ind.svg]]
   :END:
@@ -247,7 +247,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[105]:
+  # Out[13]:
   :END:
 
   #+BEGIN_SRC ipython :ipyfile figure/descriptive-stats.org/umi-by-ind.svg
@@ -264,7 +264,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[106]:
+  # Out[14]:
   : Text(0.5,1,'Molecule count by individual')
   [[file:figure/descriptive-stats.org/umi-by-ind.svg]]
   :END:
@@ -285,7 +285,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[107]:
+  # Out[15]:
   : Text(0.5,0.98,'Molecule count by individual')
   [[file:figure/descriptive-stats.org/umi-by-ind-batch.svg]]
   :END:
@@ -310,7 +310,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[108]:
+  # Out[16]:
   : Text(0.5,0.98,'ERCC molecule count by individual')
   [[file:figure/descriptive-stats.org/ercc-by-ind.svg]]
   :END:
@@ -335,7 +335,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[109]:
+  # Out[17]:
   : Text(0.5,0.98,'D. mel. molecule count by individual')
   [[file:figure/descriptive-stats.org/dm-by-ind.svg]]
   :END:
@@ -360,7 +360,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[110]:
+  # Out[18]:
   : Text(0.5,0.98,'C. elegans molecule count by individual')
   [[file:figure/descriptive-stats.org/ce-by-ind.svg]]
   :END:
@@ -383,7 +383,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[111]:
+  # Out[19]:
   [[file:figure/descriptive-stats.org/cells-by-ind.svg]]
   :END:
 
@@ -403,7 +403,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[112]:
+  # Out[20]:
   : Text(0.5,0.98,'Number of cells by individual')
   [[file:figure/descriptive-stats.org/cells-by-ind-batch.svg]]
   :END:
@@ -426,7 +426,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[40]:
+  # Out[21]:
   #+BEGIN_EXAMPLE
     chr      start        end      name strand      source
     gene
@@ -450,7 +450,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[57]:
+  # Out[22]:
   :END:
 
   #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell :eval never-export

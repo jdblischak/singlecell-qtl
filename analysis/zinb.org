@@ -98,7 +98,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[2]:
+  # Out[84]:
   :END:
 
   #+NAME: tf-imports
@@ -412,87 +412,55 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[21]:
+   # Out[76]:
    :END:
+
+   Get the latent mean and variance.
 
    #+BEGIN_SRC ipython
-     mu_pass = result['log_mu'] > -10
-     pi_pass = result['logodds'] < 0
+     result['latent_mean'] = np.exp(result['log_mu'] - np.log1p(np.exp(result['logodds'])))
+     result['latent_mean_hat'] = np.exp(result['log_mu_hat'] - np.log1p(np.exp(result['logodds_hat'])))
+     result['latent_var'] = np.exp(result['log_phi'] - np.log1p(np.exp(result['logodds']))) + np.exp(-np.log1p(np.exp(result['logodds'])) - np.log1p(np.exp(-result['logodds'])) + 2 * result['log_mu'])
+     result['latent_var_hat'] = np.exp(result['log_phi_hat'] - np.log1p(np.exp(result['logodds_hat']))) + np.exp(-np.log1p(np.exp(result['logodds_hat'])) - np.log1p(np.exp(-result['logodds_hat'])) + 2 * result['log_mu_hat'])
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[22]:
+   # Out[81]:
    :END:
 
-   Plot the results.
+   Plot the accuracy of estimated latent mean and variance.
 
-   #+BEGIN_SRC ipython :ipyfile figure/zinb.org/sim1.png
-     sample_pass = result['num_samples'] == 95
-
+   #+BEGIN_SRC ipython :ipyfile figure/zinb.org/simulation-latent-accuracy.png
      plt.clf()
-     fig, ax = plt.subplots(1, 3)
-     fig.set_size_inches(8.5, 3)
+     fig, ax = plt.subplots(3, 2)
+     fig.set_size_inches(6, 9)
 
-     subset = result.loc[np.logical_and.reduce(np.vstack([sample_pass, pi_pass])),['log_mu', 'log_mu_hat']]
-     ax[0].scatter(subset['log_mu'], subset['log_mu_hat'], s=2, c='k')
-     ax[0].plot(ax[0].get_xlim(), ax[0].get_xlim(), c='r', ls=':', lw=1)
-     ax[0].set_xlabel('True $\ln(\mu)$')
-     ax[0].set_ylabel('Estimated $\ln(\mu)$')
+     for i, (k, g) in enumerate(result.groupby('num_samples')):
+       mu_pass = g['log_mu'] > -10
+       pi_pass = g['logodds'] < 0
+       subset = g.loc[functools.reduce(np.logical_and, [mu_pass, pi_pass])]
+       ax[i, 0].semilogx()
+       ax[i, 0].semilogy()
+       ax[i, 0].scatter(subset['latent_mean'], subset['latent_mean_hat'], s=2, c='k')
+       ax[i, 0].plot(ax[i, 0].get_xlim(), ax[i, 0].get_xlim(), c='r', ls=':', lw=1)
+       ax[i, 0].set_xlabel('True expression mean')
+       ax[i, 0].set_ylabel('Estimated expression mean')
+       ax[i, 0].set_title('$n = {}$'.format(k))
 
-     subset = result.loc[np.logical_and.reduce(np.vstack([sample_pass, mu_pass, pi_pass])),['log_phi', 'log_phi_hat']]
-     ax[1].scatter(subset['log_phi'], subset['log_phi_hat'], s=2, c='k')
-     ax[1].plot(ax[1].get_xlim(), ax[1].get_xlim(), c='r', ls=':', lw=1)
-     ax[1].set_xlabel('True $\ln(\phi)$')
-     ax[1].set_ylabel('Estimated $\ln(\phi)$')
-
-     subset = result.loc[sample_pass,['logodds', 'logodds_hat']]
-     ax[2].scatter(subset['logodds'], subset['logodds_hat'], s=2, c='k')
-     ax[2].plot(ax[2].get_xlim(), ax[2].get_xlim(), c='r', ls=':', lw=1)
-     ax[2].set_xlabel('True $\mathrm{logit}(\pi)$')
-     ax[2].set_ylabel('Estimated $\mathrm{logit}(\pi)$')
+       ax[i, 1].scatter(subset['latent_var'], subset['latent_var_hat'], s=2, c='k')
+       ax[i, 1].plot(ax[i, 1].get_xlim(), ax[i, 1].get_xlim(), c='r', ls=':', lw=1)
+       ax[i, 1].set_xlabel('True expression variance')
+       ax[i, 1].set_ylabel('Estimated expression variance')
+       ax[i, 1].set_title('$n = {}$'.format(k))
 
      fig.tight_layout()
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[13]:
-   [[file:figure/zinb.org/sim1.png]]
-   :END:
-
-   #+BEGIN_SRC ipython :ipyfile figure/zinb.org/sim2.png
-     sample_pass = result['num_samples'] == 10000
-
-     plt.clf()
-     fig, ax = plt.subplots(1, 3)
-     fig.set_size_inches(8.5, 3)
-
-     subset = result.loc[np.logical_and.reduce(np.vstack([sample_pass, pi_pass])),['log_mu', 'log_mu_hat']]
-     ax[0].scatter(subset['log_mu'], subset['log_mu_hat'], s=2, c='k')
-     ax[0].plot(ax[0].get_xlim(), ax[0].get_xlim(), c='r', ls=':', lw=1)
-     ax[0].set_xlabel('True $\ln(\mu)$')
-     ax[0].set_ylabel('Estimated $\ln(\mu)$')
-
-     subset = result.loc[np.logical_and.reduce(np.vstack([sample_pass, mu_pass, pi_pass])),['log_phi', 'log_phi_hat']]
-     ax[1].scatter(subset['log_phi'], subset['log_phi_hat'], s=2, c='k')
-     ax[1].plot(ax[1].get_xlim(), ax[1].get_xlim(), c='r', ls=':', lw=1)
-     ax[1].set_xlabel('True $\ln(\phi)$')
-     ax[1].set_ylabel('Estimated $\ln(\phi)$')
-
-     subset = result.loc[sample_pass,['logodds', 'logodds_hat']]
-     ax[2].scatter(subset['logodds'], subset['logodds_hat'], s=2, c='k')
-     ax[2].plot(ax[2].get_xlim(), ax[2].get_xlim(), c='r', ls=':', lw=1)
-     ax[2].set_xlabel('True $\mathrm{logit}(\pi)$')
-     ax[2].set_ylabel('Estimated $\mathrm{logit}(\pi)$')
-
-     fig.tight_layout()
-   #+END_SRC
-
-   #+RESULTS:
-   :RESULTS:
-   # Out[17]:
-   [[file:figure/zinb.org/sim2.png]]
+   # Out[127]:
+   [[file:figure/zinb.org/simulation-latent-accuracy.png]]
    :END:
 
 ** Fit ZINB2
@@ -537,10 +505,15 @@
      chip -= chip.mean(axis=0)
      designs.append(chip)
 
+     # These explain most PVE of circular pseudotime (Joyce Hsiao, personal
+     # communication)
      cell_cycle_genes = [
-       'ENSG00000111640', # GAPDH
-     ]
-     # Poisson MLE
+       'ENSG00000094804', # CDC6
+       'ENSG00000170312', # CDK1
+       'ENSG00000175063', # UBE2C
+       'ENSG00000131747', # TOP2A
+       'ENSG00000197061', # HIST1H4C
+       ]
      cell_cycle = (umi.loc[cell_cycle_genes].values / annotations['mol_hs'].values).reshape(-1, len(cell_cycle_genes))
      cell_cycle -= cell_cycle.mean(axis=0)
      cell_cycle /= cell_cycle.std(axis=0)
@@ -584,7 +557,7 @@
 
    #+NAME: run-tf-zinb
    #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation/
-     sbatch --partition=gpu --gres=gpu:1 --mem=16G --time=240 --job-name=tf-zinb --output=zinb2.out
+     sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --time=240 --job-name=tf-zinb --output=zinb2.out
      #!/bin/bash
      source activate scqtl
      mkdir -p design{0,1,2,3}
@@ -603,7 +576,7 @@
    #+END_SRC
 
    #+RESULTS: run-tf-zinb
-   : Submitted batch job 46235257
+   : Submitted batch job 47228454
 
    #+NAME: rsync
    #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation/
@@ -618,7 +591,7 @@
    #+END_SRC
 
    #+RESULTS: rsync
-   : Submitted batch job 46253775
+   : Submitted batch job 47231145
 
 * numpy/scipy implementation                                       :noexport:
 
@@ -1436,12 +1409,11 @@
   #+BEGIN_SRC ipython
     log_phi0 = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-log-phi.txt.gz', index_col=0, sep=' ')
     log_phi1 = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-phi.txt.gz', index_col=0, sep=' ')
-    log_phi2 = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-log-phi.txt.gz', index_col=0, sep=' ')
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[7]:
+  # Out[128]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -1450,18 +1422,8 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[8]:
-  : 0.15709562456515447
-  :END:
-
-  #+BEGIN_SRC ipython
-    1 - np.exp(log_phi2 - log_phi0).mean().mean()
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[9]:
-  : 0.060288773607879986
+  # Out[129]:
+  : 0.1567919392443754
   :END:
 
   Estimate how much the mean changes due to confounding.
@@ -1469,12 +1431,11 @@
   #+BEGIN_SRC ipython
     log_mu0 = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-log-mu.txt.gz', index_col=0, sep=' ')
     log_mu1 = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz', index_col=0, sep=' ')
-    log_mu2 = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-log-mu.txt.gz', index_col=0, sep=' ')
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[10]:
+  # Out[131]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -1483,36 +1444,16 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[11]:
+  # Out[132]:
   #+BEGIN_EXAMPLE
     count    54.000000
-    mean      0.984358
-    std       0.036262
-    min       0.901307
-    25%       0.960169
-    50%       0.985311
-    75%       1.013624
-    max       1.060967
-    Name: mean, dtype: float64
-  #+END_EXAMPLE
-  :END:
-
-  #+BEGIN_SRC ipython
-    np.exp(log_mu2 - log_mu0).describe().loc['mean'].describe()
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[12]:
-  #+BEGIN_EXAMPLE
-    count    54.000000
-    mean      0.990382
-    std       0.026330
-    min       0.933567
-    25%       0.971578
-    50%       0.986374
-    75%       1.004810
-    max       1.072623
+    mean      0.984503
+    std       0.037119
+    min       0.896817
+    25%       0.963595
+    50%       0.983739
+    75%       1.005902
+    max       1.065907
     Name: mean, dtype: float64
   #+END_EXAMPLE
   :END:
@@ -1774,11 +1715,6 @@
   #+RESULTS: zinb-moments
   :RESULTS:
   # Out[30]:
-  :END:
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[31]:
   :END:
 
   The index of dispersion for observed data \(r_{ijk}\) at gene \(k\) is:
