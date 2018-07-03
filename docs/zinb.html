@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-06-14 Thu 20:25 -->
+<!-- 2018-07-03 Tue 12:47 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mean/dispersion estimation</title>
@@ -648,40 +648,44 @@ Read the results.
 </pre>
 </div>
 
+<p>
+Get the latent mean and variance.
+</p>
+
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">mu_pass</span> = result[<span class="org-string">'log_mu'</span>] &gt; -10
-<span class="org-variable-name">pi_pass</span> = result[<span class="org-string">'logodds'</span>] &lt; 0
+<pre class="src src-ipython"><span class="org-variable-name">result</span>[<span class="org-string">'latent_mean'</span>] = np.exp(result[<span class="org-string">'log_mu'</span>] - np.log1p(np.exp(result[<span class="org-string">'logodds'</span>])))
+<span class="org-variable-name">result</span>[<span class="org-string">'latent_mean_hat'</span>] = np.exp(result[<span class="org-string">'log_mu_hat'</span>] - np.log1p(np.exp(result[<span class="org-string">'logodds_hat'</span>])))
+<span class="org-variable-name">result</span>[<span class="org-string">'latent_var'</span>] = np.exp(result[<span class="org-string">'log_phi'</span>] - np.log1p(np.exp(result[<span class="org-string">'logodds'</span>]))) + np.exp(-np.log1p(np.exp(result[<span class="org-string">'logodds'</span>])) - np.log1p(np.exp(-result[<span class="org-string">'logodds'</span>])) + 2 * result[<span class="org-string">'log_mu'</span>])
+<span class="org-variable-name">result</span>[<span class="org-string">'latent_var_hat'</span>] = np.exp(result[<span class="org-string">'log_phi_hat'</span>] - np.log1p(np.exp(result[<span class="org-string">'logodds_hat'</span>]))) + np.exp(-np.log1p(np.exp(result[<span class="org-string">'logodds_hat'</span>])) - np.log1p(np.exp(-result[<span class="org-string">'logodds_hat'</span>])) + 2 * result[<span class="org-string">'log_mu_hat'</span>])
 </pre>
 </div>
 
 <p>
-Plot the results.
+Plot the accuracy of estimated latent mean and variance.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">sample_pass</span> = result[<span class="org-string">'num_samples'</span>] == 95
+<pre class="src src-ipython">plt.clf()
+<span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(3, 2)
+fig.set_size_inches(6, 9)
 
-plt.clf()
-<span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(1, 3)
-fig.set_size_inches(8.5, 3)
+<span class="org-keyword">for</span> i, (k, g) <span class="org-keyword">in</span> <span class="org-builtin">enumerate</span>(result.groupby(<span class="org-string">'num_samples'</span>)):
+  <span class="org-variable-name">mu_pass</span> = g[<span class="org-string">'log_mu'</span>] &gt; -10
+  <span class="org-variable-name">pi_pass</span> = g[<span class="org-string">'logodds'</span>] &lt; 0
+  <span class="org-variable-name">subset</span> = g.loc[functools.<span class="org-builtin">reduce</span>(np.logical_and, [mu_pass, pi_pass])]
+  ax[i, 0].semilogx()
+  ax[i, 0].semilogy()
+  ax[i, 0].scatter(subset[<span class="org-string">'latent_mean'</span>], subset[<span class="org-string">'latent_mean_hat'</span>], s=2, c=<span class="org-string">'k'</span>)
+  ax[i, 0].plot(ax[i, 0].get_xlim(), ax[i, 0].get_xlim(), c=<span class="org-string">'r'</span>, ls=<span class="org-string">':'</span>, lw=1)
+  ax[i, 0].set_xlabel(<span class="org-string">'True expression mean'</span>)
+  ax[i, 0].set_ylabel(<span class="org-string">'Estimated expression mean'</span>)
+  ax[i, 0].set_title(<span class="org-string">'$n = {}$'</span>.<span class="org-builtin">format</span>(k))
 
-<span class="org-variable-name">subset</span> = result.loc[np.logical_and.<span class="org-builtin">reduce</span>(np.vstack([sample_pass, pi_pass])),[<span class="org-string">'log_mu'</span>, <span class="org-string">'log_mu_hat'</span>]]
-ax[0].scatter(subset[<span class="org-string">'log_mu'</span>], subset[<span class="org-string">'log_mu_hat'</span>], s=2, c=<span class="org-string">'k'</span>)
-ax[0].plot(ax[0].get_xlim(), ax[0].get_xlim(), c=<span class="org-string">'r'</span>, ls=<span class="org-string">':'</span>, lw=1)
-ax[0].set_xlabel(<span class="org-string">'True $\ln(\mu)$'</span>)
-ax[0].set_ylabel(<span class="org-string">'Estimated $\ln(\mu)$'</span>)
-
-<span class="org-variable-name">subset</span> = result.loc[np.logical_and.<span class="org-builtin">reduce</span>(np.vstack([sample_pass, mu_pass, pi_pass])),[<span class="org-string">'log_phi'</span>, <span class="org-string">'log_phi_hat'</span>]]
-ax[1].scatter(subset[<span class="org-string">'log_phi'</span>], subset[<span class="org-string">'log_phi_hat'</span>], s=2, c=<span class="org-string">'k'</span>)
-ax[1].plot(ax[1].get_xlim(), ax[1].get_xlim(), c=<span class="org-string">'r'</span>, ls=<span class="org-string">':'</span>, lw=1)
-ax[1].set_xlabel(<span class="org-string">'True $\ln(\phi)$'</span>)
-ax[1].set_ylabel(<span class="org-string">'Estimated $\ln(\phi)$'</span>)
-
-<span class="org-variable-name">subset</span> = result.loc[sample_pass,[<span class="org-string">'logodds'</span>, <span class="org-string">'logodds_hat'</span>]]
-ax[2].scatter(subset[<span class="org-string">'logodds'</span>], subset[<span class="org-string">'logodds_hat'</span>], s=2, c=<span class="org-string">'k'</span>)
-ax[2].plot(ax[2].get_xlim(), ax[2].get_xlim(), c=<span class="org-string">'r'</span>, ls=<span class="org-string">':'</span>, lw=1)
-ax[2].set_xlabel(<span class="org-string">'True $\mathrm{logit}(\pi)$'</span>)
-ax[2].set_ylabel(<span class="org-string">'Estimated $\mathrm{logit}(\pi)$'</span>)
+  ax[i, 1].scatter(subset[<span class="org-string">'latent_var'</span>], subset[<span class="org-string">'latent_var_hat'</span>], s=2, c=<span class="org-string">'k'</span>)
+  ax[i, 1].plot(ax[i, 1].get_xlim(), ax[i, 1].get_xlim(), c=<span class="org-string">'r'</span>, ls=<span class="org-string">':'</span>, lw=1)
+  ax[i, 1].set_xlabel(<span class="org-string">'True expression variance'</span>)
+  ax[i, 1].set_ylabel(<span class="org-string">'Estimated expression variance'</span>)
+  ax[i, 1].set_title(<span class="org-string">'$n = {}$'</span>.<span class="org-builtin">format</span>(k))
 
 fig.tight_layout()
 </pre>
@@ -689,42 +693,7 @@ fig.tight_layout()
 
 
 <div class="figure">
-<p><img src="figure/zinb.org/sim1.png" alt="sim1.png">
-</p>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">sample_pass</span> = result[<span class="org-string">'num_samples'</span>] == 10000
-
-plt.clf()
-<span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(1, 3)
-fig.set_size_inches(8.5, 3)
-
-<span class="org-variable-name">subset</span> = result.loc[np.logical_and.<span class="org-builtin">reduce</span>(np.vstack([sample_pass, pi_pass])),[<span class="org-string">'log_mu'</span>, <span class="org-string">'log_mu_hat'</span>]]
-ax[0].scatter(subset[<span class="org-string">'log_mu'</span>], subset[<span class="org-string">'log_mu_hat'</span>], s=2, c=<span class="org-string">'k'</span>)
-ax[0].plot(ax[0].get_xlim(), ax[0].get_xlim(), c=<span class="org-string">'r'</span>, ls=<span class="org-string">':'</span>, lw=1)
-ax[0].set_xlabel(<span class="org-string">'True $\ln(\mu)$'</span>)
-ax[0].set_ylabel(<span class="org-string">'Estimated $\ln(\mu)$'</span>)
-
-<span class="org-variable-name">subset</span> = result.loc[np.logical_and.<span class="org-builtin">reduce</span>(np.vstack([sample_pass, mu_pass, pi_pass])),[<span class="org-string">'log_phi'</span>, <span class="org-string">'log_phi_hat'</span>]]
-ax[1].scatter(subset[<span class="org-string">'log_phi'</span>], subset[<span class="org-string">'log_phi_hat'</span>], s=2, c=<span class="org-string">'k'</span>)
-ax[1].plot(ax[1].get_xlim(), ax[1].get_xlim(), c=<span class="org-string">'r'</span>, ls=<span class="org-string">':'</span>, lw=1)
-ax[1].set_xlabel(<span class="org-string">'True $\ln(\phi)$'</span>)
-ax[1].set_ylabel(<span class="org-string">'Estimated $\ln(\phi)$'</span>)
-
-<span class="org-variable-name">subset</span> = result.loc[sample_pass,[<span class="org-string">'logodds'</span>, <span class="org-string">'logodds_hat'</span>]]
-ax[2].scatter(subset[<span class="org-string">'logodds'</span>], subset[<span class="org-string">'logodds_hat'</span>], s=2, c=<span class="org-string">'k'</span>)
-ax[2].plot(ax[2].get_xlim(), ax[2].get_xlim(), c=<span class="org-string">'r'</span>, ls=<span class="org-string">':'</span>, lw=1)
-ax[2].set_xlabel(<span class="org-string">'True $\mathrm{logit}(\pi)$'</span>)
-ax[2].set_ylabel(<span class="org-string">'Estimated $\mathrm{logit}(\pi)$'</span>)
-
-fig.tight_layout()
-</pre>
-</div>
-
-
-<div class="figure">
-<p><img src="figure/zinb.org/sim2.png" alt="sim2.png">
+<p><img src="figure/zinb.org/simulation-latent-accuracy.png" alt="simulation-latent-accuracy.png">
 </p>
 </div>
 </div>
@@ -764,10 +733,15 @@ designs.append(np.zeros((onehot.shape[0], 1)))
 <span class="org-variable-name">chip</span> -= chip.mean(axis=0)
 designs.append(chip)
 
+<span class="org-comment-delimiter"># </span><span class="org-comment">These explain most PVE of circular pseudotime (Joyce Hsiao, personal</span>
+<span class="org-comment-delimiter"># </span><span class="org-comment">communication)</span>
 <span class="org-variable-name">cell_cycle_genes</span> = [
-  <span class="org-string">'ENSG00000111640'</span>, <span class="org-comment-delimiter"># </span><span class="org-comment">GAPDH</span>
-]
-<span class="org-comment-delimiter"># </span><span class="org-comment">Poisson MLE</span>
+  <span class="org-string">'ENSG00000094804'</span>, <span class="org-comment-delimiter"># </span><span class="org-comment">CDC6</span>
+  <span class="org-string">'ENSG00000170312'</span>, <span class="org-comment-delimiter"># </span><span class="org-comment">CDK1</span>
+  <span class="org-string">'ENSG00000175063'</span>, <span class="org-comment-delimiter"># </span><span class="org-comment">UBE2C</span>
+  <span class="org-string">'ENSG00000131747'</span>, <span class="org-comment-delimiter"># </span><span class="org-comment">TOP2A</span>
+  <span class="org-string">'ENSG00000197061'</span>, <span class="org-comment-delimiter"># </span><span class="org-comment">HIST1H4C</span>
+  ]
 <span class="org-variable-name">cell_cycle</span> = (umi.loc[cell_cycle_genes].values / annotations[<span class="org-string">'mol_hs'</span>].values).reshape(-1, <span class="org-builtin">len</span>(cell_cycle_genes))
 <span class="org-variable-name">cell_cycle</span> -= cell_cycle.mean(axis=0)
 <span class="org-variable-name">cell_cycle</span> /= cell_cycle.std(axis=0)
@@ -808,7 +782,7 @@ pd.DataFrame(logodds.T, index=index, columns=header).to_csv(<span class="org-str
 </div>
 
 <div class="org-src-container">
-<pre class="src src-sh" id="org8a8944d">sbatch --partition=gpu --gres=gpu:1 --mem=16G --time=240 --job-name=tf-zinb --output=zinb2.out
+<pre class="src src-sh" id="org8a8944d">sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --time=240 --job-name=tf-zinb --output=zinb2.out
 <span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
 <span class="org-builtin">source</span> activate scqtl
 mkdir -p design{0,1,2,3}
@@ -828,7 +802,7 @@ python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb.py --de
 </div>
 
 <pre class="example">
-Submitted batch job 46235257
+Submitted batch job 47228454
 
 </pre>
 
@@ -845,7 +819,7 @@ rsync -FFau --delete . /project2/mstephens/aksarkar/projects/singlecell-qtl/data
 </div>
 
 <pre class="example">
-Submitted batch job 46253775
+Submitted batch job 47231145
 
 </pre>
 </div>
@@ -937,7 +911,6 @@ average reduction in heterogeneity (residual variance).
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-variable-name">log_phi0</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-log-phi.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
 <span class="org-variable-name">log_phi1</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-phi.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
-<span class="org-variable-name">log_phi2</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-log-phi.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
 </pre>
 </div>
 
@@ -947,17 +920,7 @@ average reduction in heterogeneity (residual variance).
 </div>
 
 <pre class="example">
-0.15709562456515447
-
-</pre>
-
-<div class="org-src-container">
-<pre class="src src-ipython">1 - np.exp(log_phi2 - log_phi0).mean().mean()
-</pre>
-</div>
-
-<pre class="example">
-0.060288773607879986
+0.1567919392443754
 
 </pre>
 
@@ -968,7 +931,6 @@ Estimate how much the mean changes due to confounding.
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-variable-name">log_mu0</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
 <span class="org-variable-name">log_mu1</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
-<span class="org-variable-name">log_mu2</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
 </pre>
 </div>
 
@@ -979,30 +941,13 @@ Estimate how much the mean changes due to confounding.
 
 <pre class="example">
 count    54.000000
-mean      0.984358
-std       0.036262
-min       0.901307
-25%       0.960169
-50%       0.985311
-75%       1.013624
-max       1.060967
-Name: mean, dtype: float64
-</pre>
-
-<div class="org-src-container">
-<pre class="src src-ipython">np.exp(log_mu2 - log_mu0).describe().loc[<span class="org-string">'mean'</span>].describe()
-</pre>
-</div>
-
-<pre class="example">
-count    54.000000
-mean      0.990382
-std       0.026330
-min       0.933567
-25%       0.971578
-50%       0.986374
-75%       1.004810
-max       1.072623
+mean      0.984503
+std       0.037119
+min       0.896817
+25%       0.963595
+50%       0.983739
+75%       1.005902
+max       1.065907
 Name: mean, dtype: float64
 </pre>
 </div>
@@ -1368,7 +1313,7 @@ Text(0,0.5,'Sample Fano factor')
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-06-14 Thu 20:25</p>
+<p class="date">Created: 2018-07-03 Tue 12:47</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>

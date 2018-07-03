@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-06-18 Mon 18:51 -->
+<!-- 2018-07-03 Tue 12:47 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>QTL mapping pipeline</title>
@@ -272,7 +272,6 @@ Here, we solve (2).
 
 <ol class="org-ol">
 <li><a href="#orge786f0f">We reproduce eQTLs</a> called on the bulk RNA-Seq</li>
-<li><a href="#orgd9fac3a">We call mean/variance/CV/Fano QTLs</a> using sample moments</li>
 <li><a href="#orgcd0f4fc">We call mean/variance/CV/Fano QTLs</a> using ZINB parameters</li>
 <li><a href="#orgbfd2e9d">We test replication/overlap</a> between different QTL calls</li>
 </ol>
@@ -1365,721 +1364,17 @@ parser.add_argument(<span class="org-string">'-o'</span>, <span class="org-strin
 
 
 <div class="org-src-container">
-<pre class="src src-sh">sbatch --partition=mstephens
+<pre class="src src-sh">sbatch --partition=broadwl -n1 -c28 --exclusive --mem=8G
 <span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
 <span class="org-builtin">source</span> activate scqtl
-python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/reprocess-dosage.py
-bgzip yri-120-dosages.vcf
+python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/reprocess-dosage.py -o yri-120-dosages.vcf
+bgzip --threads=28 yri-120-dosages.vcf
 tabix yri-120-dosages.vcf.gz
 </pre>
 </div>
 
 <pre class="example">
-Submitted batch job 45277139
-
-</pre>
-</div>
-</div>
-</div>
-
-<div id="outline-container-orgd9fac3a" class="outline-2">
-<h2 id="orgd9fac3a">Analysis using sample moments</h2>
-<div class="outline-text-2" id="text-orgd9fac3a">
-<p>
-The most obvious way to estimate means/variances to use as quantitative
-phenotypes is to use the sample moments of per cell log CPM.
-</p>
-
-<p>
-Care has to be taken in handling zero-observations. Simply ignoring them
-leads to loss of power due to the pseudocount introduced in computing log
-CPM. To see this, fix one individual, one gene, and let \(r\) denote the
-observed count. Then,
-</p>
-
-<p>
-\[ \log\mathrm{CPM} \propto \ln(r + \epsilon) - \ln\mathrm{const} \]
-</p>
-
-<p>
-Let \(\mu = \mathbb{E}[r\,]\), \(\sigma^2 = \mathbb{V}[r\,]\), expand to
-second-order, then take expectations over cells:
-</p>
-
-<p>
-\[ \mathbb{E}[\,\ln (r + \epsilon)\,] \approx \ln(\mu + \epsilon) -
-   \frac{\sigma^2}{(\mu + \epsilon)^2} \]
-</p>
-
-<p>
-\[ \mathbb{V}[\,\ln (r + \epsilon)\,] \approx \frac{2 \sigma^2}{(\mu +
-   \epsilon)^2} - \frac{\sigma^4}{(\mu + \epsilon)^4} \]
-</p>
-</div>
-
-<div id="outline-container-org6bc2560" class="outline-3">
-<h3 id="org6bc2560">Call eQTLs from pooled scRNA-Seq</h3>
-<div class="outline-text-3" id="text-org6bc2560">
-<p>
-Read the QC filters.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython" id="org8beb22f"><span class="org-variable-name">annotation</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
-<span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
-<span class="org-variable-name">keep_genes</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
-<span class="org-variable-name">annotation</span> = annotation.loc[keep_samples.values.ravel()]
-<span class="org-variable-name">keep_inds</span> = annotation.groupby(<span class="org-string">'chip_id'</span>).<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: <span class="org-builtin">len</span>(x) &gt;= 50)
-</pre>
-</div>
-
-<p>
-Read and pool the UMI data.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">pooled_counts</span> = pd.concat(
-  [(chunk
-    .<span class="org-builtin">filter</span>(items=keep_genes[keep_genes.values].index, axis=<span class="org-string">'index'</span>)
-    <span class="org-comment-delimiter"># </span><span class="org-comment">Important: this can't be done by filter because sample names are</span>
-    <span class="org-comment-delimiter"># </span><span class="org-comment">different in the QC file</span>
-    .loc[:,keep_samples.values.ravel()]
-    .groupby(annotation[<span class="org-string">'chip_id'</span>].values, axis=1)
-    .agg(np.<span class="org-builtin">sum</span>))
-   <span class="org-keyword">for</span> chunk <span class="org-keyword">in</span>
-   pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>,
-                 chunksize=1000, index_col=0)])
-</pre>
-</div>
-
-<p>
-Normalize the pooled counts.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">pooled_cpm</span> = (cpm(pooled_counts).loc[:,keep_inds]
-              .transform(<span class="org-keyword">lambda</span> x: (x - x.mean()) / x.std(), axis=1)
-              .<span class="org-builtin">apply</span>(qqnorm, axis=0))
-</pre>
-</div>
-
-<p>
-Compute principal components and write out the covariate file.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">covars</span> = pd.DataFrame(skd.PCA(n_components=10).fit(pooled_cpm).components_, columns=pooled_cpm.columns)
-<span class="org-variable-name">covars.index.name</span> = <span class="org-string">'id'</span>
-covars.to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/pooled-covars.txt'</span>, sep=<span class="org-string">'\t'</span>)
-</pre>
-</div>
-
-<p>
-Write out the phenotype file.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">write_pheno_file(pooled_cpm, gene_info, holdout=<span class="org-constant">False</span>, output_file=<span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/pooled.bed'</span>)
-</pre>
-</div>
-
-<p>
-Index the phenotype file.
-</p>
-
-<pre class="example">
-Submitted batch job 46254057
-
-</pre>
-
-<p>
-Run <code>qtltools</code>
-</p>
-
-<pre class="example">
-Submitted batch job 46254059
-
-</pre>
-
-<p>
-Read the output. <b>Important: this loses 200 genes (is this a bug in
-<code>qtltools</code>)?</b>
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">pooled_qtls</span> = read_qtltools_output(<span class="org-string">'scqtl-mapping/pooled'</span>)
-</pre>
-</div>
-
-<p>
-Check the beta approximation.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">plot_approx_permutation(pooled_qtls)
-</pre>
-</div>
-
-
-<div class="figure">
-<p><img src="figure/qtl-mapping.org/pooled-cpm-beta-approx.png" alt="pooled-cpm-beta-approx.png">
-</p>
-</div>
-
-<p>
-Plot a QQ plot of the adjusted p-values.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">qqplot(pooled_qtls)
-</pre>
-</div>
-
-
-<div class="figure">
-<p><img src="figure/qtl-mapping.org/pooled-qtl-qq.png" alt="pooled-qtl-qq.png">
-</p>
-</div>
-
-<p>
-Take QTLs with \(\mathrm{FDR} < 0.1\).
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">pooled_qtls[<span class="org-string">'fdr_pass'</span>].<span class="org-builtin">sum</span>()
-</pre>
-</div>
-
-<pre class="example">
-257
-
-</pre>
-</div>
-</div>
-
-<div id="outline-container-orga786ad9" class="outline-3">
-<h3 id="orga786ad9">Call mean-QTLs</h3>
-<div class="outline-text-3" id="text-orga786ad9">
-<p>
-Throw out individuals with fewer than 50 cells.
-</p>
-
-<p>
-Read the count matrix.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython" id="orge97e1cb"><span class="org-variable-name">umi</span> = pd.concat(
-  [(chunk
-    .<span class="org-builtin">filter</span>(items=keep_genes[keep_genes.values].index, axis=<span class="org-string">'index'</span>)
-    <span class="org-comment-delimiter"># </span><span class="org-comment">Important: this can't be done by filter because sample names are</span>
-    <span class="org-comment-delimiter"># </span><span class="org-comment">different in the QC file</span>
-    .loc[:,keep_samples.values.ravel()])
-   <span class="org-keyword">for</span> chunk <span class="org-keyword">in</span>
-   pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>,
-                 chunksize=1000, index_col=0)])
-</pre>
-</div>
-
-<p>
-We previously noted that 50 cells was sufficient to reliably estimate the
-mean of single cell data. Therefore, throw out zeros from the analysis and
-require that at least 50 samples have non-zero count.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">num_non_zero</span> = umi.groupby(annotation[<span class="org-string">'chip_id'</span>].values, axis=1).agg(<span class="org-keyword">lambda</span> x: (x &gt; 0).values.<span class="org-builtin">sum</span>(axis=1))
-</pre>
-</div>
-
-<p>
-Derive a cutoff for the number of individuals with at least 50 non-zero
-observations per gene.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">num_individuals_pass</span> = (num_non_zero &gt; 50).agg(np.<span class="org-builtin">sum</span>, axis=1)
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython">plt.clf()
-<span class="org-variable-name">n</span>, <span class="org-variable-name">b</span>, <span class="org-variable-name">_</span> = plt.hist(num_individuals_pass, color=<span class="org-string">'k'</span>, bins=np.arange(0, 53, 2), histtype=<span class="org-string">'step'</span>, cumulative=<span class="org-constant">True</span>, normed=<span class="org-constant">True</span>)
-plt.axhline(y=n[-2], c=<span class="org-string">'r'</span>, ls=<span class="org-string">':'</span>, lw=1)
-plt.xlabel(<span class="org-string">'Number of individuals with at least 50 non-zero observations'</span>)
-<span class="org-variable-name">_</span> = plt.ylabel(<span class="org-string">'Cumulative fraction of genes'</span>)
-</pre>
-</div>
-
-
-<div class="figure">
-<p><img src="figure/qtl-mapping.org/num-individuals-pass.png" alt="num-individuals-pass.png">
-</p>
-</div>
-
-<p>
-Compute the sample mean log CPM per individual, then normalize.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">sample_mean</span> = (cpm(umi)
-               .mask(umi == 0)
-               .groupby(annotation[<span class="org-string">'chip_id'</span>].values, axis=1)
-               .agg(np.mean)
-               .loc[num_individuals_pass &gt;= 50,keep_inds]
-               .transform(<span class="org-keyword">lambda</span> x: (x - x.mean()) / x.std(), axis=1)
-               .<span class="org-builtin">apply</span>(qqnorm, axis=0))
-</pre>
-</div>
-
-<p>
-Compute principal components and write out the covariate file.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">covars</span> = pd.DataFrame(skd.PCA(n_components=10).fit(sample_mean).components_, columns=sample_mean.columns)
-<span class="org-variable-name">covars.index.name</span> = <span class="org-string">'id'</span>
-covars.to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/sample-mean-covars.txt'</span>, sep=<span class="org-string">'\t'</span>)
-</pre>
-</div>
-
-<p>
-Write out the <a href="https://qtltools.github.io/qtltools/pages/input_files.html">phenotype file</a> for <code>qtltools</code>. Hold out even chromosomes while
-optimizing the power to detect eQTLs.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">write_pheno_file(
-  sample_mean,
-  gene_info,
-  output_file=<span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/sample-mean.bed'</span>,
-  holdout=<span class="org-constant">False</span>)
-</pre>
-</div>
-
-<p>
-Index the phenotype file.
-</p>
-
-<pre class="example">
-Submitted batch job 46254454
-
-</pre>
-
-<p>
-Run <code>qtltools</code>.
-</p>
-
-<pre class="example">
-Submitted batch job 46254485
-
-</pre>
-
-<p>
-Read the output.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">sample_mean_qtls</span> = read_qtltools_output(<span class="org-string">'scqtl-mapping/sample-mean'</span>)
-</pre>
-</div>
-
-<p>
-Check the beta approximation to the permutation p-values.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">plot_approx_permutation(sample_mean_qtls)
-</pre>
-</div>
-
-
-<div class="figure">
-<p><img src="figure/qtl-mapping.org/sample-mean-qtl-beta-approx.png" alt="sample-mean-qtl-beta-approx.png">
-</p>
-</div>
-
-<p>
-Plot a QQ plot of the adjusted p-values.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">qqplot(sample_mean_qtls)
-</pre>
-</div>
-
-
-<div class="figure">
-<p><img src="figure/qtl-mapping.org/sample-mean-qtl-qq.png" alt="sample-mean-qtl-qq.png">
-</p>
-</div>
-
-<p>
-Take QTLs at FDR 10%.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">sample_mean_qtls[<span class="org-string">'fdr_pass'</span>].<span class="org-builtin">sum</span>()
-</pre>
-</div>
-
-<pre class="example">
-189
-
-</pre>
-</div>
-</div>
-
-<div id="outline-container-orgda99993" class="outline-3">
-<h3 id="orgda99993">Call variance-QTLs</h3>
-<div class="outline-text-3" id="text-orgda99993">
-<p>
-Throw out individuals with fewer than 50 cells.
-</p>
-
-<p>
-Read the UMI matrix.
-</p>
-
-<p>
-Compute the sample variance of log CPM per individual, then normalize.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">sample_var</span> = (cpm(umi)
-              .mask(umi == 0)
-              .groupby(annotation[<span class="org-string">'chip_id'</span>].values, axis=1)
-              .agg(np.var)
-              .loc[num_individuals_pass &gt;= 50,keep_inds]
-              .transform(<span class="org-keyword">lambda</span> x: (x - x.mean()) / x.std(), axis=1)
-              .<span class="org-builtin">apply</span>(qqnorm, axis=0))
-</pre>
-</div>
-
-<p>
-Compute principal components and write out the covariate file.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">covars</span> = pd.DataFrame(skd.PCA(n_components=2).fit(sample_var).components_, columns=sample_var.columns)
-<span class="org-variable-name">covars.index.name</span> = <span class="org-string">'id'</span>
-covars.to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/sample-var-covars.txt'</span>, sep=<span class="org-string">'\t'</span>)
-</pre>
-</div>
-
-<p>
-Write out the <a href="https://qtltools.github.io/qtltools/pages/input_files.html">phenotype file</a> for <code>qtltools</code>. Hold out even chromosomes while
-optimizing the power to detect eQTLs.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">write_pheno_file(sample_var, gene_info, <span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/sample-var.bed'</span>, holdout=<span class="org-constant">False</span>)
-</pre>
-</div>
-
-<p>
-Index the phenotype file.
-</p>
-
-<pre class="example">
-Submitted batch job 46254632
-
-</pre>
-
-<p>
-Run <code>qtltools</code>.
-</p>
-
-<pre class="example">
-Submitted batch job 46254663
-
-</pre>
-
-<p>
-Read the output.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">sample_var_qtls</span> = read_qtltools_output(<span class="org-string">'scqtl-mapping/sample-var'</span>)
-</pre>
-</div>
-
-<p>
-Check the beta approximation to the permutation p-values.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">plot_approx_permutation(sample_var_qtls)
-</pre>
-</div>
-
-
-<div class="figure">
-<p><img src="figure/qtl-mapping.org/sample-var-qtl-beta-approx.png" alt="sample-var-qtl-beta-approx.png">
-</p>
-</div>
-
-<p>
-Plot a QQ plot of the adjusted p-values.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">qqplot(sample_var_qtls)
-</pre>
-</div>
-
-
-<div class="figure">
-<p><img src="figure/qtl-mapping.org/sample-var-qtl-qq.png" alt="sample-var-qtl-qq.png">
-</p>
-</div>
-
-<p>
-Take QTLs at FDR 10%.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">sample_var_qtls[<span class="org-string">'fdr_pass'</span>].<span class="org-builtin">sum</span>()
-</pre>
-</div>
-
-<pre class="example">
-1
-
-</pre>
-</div>
-</div>
-
-<div id="outline-container-org34cd780" class="outline-3">
-<h3 id="org34cd780">Call CV-QTLs</h3>
-<div class="outline-text-3" id="text-org34cd780">
-<p>
-Throw out individuals with fewer than 50 cells.
-</p>
-
-<p>
-Read the UMI matrix.
-</p>
-
-<p>
-Compute the sample CV of log CPM per individual, then normalize.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">sample_cv</span> = (cpm(umi)
-             .mask(umi == 0)
-             .groupby(annotation[<span class="org-string">'chip_id'</span>].values, axis=1)
-             .agg(<span class="org-keyword">lambda</span> x: np.std(x, axis=1) / (np.mean(x, axis=1) + 1e-8))
-             .loc[num_individuals_pass &gt;= 50,keep_inds]
-             .transform(<span class="org-keyword">lambda</span> x: (x - x.mean()) / x.std(), axis=1)
-             .<span class="org-builtin">apply</span>(qqnorm, axis=0))
-</pre>
-</div>
-
-<p>
-Write out the <a href="https://qtltools.github.io/qtltools/pages/input_files.html">phenotype file</a> for <code>qtltools</code>. Hold out even chromosomes while
-optimizing the power to detect eQTLs.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">write_pheno_file(sample_cv, gene_info, <span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/sample-cv.bed'</span>, holdout=<span class="org-constant">True</span>)
-</pre>
-</div>
-
-<p>
-Index the phenotype file.
-</p>
-
-<pre class="example">
-Submitted batch job 46254797
-
-</pre>
-
-<p>
-Run <code>qtltools</code>.
-</p>
-
-<pre class="example">
-Submitted batch job 46254798
-
-</pre>
-
-<p>
-Read the output.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">sample_cv_qtls</span> = read_qtltools_output(<span class="org-string">'scqtl-mapping/sample-cv'</span>)
-</pre>
-</div>
-
-<p>
-Check the beta approximation to the permutation p-values.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">plot_approx_permutation(sample_cv_qtls)
-</pre>
-</div>
-
-
-<div class="figure">
-<p><img src="figure/qtl-mapping.org/sample-cv-qtl-beta-approx.png" alt="sample-cv-qtl-beta-approx.png">
-</p>
-</div>
-
-<p>
-Plot a QQ plot of the adjusted p-values.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">qqplot(sample_cv_qtls)
-</pre>
-</div>
-
-
-<div class="figure">
-<p><img src="figure/qtl-mapping.org/sample-cv-qtl-qq.png" alt="sample-cv-qtl-qq.png">
-</p>
-</div>
-
-<p>
-Take QTLs at FDR 10%.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">sample_cv_qtls[<span class="org-string">'fdr_pass'</span>].<span class="org-builtin">sum</span>()
-</pre>
-</div>
-
-<pre class="example">
-3
-
-</pre>
-</div>
-</div>
-
-<div id="outline-container-orgac9727d" class="outline-3">
-<h3 id="orgac9727d">Call Fano-QTLs</h3>
-<div class="outline-text-3" id="text-orgac9727d">
-<p>
-Throw out individuals with fewer than 50 cells.
-</p>
-
-<p>
-Read the UMI matrix.
-</p>
-
-<p>
-Fisher's index of dispersion is defined as \(V[x] / E[x]\). The Fano factor
-is Fisher's index of dispersion over a fixed window (in our case, the total
-number of reads).
-</p>
-
-<p>
-Compute the sample Fano factor of log CPM per individual, then normalize.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">sample_fano</span> = (cpm(umi)
-               .mask(umi == 0)
-               .groupby(annotation[<span class="org-string">'chip_id'</span>].values, axis=1)
-               .agg(<span class="org-keyword">lambda</span> x: np.var(x, axis=1) / (np.mean(x, axis=1)))
-               .loc[num_individuals_pass &gt;= 50,keep_inds]
-               .transform(<span class="org-keyword">lambda</span> x: (x - x.mean()) / x.std(), axis=1)
-               .<span class="org-builtin">apply</span>(qqnorm, axis=0))
-</pre>
-</div>
-
-<p>
-Write out the <a href="https://qtltools.github.io/qtltools/pages/input_files.html">phenotype file</a> for <code>qtltools</code>. Hold out even chromosomes while
-optimizing the power to detect eQTLs.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">write_pheno_file(sample_fano, gene_info, <span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/sample_fano.bed'</span>, holdout=<span class="org-constant">False</span>)
-</pre>
-</div>
-
-<p>
-Index the phenotype file.
-</p>
-
-<pre class="example">
-Submitted batch job 46254938
-
-</pre>
-
-<p>
-Compute principal components and write out the covariate file.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">covars</span> = pd.DataFrame(skd.PCA(n_components=2).fit(sample_fano).components_, columns=sample_fano.columns)
-<span class="org-variable-name">covars.index.name</span> = <span class="org-string">'id'</span>
-covars.to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/sample-fano-covars.txt'</span>, sep=<span class="org-string">'\t'</span>)
-</pre>
-</div>
-
-<p>
-Run <code>qtltools</code>.
-</p>
-
-<pre class="example">
-Submitted batch job 46254942
-
-</pre>
-
-<p>
-Read the output.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">sample_fano_qtls</span> = read_qtltools_output(<span class="org-string">'scqtl-mapping/sample_fano'</span>)
-</pre>
-</div>
-
-<p>
-Check the beta approximation to the permutation p-values.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">plot_approx_permutation(sample_fano_qtls)
-</pre>
-</div>
-
-
-<div class="figure">
-<p><img src="figure/qtl-mapping.org/sample-fano-qtl-beta-approx.png" alt="sample-fano-qtl-beta-approx.png">
-</p>
-</div>
-
-<p>
-Plot a QQ plot of the adjusted p-values.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">qqplot(sample_fano_qtls)
-</pre>
-</div>
-
-
-<div class="figure">
-<p><img src="figure/qtl-mapping.org/sample-fano-qtl-qq.png" alt="sample-fano-qtl-qq.png">
-</p>
-</div>
-
-<p>
-Take QTLs at FDR 10%.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">sample_fano_qtls[<span class="org-string">'fdr_pass'</span>].<span class="org-builtin">sum</span>()
-</pre>
-</div>
-
-<pre class="example">
-1
+Submitted batch job 47228636
 
 </pre>
 </div>
@@ -2090,20 +1385,32 @@ Take QTLs at FDR 10%.
 <h2 id="orgcd0f4fc">Analysis using ZINB</h2>
 <div class="outline-text-2" id="text-orgcd0f4fc">
 </div>
-<div id="outline-container-orgd312217" class="outline-3">
-<h3 id="orgd312217">Call &mu;-QTLs</h3>
-<div class="outline-text-3" id="text-orgd312217">
+<div id="outline-container-org1a1d75a" class="outline-3">
+<h3 id="org1a1d75a">Call eQTLs</h3>
+<div class="outline-text-3" id="text-org1a1d75a">
 <p>
-Read the estimated parameters. The relative abundance is
-\(\mathbb{E}[\lambda_{ijk}] = (1 - \pi_{ik}) \mu_{ik}\).
+Estimate the moments of latent gene expression. We have:
+</p>
+
+<p>
+\[ \mathbb{E}[\lambda_{ijk}] = (1 - \pi_{ik}) \mu_{ik} \]
+</p>
+
+<p>
+\[ \mathbb{V}[\lambda_{ijk}] = (1 - \pi_{ik}) \phi_{ik}^{-1} + \pi_{ik} (1 -
+   \pi_{ik}) \mu_{ik}^2 \]
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<pre class="src src-ipython" id="org3fa1eb3"><span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">log_phi</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-phi.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
 <span class="org-variable-name">logodds</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-logodds.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-keyword">for</span> x <span class="org-keyword">in</span> (log_mu, log_phi, logodds):
+  <span class="org-keyword">del</span> x[<span class="org-string">'NA18498'</span>]
+
 <span class="org-comment-delimiter"># </span><span class="org-comment">Important: log(sigmoid(x)) = -softplus(-x)</span>
-<span class="org-variable-name">log_mu</span> -= np.log1p(np.exp(logodds))
-<span class="org-keyword">del</span> log_mu[<span class="org-string">'NA18498'</span>]
+<span class="org-variable-name">mean_by_ind</span> = np.exp(log_mu - np.log1p(np.exp(logodds)))
+<span class="org-variable-name">variance_by_ind</span> = np.exp(2 * log_mu + log_phi - np.log1p(np.exp(logodds))) + np.exp(-np.log1p(np.exp(logodds)) - np.log1p(np.exp(-logodds)) + 2 * log_mu)
 </pre>
 </div>
 
@@ -2112,9 +1419,9 @@ Normalize the mean matrix analagous to the bulk data.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">log_mu</span> = (log_mu
-          .transform(<span class="org-keyword">lambda</span> x: (x - x.mean()) / x.std(), axis=1)
-          .<span class="org-builtin">apply</span>(qqnorm, axis=0))
+<pre class="src src-ipython"><span class="org-variable-name">mean</span> = (mean_by_ind
+        .transform(<span class="org-keyword">lambda</span> x: (x - x.mean()) / x.std(), axis=1)
+        .<span class="org-builtin">apply</span>(qqnorm, axis=0))
 </pre>
 </div>
 
@@ -2123,9 +1430,9 @@ Compute principal components of the mean matrix.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">covars</span> = pd.DataFrame(skd.PCA(n_components=10).fit(log_mu).components_, columns=log_mu.columns)
+<pre class="src src-ipython"><span class="org-variable-name">covars</span> = pd.DataFrame(skd.PCA(n_components=10).fit(mean).components_, columns=mean.columns)
 <span class="org-variable-name">covars.index.name</span> = <span class="org-string">'id'</span>
-covars.to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/log_mu-covars.txt'</span>, sep=<span class="org-string">'\t'</span>)
+covars.to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/mean-covars.txt'</span>, sep=<span class="org-string">'\t'</span>)
 </pre>
 </div>
 
@@ -2135,7 +1442,7 @@ optimizing the power to detect eQTLs.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython">write_pheno_file(log_mu, gene_info, <span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/log_mu.bed'</span>, holdout=<span class="org-constant">False</span>)
+<pre class="src src-ipython">write_pheno_file(mean, gene_info, <span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/mean.bed'</span>, holdout=<span class="org-constant">False</span>)
 </pre>
 </div>
 
@@ -2144,7 +1451,7 @@ Index the phenotype file.
 </p>
 
 <pre class="example">
-Submitted batch job 46545806
+Submitted batch job 47239121
 
 </pre>
 
@@ -2153,7 +1460,7 @@ Run <code>qtltools</code>.
 </p>
 
 <pre class="example">
-Submitted batch job 46545810
+Submitted batch job 47239327
 
 </pre>
 
@@ -2162,7 +1469,7 @@ Read the output.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">log_mu_qtls</span> = read_qtltools_output(<span class="org-string">'scqtl-mapping/log_mu'</span>)
+<pre class="src src-ipython"><span class="org-variable-name">mean_qtls</span> = read_qtltools_output(<span class="org-string">'scqtl-mapping/mean'</span>)
 </pre>
 </div>
 
@@ -2171,13 +1478,13 @@ Check the beta approximation to the permutation p-values.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython">plot_approx_permutation(log_mu_qtls)
+<pre class="src src-ipython">plot_approx_permutation(mean_qtls)
 </pre>
 </div>
 
 
 <div class="figure">
-<p><img src="figure/qtl-mapping.org/mu-qtl-beta-approx.png" alt="mu-qtl-beta-approx.png">
+<p><img src="figure/qtl-mapping.org/mean-qtl-beta-approx.png" alt="mean-qtl-beta-approx.png">
 </p>
 </div>
 
@@ -2186,13 +1493,13 @@ Plot a QQ plot of the adjusted p-values.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython">qqplot(log_mu_qtls)
+<pre class="src src-ipython">qqplot(mean_qtls)
 </pre>
 </div>
 
 
 <div class="figure">
-<p><img src="figure/qtl-mapping.org/mu-qtl-qq.png" alt="mu-qtl-qq.png">
+<p><img src="figure/qtl-mapping.org/mean-qtl-qq.png" alt="mean-qtl-qq.png">
 </p>
 </div>
 
@@ -2201,12 +1508,12 @@ Take QTLs at FDR 10%.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython">log_mu_qtls[<span class="org-string">'fdr_pass'</span>].<span class="org-builtin">sum</span>()
+<pre class="src src-ipython">mean_qtls[<span class="org-string">'fdr_pass'</span>].<span class="org-builtin">sum</span>()
 </pre>
 </div>
 
 <pre class="example">
-234
+241
 
 </pre>
 </div>
@@ -2215,16 +1522,6 @@ Take QTLs at FDR 10%.
 <div id="outline-container-org0f59e46" class="outline-3">
 <h3 id="org0f59e46">Call &phi;-QTLs</h3>
 <div class="outline-text-3" id="text-org0f59e46">
-<p>
-Read the estimated parameters. Exclude individuals with fewer than 50 cells.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">log_phi</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-phi.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
-<span class="org-keyword">del</span> log_phi[<span class="org-string">'NA18498'</span>]
-</pre>
-</div>
-
 <p>
 Normalize the phenotype matrix.
 </p>
@@ -2316,289 +1613,18 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-org456407e" class="outline-3">
-<h3 id="org456407e">Call &pi;-QTLs</h3>
-<div class="outline-text-3" id="text-org456407e">
-<p>
-For each gene \(k\), fit a linear model:
-</p>
-
-<p>
-\[ \mathrm{logit}(\pi_k) = X\beta + \epsilon \]
-</p>
-
-<p>
-Read the estimated parameters. Exclude individuals with fewer than 50 cells.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">logodds</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-logodds.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
-<span class="org-keyword">del</span> logodds[<span class="org-string">'NA18498'</span>]
-</pre>
-</div>
-
-<p>
-Normalize the log odds matrix.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">logodds</span> = logodds.loc[(logodds.agg(np.std, axis=1) &gt; 0).values]
-<span class="org-variable-name">logodds</span> = logodds.transform(<span class="org-keyword">lambda</span> x: (x - x.mean()) / x.std(), axis=1).<span class="org-builtin">apply</span>(qqnorm, axis=1)
-</pre>
-</div>
-
-<p>
-Write out the phenotype file.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">write_pheno_file(logodds, gene_info, holdout=<span class="org-constant">False</span>, output_file=<span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/logodds.bed'</span>)
-</pre>
-</div>
-
-<p>
-Index the phenotype file.
-</p>
-
-<pre class="example">
-Submitted batch job 46547348
-
-</pre>
-
-<p>
-Run <code>qtltools</code>.
-</p>
-
-<pre class="example">
-Submitted batch job 46547349
-
-</pre>
-
-<p>
-Read the output.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">logodds_qtls</span> = read_qtltools_output(<span class="org-string">'scqtl-mapping/logodds'</span>)
-</pre>
-</div>
-
-<p>
-Check the beta approximation to the permutation p-values.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">plot_approx_permutation(logodds_qtls)
-</pre>
-</div>
-
-
-<div class="figure">
-<p><img src="figure/qtl-mapping.org/logodds-qtl-beta-approx.png" alt="logodds-qtl-beta-approx.png">
-</p>
-</div>
-
-<p>
-Plot a QQ plot of the adjusted p-values.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">qqplot(logodds_qtls)
-</pre>
-</div>
-
-
-<div class="figure">
-<p><img src="figure/qtl-mapping.org/logodds-qtl-qq.png" alt="logodds-qtl-qq.png">
-</p>
-</div>
-
-<p>
-Take QTLs at FDR 10%.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">logodds_qtls[<span class="org-string">'fdr_pass'</span>].<span class="org-builtin">sum</span>()
-</pre>
-</div>
-
-<pre class="example">
-4
-
-</pre>
-</div>
-</div>
-
-<div id="outline-container-orgae094aa" class="outline-3">
-<h3 id="orgae094aa">Call mean-QTLs</h3>
-<div class="outline-text-3" id="text-orgae094aa">
-<p>
-We have \(r_{ijk} \sim g_{ijk}(\cdot)\), where \(g\) is the ZINB density <a href="zinb.html">as
-previously defined</a>.
-</p>
-
-<p>
-Read the estimated parameters.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
-<span class="org-variable-name">log_phi</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-phi.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
-<span class="org-variable-name">logodds</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-logodds.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
-</pre>
-</div>
-
-<p>
-Estimate the moments (on the scale of molecules).
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">annotations</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
-<span class="org-variable-name">annotations</span> = annotations.loc[keep_samples.values.ravel()]
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">onehot</span> = recode(annotations, <span class="org-string">'chip_id'</span>)
-</pre>
-</div>
-
-<p>
-Normalize the mean matrix.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">mean</span> = pd.DataFrame(mean_by_ind.T, index=log_mu.index, columns=log_mu.columns)
-<span class="org-keyword">del</span> mean[<span class="org-string">'NA18498'</span>]
-<span class="org-variable-name">mean</span> = mean.transform(<span class="org-keyword">lambda</span> x: (x - x.mean()) / x.std(), axis=1).<span class="org-builtin">apply</span>(qqnorm, axis=0)
-</pre>
-</div>
-
-<p>
-Compute principal components of the mean matrix.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">covars</span> = pd.DataFrame(skd.PCA(n_components=10).fit(mean).components_, columns=mean.columns)
-<span class="org-variable-name">covars.index.name</span> = <span class="org-string">'id'</span>
-covars.to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/mean-covars.txt'</span>, sep=<span class="org-string">'\t'</span>)
-</pre>
-</div>
-
-<p>
-Write out the <a href="https://qtltools.github.io/qtltools/pages/input_files.html">phenotype file</a> for <code>qtltools</code>. Hold out even chromosomes while
-optimizing the power to detect eQTLs.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">write_pheno_file(mean, gene_info, <span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/mean.bed'</span>, holdout=<span class="org-constant">False</span>)
-</pre>
-</div>
-
-<p>
-Index the phenotype file.
-</p>
-
-<pre class="example">
-Submitted batch job 46547546
-
-</pre>
-
-<p>
-Run <code>qtltools</code>.
-</p>
-
-<pre class="example">
-Submitted batch job 46547547
-
-</pre>
-
-<p>
-Read the output.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">mean_qtls</span> = read_qtltools_output(<span class="org-string">'scqtl-mapping/mean'</span>)
-</pre>
-</div>
-
-<p>
-Check the beta approximation to the permutation p-values.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">plot_approx_permutation(mean_qtls)
-</pre>
-</div>
-
-
-<div class="figure">
-<p><img src="figure/qtl-mapping.org/mean-qtl-beta-approx.png" alt="mean-qtl-beta-approx.png">
-</p>
-</div>
-
-<p>
-Plot a QQ plot of the adjusted p-values.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">qqplot(mean_qtls)
-</pre>
-</div>
-
-
-<div class="figure">
-<p><img src="figure/qtl-mapping.org/mean-qtl-qq.png" alt="mean-qtl-qq.png">
-</p>
-</div>
-
-<p>
-Take QTLs at FDR 10%.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">mean_qtls[<span class="org-string">'fdr_pass'</span>].<span class="org-builtin">sum</span>()
-</pre>
-</div>
-
-<pre class="example">
-217
-
-</pre>
-</div>
-</div>
-
 <div id="outline-container-org3b0633a" class="outline-3">
 <h3 id="org3b0633a">Call variance-QTLs</h3>
 <div class="outline-text-3" id="text-org3b0633a">
 <p>
-We have \(r_{ijk} \sim g_{ijk}(\cdot)\), where \(g\) is the ZINB density <a href="zinb.html">as
-previously defined</a>.
-</p>
-
-<p>
-Read the estimated parameters.
+Normalize the variance matrix. Restrict to genes with \(\ln\mu > 0.5\) in at
+least half the individuals.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
-<span class="org-variable-name">log_phi</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-phi.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
-<span class="org-variable-name">logodds</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-logodds.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
-</pre>
-</div>
-
-<p>
-Estimate the moments (on the scale of molecules).
-</p>
-
-<p>
-Normalize the variance matrix.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">variance</span> = pd.DataFrame(var_by_ind.T, index=log_mu.index, columns=log_mu.columns)
-<span class="org-keyword">del</span> variance[<span class="org-string">'NA18498'</span>]
-<span class="org-variable-name">variance</span> = variance.transform(<span class="org-keyword">lambda</span> x: (x - x.mean()) / x.std(), axis=1).<span class="org-builtin">apply</span>(qqnorm, axis=0)
+<pre class="src src-ipython"><span class="org-variable-name">variance</span> = (variance_by_ind
+            .transform(<span class="org-keyword">lambda</span> x: (x - x.mean()) / x.std(), axis=1)
+            .<span class="org-builtin">apply</span>(qqnorm, axis=0))
 </pre>
 </div>
 
@@ -2627,7 +1653,7 @@ Index the phenotype file.
 </p>
 
 <pre class="example">
-Submitted batch job 46547825
+Submitted batch job 47257064
 
 </pre>
 
@@ -2636,7 +1662,7 @@ Run <code>qtltools</code>.
 </p>
 
 <pre class="example">
-Submitted batch job 46547827
+Submitted batch job 47257067
 
 </pre>
 
@@ -2689,7 +1715,7 @@ Take QTLs at FDR 10%.
 </div>
 
 <pre class="example">
-102
+14
 
 </pre>
 </div>
@@ -2703,7 +1729,7 @@ Estimate the coefficient of variation.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">cv</span> = pd.DataFrame(np.sqrt(var_by_ind.T) / mean_by_ind.T, index=log_mu.index, columns=log_mu.columns)
+<pre class="src src-ipython"><span class="org-variable-name">cv</span> = np.sqrt(variance_by_ind) / mean_by_ind
 </pre>
 </div>
 
@@ -2731,7 +1757,7 @@ Index the phenotype file.
 </p>
 
 <pre class="example">
-Submitted batch job 46548052
+Submitted batch job 47253627
 
 </pre>
 
@@ -2740,7 +1766,7 @@ Run <code>qtltools</code>.
 </p>
 
 <pre class="example">
-Submitted batch job 46548053
+Submitted batch job 47253630
 
 </pre>
 
@@ -2793,7 +1819,7 @@ Take QTLs at FDR 10%.
 </div>
 
 <pre class="example">
-4
+2
 
 </pre>
 </div>
@@ -2807,7 +1833,7 @@ Estimate the coefficient of variation.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">fano</span> = pd.DataFrame(var_by_ind.T / mean_by_ind.T, index=log_mu.index, columns=log_mu.columns)
+<pre class="src src-ipython"><span class="org-variable-name">fano</span> = variance_by_ind / mean_by_ind
 </pre>
 </div>
 
@@ -2835,7 +1861,7 @@ Index the phenotype file.
 </p>
 
 <pre class="example">
-Submitted batch job 46548169
+Submitted batch job 47253759
 
 </pre>
 
@@ -2844,7 +1870,7 @@ Run <code>qtltools</code>.
 </p>
 
 <pre class="example">
-Submitted batch job 46548170
+Submitted batch job 47253761
 
 </pre>
 
@@ -2897,12 +1923,277 @@ Take QTLs at FDR 10%.
 </div>
 
 <pre class="example">
-14
+0
+
+</pre>
+</div>
+</div>
+
+<div id="outline-container-org28f3922" class="outline-3">
+<h3 id="org28f3922">Explain away variance-QTLs</h3>
+<div class="outline-text-3" id="text-org28f3922">
+<p>
+Regress out the (standardized) mean from the (standardized) variance. 
+</p>
+
+<p>
+This is a set of independent univariate regressions which can be done in
+parallel.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">M</span> = mean_by_ind.transform(<span class="org-keyword">lambda</span> x: (x - x.mean()) / x.std(), axis=1)
+<span class="org-variable-name">V</span> = variance_by_ind.transform(<span class="org-keyword">lambda</span> x: (x - x.mean()) / x.std(), axis=1)
+<span class="org-variable-name">beta</span> = (M * V).<span class="org-builtin">sum</span>(axis=1) / M.shape[1]
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">np.square(beta).describe()
+</pre>
+</div>
+
+<pre class="example">
+count    9957.000000
+mean        0.962620
+std         0.000009
+min         0.961706
+25%         0.962620
+50%         0.962620
+75%         0.962620
+max         0.962620
+dtype: float64
+</pre>
+
+<p>
+Normalize the residual matrix.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">resid</span> = ((V - M.mul(beta, axis=<span class="org-string">'index'</span>))
+         .transform(<span class="org-keyword">lambda</span> x: (x - x.mean()) / x.std(), axis=1)
+         .<span class="org-builtin">apply</span>(qqnorm, axis=0))
+</pre>
+</div>
+
+<p>
+Compute principal components of the resid matrix.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">covars</span> = pd.DataFrame(skd.PCA(n_components=2).fit(resid).components_, columns=resid.columns)
+<span class="org-variable-name">covars.index.name</span> = <span class="org-string">'id'</span>
+covars.to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/resid-covars.txt'</span>, sep=<span class="org-string">'\t'</span>)
+</pre>
+</div>
+
+<p>
+Write out the <a href="https://qtltools.github.io/qtltools/pages/input_files.html">phenotype file</a> for <code>qtltools</code>.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">write_pheno_file(resid, gene_info, <span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/resid.bed'</span>, holdout=<span class="org-constant">False</span>)
+</pre>
+</div>
+
+<p>
+Index the phenotype file.
+</p>
+
+<pre class="example">
+Submitted batch job 47240125
+
+</pre>
+
+<p>
+Run <code>qtltools</code>.
+</p>
+
+<pre class="example">
+Submitted batch job 47240127
+
+</pre>
+
+<p>
+Read the output.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">resid_qtls</span> = read_qtltools_output(<span class="org-string">'scqtl-mapping/resid'</span>)
+</pre>
+</div>
+
+<p>
+Check the beta approximation to the permutation p-values.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plot_approx_permutation(resid_qtls)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/qtl-mapping.org/resid-qtl-beta-approx.png" alt="resid-qtl-beta-approx.png">
+</p>
+</div>
+
+<p>
+Plot a QQ plot of the adjusted p-values.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">qqplot(resid_qtls)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/qtl-mapping.org/resid-qtl-qq.png" alt="resid-qtl-qq.png">
+</p>
+</div>
+
+<p>
+Take QTLs at FDR 10%.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">resid_qtls[<span class="org-string">'fdr_pass'</span>].<span class="org-builtin">sum</span>()
+</pre>
+</div>
+
+<pre class="example">
+221
 
 </pre>
 </div>
 </div>
 </div>
+
+<div id="outline-container-org0358668" class="outline-2">
+<h2 id="org0358668">Explain away variance QTLs</h2>
+<div class="outline-text-2" id="text-org0358668">
+</div>
+<div id="outline-container-org2aa334d" class="outline-3">
+<h3 id="org2aa334d">Call variance-QTLs</h3>
+<div class="outline-text-3" id="text-org2aa334d">
+<p>
+Regress out mean from variance.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">M</span> = mean_by_ind.transform(<span class="org-keyword">lambda</span> x: (x - x.mean()) / x.std(), axis=1)
+<span class="org-variable-name">V</span> = variance_by_ind.transform(<span class="org-keyword">lambda</span> x: (x - x.mean()) / x.std(), axis=1)
+<span class="org-variable-name">beta</span> = (M * V).<span class="org-builtin">sum</span>(axis=1) / M.shape[1]
+</pre>
+</div>
+
+<p>
+Normalize the variance matrix. Restrict to genes with \(\ln\mu > 0.5\) in at
+least half the individuals.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">resid</span> = ((V - M.mul(beta, axis=<span class="org-string">'index'</span>))
+            .transform(<span class="org-keyword">lambda</span> x: (x - x.mean()) / x.std(), axis=1)
+            .<span class="org-builtin">apply</span>(qqnorm, axis=0))
+</pre>
+</div>
+
+<p>
+Compute principal components of the resid matrix.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">covars</span> = pd.DataFrame(skd.PCA(n_components=2).fit(resid).components_, columns=resid.columns)
+<span class="org-variable-name">covars.index.name</span> = <span class="org-string">'id'</span>
+covars.to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/resid-covars.txt'</span>, sep=<span class="org-string">'\t'</span>)
+</pre>
+</div>
+
+<p>
+Write out the <a href="https://qtltools.github.io/qtltools/pages/input_files.html">phenotype file</a> for <code>qtltools</code>.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">write_pheno_file(resid, gene_info, <span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/resid.bed'</span>, holdout=<span class="org-constant">False</span>)
+</pre>
+</div>
+
+<p>
+Index the phenotype file.
+</p>
+
+<pre class="example">
+Submitted batch job 47257336
+
+</pre>
+
+<p>
+Run <code>qtltools</code>.
+</p>
+
+<pre class="example">
+Submitted batch job 47257338
+
+</pre>
+
+<p>
+Read the output.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">resid_qtls</span> = read_qtltools_output(<span class="org-string">'scqtl-mapping/resid'</span>)
+</pre>
+</div>
+
+<p>
+Check the beta approximation to the permutation p-values.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plot_approx_permutation(resid_qtls)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/qtl-mapping.org/resid-qtl-beta-approx.png" alt="resid-qtl-beta-approx.png">
+</p>
+</div>
+
+<p>
+Plot a QQ plot of the adjusted p-values.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">qqplot(resid_qtls)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/qtl-mapping.org/resid-qtl-qq.png" alt="resid-qtl-qq.png">
+</p>
+</div>
+
+<p>
+Take QTLs at FDR 10%.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">resid_qtls[<span class="org-string">'fdr_pass'</span>].<span class="org-builtin">sum</span>()
+</pre>
+</div>
+
+<pre class="example">
+0
+
+</pre>
+</div>
+</div>
+</div>
+
 
 <div id="outline-container-org8c6fc05" class="outline-2">
 <h2 id="org8c6fc05">Write out the QTLs</h2>
@@ -3727,7 +3018,7 @@ Extract the QTLs for the browser.
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-06-18 Mon 18:51</p>
+<p class="date">Created: 2018-07-03 Tue 12:47</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
