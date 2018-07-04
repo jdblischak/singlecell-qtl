@@ -72,7 +72,7 @@
   #+CALL: ipython3(memory="16G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 46303124
+  : Submitted batch job 47262658
 
   #+NAME: zinb-imports
   #+BEGIN_SRC ipython
@@ -98,7 +98,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[84]:
+  # Out[2]:
   :END:
 
   #+NAME: tf-imports
@@ -1840,4 +1840,59 @@
   # Out[36]:
   : Text(0,0.5,'Sample Fano factor')
   [[file:figure/zinb.org/count-fano-vs-zinb-fano.png]]
+  :END:
+* Examples
+
+  #+BEGIN_SRC ipython
+    log_mu = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz', index_col=0, sep=' ')
+    log_phi = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-phi.txt.gz', index_col=0, sep=' ')
+    logodds = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-logodds.txt.gz', sep=' ', index_col=0)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[10]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    umi = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', index_col=0)
+    annotations = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
+    keep_samples = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
+    keep_genes = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt', index_col=0, header=None)
+    umi = umi.loc[keep_genes.values.ravel(),keep_samples.values.ravel()]
+    annotations = annotations.loc[keep_samples.values.ravel()]
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[3]:
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/example.svg
+    %config InlineBackend.figure_formats = set(['svg'])
+    plt.clf()
+    fig, ax = plt.subplots(1, 2, sharey=True)
+    fig.set_size_inches(4, 2)
+    gene = "ENSG00000243709"
+    for a, k in zip(ax, ('NA18507', 'NA19204')):
+      x = umi.loc[gene, (annotations['chip_id'] == k).values]
+      y = annotations[annotations['chip_id'] == k]
+      grid = np.arange(x.max())
+      a.hist(x, color='.75', bins=grid)
+      n = np.exp(-log_phi.loc[gene, k])
+      p = 1 / (1 + np.outer(y['mol_hs'], np.exp(log_mu.loc[gene, k] + log_phi.loc[gene, k])))
+      G = st.nbinom(n=n.ravel(), p=p.ravel()).pmf
+      pmf = np.array([G(x).mean() for x in grid])
+      exp_count = x.shape[0] * pmf * sp.expit(-logodds.loc[gene, k])
+      a.plot(0.5 + grid, exp_count, c='b', lw=1)
+      a.arrow(0.5, 0, 0, x.shape[0] * sp.expit(logodds.loc[gene, k]), width=.01, head_width=.5, head_length=2, color='r')
+    fig.text(0.5, 0, 'UMI counts', ha='center')
+    fig.text(0, 0.5, 'Number of cells', va='center', rotation=90)
+    fig.tight_layout()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[59]:
+  [[file:figure/zinb.org/example.svg]]
   :END:

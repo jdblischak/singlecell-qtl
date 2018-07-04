@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-07-03 Tue 12:47 -->
+<!-- 2018-07-04 Wed 09:45 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mean/dispersion estimation</title>
@@ -1310,10 +1310,62 @@ Text(0,0.5,'Sample Fano factor')
 </div>
 </div>
 </div>
+<div id="outline-container-orgf4b9a9a" class="outline-2">
+<h2 id="orgf4b9a9a">Examples</h2>
+<div class="outline-text-2" id="text-orgf4b9a9a">
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">log_phi</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-phi.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">logodds</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-logodds.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">umi</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>, index_col=0)
+<span class="org-variable-name">annotations</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
+<span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
+<span class="org-variable-name">keep_genes</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
+<span class="org-variable-name">umi</span> = umi.loc[keep_genes.values.ravel(),keep_samples.values.ravel()]
+<span class="org-variable-name">annotations</span> = annotations.loc[keep_samples.values.ravel()]
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">%config <span class="org-variable-name">InlineBackend.figure_formats</span> = <span class="org-builtin">set</span>([<span class="org-string">'svg'</span>])
+plt.clf()
+<span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(1, 2, sharey=<span class="org-constant">True</span>)
+fig.set_size_inches(4, 2)
+<span class="org-variable-name">gene</span> = <span class="org-string">"ENSG00000243709"</span>
+<span class="org-keyword">for</span> a, k <span class="org-keyword">in</span> <span class="org-builtin">zip</span>(ax, (<span class="org-string">'NA18507'</span>, <span class="org-string">'NA19204'</span>)):
+  <span class="org-variable-name">x</span> = umi.loc[gene, (annotations[<span class="org-string">'chip_id'</span>] == k).values]
+  <span class="org-variable-name">y</span> = annotations[annotations[<span class="org-string">'chip_id'</span>] == k]
+  <span class="org-variable-name">grid</span> = np.arange(x.<span class="org-builtin">max</span>())
+  a.hist(x, color=<span class="org-string">'.75'</span>, bins=grid)
+  <span class="org-variable-name">n</span> = np.exp(-log_phi.loc[gene, k])
+  <span class="org-variable-name">p</span> = 1 / (1 + np.outer(y[<span class="org-string">'mol_hs'</span>], np.exp(log_mu.loc[gene, k] + log_phi.loc[gene, k])))
+  <span class="org-variable-name">G</span> = st.nbinom(n=n.ravel(), p=p.ravel()).pmf
+  <span class="org-variable-name">pmf</span> = np.array([G(x).mean() <span class="org-keyword">for</span> x <span class="org-keyword">in</span> grid])
+  <span class="org-variable-name">exp_count</span> = x.shape[0] * pmf * sp.expit(-logodds.loc[gene, k])
+  a.plot(0.5 + grid, exp_count, c=<span class="org-string">'b'</span>, lw=1)
+  a.arrow(0.5, 0, 0, x.shape[0] * sp.expit(logodds.loc[gene, k]), width=.01, head_width=.5, head_length=2, color=<span class="org-string">'r'</span>)
+fig.text(0.5, 0, <span class="org-string">'UMI counts'</span>, ha=<span class="org-string">'center'</span>)
+fig.text(0, 0.5, <span class="org-string">'Number of cells'</span>, va=<span class="org-string">'center'</span>, rotation=90)
+fig.tight_layout()
+</pre>
+</div>
+
+
+<div class="figure">
+<p><object type="image/svg+xml" data="figure/zinb.org/example.svg" class="org-svg">
+Sorry, your browser does not support SVG.</object>
+</p>
+</div>
+</div>
+</div>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-07-03 Tue 12:47</p>
+<p class="date">Created: 2018-07-04 Wed 09:45</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
