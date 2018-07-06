@@ -17,15 +17,16 @@
  
   #+BEGIN_SRC emacs-lisp
     (org-babel-lob-ingest "~/.emacs.d/org-templates/library.org")
+    (org-babel-lob-ingest "/project2/mstephens/aksarkar/projects/singlecell-qtl/analysis/zinb.org")
   #+END_SRC
 
   #+RESULTS:
-  : 1
+  : 18
 
   #+CALL: ipython3(memory="8G", venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 46684282
+  : Submitted batch job 47318282
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -37,7 +38,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[3]:
+  # Out[1]:
   :END:
 
   #+NAME: power-imports
@@ -544,7 +545,7 @@
 
   #+RESULTS: eqtl-sim-impl
   :RESULTS:
-  # Out[44]:
+  # Out[154]:
   :END:
 
   QC the GEUVADIS genotypes.
@@ -670,6 +671,8 @@
   [[file:figure/power.org/eqtl-power.png]]
   :END:
 
+** Estimate the error variance
+
   The single cell experiment size determines the standard error of the
   estimator, which can be thought of as measurement error.
 
@@ -684,67 +687,98 @@
 
   #+BEGIN_SRC ipython
     sim_results = pd.read_table('/scratch/midway2/aksarkar/singlecell/density-estimation/simulation.txt.gz', index_col=0)
+    sim_results['latent_mean'] = np.exp(sim_results['log_mu'] - np.log1p(np.exp(sim_results['logodds'])))
+    sim_results['latent_mean_hat'] = np.exp(sim_results['log_mu_hat'] - np.log1p(np.exp(sim_results['logodds_hat'])))
+    sim_results['latent_var'] = np.exp(2 * sim_results['log_mu'] + sim_results['log_phi'] - np.log1p(np.exp(sim_results['logodds']))) + np.exp(-np.log1p(np.exp(sim_results['logodds'])) - np.log1p(np.exp(-sim_results['logodds'])) + 2 * sim_results['log_mu'])
+    sim_results['latent_var_hat'] = np.exp(2 * sim_results['log_mu_hat'] + sim_results['log_phi_hat'] - np.log1p(np.exp(sim_results['logodds_hat']))) + np.exp(-np.log1p(np.exp(sim_results['logodds_hat'])) - np.log1p(np.exp(-sim_results['logodds_hat'])) + 2 * sim_results['log_mu_hat'])
     mu_pass = sim_results['log_mu'] > -10
     pi_pass = sim_results['logodds'] <= 0
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[27]:
+  # Out[108]:
   :END:
 
+  Restrict the analysis to \(\ln\mu > -10, \mathrm{logit}(\pi) < 0\), because
+  this is the part of the parameter space we can reliably estimate in.
+
   #+BEGIN_SRC ipython
-    sim_results[pi_pass].groupby(['num_samples', 'num_mols', 'log_mu']).apply(lambda x: pd.Series(1 / (1 + np.var(x['log_mu_hat'])))).reset_index()
+    data = sim_results[np.logical_and(mu_pass, pi_pass)].groupby(['num_samples', 'num_mols', 'latent_mean', 'latent_var'])[['latent_mean_hat', 'latent_var_hat']].agg(np.var).reset_index()
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[28]:
+  # Out[151]:
+  :END:
+
+  For \(x_1, \ldots, x_n \sim N(\mu, \sigma^2)\), we know:
+
+  \[ \bar{x} \sim N(\mu, \sigma^2 / n) \]
+
+  So a priori, we might expect the sampling variance of the single cell latent
+  mean to decrease as \(1 / n\).
+
+  Similarly, we know:
+
+  \[ (n - 1)S^2 / \sigma^2 \sim \chi^2(n - 1) \]
+
+  Therefore,
+
+  \[ V[S^2] = 2 (n - 1) sigma^4 / (n - 1)^2 \]
+
+  And a priori, we might also expect the sampling variance of the single cell
+  latent variance to decrease as \(1 / n\).
+
+  From the parametric simulation, we can estimate these relationships directly
+  by fitting multiplicative models.
+
+  #+BEGIN_SRC ipython
+    def mlm(x, y):
+      x -= x.mean(axis=0)
+      y -= y.mean()
+      beta = np.linalg.pinv(x).dot(y)
+      rss = np.square(y - x.dot(beta)).sum()
+      sigma2 = rss / (y.shape[0] - 1)
+      se = np.sqrt(sigma2 / np.einsum('ij,ij->j', x, x))
+      return beta, se
+
+    def ci(beta, se):
+      return np.array([beta + 1.96 * se, beta - 1.96 * se]).reshape(2, -1).T
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[172]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    ci(*mlm(np.log(data[['num_samples', 'num_mols', 'latent_mean', 'latent_var']]), np.log(data['latent_mean_hat'])))
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[173]:
   #+BEGIN_EXAMPLE
-    num_samples  num_mols  log_mu         0
-    0            95    114026     -12  0.943735
-    1            95    114026     -11  0.975032
-    2            95    114026     -10  0.984130
-    3            95    114026      -9  0.988944
-    4            95    114026      -8  0.990610
-    5            95    114026      -7  0.995300
-    6            95    114026      -6  0.992922
-    7          1000    114026     -12  0.968472
-    8          1000    114026     -11  0.979160
-    9          1000    114026     -10  0.991243
-    10         1000    114026      -9  0.994651
-    11         1000    114026      -8  0.997622
-    12         1000    114026      -7  0.999581
-    13         1000    114026      -6  0.999661
-    14        10000    114026     -12  0.970102
-    15        10000    114026     -11  0.980160
-    16        10000    114026     -10  0.992239
-    17        10000    114026      -9  0.995632
-    18        10000    114026      -8  0.998242
-    19        10000    114026      -7  0.999954
-    20        10000    114026      -6  0.999969
+    array([[-0.9984868 , -1.03276978],
+    [-0.01299114, -0.08496202],
+    [-0.01580837, -0.07270787],
+    [ 1.01267559,  0.98504366]])
   #+END_EXAMPLE
   :END:
 
   #+BEGIN_SRC ipython
-    sim_results[np.logical_and(mu_pass, pi_pass)].groupby(['num_samples', 'num_mols', 'log_phi']).apply(lambda x: 1 / (1 + np.var(x['log_phi_hat']))).reset_index()
+    ci(*mlm(np.log(data[['num_samples', 'num_mols', 'latent_mean', 'latent_var']]), np.log(data['latent_var_hat'])))
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[46]:
+  # Out[174]:
   #+BEGIN_EXAMPLE
-    num_samples  num_mols  log_phi         0
-    0           95    114026       -4  0.867270
-    1           95    114026       -3  0.916724
-    2           95    114026       -2  0.950310
-    3           95    114026       -1  0.969675
-    4           95    114026        0  0.904745
-    5        10000    114026       -4  0.996827
-    6        10000    114026       -3  0.999260
-    7        10000    114026       -2  0.999752
-    8        10000    114026       -1  0.999300
-    9        10000    114026        0  0.933499
+    array([[-0.94347526, -1.02803879],
+    [-0.07134441, -0.24887015],
+    [ 0.26219289,  0.12184272],
+    [ 1.92936491,  1.86120709]])
   #+END_EXAMPLE
   :END:
 
@@ -969,7 +1003,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[4]:
+  # Out[104]:
   :END:
 
   Plot the estimated distributions of effect sizes.
@@ -1316,3 +1350,121 @@
   : Text(0,0.5,'Density')
   [[file:figure/power.org/ipsc-vs-dgn-pve.png]]
   :END:
+* Estimate variance of experimental noise
+
+  Let \hat{\theta}_i be an estimate of some phenotype \(\theta_i\). Assume:
+
+  \[ \hat{\theta}_i = \theta_i + u_i \]
+
+  where \(u_i\) is a random effect capturing experimental noise, finite
+  sampling variance, and estimator sampling variance.
+
+  We seek to estimate \(V[u_i]\), and how it relates to the number of cells and
+  the number of molecules (sequencing depth). Importantly, we do not attempt to
+  decompose it into its various components. This allows us to simply subsample
+  to get the relationship.
+
+  #+CALL: recode-impl()
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[34]:
+  :END:
+
+  Extract the genotypes and UMI counts for the 14 vQTLs we found.
+
+  #+BEGIN_SRC ipython
+    def parse_vcf_dosage(record):
+      geno = [float(g) for g in record[9:]]
+      return pd.Series(geno)
+
+    def extract_geno(qtls, dosages):
+      header = pd.read_table(dosages, skiprows=2, nrows=1, header=0).columns[9:]
+      genotypes = tabix.open(dosages)
+      X = np.round(
+        qtls
+        .apply(lambda x: parse_vcf_dosage(next(genotypes.query(x['chr'], int(x['var_start']) - 1, int(x['var_start'])))), axis=1)
+        .rename(columns={i: ind for i, ind in enumerate(header)}))
+      return X
+
+    def extract_counts(qtls, counts):
+      X = pd.concat(
+        [chunk.align(qtls, axis='index', join='inner')[0]
+         for chunk in pd.read_table(counts, index_col=0, chunksize=1000)])
+      return X
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[30]:
+  :END:
+
+  Read the data.
+
+  #+BEGIN_SRC ipython
+    qtls = (pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/variance.txt.gz', sep=' ', index_col=0)
+            .sort_values('p_beta')
+            .head(n=14))
+    annotations = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
+    keep_samples = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[97]:
+  :END:
+
+  Extract the subset we want.
+
+  #+BEGIN_SRC ipython
+    counts = extract_counts(qtls, '/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz')
+    annotations = annotations.loc[keep_samples.values.ravel()]
+    counts = counts.loc[:,keep_samples.values.ravel()]
+    geno = extract_geno(qtls, '/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz')
+    geno = geno.loc[:,list(set(annotations['chip_id']))]
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[98]:
+  :END:
+
+  To efficiently compute the estimates, we tile the counts, and use
+  onehot-encoding to get different collections of cells.
+
+  #+BEGIN_SRC ipython
+    onehot_chip_id = recode(annotations, 'chip_id')
+    onehot_geno = np.concatenate([recode(geno.T, x) for x in geno.index], axis=-1)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[94]:
+  :END:
+
+  #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-noise-var.py
+     <<zinb-imports>>
+     <<tf-imports>>
+     <<power-imports>>
+     <<tf-zinb-impl>>
+
+     log_mu = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz', index_col=0, sep=' ')
+     log_phi = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-phi.txt.gz', index_col=0, sep=' ')
+     logodds = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz', index_col=0, sep=' ')
+     params = pd.DataFrame({'log_mu': log_mu['NA18507'],
+                            'log_phi': log_phi['NA18507'],
+                            'logodds': logodds['NA18507']},
+                           index=log_mu.index)
+     params = params[params['log_mu'] > -10]
+     n = 100
+     umi = pd.DataFrame([simulate(2 * n, size=1e5, log_mu=log_mu, log_phi=log_phi, logodds=logodds)[0][:,0]
+                         for _, (log_mu, log_phi, logodds) in params.iterrows() if log_mu > -10], index=params.index)
+     onehot = np.zeros((2 * n, 2))
+     onehot[:n,0] = 1
+     onehot[n:,1] = 1
+     design = np.zeros((2 * n, 1))
+     size_factor = 1e5 * np.ones((2 * n, 1))
+     T, P = lrt(umi, onehot, design, size_factor)
+     pd.DataFrame({'chi2': T, 'logp': P}, index=umi.index).to_csv('null-calibration-p.txt.gz', sep='\t', compression='gzip')
+  #+END_SRC
+
