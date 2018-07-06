@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-07-04 Wed 09:45 -->
+<!-- 2018-07-06 Fri 16:41 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mean/dispersion estimation</title>
@@ -621,7 +621,7 @@ perform gradient descent.
 
 <span class="org-variable-name">res</span> = pd.concat([evaluate(num_samples, num_mols)
                  <span class="org-keyword">for</span> num_samples <span class="org-keyword">in</span> (10000, 1000, 95)
-                 <span class="org-keyword">for</span> num_mols <span class="org-keyword">in</span> (114026,)])
+                 <span class="org-keyword">for</span> num_mols <span class="org-keyword">in</span> (114026, 500000, 1000000)])
 res.to_csv(<span class="org-string">'simulation.txt.gz'</span>, compression=<span class="org-string">'gzip'</span>, sep=<span class="org-string">'\t'</span>)
 </pre>
 </div>
@@ -635,7 +635,7 @@ python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-sim.py
 </div>
 
 <pre class="example">
-Submitted batch job 46403960
+Submitted batch job 47292972
 
 </pre>
 
@@ -655,13 +655,72 @@ Get the latent mean and variance.
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-variable-name">result</span>[<span class="org-string">'latent_mean'</span>] = np.exp(result[<span class="org-string">'log_mu'</span>] - np.log1p(np.exp(result[<span class="org-string">'logodds'</span>])))
 <span class="org-variable-name">result</span>[<span class="org-string">'latent_mean_hat'</span>] = np.exp(result[<span class="org-string">'log_mu_hat'</span>] - np.log1p(np.exp(result[<span class="org-string">'logodds_hat'</span>])))
-<span class="org-variable-name">result</span>[<span class="org-string">'latent_var'</span>] = np.exp(result[<span class="org-string">'log_phi'</span>] - np.log1p(np.exp(result[<span class="org-string">'logodds'</span>]))) + np.exp(-np.log1p(np.exp(result[<span class="org-string">'logodds'</span>])) - np.log1p(np.exp(-result[<span class="org-string">'logodds'</span>])) + 2 * result[<span class="org-string">'log_mu'</span>])
-<span class="org-variable-name">result</span>[<span class="org-string">'latent_var_hat'</span>] = np.exp(result[<span class="org-string">'log_phi_hat'</span>] - np.log1p(np.exp(result[<span class="org-string">'logodds_hat'</span>]))) + np.exp(-np.log1p(np.exp(result[<span class="org-string">'logodds_hat'</span>])) - np.log1p(np.exp(-result[<span class="org-string">'logodds_hat'</span>])) + 2 * result[<span class="org-string">'log_mu_hat'</span>])
+<span class="org-variable-name">result</span>[<span class="org-string">'latent_var'</span>] = np.exp(2 * result[<span class="org-string">'log_mu'</span>] + result[<span class="org-string">'log_phi'</span>] - np.log1p(np.exp(result[<span class="org-string">'logodds'</span>]))) + np.exp(-np.log1p(np.exp(result[<span class="org-string">'logodds'</span>])) - np.log1p(np.exp(-result[<span class="org-string">'logodds'</span>])) + 2 * result[<span class="org-string">'log_mu'</span>])
+<span class="org-variable-name">result</span>[<span class="org-string">'latent_var_hat'</span>] = np.exp(2 * result[<span class="org-string">'log_mu_hat'</span>] + result[<span class="org-string">'log_phi_hat'</span>] - np.log1p(np.exp(result[<span class="org-string">'logodds_hat'</span>]))) + np.exp(-np.log1p(np.exp(result[<span class="org-string">'logodds_hat'</span>])) - np.log1p(np.exp(-result[<span class="org-string">'logodds_hat'</span>])) + 2 * result[<span class="org-string">'log_mu_hat'</span>])
 </pre>
 </div>
 
 <p>
-Plot the accuracy of estimated latent mean and variance.
+Plot the accuracy of the estimated parameters and derived quantities, fixing
+the experiment size.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">exp_pass</span> = np.logical_and(result[<span class="org-string">'num_samples'</span>] == 95, result[<span class="org-string">'num_mols'</span>] == 114026)
+<span class="org-variable-name">mu_pass</span> = result[<span class="org-string">'log_mu'</span>] &gt; -10
+<span class="org-variable-name">pi_pass</span> = result[<span class="org-string">'logodds'</span>] &lt; 0
+
+plt.clf()
+<span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(2, 3)
+fig.set_size_inches(8, 5)
+
+<span class="org-variable-name">subset</span> = result.loc[np.logical_and.<span class="org-builtin">reduce</span>(np.vstack([exp_pass, pi_pass]))]
+ax[0, 0].scatter(subset[<span class="org-string">'log_mu'</span>], subset[<span class="org-string">'log_mu_hat'</span>], s=2, c=<span class="org-string">'k'</span>)
+ax[0, 0].plot(ax[0, 0].get_xlim(), ax[0, 0].get_xlim(), c=<span class="org-string">'r'</span>, ls=<span class="org-string">':'</span>, lw=1)
+ax[0, 0].set_xlabel(<span class="org-string">'True $\ln(\mu)$'</span>)
+ax[0, 0].set_ylabel(<span class="org-string">'Estimated $\ln(\mu)$'</span>)
+
+ax[1, 0].set_xscale(<span class="org-string">'log'</span>)
+ax[1, 0].set_yscale(<span class="org-string">'log'</span>)
+ax[1, 0].scatter(subset[<span class="org-string">'latent_mean'</span>], subset[<span class="org-string">'latent_mean_hat'</span>], s=2, c=<span class="org-string">'k'</span>)
+ax[1, 0].plot(ax[1, 0].get_xlim(), ax[1, 0].get_xlim(), c=<span class="org-string">'r'</span>, ls=<span class="org-string">':'</span>, lw=1)
+ax[1, 0].set_xlabel(<span class="org-string">'True latent mean'</span>)
+ax[1, 0].set_ylabel(<span class="org-string">'Estimated latent mean'</span>)
+
+<span class="org-variable-name">subset</span> = result.loc[np.logical_and.<span class="org-builtin">reduce</span>(np.vstack([exp_pass, mu_pass, pi_pass]))]
+ax[0, 1].scatter(subset[<span class="org-string">'log_phi'</span>], subset[<span class="org-string">'log_phi_hat'</span>], s=2, c=<span class="org-string">'k'</span>)
+ax[0, 1].plot(ax[0, 1].get_xlim(), ax[0, 1].get_xlim(), c=<span class="org-string">'r'</span>, ls=<span class="org-string">':'</span>, lw=1)
+ax[0, 1].set_xlabel(<span class="org-string">'True $\ln(\phi)$'</span>)
+ax[0, 1].set_ylabel(<span class="org-string">'Estimated $\ln(\phi)$'</span>)
+
+ax[1, 1].set_xscale(<span class="org-string">'log'</span>)
+ax[1, 1].set_yscale(<span class="org-string">'log'</span>)
+ax[1, 1].scatter(subset[<span class="org-string">'latent_var'</span>], subset[<span class="org-string">'latent_var_hat'</span>], s=2, c=<span class="org-string">'k'</span>)
+ax[1, 1].plot(ax[1, 1].get_xlim(), ax[1, 1].get_xlim(), c=<span class="org-string">'r'</span>, ls=<span class="org-string">':'</span>, lw=1)
+ax[1, 1].set_xlabel(<span class="org-string">'True latent variance'</span>)
+ax[1, 1].set_ylabel(<span class="org-string">'Estimated latent variance'</span>)
+
+<span class="org-variable-name">subset</span> = result.loc[exp_pass]
+ax[0, 2].scatter(subset[<span class="org-string">'logodds'</span>], subset[<span class="org-string">'logodds_hat'</span>], s=2, c=<span class="org-string">'k'</span>)
+ax[0, 2].plot(ax[0, 2].get_xlim(), ax[0, 2].get_xlim(), c=<span class="org-string">'r'</span>, ls=<span class="org-string">':'</span>, lw=1)
+ax[0, 2].set_xlabel(<span class="org-string">'True $\mathrm{logit}(\pi)$'</span>)
+ax[0, 2].set_ylabel(<span class="org-string">'Estimated $\mathrm{logit}(\pi)$'</span>)
+
+ax[1, 2].set_axis_off()
+fig.tight_layout()
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/zinb.org/sim.png" alt="sim.png">
+</p>
+</div>
+
+<p>
+Plot the accuracy of estimated latent mean and variance as a function of
+number of molecules, holding the number of cells fixed at the median value
+in the real data.
 </p>
 
 <div class="org-src-container">
@@ -669,10 +728,52 @@ Plot the accuracy of estimated latent mean and variance.
 <span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(3, 2)
 fig.set_size_inches(6, 9)
 
-<span class="org-keyword">for</span> i, (k, g) <span class="org-keyword">in</span> <span class="org-builtin">enumerate</span>(result.groupby(<span class="org-string">'num_samples'</span>)):
+<span class="org-keyword">for</span> i, (k, g) <span class="org-keyword">in</span> <span class="org-builtin">enumerate</span>(result.loc[result[<span class="org-string">'num_samples'</span>] == 95].groupby(<span class="org-string">'num_mols'</span>)):
   <span class="org-variable-name">mu_pass</span> = g[<span class="org-string">'log_mu'</span>] &gt; -10
   <span class="org-variable-name">pi_pass</span> = g[<span class="org-string">'logodds'</span>] &lt; 0
+  <span class="org-variable-name">subset</span> = g.loc[pi_pass]
+  ax[i, 0].semilogx()
+  ax[i, 0].semilogy()
+  ax[i, 0].scatter(subset[<span class="org-string">'latent_mean'</span>], subset[<span class="org-string">'latent_mean_hat'</span>], s=2, c=<span class="org-string">'k'</span>)
+  ax[i, 0].plot(ax[i, 0].get_xlim(), ax[i, 0].get_xlim(), c=<span class="org-string">'r'</span>, ls=<span class="org-string">':'</span>, lw=1)
+  ax[i, 0].set_xlabel(<span class="org-string">'True expression mean'</span>)
+  ax[i, 0].set_ylabel(<span class="org-string">'Estimated expression mean'</span>)
+  ax[i, 0].set_title(<span class="org-string">'Molecules $= {}$'</span>.<span class="org-builtin">format</span>(k))
+
   <span class="org-variable-name">subset</span> = g.loc[functools.<span class="org-builtin">reduce</span>(np.logical_and, [mu_pass, pi_pass])]
+  ax[i, 1].semilogx()
+  ax[i, 1].semilogy()
+  ax[i, 1].scatter(subset[<span class="org-string">'latent_var'</span>], subset[<span class="org-string">'latent_var_hat'</span>], s=2, c=<span class="org-string">'k'</span>)
+  ax[i, 1].plot(ax[i, 1].get_xlim(), ax[i, 1].get_xlim(), c=<span class="org-string">'r'</span>, ls=<span class="org-string">':'</span>, lw=1)
+  ax[i, 1].set_xlabel(<span class="org-string">'True expression variance'</span>)
+  ax[i, 1].set_ylabel(<span class="org-string">'Estimated expression variance'</span>)
+  ax[i, 1].set_title(<span class="org-string">'Molecules $= {}$'</span>.<span class="org-builtin">format</span>(k))
+
+fig.tight_layout()
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/zinb.org/simulation-latent-accuracy-vs-mols.png" alt="simulation-latent-accuracy-vs-mols.png">
+</p>
+</div>
+
+<p>
+Plot the accuracy of estimated latent mean and variance as a function of
+number of cells, holding the number of molecules fixed at the median value
+in the real data.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+<span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(3, 2)
+fig.set_size_inches(6, 9)
+
+<span class="org-keyword">for</span> i, (k, g) <span class="org-keyword">in</span> <span class="org-builtin">enumerate</span>(result.loc[result[<span class="org-string">'num_mols'</span>] == 114026].groupby(<span class="org-string">'num_samples'</span>)):
+  <span class="org-variable-name">mu_pass</span> = g[<span class="org-string">'log_mu'</span>] &gt; -10
+  <span class="org-variable-name">pi_pass</span> = g[<span class="org-string">'logodds'</span>] &lt; 0
+  <span class="org-variable-name">subset</span> = g.loc[pi_pass]
   ax[i, 0].semilogx()
   ax[i, 0].semilogy()
   ax[i, 0].scatter(subset[<span class="org-string">'latent_mean'</span>], subset[<span class="org-string">'latent_mean_hat'</span>], s=2, c=<span class="org-string">'k'</span>)
@@ -681,6 +782,9 @@ fig.set_size_inches(6, 9)
   ax[i, 0].set_ylabel(<span class="org-string">'Estimated expression mean'</span>)
   ax[i, 0].set_title(<span class="org-string">'$n = {}$'</span>.<span class="org-builtin">format</span>(k))
 
+  <span class="org-variable-name">subset</span> = g.loc[functools.<span class="org-builtin">reduce</span>(np.logical_and, [mu_pass, pi_pass])]
+  ax[i, 1].semilogx()
+  ax[i, 1].semilogy()
   ax[i, 1].scatter(subset[<span class="org-string">'latent_var'</span>], subset[<span class="org-string">'latent_var_hat'</span>], s=2, c=<span class="org-string">'k'</span>)
   ax[i, 1].plot(ax[i, 1].get_xlim(), ax[i, 1].get_xlim(), c=<span class="org-string">'r'</span>, ls=<span class="org-string">':'</span>, lw=1)
   ax[i, 1].set_xlabel(<span class="org-string">'True expression variance'</span>)
@@ -693,7 +797,7 @@ fig.tight_layout()
 
 
 <div class="figure">
-<p><img src="figure/zinb.org/simulation-latent-accuracy.png" alt="simulation-latent-accuracy.png">
+<p><img src="figure/zinb.org/simulation-latent-accuracy-vs-cells.png" alt="simulation-latent-accuracy-vs-cells.png">
 </p>
 </div>
 </div>
@@ -1365,7 +1469,7 @@ Sorry, your browser does not support SVG.</object>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-07-04 Wed 09:45</p>
+<p class="date">Created: 2018-07-06 Fri 16:41</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>

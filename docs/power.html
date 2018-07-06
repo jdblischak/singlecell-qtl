@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-07-03 Tue 12:47 -->
+<!-- 2018-07-06 Fri 16:41 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Power to detect QTLs in single cell data</title>
@@ -267,6 +267,7 @@ for the JavaScript code in this tag.
 <li><a href="#org72a81fe">QTL discovery</a></li>
 <li><a href="#org2936029">Distribution of effect sizes.</a></li>
 <li><a href="#orge79ccc3">Distribution of PVE</a></li>
+<li><a href="#org3ae6220">Estimate variance of experimental noise</a></li>
 </ul>
 </div>
 </div>
@@ -886,61 +887,82 @@ simulation.
 
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-variable-name">sim_results</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/density-estimation/simulation.txt.gz'</span>, index_col=0)
+<span class="org-variable-name">sim_results</span>[<span class="org-string">'latent_mean'</span>] = np.exp(sim_results[<span class="org-string">'log_mu'</span>] - np.log1p(np.exp(sim_results[<span class="org-string">'logodds'</span>])))
+<span class="org-variable-name">sim_results</span>[<span class="org-string">'latent_mean_hat'</span>] = np.exp(sim_results[<span class="org-string">'log_mu_hat'</span>] - np.log1p(np.exp(sim_results[<span class="org-string">'logodds_hat'</span>])))
+<span class="org-variable-name">sim_results</span>[<span class="org-string">'latent_var'</span>] = np.exp(2 * sim_results[<span class="org-string">'log_mu'</span>] + sim_results[<span class="org-string">'log_phi'</span>] - np.log1p(np.exp(sim_results[<span class="org-string">'logodds'</span>]))) + np.exp(-np.log1p(np.exp(sim_results[<span class="org-string">'logodds'</span>])) - np.log1p(np.exp(-sim_results[<span class="org-string">'logodds'</span>])) + 2 * sim_results[<span class="org-string">'log_mu'</span>])
+<span class="org-variable-name">sim_results</span>[<span class="org-string">'latent_var_hat'</span>] = np.exp(2 * sim_results[<span class="org-string">'log_mu_hat'</span>] + sim_results[<span class="org-string">'log_phi_hat'</span>] - np.log1p(np.exp(sim_results[<span class="org-string">'logodds_hat'</span>]))) + np.exp(-np.log1p(np.exp(sim_results[<span class="org-string">'logodds_hat'</span>])) - np.log1p(np.exp(-sim_results[<span class="org-string">'logodds_hat'</span>])) + 2 * sim_results[<span class="org-string">'log_mu_hat'</span>])
 <span class="org-variable-name">mu_pass</span> = sim_results[<span class="org-string">'log_mu'</span>] &gt; -10
 <span class="org-variable-name">pi_pass</span> = sim_results[<span class="org-string">'logodds'</span>] &lt;= 0
 </pre>
 </div>
 
 <div class="org-src-container">
-<pre class="src src-ipython">sim_results[pi_pass].groupby([<span class="org-string">'num_samples'</span>, <span class="org-string">'num_mols'</span>, <span class="org-string">'log_mu'</span>]).<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: pd.Series(1 / (1 + np.var(x[<span class="org-string">'log_mu_hat'</span>])))).reset_index()
+<pre class="src src-ipython"><span class="org-variable-name">data</span> = sim_results[np.logical_and(mu_pass, pi_pass)].groupby([<span class="org-string">'num_samples'</span>, <span class="org-string">'num_mols'</span>, <span class="org-string">'latent_mean'</span>, <span class="org-string">'latent_var'</span>])[[<span class="org-string">'latent_mean_hat'</span>, <span class="org-string">'latent_var_hat'</span>]].agg(np.var).reset_index()
+</pre>
+</div>
+
+<p>
+For \(x_1, \ldots, x_n \sim N(\mu, \sigma^2)\), we know:
+</p>
+
+<p>
+\[ \bar{x} \sim N(\mu, \sigma^2 / n) \]
+</p>
+
+<p>
+So a priori, we might expect the sampling variance of the single cell latent
+mean to decrease as \(1 / n\).
+</p>
+
+<p>
+Similarly, we know:
+</p>
+
+<p>
+\[ (n - 1)S^2 / \sigma^2 \sim \chi^2(n - 1) \]
+</p>
+
+<p>
+Therefore,
+</p>
+
+<p>
+\[ V[S^2] = 2 (n - 1) sigma^2 / (n - 1)^2 \]
+</p>
+
+<p>
+And a priori, we might also expect the sampling variance of the single cell
+latent variance to decrease as \(1 / n\).
+</p>
+
+<p>
+From the parametric simulation, we can estimate these relationships directly
+by fitting multiplicative models.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">import</span> sklearn.linear_model <span class="org-keyword">as</span> sklm
+sklm.LinearRegression(fit_intercept=<span class="org-constant">True</span>).fit(np.log(data[[<span class="org-string">'num_samples'</span>, <span class="org-string">'num_mols'</span>, <span class="org-string">'latent_mean'</span>, <span class="org-string">'latent_var'</span>]]), np.log(data[<span class="org-string">'latent_mean_hat'</span>])).coef_
 </pre>
 </div>
 
 <pre class="example">
-num_samples  num_mols  log_mu         0
-0            95    114026     -12  0.943735
-1            95    114026     -11  0.975032
-2            95    114026     -10  0.984130
-3            95    114026      -9  0.988944
-4            95    114026      -8  0.990610
-5            95    114026      -7  0.995300
-6            95    114026      -6  0.992922
-7          1000    114026     -12  0.968472
-8          1000    114026     -11  0.979160
-9          1000    114026     -10  0.991243
-10         1000    114026      -9  0.994651
-11         1000    114026      -8  0.997622
-12         1000    114026      -7  0.999581
-13         1000    114026      -6  0.999661
-14        10000    114026     -12  0.970102
-15        10000    114026     -11  0.980160
-16        10000    114026     -10  0.992239
-17        10000    114026      -9  0.995632
-18        10000    114026      -8  0.998242
-19        10000    114026      -7  0.999954
-20        10000    114026      -6  0.999969
+array([-1.01562829, -0.04897658, -0.04425812,  0.99885962])
+
 </pre>
 
 <div class="org-src-container">
-<pre class="src src-ipython">sim_results[np.logical_and(mu_pass, pi_pass)].groupby([<span class="org-string">'num_samples'</span>, <span class="org-string">'num_mols'</span>, <span class="org-string">'log_phi'</span>]).<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: 1 / (1 + np.var(x[<span class="org-string">'log_phi_hat'</span>]))).reset_index()
+<pre class="src src-ipython">sklm.LinearRegression(fit_intercept=<span class="org-constant">True</span>).fit(np.log(data[[<span class="org-string">'num_samples'</span>, <span class="org-string">'num_mols'</span>, <span class="org-string">'latent_mean'</span>, <span class="org-string">'latent_var'</span>]]), np.log(data[<span class="org-string">'latent_var_hat'</span>])).coef_
 </pre>
 </div>
 
 <pre class="example">
-num_samples  num_mols  log_phi         0
-0           95    114026       -4  0.867270
-1           95    114026       -3  0.916724
-2           95    114026       -2  0.950310
-3           95    114026       -1  0.969675
-4           95    114026        0  0.904745
-5        10000    114026       -4  0.996827
-6        10000    114026       -3  0.999260
-7        10000    114026       -2  0.999752
-8        10000    114026       -1  0.999300
-9        10000    114026        0  0.933499
+array([-0.98575702, -0.16010728,  0.1920178 ,  1.895286  ])
+
 </pre>
 </div>
 </div>
+
 
 <div id="outline-container-org2936029" class="outline-2">
 <h2 id="org2936029">Distribution of effect sizes.</h2>
@@ -1533,10 +1555,124 @@ Text(0,0.5,'Density')
 </div>
 </div>
 </div>
+<div id="outline-container-org3ae6220" class="outline-2">
+<h2 id="org3ae6220">Estimate variance of experimental noise</h2>
+<div class="outline-text-2" id="text-org3ae6220">
+<p>
+Let \hat{\theta}<sub>i</sub> be an estimate of some phenotype \(\theta_i\). Assume:
+</p>
+
+<p>
+\[ \hat{\theta}_i = \theta_i + u_i \]
+</p>
+
+<p>
+where \(u_i\) is a random effect capturing experimental noise, finite
+sampling variance, and estimator sampling variance.
+</p>
+
+<p>
+We seek to estimate \(V[u_i]\), and how it relates to the number of cells and
+the number of molecules (sequencing depth). Importantly, we do not attempt to
+decompose it into its various components. This allows us to simply subsample
+to get the relationship.
+</p>
+
+<p>
+Extract the genotypes and UMI counts for the 14 vQTLs we found.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">parse_vcf_dosage</span>(record):
+  <span class="org-variable-name">geno</span> = [<span class="org-builtin">float</span>(g) <span class="org-keyword">for</span> g <span class="org-keyword">in</span> record[9:]]
+  <span class="org-keyword">return</span> pd.Series(geno)
+
+<span class="org-keyword">def</span> <span class="org-function-name">extract_geno</span>(qtls, dosages):
+  <span class="org-variable-name">header</span> = pd.read_table(dosages, skiprows=2, nrows=1, header=0).columns[9:]
+  <span class="org-variable-name">genotypes</span> = tabix.<span class="org-builtin">open</span>(dosages)
+  <span class="org-variable-name">X</span> = np.<span class="org-builtin">round</span>(
+    qtls
+    .<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: parse_vcf_dosage(<span class="org-builtin">next</span>(genotypes.query(x[<span class="org-string">'chr'</span>], <span class="org-builtin">int</span>(x[<span class="org-string">'var_start'</span>]) - 1, <span class="org-builtin">int</span>(x[<span class="org-string">'var_start'</span>])))), axis=1)
+    .rename(columns={i: ind <span class="org-keyword">for</span> i, ind <span class="org-keyword">in</span> <span class="org-builtin">enumerate</span>(header)}))
+  <span class="org-keyword">return</span> X
+
+<span class="org-keyword">def</span> <span class="org-function-name">extract_counts</span>(qtls, counts):
+  <span class="org-variable-name">X</span> = pd.concat(
+    [chunk.align(qtls, axis=<span class="org-string">'index'</span>, join=<span class="org-string">'inner'</span>)[0]
+     <span class="org-keyword">for</span> chunk <span class="org-keyword">in</span> pd.read_table(counts, index_col=0, chunksize=1000)])
+  <span class="org-keyword">return</span> X
+</pre>
+</div>
+
+<p>
+Read the data.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">qtls</span> = (pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/variance.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
+        .sort_values(<span class="org-string">'p_beta'</span>)
+        .head(n=14))
+<span class="org-variable-name">annotations</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
+<span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
+</pre>
+</div>
+
+<p>
+Extract the subset we want.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">counts</span> = extract_counts(qtls, <span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>)
+<span class="org-variable-name">annotations</span> = annotations.loc[keep_samples.values.ravel()]
+<span class="org-variable-name">counts</span> = counts.loc[:,keep_samples.values.ravel()]
+<span class="org-variable-name">geno</span> = extract_geno(qtls, <span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz'</span>)
+<span class="org-variable-name">geno</span> = geno.loc[:,<span class="org-builtin">list</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>]))]
+</pre>
+</div>
+
+<p>
+To efficiently compute the estimates, we tile the counts, and use
+onehot-encoding to get different collections of cells.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">onehot_chip_id</span> = recode(annotations, <span class="org-string">'chip_id'</span>)
+<span class="org-variable-name">onehot_geno</span> = np.concatenate([recode(geno.T, x) <span class="org-keyword">for</span> x <span class="org-keyword">in</span> geno.index], axis=-1)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">&lt;&lt;zinb-imports&gt;&gt;
+&lt;&lt;tf-imports&gt;&gt;
+&lt;&lt;power-imports&gt;&gt;
+&lt;&lt;tf-zinb-impl&gt;&gt;
+
+<span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">log_phi</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-phi.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">logodds</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">params</span> = pd.DataFrame({<span class="org-string">'log_mu'</span>: log_mu[<span class="org-string">'NA18507'</span>],
+                       <span class="org-string">'log_phi'</span>: log_phi[<span class="org-string">'NA18507'</span>],
+                       <span class="org-string">'logodds'</span>: logodds[<span class="org-string">'NA18507'</span>]},
+                      index=log_mu.index)
+<span class="org-variable-name">params</span> = params[params[<span class="org-string">'log_mu'</span>] &gt; -10]
+<span class="org-variable-name">n</span> = 100
+<span class="org-variable-name">umi</span> = pd.DataFrame([simulate(2 * n, size=1e5, log_mu=log_mu, log_phi=log_phi, logodds=logodds)[0][:,0]
+                    <span class="org-keyword">for</span> _, (log_mu, log_phi, logodds) <span class="org-keyword">in</span> params.iterrows() <span class="org-keyword">if</span> log_mu &gt; -10], index=params.index)
+<span class="org-variable-name">onehot</span> = np.zeros((2 * n, 2))
+<span class="org-variable-name">onehot</span>[:n,0] = 1
+<span class="org-variable-name">onehot</span>[n:,1] = 1
+<span class="org-variable-name">design</span> = np.zeros((2 * n, 1))
+<span class="org-variable-name">size_factor</span> = 1e5 * np.ones((2 * n, 1))
+<span class="org-variable-name">T</span>, <span class="org-variable-name">P</span> = lrt(umi, onehot, design, size_factor)
+pd.DataFrame({<span class="org-string">'chi2'</span>: T, <span class="org-string">'logp'</span>: P}, index=umi.index).to_csv(<span class="org-string">'null-calibration-p.txt.gz'</span>, sep=<span class="org-string">'\t'</span>, compression=<span class="org-string">'gzip'</span>)
+</pre>
+</div>
+</div>
+</div>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-07-03 Tue 12:47</p>
+<p class="date">Created: 2018-07-06 Fri 16:41</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>

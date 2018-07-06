@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-07-04 Wed 09:45 -->
+<!-- 2018-07-06 Fri 16:41 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>QTL mapping pipeline</title>
@@ -857,6 +857,24 @@ Submitted batch job 44546060
 </pre>
 
 <p>
+Subsample the individuals.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">sbatch --partition=broadwl -a 1-25
+<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
+<span class="org-builtin">source</span> activate scqtl
+awk <span class="org-string">'NR &lt; 6'</span> file_IPSC.used | cat - file_IPSC.excl &gt;subsample.excl
+fastqtl -V YRI_SNPs_2_IPSC.txt.gen.gz -B fastqtl_qqnorm_RNAseq_run.fixed.txt.gz -C fasteqtl_PC_RNAseq_run.fixed.txt -O bulk-qtl.$<span class="org-variable-name">SLURM_ARRAY_TASK_ID</span>.txt --exclude-samples subsample.excl --window 1e5 --permute 1000 10000 --chunk $<span class="org-variable-name">SLURM_ARRAY_TASK_ID</span> 25 --seed 1475098497
+</pre>
+</div>
+
+<pre class="example">
+Submitted batch job 47297158
+
+</pre>
+
+<p>
 Read <code>fastqtl</code> output.
 </p>
 
@@ -989,7 +1007,7 @@ Take QTLs with \(\mathrm{FDR} < 0.1\).
 </div>
 
 <pre class="example">
-1040
+1101
 
 </pre>
 </div>
@@ -1178,27 +1196,15 @@ matrix.
 </div>
 
 <p>
-To quantify how much power we expect to lose going from 58 to 49 individuals
-(in our scRNA-Seq data), perform QTL mapping on a random subset of 49
+To quantify how much power we expect to lose going from 58 to 53 individuals
+(in our scRNA-Seq data), perform QTL mapping on a random subset of 53
 individuals.
 </p>
 
 <div class="org-src-container">
 <pre class="src src-ipython">np.random.seed(0)
-<span class="org-variable-name">keep_inds</span> = np.random.choice(bulk_log_tpm.columns, size=49, replace=<span class="org-constant">False</span>)
+<span class="org-variable-name">keep_inds</span> = np.random.choice(bulk_log_tpm.columns, size=53, replace=<span class="org-constant">False</span>)
 <span class="org-variable-name">bulk_log_tpm</span> = bulk_log_tpm.<span class="org-builtin">filter</span>(items=keep_inds, axis=<span class="org-string">'columns'</span>)
-</pre>
-</div>
-
-<p>
-Check whether the false discovery rate is properly controlled by permuting
-the data.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">np.random.seed(0)
-<span class="org-variable-name">permutation</span> = bulk_log_tpm.columns.values
-np.random.shuffle(permutation)
 </pre>
 </div>
 
@@ -1226,7 +1232,7 @@ Index the phenotype file.
 </p>
 
 <pre class="example">
-Submitted batch job 44686635
+Submitted batch job 47296711
 
 </pre>
 
@@ -1246,7 +1252,7 @@ Run <code>qtltools</code>
 </p>
 
 <pre class="example">
-Submitted batch job 44686640
+Submitted batch job 47296721
 
 </pre>
 
@@ -1300,7 +1306,7 @@ Take QTLs with \(\mathrm{FDR} < 0.1\).
 </div>
 
 <pre class="example">
-1020
+569
 
 </pre>
 </div>
@@ -1613,9 +1619,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-org2aa334d" class="outline-3">
-<h3 id="org2aa334d">Call variance-QTLs</h3>
-<div class="outline-text-3" id="text-org2aa334d">
+<div id="outline-container-org3585bac" class="outline-3">
+<h3 id="org3585bac">Call variance-QTLs</h3>
+<div class="outline-text-3" id="text-org3585bac">
 <p>
 Normalize the variance matrix. Restrict to genes with \(\ln\mu > 0.5\) in at
 least half the individuals.
@@ -2074,9 +2080,9 @@ Take QTLs at FDR 10%.
 <h2 id="org0358668">Explain away variance QTLs</h2>
 <div class="outline-text-2" id="text-org0358668">
 </div>
-<div id="outline-container-org3585bac" class="outline-3">
-<h3 id="org3585bac">Call variance-QTLs</h3>
-<div class="outline-text-3" id="text-org3585bac">
+<div id="outline-container-orgfb7230d" class="outline-3">
+<h3 id="orgfb7230d">Call variance-QTLs</h3>
+<div class="outline-text-3" id="text-orgfb7230d">
 <p>
 Regress out mean from variance.
 </p>
@@ -2194,7 +2200,6 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-
 <div id="outline-container-org8c6fc05" class="outline-2">
 <h2 id="org8c6fc05">Write out the QTLs</h2>
 <div class="outline-text-2" id="text-org8c6fc05">
@@ -2210,13 +2215,13 @@ cat &gt;.rsync-filter &lt;&lt;EOF
 <span class="org-sh-heredoc">EOF</span>
 <span class="org-keyword">function</span> <span class="org-function-name">z</span> { <span class="org-builtin">test</span> $<span class="org-variable-name">1</span>-qtl.1.txt -nt $<span class="org-variable-name">1</span>.txt.gz &amp;&amp; cat $<span class="org-variable-name">1</span>-qtl.*.txt | awk <span class="org-string">'BEGIN {print "gene", "chr", "start", "end", "strand", "num_vars", "distance", "id", "var_chr", "var_start", "var_end", "df", "dummy", "a", "b", "p_nominal", "beta", "p_empirical", "p_beta"} {print}'</span> | gzip &gt;$<span class="org-variable-name">1</span>.txt.gz; }
 <span class="org-builtin">export</span> -f z
-parallel -j1 z ::: cv fano log_mu logodds log_phi mean pooled resid sample-cv sample-mean sample-var sample_fano variance
+parallel -j1 z ::: cv fano mean variance
 rsync -FFau . /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/
 </pre>
 </div>
 
 <pre class="example">
-Submitted batch job 46548278
+Submitted batch job 47297612
 
 </pre>
 </div>
@@ -3018,7 +3023,7 @@ Extract the QTLs for the browser.
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-07-04 Wed 09:45</p>
+<p class="date">Created: 2018-07-06 Fri 16:41</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
