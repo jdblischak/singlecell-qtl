@@ -72,7 +72,7 @@
   #+CALL: ipython3(memory="16G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 47262658
+  : Submitted batch job 47294314
 
   #+NAME: zinb-imports
   #+BEGIN_SRC ipython
@@ -94,11 +94,12 @@
     %config InlineBackend.figure_formats = set(['retina'])
     import colorcet
     import matplotlib.pyplot as plt
+    import functools
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[2]:
+  # Out[10]:
   :END:
 
   #+NAME: tf-imports
@@ -390,7 +391,7 @@
 
      res = pd.concat([evaluate(num_samples, num_mols)
                       for num_samples in (10000, 1000, 95)
-                      for num_mols in (114026,)])
+                      for num_mols in (114026, 500000, 1000000)])
      res.to_csv('simulation.txt.gz', compression='gzip', sep='\t')
    #+END_SRC
 
@@ -402,7 +403,7 @@
    #+END_SRC
 
    #+RESULTS:
-   : Submitted batch job 46403960
+   : Submitted batch job 47292972
 
    Read the results.
 
@@ -412,7 +413,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[76]:
+   # Out[3]:
    :END:
 
    Get the latent mean and variance.
@@ -420,26 +421,121 @@
    #+BEGIN_SRC ipython
      result['latent_mean'] = np.exp(result['log_mu'] - np.log1p(np.exp(result['logodds'])))
      result['latent_mean_hat'] = np.exp(result['log_mu_hat'] - np.log1p(np.exp(result['logodds_hat'])))
-     result['latent_var'] = np.exp(result['log_phi'] - np.log1p(np.exp(result['logodds']))) + np.exp(-np.log1p(np.exp(result['logodds'])) - np.log1p(np.exp(-result['logodds'])) + 2 * result['log_mu'])
-     result['latent_var_hat'] = np.exp(result['log_phi_hat'] - np.log1p(np.exp(result['logodds_hat']))) + np.exp(-np.log1p(np.exp(result['logodds_hat'])) - np.log1p(np.exp(-result['logodds_hat'])) + 2 * result['log_mu_hat'])
+     result['latent_var'] = np.exp(2 * result['log_mu'] + result['log_phi'] - np.log1p(np.exp(result['logodds']))) + np.exp(-np.log1p(np.exp(result['logodds'])) - np.log1p(np.exp(-result['logodds'])) + 2 * result['log_mu'])
+     result['latent_var_hat'] = np.exp(2 * result['log_mu_hat'] + result['log_phi_hat'] - np.log1p(np.exp(result['logodds_hat']))) + np.exp(-np.log1p(np.exp(result['logodds_hat'])) - np.log1p(np.exp(-result['logodds_hat'])) + 2 * result['log_mu_hat'])
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[81]:
+   # Out[66]:
    :END:
 
-   Plot the accuracy of estimated latent mean and variance.
+   Plot the accuracy of the estimated parameters and derived quantities, fixing
+   the experiment size.
 
-   #+BEGIN_SRC ipython :ipyfile figure/zinb.org/simulation-latent-accuracy.png
+   #+BEGIN_SRC ipython :ipyfile figure/zinb.org/sim.png
+     exp_pass = np.logical_and(result['num_samples'] == 95, result['num_mols'] == 114026)
+     mu_pass = result['log_mu'] > -10
+     pi_pass = result['logodds'] < 0
+
+     plt.clf()
+     fig, ax = plt.subplots(2, 3)
+     fig.set_size_inches(8, 5)
+
+     subset = result.loc[np.logical_and.reduce(np.vstack([exp_pass, pi_pass]))]
+     ax[0, 0].scatter(subset['log_mu'], subset['log_mu_hat'], s=2, c='k')
+     ax[0, 0].plot(ax[0, 0].get_xlim(), ax[0, 0].get_xlim(), c='r', ls=':', lw=1)
+     ax[0, 0].set_xlabel('True $\ln(\mu)$')
+     ax[0, 0].set_ylabel('Estimated $\ln(\mu)$')
+
+     ax[1, 0].set_xscale('log')
+     ax[1, 0].set_yscale('log')
+     ax[1, 0].scatter(subset['latent_mean'], subset['latent_mean_hat'], s=2, c='k')
+     ax[1, 0].plot(ax[1, 0].get_xlim(), ax[1, 0].get_xlim(), c='r', ls=':', lw=1)
+     ax[1, 0].set_xlabel('True latent mean')
+     ax[1, 0].set_ylabel('Estimated latent mean')
+
+     subset = result.loc[np.logical_and.reduce(np.vstack([exp_pass, mu_pass, pi_pass]))]
+     ax[0, 1].scatter(subset['log_phi'], subset['log_phi_hat'], s=2, c='k')
+     ax[0, 1].plot(ax[0, 1].get_xlim(), ax[0, 1].get_xlim(), c='r', ls=':', lw=1)
+     ax[0, 1].set_xlabel('True $\ln(\phi)$')
+     ax[0, 1].set_ylabel('Estimated $\ln(\phi)$')
+
+     ax[1, 1].set_xscale('log')
+     ax[1, 1].set_yscale('log')
+     ax[1, 1].scatter(subset['latent_var'], subset['latent_var_hat'], s=2, c='k')
+     ax[1, 1].plot(ax[1, 1].get_xlim(), ax[1, 1].get_xlim(), c='r', ls=':', lw=1)
+     ax[1, 1].set_xlabel('True latent variance')
+     ax[1, 1].set_ylabel('Estimated latent variance')
+
+     subset = result.loc[exp_pass]
+     ax[0, 2].scatter(subset['logodds'], subset['logodds_hat'], s=2, c='k')
+     ax[0, 2].plot(ax[0, 2].get_xlim(), ax[0, 2].get_xlim(), c='r', ls=':', lw=1)
+     ax[0, 2].set_xlabel('True $\mathrm{logit}(\pi)$')
+     ax[0, 2].set_ylabel('Estimated $\mathrm{logit}(\pi)$')
+
+     ax[1, 2].set_axis_off()
+     fig.tight_layout()
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[69]:
+   [[file:figure/zinb.org/sim.png]]
+   :END:
+
+   Plot the accuracy of estimated latent mean and variance as a function of
+   number of molecules, holding the number of cells fixed at the median value
+   in the real data.
+
+   #+BEGIN_SRC ipython :ipyfile figure/zinb.org/simulation-latent-accuracy-vs-mols.png
      plt.clf()
      fig, ax = plt.subplots(3, 2)
      fig.set_size_inches(6, 9)
 
-     for i, (k, g) in enumerate(result.groupby('num_samples')):
+     for i, (k, g) in enumerate(result.loc[result['num_samples'] == 95].groupby('num_mols')):
        mu_pass = g['log_mu'] > -10
        pi_pass = g['logodds'] < 0
+       subset = g.loc[pi_pass]
+       ax[i, 0].semilogx()
+       ax[i, 0].semilogy()
+       ax[i, 0].scatter(subset['latent_mean'], subset['latent_mean_hat'], s=2, c='k')
+       ax[i, 0].plot(ax[i, 0].get_xlim(), ax[i, 0].get_xlim(), c='r', ls=':', lw=1)
+       ax[i, 0].set_xlabel('True expression mean')
+       ax[i, 0].set_ylabel('Estimated expression mean')
+       ax[i, 0].set_title('Molecules $= {}$'.format(k))
+
        subset = g.loc[functools.reduce(np.logical_and, [mu_pass, pi_pass])]
+       ax[i, 1].semilogx()
+       ax[i, 1].semilogy()
+       ax[i, 1].scatter(subset['latent_var'], subset['latent_var_hat'], s=2, c='k')
+       ax[i, 1].plot(ax[i, 1].get_xlim(), ax[i, 1].get_xlim(), c='r', ls=':', lw=1)
+       ax[i, 1].set_xlabel('True expression variance')
+       ax[i, 1].set_ylabel('Estimated expression variance')
+       ax[i, 1].set_title('Molecules $= {}$'.format(k))
+
+     fig.tight_layout()
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[72]:
+   [[file:figure/zinb.org/simulation-latent-accuracy-vs-mols.png]]
+   :END:
+
+   Plot the accuracy of estimated latent mean and variance as a function of
+   number of cells, holding the number of molecules fixed at the median value
+   in the real data.
+
+   #+BEGIN_SRC ipython :ipyfile figure/zinb.org/simulation-latent-accuracy-vs-cells.png
+     plt.clf()
+     fig, ax = plt.subplots(3, 2)
+     fig.set_size_inches(6, 9)
+
+     for i, (k, g) in enumerate(result.loc[result['num_mols'] == 114026].groupby('num_samples')):
+       mu_pass = g['log_mu'] > -10
+       pi_pass = g['logodds'] < 0
+       subset = g.loc[pi_pass]
        ax[i, 0].semilogx()
        ax[i, 0].semilogy()
        ax[i, 0].scatter(subset['latent_mean'], subset['latent_mean_hat'], s=2, c='k')
@@ -448,6 +544,9 @@
        ax[i, 0].set_ylabel('Estimated expression mean')
        ax[i, 0].set_title('$n = {}$'.format(k))
 
+       subset = g.loc[functools.reduce(np.logical_and, [mu_pass, pi_pass])]
+       ax[i, 1].semilogx()
+       ax[i, 1].semilogy()
        ax[i, 1].scatter(subset['latent_var'], subset['latent_var_hat'], s=2, c='k')
        ax[i, 1].plot(ax[i, 1].get_xlim(), ax[i, 1].get_xlim(), c='r', ls=':', lw=1)
        ax[i, 1].set_xlabel('True expression variance')
@@ -459,8 +558,8 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[127]:
-   [[file:figure/zinb.org/simulation-latent-accuracy.png]]
+   # Out[75]:
+   [[file:figure/zinb.org/simulation-latent-accuracy-vs-cells.png]]
    :END:
 
 ** Fit ZINB2
