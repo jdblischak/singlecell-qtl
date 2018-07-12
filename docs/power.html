@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-07-06 Fri 16:41 -->
+<!-- 2018-07-12 Thu 13:09 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Power to detect QTLs in single cell data</title>
@@ -266,8 +266,9 @@ for the JavaScript code in this tag.
 </li>
 <li><a href="#org72a81fe">QTL discovery</a></li>
 <li><a href="#org2936029">Distribution of effect sizes.</a></li>
+<li><a href="#orgeceda19">Compare experimental variance to biological variance</a></li>
 <li><a href="#orge79ccc3">Distribution of PVE</a></li>
-<li><a href="#org3ae6220">Estimate variance of experimental noise</a></li>
+<li><a href="#org1dbe35c">Estimate the error variance</a></li>
 </ul>
 </div>
 </div>
@@ -862,107 +863,8 @@ fig.tight_layout()
 <p><img src="figure/power.org/eqtl-power.png" alt="eqtl-power.png">
 </p>
 </div>
-
-<p>
-The single cell experiment size determines the standard error of the
-estimator, which can be thought of as measurement error.
-</p>
-
-<p>
-\[ \hat\theta \sim N(\theta, \sigma^2) \]
-</p>
-
-<p>
-This is the same as changing effective PVE:
-</p>
-
-<p>
-\[ h^2_{\mathrm{eff}} = \frac{h^2}{1 + \sigma^2} \]
-</p>
-
-<p>
-We estimate the standard error as a function of the experiment size from the
-simulation.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">sim_results</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/density-estimation/simulation.txt.gz'</span>, index_col=0)
-<span class="org-variable-name">sim_results</span>[<span class="org-string">'latent_mean'</span>] = np.exp(sim_results[<span class="org-string">'log_mu'</span>] - np.log1p(np.exp(sim_results[<span class="org-string">'logodds'</span>])))
-<span class="org-variable-name">sim_results</span>[<span class="org-string">'latent_mean_hat'</span>] = np.exp(sim_results[<span class="org-string">'log_mu_hat'</span>] - np.log1p(np.exp(sim_results[<span class="org-string">'logodds_hat'</span>])))
-<span class="org-variable-name">sim_results</span>[<span class="org-string">'latent_var'</span>] = np.exp(2 * sim_results[<span class="org-string">'log_mu'</span>] + sim_results[<span class="org-string">'log_phi'</span>] - np.log1p(np.exp(sim_results[<span class="org-string">'logodds'</span>]))) + np.exp(-np.log1p(np.exp(sim_results[<span class="org-string">'logodds'</span>])) - np.log1p(np.exp(-sim_results[<span class="org-string">'logodds'</span>])) + 2 * sim_results[<span class="org-string">'log_mu'</span>])
-<span class="org-variable-name">sim_results</span>[<span class="org-string">'latent_var_hat'</span>] = np.exp(2 * sim_results[<span class="org-string">'log_mu_hat'</span>] + sim_results[<span class="org-string">'log_phi_hat'</span>] - np.log1p(np.exp(sim_results[<span class="org-string">'logodds_hat'</span>]))) + np.exp(-np.log1p(np.exp(sim_results[<span class="org-string">'logodds_hat'</span>])) - np.log1p(np.exp(-sim_results[<span class="org-string">'logodds_hat'</span>])) + 2 * sim_results[<span class="org-string">'log_mu_hat'</span>])
-<span class="org-variable-name">mu_pass</span> = sim_results[<span class="org-string">'log_mu'</span>] &gt; -10
-<span class="org-variable-name">pi_pass</span> = sim_results[<span class="org-string">'logodds'</span>] &lt;= 0
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">data</span> = sim_results[np.logical_and(mu_pass, pi_pass)].groupby([<span class="org-string">'num_samples'</span>, <span class="org-string">'num_mols'</span>, <span class="org-string">'latent_mean'</span>, <span class="org-string">'latent_var'</span>])[[<span class="org-string">'latent_mean_hat'</span>, <span class="org-string">'latent_var_hat'</span>]].agg(np.var).reset_index()
-</pre>
-</div>
-
-<p>
-For \(x_1, \ldots, x_n \sim N(\mu, \sigma^2)\), we know:
-</p>
-
-<p>
-\[ \bar{x} \sim N(\mu, \sigma^2 / n) \]
-</p>
-
-<p>
-So a priori, we might expect the sampling variance of the single cell latent
-mean to decrease as \(1 / n\).
-</p>
-
-<p>
-Similarly, we know:
-</p>
-
-<p>
-\[ (n - 1)S^2 / \sigma^2 \sim \chi^2(n - 1) \]
-</p>
-
-<p>
-Therefore,
-</p>
-
-<p>
-\[ V[S^2] = 2 (n - 1) sigma^2 / (n - 1)^2 \]
-</p>
-
-<p>
-And a priori, we might also expect the sampling variance of the single cell
-latent variance to decrease as \(1 / n\).
-</p>
-
-<p>
-From the parametric simulation, we can estimate these relationships directly
-by fitting multiplicative models.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">import</span> sklearn.linear_model <span class="org-keyword">as</span> sklm
-sklm.LinearRegression(fit_intercept=<span class="org-constant">True</span>).fit(np.log(data[[<span class="org-string">'num_samples'</span>, <span class="org-string">'num_mols'</span>, <span class="org-string">'latent_mean'</span>, <span class="org-string">'latent_var'</span>]]), np.log(data[<span class="org-string">'latent_mean_hat'</span>])).coef_
-</pre>
-</div>
-
-<pre class="example">
-array([-1.01562829, -0.04897658, -0.04425812,  0.99885962])
-
-</pre>
-
-<div class="org-src-container">
-<pre class="src src-ipython">sklm.LinearRegression(fit_intercept=<span class="org-constant">True</span>).fit(np.log(data[[<span class="org-string">'num_samples'</span>, <span class="org-string">'num_mols'</span>, <span class="org-string">'latent_mean'</span>, <span class="org-string">'latent_var'</span>]]), np.log(data[<span class="org-string">'latent_var_hat'</span>])).coef_
-</pre>
-</div>
-
-<pre class="example">
-array([-0.98575702, -0.16010728,  0.1920178 ,  1.895286  ])
-
-</pre>
 </div>
 </div>
-
 
 <div id="outline-container-org2936029" class="outline-2">
 <h2 id="org2936029">Distribution of effect sizes.</h2>
@@ -1037,15 +939,20 @@ result.to_csv(out, sep=<span class="org-string">'\t'</span>, compression=<span c
 <span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
 <span class="org-builtin">source</span> activate scqtl
 python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /scratch/midway2/aksarkar/singlecell/scqtl-mapping/log_phi.bed.gz --out log_phi.txt.gz
-python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/log_mu.bed.gz --cov /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/log_mu-covars.txt --out log_mu.txt.gz
+python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/mean.bed.gz --cov /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/mean-covars.txt --out mean.txt.gz
 python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/bulk.bed.gz --cov /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/bulk-covars.txt --out bulk.txt.gz
 </pre>
 </div>
 
 <pre class="example">
-Submitted batch job 46516912
+Submitted batch job 47404147
 
 </pre>
+
+<div class="org-src-container">
+<pre class="src src-sh">rsync -au /scratch/midway2/aksarkar/singlecell/power/ /project2/mstephens/aksarkar/projects/singlecell-qtl/data/power/
+</pre>
+</div>
 
 <p>
 Compare standard error computations.
@@ -1152,7 +1059,7 @@ Fit <code>ash</code>.
 
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-variable-name">ash_results</span> = {x: fit_ash(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/{}.txt.gz'</span>.<span class="org-builtin">format</span>(x))
-               <span class="org-keyword">for</span> x <span class="org-keyword">in</span> (<span class="org-string">'log_phi'</span>, <span class="org-string">'log_mu'</span>, <span class="org-string">'bulk'</span>)}
+               <span class="org-keyword">for</span> x <span class="org-keyword">in</span> (<span class="org-string">'log_phi'</span>, <span class="org-string">'mean'</span>, <span class="org-string">'bulk'</span>)}
 </pre>
 </div>
 
@@ -1184,7 +1091,7 @@ Plot the estimated distributions of effect sizes.
 <pre class="src src-ipython">plt.clf()
 plt.gcf().set_size_inches(3, 3)
 <span class="org-variable-name">grid</span> = np.linspace(-.5, .5, num=1000)
-<span class="org-keyword">for</span> k, c, l <span class="org-keyword">in</span> <span class="org-builtin">zip</span>(ash_results, [<span class="org-string">'r'</span>, <span class="org-string">'b'</span>, <span class="org-string">'k'</span>], [<span class="org-string">'Dispersion'</span>, <span class="org-string">'Abundance'</span>, <span class="org-string">'Bulk'</span>]):
+<span class="org-keyword">for</span> k, c, l <span class="org-keyword">in</span> <span class="org-builtin">zip</span>(ash_results, [<span class="org-string">'r'</span>, <span class="org-string">'b'</span>, <span class="org-string">'k'</span>], [<span class="org-string">'Dispersion'</span>, <span class="org-string">'Mean'</span>, <span class="org-string">'Bulk'</span>]):
   <span class="org-variable-name">y</span> = np.array(ashr.cdf_ash(ash_results[k], grid).rx2(<span class="org-string">'y'</span>)).ravel()
   plt.plot(grid, y, c=c, lw=1, label=l)
 plt.xlabel(<span class="org-string">'Effect size'</span>)
@@ -1217,7 +1124,7 @@ python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py 
 </div>
 
 <pre class="example">
-Submitted batch job 46548862
+Submitted batch job 47405002
 
 </pre>
 
@@ -1296,6 +1203,331 @@ CV         94.2       97.4      97.1  97.2  100
 </div>
 </div>
 
+<div id="outline-container-orgeceda19" class="outline-2">
+<h2 id="orgeceda19">Compare experimental variance to biological variance</h2>
+<div class="outline-text-2" id="text-orgeceda19">
+<p>
+Let \hat{\theta}<sub>i</sub> be an estimate of some phenotype \(\theta_i\). Assume:
+</p>
+
+<p>
+\[ \hat{\theta}_i = \theta_i + u_i \]
+</p>
+
+<p>
+where \(u_i\) is a random effect capturing experimental noise, finite
+sampling variance, and estimator sampling variance.
+</p>
+
+<p>
+Above, we estimated the scale of the finite sampling variance and estimator
+sampling variance. Here, we relate it to the genetic variance.
+</p>
+
+<p>
+Extract the genotypes and UMI counts.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython" id="org41df91d"><span class="org-keyword">def</span> <span class="org-function-name">parse_vcf_dosage</span>(record):
+  <span class="org-variable-name">geno</span> = [<span class="org-builtin">float</span>(g) <span class="org-keyword">for</span> g <span class="org-keyword">in</span> record[9:]]
+  <span class="org-keyword">return</span> pd.Series(geno)
+
+<span class="org-keyword">def</span> <span class="org-function-name">extract_geno</span>(qtls, dosages):
+  <span class="org-variable-name">header</span> = pd.read_table(dosages, skiprows=2, nrows=1, header=0).columns[9:]
+  <span class="org-variable-name">genotypes</span> = tabix.<span class="org-builtin">open</span>(dosages)
+  <span class="org-variable-name">X</span> = np.<span class="org-builtin">round</span>(
+    qtls
+    .<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: parse_vcf_dosage(<span class="org-builtin">next</span>(genotypes.query(x[<span class="org-string">'chr'</span>], <span class="org-builtin">int</span>(x[<span class="org-string">'var_start'</span>]) - 1, <span class="org-builtin">int</span>(x[<span class="org-string">'var_start'</span>])))), axis=1)
+    .rename(columns={i: ind <span class="org-keyword">for</span> i, ind <span class="org-keyword">in</span> <span class="org-builtin">enumerate</span>(header)}))
+  <span class="org-keyword">return</span> X
+
+<span class="org-keyword">def</span> <span class="org-function-name">extract_counts</span>(qtls, counts):
+  <span class="org-variable-name">X</span> = pd.concat(
+    [chunk.align(qtls, axis=<span class="org-string">'index'</span>, join=<span class="org-string">'inner'</span>)[0]
+     <span class="org-keyword">for</span> chunk <span class="org-keyword">in</span> pd.read_table(counts, index_col=0, chunksize=1000)])
+  <span class="org-keyword">return</span> X
+</pre>
+</div>
+
+<p>
+Read the data.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython" id="org3f753f8"><span class="org-variable-name">qtls</span> = (pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/mean.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
+        .sort_values(<span class="org-string">'p_beta'</span>)
+        .head(n=100))
+<span class="org-variable-name">annotations</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
+<span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
+</pre>
+</div>
+
+<p>
+Extract the subset we want.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython" id="orgb245336"><span class="org-variable-name">counts</span> = extract_counts(qtls, <span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>)
+<span class="org-variable-name">annotations</span> = annotations.loc[keep_samples.values.ravel()].reset_index(drop=<span class="org-constant">True</span>)
+<span class="org-variable-name">counts</span> = counts.loc[:,keep_samples.values.ravel()]
+<span class="org-variable-name">geno</span> = extract_geno(qtls, <span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz'</span>)
+<span class="org-variable-name">geno</span> = geno.loc[:,<span class="org-builtin">list</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>]))]
+</pre>
+</div>
+
+<p>
+Bootstrap the subset.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython" id="orgcbac39d"><span class="org-keyword">def</span> <span class="org-function-name">bootstrap</span>(counts, annotations):
+  <span class="org-variable-name">idx</span> = np.hstack({k: np.random.choice(g, size=<span class="org-builtin">len</span>(g))
+                   <span class="org-keyword">for</span> k, g <span class="org-keyword">in</span> annotations.groupby(<span class="org-string">'chip_id'</span>).groups.items()}.values())
+  <span class="org-keyword">return</span> counts.iloc[:,idx], annotations.iloc[idx]
+</pre>
+</div>
+
+<p>
+Recover the derived mean and variance.
+</p>
+
+<p>
+Partition the sum of squares.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">ss</span>(y):
+  <span class="org-keyword">return</span> np.square(y - y.mean()).<span class="org-builtin">sum</span>()
+
+<span class="org-keyword">def</span> <span class="org-function-name">partition</span>(x, y):
+  <span class="org-variable-name">total</span> = ss(y)
+  <span class="org-variable-name">within</span> = y.groupby(x.values).<span class="org-builtin">apply</span>(ss).<span class="org-builtin">sum</span>()
+  <span class="org-variable-name">between</span> = total - within
+  <span class="org-keyword">return</span> total, between, within
+
+<span class="org-variable-name">X</span>, <span class="org-variable-name">Y</span> = geno.align(mean_by_ind, join=<span class="org-string">'inner'</span>)
+<span class="org-variable-name">var_comps</span> = pd.DataFrame([partition(X.loc[i], Y.loc[i]) <span class="org-keyword">for</span> i <span class="org-keyword">in</span> Y.index])
+<span class="org-variable-name">var_comps.index</span> = X.index
+<span class="org-variable-name">var_comps.columns</span> = [<span class="org-string">'total'</span>, <span class="org-string">'between'</span>, <span class="org-string">'within'</span>]
+</pre>
+</div>
+
+<p>
+Look at the ANOVA for weak eQTLs.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">var_comps.tail()
+</pre>
+</div>
+
+<pre class="example">
+total       between        within
+gene
+ENSG00000163961  3.681769e-10  9.298483e-11  2.751920e-10
+ENSG00000151806  1.530030e-10  5.271346e-11  1.002895e-10
+ENSG00000116260  3.854593e-10  6.561917e-11  3.198401e-10
+ENSG00000109775  3.234854e-10  1.171794e-10  2.063060e-10
+ENSG00000164758  2.571498e-10  7.245402e-11  1.846958e-10
+</pre>
+
+<p>
+Compare against the estimated sampling variance from the simulation.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">data[np.logical_and(data[<span class="org-string">'num_samples'</span>] == 95, data[<span class="org-string">'num_mols'</span>] == 114026)][<span class="org-string">'latent_mean_hat'</span>].describe()
+</pre>
+</div>
+
+<pre class="example">
+count    8.000000e+01
+mean     9.264424e-09
+std      2.667586e-08
+min      1.169715e-11
+25%      1.685388e-10
+50%      9.926134e-10
+75%      4.742833e-09
+max      1.403023e-07
+Name: latent_mean_hat, dtype: float64
+</pre>
+
+<p>
+Estimate bootstrap SEs on a GPU.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython" id="org8c365f8">&lt;&lt;zinb-imports&gt;&gt;
+&lt;&lt;tf-imports&gt;&gt;
+<span class="org-keyword">import</span> tabix
+<span class="org-keyword">import</span> scipy.linalg <span class="org-keyword">as</span> sl
+
+&lt;&lt;tf-zinb-impl&gt;&gt;
+&lt;&lt;recode-impl&gt;&gt;
+&lt;&lt;extract-impl&gt;&gt;
+&lt;&lt;bootstrap-impl&gt;&gt;
+
+&lt;&lt;read-qtls&gt;&gt;
+&lt;&lt;extract-counts&gt;&gt;
+
+<span class="org-variable-name">results</span> = []
+<span class="org-keyword">for</span> trial <span class="org-keyword">in</span> <span class="org-builtin">range</span>(100):
+  <span class="org-variable-name">C</span>, <span class="org-variable-name">A</span> = bootstrap(counts, annotations)
+  <span class="org-variable-name">onehot</span> = recode(annotations, <span class="org-string">'chip_id'</span>)
+  <span class="org-variable-name">chip</span> = recode(annotations, <span class="org-string">'experiment'</span>)
+  <span class="org-variable-name">chip</span> -= chip.mean(axis=0)
+
+  results.append(fit(
+    umi=C.values.T.astype(np.float32),
+    onehot=onehot.astype(np.float32),
+    design=chip.astype(np.float32),
+    size_factor=annotations[<span class="org-string">'mol_hs'</span>].astype(np.float32).values.reshape(-1, 1),
+    learning_rate=5e-2,
+    max_epochs=4000))
+
+<span class="org-variable-name">estimates</span> = {
+  <span class="org-string">'mean'</span>: np.array([np.exp(r[0] - np.log1p(np.exp(r[2]))) <span class="org-keyword">for</span> r <span class="org-keyword">in</span> results]),
+  <span class="org-string">'disp'</span>: np.array([r[1] <span class="org-keyword">for</span> r <span class="org-keyword">in</span> results])
+}
+
+<span class="org-keyword">for</span> k <span class="org-keyword">in</span> estimates:
+  (pd.DataFrame(estimates[k].var(axis=0).T, columns=<span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>])), index=counts.index)
+   .to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/{}-se.txt.gz'</span>.<span class="org-builtin">format</span>(k), sep=<span class="org-string">'\t'</span>, compression=<span class="org-string">'gzip'</span>))
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-sh">sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --job-name=tf-zinb-se --out=tf-zinb-se.out
+<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
+<span class="org-builtin">source</span> activate scqtl
+python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb-se.py
+</pre>
+</div>
+
+<pre class="example">
+Submitted batch job 47382783
+
+</pre>
+
+<p>
+Read the results.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">mean_sampling_var</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/mean-se.txt.gz'</span>, index_col=0)
+<span class="org-variable-name">disp_sampling_var</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/disp-se.txt.gz'</span>, index_col=0)
+</pre>
+</div>
+
+<p>
+Estimate the reduction in effective PVE for eQTLs.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">S</span>, <span class="org-variable-name">M</span> = mean_sampling_var.align(mean_by_ind, join=<span class="org-string">'inner'</span>, axis=<span class="org-string">'index'</span>)
+pd.DataFrame({<span class="org-string">'prop'</span>: S.mean(axis=1) / M.var(axis=1), <span class="org-string">'factor'</span>: M.var(axis=1) / np.ma.masked_less((M.var(axis=1) - S.mean(axis=1)).values, 0)}).describe()
+</pre>
+</div>
+
+<pre class="example">
+factor        prop
+count  75.000000  100.000000
+mean    3.365234    0.698366
+std     4.746555    0.407146
+min     1.109361    0.098580
+25%     1.458076    0.380033
+50%     2.043664    0.626091
+75%     3.229525    0.978929
+max    34.946118    2.004026
+</pre>
+
+<p>
+Estimate how many more cells would be required so the median factor is 1.1.
+</p>
+
+<p>
+\[ (\sigma^2_y + \sigma^2_u) / \sigma^2_y \leq 1.1 \]
+</p>
+
+<p>
+\[ \sigma^2_u \leq .1 \sigma^2 y \]
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">(S.mean(axis=1) / (.1 * np.ma.masked_less((M.var(axis=1) - S.mean(axis=1)).values, 0))).describe()
+</pre>
+</div>
+
+<pre class="example">
+count     75.000000
+mean      23.652338
+std       47.465547
+min        1.093611
+25%        4.580756
+50%       10.436642
+75%       22.295255
+max      339.461176
+dtype: float64
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-ipython">(M.var(axis=1) / np.ma.masked_less((M.var(axis=1) - S.mean(axis=1) / 2.82).values, 0)).describe()
+</pre>
+</div>
+
+<pre class="example">
+count    100.000000
+mean       1.398247
+std        0.388211
+min        1.036224
+25%        1.155754
+50%        1.285377
+75%        1.531795
+max        3.455993
+dtype: float64
+</pre>
+
+<p>
+Do the same for dQTLs.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">S</span>, <span class="org-variable-name">M</span> = disp_sampling_var.align(log_phi, join=<span class="org-string">'inner'</span>, axis=<span class="org-string">'index'</span>)
+pd.DataFrame({<span class="org-string">'prop'</span>: S.mean(axis=1) / M.var(axis=1), <span class="org-string">'factor'</span>: M.var(axis=1) / np.ma.masked_less((M.var(axis=1) - S.mean(axis=1)).values, 0)}).describe()
+</pre>
+</div>
+
+<pre class="example">
+factor        prop
+count  92.000000  100.000000
+mean    2.346648    0.383063
+std     3.382984    0.342855
+min     1.041327    0.039686
+25%     1.117332    0.108174
+50%     1.281986    0.228490
+75%     1.914243    0.636540
+max    23.984483    1.541178
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-ipython">(S.mean(axis=1) / (.1 * np.ma.masked_less((M.var(axis=1) - S.mean(axis=1)).values, 0))).describe()
+</pre>
+</div>
+
+<pre class="example">
+count     92.000000
+mean      13.466479
+std       33.829841
+min        0.413266
+25%        1.173316
+50%        2.819856
+75%        9.142426
+max      229.844830
+dtype: float64
+</pre>
+</div>
+</div>
 <div id="outline-container-orge79ccc3" class="outline-2">
 <h2 id="orge79ccc3">Distribution of PVE</h2>
 <div class="outline-text-2" id="text-orge79ccc3">
@@ -1374,7 +1606,7 @@ python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/estimate-pve.py
 </div>
 
 <pre class="example">
-Submitted batch job 46541723
+Submitted batch job 47408762
 
 </pre>
 
@@ -1384,8 +1616,8 @@ Read the results.
 
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-variable-name">estimated_pve</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/estimated-pve.txt.gz'</span>, index_col=0)
-<span class="org-variable-name">estimated_pve.columns</span> = [<span class="org-string">'Bulk'</span>, <span class="org-string">'Abundance'</span>, <span class="org-string">'Dispersion'</span>]
-<span class="org-variable-name">estimated_pve</span> = estimated_pve[[<span class="org-string">'Dispersion'</span>, <span class="org-string">'Abundance'</span>, <span class="org-string">'Bulk'</span>]]
+<span class="org-variable-name">estimated_pve.columns</span> = [<span class="org-string">'Bulk'</span>, <span class="org-string">'Mean'</span>, <span class="org-string">'Dispersion'</span>]
+<span class="org-variable-name">estimated_pve</span> = estimated_pve[[<span class="org-string">'Dispersion'</span>, <span class="org-string">'Mean'</span>, <span class="org-string">'Bulk'</span>]]
 </pre>
 </div>
 
@@ -1422,7 +1654,7 @@ from the simulation.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython">(estimated_pve[<span class="org-string">'Abundance'</span>] / estimated_pve[<span class="org-string">'Bulk'</span>]).describe()  
+<pre class="src src-ipython">(estimated_pve[<span class="org-string">'Mean'</span>] / estimated_pve[<span class="org-string">'Bulk'</span>]).describe()  
 </pre>
 </div>
 
@@ -1451,7 +1683,7 @@ plt.fill_between(grid, f0(grid), color=<span class="org-string">'b'</span>, alph
 plt.plot(grid, f1(grid), c=<span class="org-string">'c'</span>, lw=1, label=<span class="org-string">'Bulk + noise'</span>)
 plt.fill_between(grid, f1(grid), color=<span class="org-string">'c'</span>, alpha=0.1)
 
-<span class="org-variable-name">f2</span> = st.gaussian_kde(estimated_pve[<span class="org-string">'Abundance'</span>].dropna())
+<span class="org-variable-name">f2</span> = st.gaussian_kde(estimated_pve[<span class="org-string">'Mean'</span>].dropna())
 plt.plot(grid, f2(grid), c=<span class="org-string">'k'</span>, lw=1, label=<span class="org-string">'SC'</span>)
 plt.fill_between(grid, f2(grid), color=<span class="org-string">'k'</span>, alpha=0.1)
 
@@ -1474,35 +1706,32 @@ Text(0,0.5,'Density')
 </div>
 
 <p>
-Estimate the quantiles of the distribution of dispersion PVE.
+Estimate the proportion of large effect dQTLs.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">import</span> scipy.integrate <span class="org-keyword">as</span> si
-<span class="org-variable-name">f</span> = st.gaussian_kde(estimated_pve[<span class="org-string">'Dispersion'</span>].dropna())
-<span class="org-variable-name">x</span> = np.linspace(0, 1, 1000)
-x[np.where(si.cumtrapz(f(x), x) &gt; 0.9)[0].<span class="org-builtin">min</span>()]
+<pre class="src src-ipython"><span class="org-variable-name">f</span> = st.gaussian_kde(estimated_pve[<span class="org-string">'Dispersion'</span>].dropna())
+si.quad(f, .01, 1)
 </pre>
 </div>
 
 <pre class="example">
-0.01001001001001001
+(0.06961646614211667, 4.412386762494795e-09)
 
 </pre>
 
 <p>
-Estimate the same for mean PVE
+Estimate the same for eQTLs.
 </p>
 
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-variable-name">f</span> = st.gaussian_kde(estimated_pve[<span class="org-string">'Bulk'</span>].dropna())
-<span class="org-variable-name">x</span> = np.linspace(0, 1, 1000)
-x[np.where(si.cumtrapz(f(x), x) &gt; 0.9)[0].<span class="org-builtin">min</span>()]
+si.quad(f, 0.01, 1)
 </pre>
 </div>
 
 <pre class="example">
-0.1041041041041041
+(0.7296000671917134, 1.95708035203864e-12)
 
 </pre>
 
@@ -1553,126 +1782,207 @@ Text(0,0.5,'Density')
 <p><img src="figure/power.org/ipsc-vs-dgn-pve.png" alt="ipsc-vs-dgn-pve.png">
 </p>
 </div>
-</div>
-</div>
-<div id="outline-container-org3ae6220" class="outline-2">
-<h2 id="org3ae6220">Estimate variance of experimental noise</h2>
-<div class="outline-text-2" id="text-org3ae6220">
-<p>
-Let \hat{\theta}<sub>i</sub> be an estimate of some phenotype \(\theta_i\). Assume:
-</p>
 
 <p>
-\[ \hat{\theta}_i = \theta_i + u_i \]
-</p>
-
-<p>
-where \(u_i\) is a random effect capturing experimental noise, finite
-sampling variance, and estimator sampling variance.
-</p>
-
-<p>
-We seek to estimate \(V[u_i]\), and how it relates to the number of cells and
-the number of molecules (sequencing depth). Importantly, we do not attempt to
-decompose it into its various components. This allows us to simply subsample
-to get the relationship.
-</p>
-
-<p>
-Extract the genotypes and UMI counts for the 14 vQTLs we found.
+Compute the expected power over the estimated distribution of PVE.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">parse_vcf_dosage</span>(record):
-  <span class="org-variable-name">geno</span> = [<span class="org-builtin">float</span>(g) <span class="org-keyword">for</span> g <span class="org-keyword">in</span> record[9:]]
-  <span class="org-keyword">return</span> pd.Series(geno)
-
-<span class="org-keyword">def</span> <span class="org-function-name">extract_geno</span>(qtls, dosages):
-  <span class="org-variable-name">header</span> = pd.read_table(dosages, skiprows=2, nrows=1, header=0).columns[9:]
-  <span class="org-variable-name">genotypes</span> = tabix.<span class="org-builtin">open</span>(dosages)
-  <span class="org-variable-name">X</span> = np.<span class="org-builtin">round</span>(
-    qtls
-    .<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: parse_vcf_dosage(<span class="org-builtin">next</span>(genotypes.query(x[<span class="org-string">'chr'</span>], <span class="org-builtin">int</span>(x[<span class="org-string">'var_start'</span>]) - 1, <span class="org-builtin">int</span>(x[<span class="org-string">'var_start'</span>])))), axis=1)
-    .rename(columns={i: ind <span class="org-keyword">for</span> i, ind <span class="org-keyword">in</span> <span class="org-builtin">enumerate</span>(header)}))
-  <span class="org-keyword">return</span> X
-
-<span class="org-keyword">def</span> <span class="org-function-name">extract_counts</span>(qtls, counts):
-  <span class="org-variable-name">X</span> = pd.concat(
-    [chunk.align(qtls, axis=<span class="org-string">'index'</span>, join=<span class="org-string">'inner'</span>)[0]
-     <span class="org-keyword">for</span> chunk <span class="org-keyword">in</span> pd.read_table(counts, index_col=0, chunksize=1000)])
-  <span class="org-keyword">return</span> X
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">average_power</span>(g, f):
+  <span class="org-variable-name">x</span> = g[<span class="org-string">'pve'</span>]
+  <span class="org-keyword">return</span> si.trapz(g[<span class="org-string">'power'</span>] * f(x), x)
 </pre>
 </div>
 
 <p>
-Read the data.
+Estimate the distribution of effective PVE by correcting for the median
+reduction in PVE (at the current experiment size), and then assuming a large
+enough experiment to only reduce effective PVE by 10%..
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">qtls</span> = (pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/variance.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
-        .sort_values(<span class="org-string">'p_beta'</span>)
-        .head(n=14))
-<span class="org-variable-name">annotations</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
-<span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
+<pre class="src src-ipython"><span class="org-variable-name">f</span> = st.gaussian_kde(.9 * estimated_pve[<span class="org-string">'Bulk'</span>].dropna())
 </pre>
 </div>
 
 <p>
-Extract the subset we want.
+Estimate the average power as a function of the number of individuals and
+number of causal variants.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">counts</span> = extract_counts(qtls, <span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>)
-<span class="org-variable-name">annotations</span> = annotations.loc[keep_samples.values.ravel()]
-<span class="org-variable-name">counts</span> = counts.loc[:,keep_samples.values.ravel()]
-<span class="org-variable-name">geno</span> = extract_geno(qtls, <span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz'</span>)
-<span class="org-variable-name">geno</span> = geno.loc[:,<span class="org-builtin">list</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>]))]
+<pre class="src src-ipython">(qtl_power.groupby([<span class="org-string">'num_individuals'</span>, <span class="org-string">'num_causal'</span>]).<span class="org-builtin">apply</span>(average_power, f=f)).reset_index()
+</pre>
+</div>
+
+<pre class="example">
+num_individuals  num_causal         0
+0               53        -1.0  0.067524
+1               53         1.0  0.078898
+2              100        -1.0  0.104900
+3              100         1.0  0.114457
+4              200        -1.0  0.152676
+5              200         1.0  0.201122
+6              300        -1.0  0.250451
+7              300         1.0  0.280708
+8              400        -1.0  0.276784
+9              400         1.0  0.303322
+</pre>
+
+<p>
+Repeat the analysis for dQTLs.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">(qtl_power.groupby([<span class="org-string">'num_individuals'</span>, <span class="org-string">'num_causal'</span>]).<span class="org-builtin">apply</span>(average_power, f=st.gaussian_kde(estimated_pve[<span class="org-string">'Dispersion'</span>].dropna() * .9 * 1.28))).reset_index()
+</pre>
+</div>
+
+<pre class="example">
+num_individuals  num_causal         0
+0               53        -1.0  0.008282
+1               53         1.0  0.007657
+2              100        -1.0  0.014693
+3              100         1.0  0.015392
+4              200        -1.0  0.016902
+5              200         1.0  0.018266
+6              300        -1.0  0.029801
+7              300         1.0  0.031696
+8              400        -1.0  0.030865
+9              400         1.0  0.037992
+</pre>
+</div>
+</div>
+
+<div id="outline-container-org1dbe35c" class="outline-2">
+<h2 id="org1dbe35c">Estimate the error variance</h2>
+<div class="outline-text-2" id="text-org1dbe35c">
+<p>
+The single cell experiment size determines the standard error of the
+estimator, which can be thought of as measurement error.
+</p>
+
+<p>
+\[ \hat\theta \sim N(\theta, \sigma^2) \]
+</p>
+
+<p>
+This is the same as changing effective PVE:
+</p>
+
+<p>
+\[ h^2_{\mathrm{eff}} = \frac{h^2}{1 + \sigma^2} \]
+</p>
+
+<p>
+We estimate the standard error as a function of the experiment size from the
+simulation.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">sim_results</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/density-estimation/simulation.txt.gz'</span>, index_col=0)
+<span class="org-variable-name">sim_results</span>[<span class="org-string">'latent_mean'</span>] = np.exp(sim_results[<span class="org-string">'log_mu'</span>] - np.log1p(np.exp(sim_results[<span class="org-string">'logodds'</span>])))
+<span class="org-variable-name">sim_results</span>[<span class="org-string">'latent_mean_hat'</span>] = np.exp(sim_results[<span class="org-string">'log_mu_hat'</span>] - np.log1p(np.exp(sim_results[<span class="org-string">'logodds_hat'</span>])))
+<span class="org-variable-name">sim_results</span>[<span class="org-string">'latent_var'</span>] = np.exp(2 * sim_results[<span class="org-string">'log_mu'</span>] + sim_results[<span class="org-string">'log_phi'</span>] - np.log1p(np.exp(sim_results[<span class="org-string">'logodds'</span>]))) + np.exp(-np.log1p(np.exp(sim_results[<span class="org-string">'logodds'</span>])) - np.log1p(np.exp(-sim_results[<span class="org-string">'logodds'</span>])) + 2 * sim_results[<span class="org-string">'log_mu'</span>])
+<span class="org-variable-name">sim_results</span>[<span class="org-string">'latent_var_hat'</span>] = np.exp(2 * sim_results[<span class="org-string">'log_mu_hat'</span>] + sim_results[<span class="org-string">'log_phi_hat'</span>] - np.log1p(np.exp(sim_results[<span class="org-string">'logodds_hat'</span>]))) + np.exp(-np.log1p(np.exp(sim_results[<span class="org-string">'logodds_hat'</span>])) - np.log1p(np.exp(-sim_results[<span class="org-string">'logodds_hat'</span>])) + 2 * sim_results[<span class="org-string">'log_mu_hat'</span>])
+<span class="org-variable-name">mu_pass</span> = sim_results[<span class="org-string">'log_mu'</span>] &gt; -10
+<span class="org-variable-name">pi_pass</span> = sim_results[<span class="org-string">'logodds'</span>] &lt;= 0
 </pre>
 </div>
 
 <p>
-To efficiently compute the estimates, we tile the counts, and use
-onehot-encoding to get different collections of cells.
+Restrict the analysis to \(\ln\mu > -10, \mathrm{logit}(\pi) < 0\), because
+this is the part of the parameter space we can reliably estimate in.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">onehot_chip_id</span> = recode(annotations, <span class="org-string">'chip_id'</span>)
-<span class="org-variable-name">onehot_geno</span> = np.concatenate([recode(geno.T, x) <span class="org-keyword">for</span> x <span class="org-keyword">in</span> geno.index], axis=-1)
+<pre class="src src-ipython"><span class="org-variable-name">data</span> = sim_results[np.logical_and(mu_pass, pi_pass)].groupby([<span class="org-string">'num_samples'</span>, <span class="org-string">'num_mols'</span>, <span class="org-string">'latent_mean'</span>, <span class="org-string">'latent_var'</span>])[[<span class="org-string">'latent_mean_hat'</span>, <span class="org-string">'latent_var_hat'</span>]].agg(np.var).reset_index()
+</pre>
+</div>
+
+<p>
+For \(x_1, \ldots, x_n \sim N(\mu, \sigma^2)\), we know:
+</p>
+
+<p>
+\[ \bar{x} \sim N(\mu, \sigma^2 / n) \]
+</p>
+
+<p>
+So a priori, we might expect the sampling variance of the single cell latent
+mean to decrease as \(1 / n\).
+</p>
+
+<p>
+Similarly, we know:
+</p>
+
+<p>
+\[ (n - 1)S^2 / \sigma^2 \sim \chi^2(n - 1) \]
+</p>
+
+<p>
+Therefore,
+</p>
+
+<p>
+\[ V[S^2] = 2 (n - 1) sigma^4 / (n - 1)^2 \]
+</p>
+
+<p>
+And a priori, we might also expect the sampling variance of the single cell
+latent variance to decrease as \(1 / n\).
+</p>
+
+<p>
+From the parametric simulation, we can estimate these relationships directly
+by fitting multiplicative models.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">mlm</span>(x, y):
+  <span class="org-variable-name">x</span> -= x.mean(axis=0)
+  <span class="org-variable-name">y</span> -= y.mean()
+  <span class="org-variable-name">beta</span> = np.linalg.pinv(x).dot(y)
+  <span class="org-variable-name">rss</span> = np.square(y - x.dot(beta)).<span class="org-builtin">sum</span>()
+  <span class="org-variable-name">sigma2</span> = rss / (y.shape[0] - 1)
+  <span class="org-variable-name">se</span> = np.sqrt(sigma2 / np.einsum(<span class="org-string">'ij,ij-&gt;j'</span>, x, x))
+  <span class="org-keyword">return</span> beta, se
+
+<span class="org-keyword">def</span> <span class="org-function-name">ci</span>(beta, se):
+  <span class="org-keyword">return</span> np.array([beta + 1.96 * se, beta - 1.96 * se]).reshape(2, -1).T
 </pre>
 </div>
 
 <div class="org-src-container">
-<pre class="src src-ipython">&lt;&lt;zinb-imports&gt;&gt;
-&lt;&lt;tf-imports&gt;&gt;
-&lt;&lt;power-imports&gt;&gt;
-&lt;&lt;tf-zinb-impl&gt;&gt;
-
-<span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
-<span class="org-variable-name">log_phi</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-phi.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
-<span class="org-variable-name">logodds</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
-<span class="org-variable-name">params</span> = pd.DataFrame({<span class="org-string">'log_mu'</span>: log_mu[<span class="org-string">'NA18507'</span>],
-                       <span class="org-string">'log_phi'</span>: log_phi[<span class="org-string">'NA18507'</span>],
-                       <span class="org-string">'logodds'</span>: logodds[<span class="org-string">'NA18507'</span>]},
-                      index=log_mu.index)
-<span class="org-variable-name">params</span> = params[params[<span class="org-string">'log_mu'</span>] &gt; -10]
-<span class="org-variable-name">n</span> = 100
-<span class="org-variable-name">umi</span> = pd.DataFrame([simulate(2 * n, size=1e5, log_mu=log_mu, log_phi=log_phi, logodds=logodds)[0][:,0]
-                    <span class="org-keyword">for</span> _, (log_mu, log_phi, logodds) <span class="org-keyword">in</span> params.iterrows() <span class="org-keyword">if</span> log_mu &gt; -10], index=params.index)
-<span class="org-variable-name">onehot</span> = np.zeros((2 * n, 2))
-<span class="org-variable-name">onehot</span>[:n,0] = 1
-<span class="org-variable-name">onehot</span>[n:,1] = 1
-<span class="org-variable-name">design</span> = np.zeros((2 * n, 1))
-<span class="org-variable-name">size_factor</span> = 1e5 * np.ones((2 * n, 1))
-<span class="org-variable-name">T</span>, <span class="org-variable-name">P</span> = lrt(umi, onehot, design, size_factor)
-pd.DataFrame({<span class="org-string">'chi2'</span>: T, <span class="org-string">'logp'</span>: P}, index=umi.index).to_csv(<span class="org-string">'null-calibration-p.txt.gz'</span>, sep=<span class="org-string">'\t'</span>, compression=<span class="org-string">'gzip'</span>)
+<pre class="src src-ipython">ci(*mlm(np.log(data[[<span class="org-string">'num_samples'</span>, <span class="org-string">'num_mols'</span>, <span class="org-string">'latent_mean'</span>, <span class="org-string">'latent_var'</span>]]), np.log(data[<span class="org-string">'latent_mean_hat'</span>])))
 </pre>
 </div>
+
+<pre class="example">
+array([[-0.9984868 , -1.03276978],
+[-0.01299114, -0.08496202],
+[-0.01580837, -0.07270787],
+[ 1.01267559,  0.98504366]])
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-ipython">ci(*mlm(np.log(data[[<span class="org-string">'num_samples'</span>, <span class="org-string">'num_mols'</span>, <span class="org-string">'latent_mean'</span>, <span class="org-string">'latent_var'</span>]]), np.log(data[<span class="org-string">'latent_var_hat'</span>])))
+</pre>
+</div>
+
+<pre class="example">
+array([[-0.94347526, -1.02803879],
+[-0.07134441, -0.24887015],
+[ 0.26219289,  0.12184272],
+[ 1.92936491,  1.86120709]])
+</pre>
 </div>
 </div>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-07-06 Fri 16:41</p>
+<p class="date">Created: 2018-07-12 Thu 13:09</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
