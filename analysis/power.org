@@ -27,7 +27,7 @@
   #+CALL: ipython3(memory="8G", venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 47356333
+  : Submitted batch job 47401086
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -39,7 +39,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[1]:
+  # Out[3]:
   :END:
 
   #+NAME: power-imports
@@ -51,6 +51,8 @@
     import rpy2.robjects.numpy2ri
     import rpy2.robjects.packages
     import rpy2.robjects.pandas2ri
+    import scipy.integrate as si
+    import scipy.linalg as sl
     import scipy.optimize as so
     import scipy.stats as st
     import tabix
@@ -63,7 +65,7 @@
 
   #+RESULTS: power-imports
   :RESULTS:
-  # Out[2]:
+  # Out[4]:
   :END:
 
 * Differential dispersion
@@ -623,7 +625,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[15]:
+  # Out[51]:
   :END:
 
   Plot the results.
@@ -744,12 +746,18 @@
     #!/bin/bash
     source activate scqtl
     python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /scratch/midway2/aksarkar/singlecell/scqtl-mapping/log_phi.bed.gz --out log_phi.txt.gz
-    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/log_mu.bed.gz --cov /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/log_mu-covars.txt --out log_mu.txt.gz
+    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/mean.bed.gz --cov /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/mean-covars.txt --out mean.txt.gz
     python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/bulk.bed.gz --cov /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/bulk-covars.txt --out bulk.txt.gz
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 46516912
+  : Submitted batch job 47404147
+
+  #+BEGIN_SRC sh
+    rsync -au /scratch/midway2/aksarkar/singlecell/power/ /project2/mstephens/aksarkar/projects/singlecell-qtl/data/power/
+  #+END_SRC
+
+  #+RESULTS:
 
   Compare standard error computations.
 
@@ -858,18 +866,19 @@
 
   #+RESULTS: downsample-impl
   :RESULTS:
-  # Out[3]:
+  # Out[56]:
   :END:
 
   Fit ~ash~.
 
-  #+BEGIN_SRC ipython
+  #+BEGIN_SRC ipython :async t
     ash_results = {x: fit_ash('/scratch/midway2/aksarkar/singlecell/power/{}.txt.gz'.format(x))
-                   for x in ('log_phi', 'log_mu', 'bulk')}
+                   for x in ('log_phi', 'mean', 'bulk')}
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
+  # Out[60]:
   :END:
 
   Serialize the results.
@@ -881,7 +890,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[39]:
+  # Out[62]:
   :END:
 
   Read the results.
@@ -902,7 +911,7 @@
     plt.clf()
     plt.gcf().set_size_inches(3, 3)
     grid = np.linspace(-.5, .5, num=1000)
-    for k, c, l in zip(ash_results, ['r', 'b', 'k'], ['Dispersion', 'Abundance', 'Bulk']):
+    for k, c, l in zip(ash_results, ['r', 'b', 'k'], ['Dispersion', 'Mean', 'Bulk']):
       y = np.array(ashr.cdf_ash(ash_results[k], grid).rx2('y')).ravel()
       plt.plot(grid, y, c=c, lw=1, label=l)
     plt.xlabel('Effect size')
@@ -911,7 +920,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[5]:
+  # Out[63]:
   : Text(0,0.5,'Cumulative density')
   [[file:figure/power.org/ash-fitted-g.png]]
   :END:
@@ -928,7 +937,7 @@
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 46548862
+  : Submitted batch job 47405002
 
   Fit ~mash~.
 
@@ -1015,6 +1024,360 @@
   #+END_EXAMPLE
   :END:
 
+* Compare experimental variance to biological variance
+
+  Let \hat{\theta}_i be an estimate of some phenotype \(\theta_i\). Assume:
+
+  \[ \hat{\theta}_i = \theta_i + u_i \]
+
+  where \(u_i\) is a random effect capturing experimental noise, finite
+  sampling variance, and estimator sampling variance.
+
+  Above, we estimated the scale of the finite sampling variance and estimator
+  sampling variance. Here, we relate it to the genetic variance.
+
+  #+CALL: recode-impl()
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[10]:
+  :END:
+
+  Extract the genotypes and UMI counts.
+
+  #+NAME: extract-impl
+  #+BEGIN_SRC ipython
+    def parse_vcf_dosage(record):
+      geno = [float(g) for g in record[9:]]
+      return pd.Series(geno)
+
+    def extract_geno(qtls, dosages):
+      header = pd.read_table(dosages, skiprows=2, nrows=1, header=0).columns[9:]
+      genotypes = tabix.open(dosages)
+      X = np.round(
+        qtls
+        .apply(lambda x: parse_vcf_dosage(next(genotypes.query(x['chr'], int(x['var_start']) - 1, int(x['var_start'])))), axis=1)
+        .rename(columns={i: ind for i, ind in enumerate(header)}))
+      return X
+
+    def extract_counts(qtls, counts):
+      X = pd.concat(
+        [chunk.align(qtls, axis='index', join='inner')[0]
+         for chunk in pd.read_table(counts, index_col=0, chunksize=1000)])
+      return X
+  #+END_SRC
+
+  #+RESULTS: extract-impl
+  :RESULTS:
+  # Out[4]:
+  :END:
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[4]:
+  :END:
+
+  Read the data.
+
+  #+NAME: read-qtls
+  #+BEGIN_SRC ipython
+    qtls = (pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/mean.txt.gz', sep=' ', index_col=0)
+            .sort_values('p_beta')
+            .head(n=100))
+    annotations = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
+    keep_samples = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
+  #+END_SRC
+
+  #+RESULTS: read-qtls
+  :RESULTS:
+  # Out[84]:
+  :END:
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[75]:
+  :END:
+
+  Extract the subset we want.
+
+  #+NAME: extract-counts
+  #+BEGIN_SRC ipython
+    counts = extract_counts(qtls, '/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz')
+    annotations = annotations.loc[keep_samples.values.ravel()].reset_index(drop=True)
+    counts = counts.loc[:,keep_samples.values.ravel()]
+    geno = extract_geno(qtls, '/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz')
+    geno = geno.loc[:,list(set(annotations['chip_id']))]
+  #+END_SRC
+
+  #+RESULTS: extract-counts
+  :RESULTS:
+  # Out[85]:
+  :END:
+
+  Bootstrap the subset.
+
+  #+NAME: bootstrap-impl
+  #+BEGIN_SRC ipython
+    def bootstrap(counts, annotations):
+      idx = np.hstack({k: np.random.choice(g, size=len(g))
+                       for k, g in annotations.groupby('chip_id').groups.items()}.values())
+      return counts.iloc[:,idx], annotations.iloc[idx]
+  #+END_SRC
+
+  #+RESULTS: bootstrap-impl
+  :RESULTS:
+  # Out[108]:
+  :END:
+
+  Recover the derived mean and variance.
+
+  #+CALL: point-gamma-moments()
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[6]:
+  :END:
+
+  Partition the sum of squares.
+
+  #+BEGIN_SRC ipython
+    def ss(y):
+      return np.square(y - y.mean()).sum()
+
+    def partition(x, y):
+      total = ss(y)
+      within = y.groupby(x.values).apply(ss).sum()
+      between = total - within
+      return total, between, within
+
+    X, Y = geno.align(mean_by_ind, join='inner')
+    var_comps = pd.DataFrame([partition(X.loc[i], Y.loc[i]) for i in Y.index])
+    var_comps.index = X.index
+    var_comps.columns = ['total', 'between', 'within']
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[95]:
+  :END:
+
+  Look at the ANOVA for weak eQTLs.
+
+  #+BEGIN_SRC ipython
+    var_comps.tail()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[102]:
+  #+BEGIN_EXAMPLE
+    total       between        within
+    gene
+    ENSG00000163961  3.681769e-10  9.298483e-11  2.751920e-10
+    ENSG00000151806  1.530030e-10  5.271346e-11  1.002895e-10
+    ENSG00000116260  3.854593e-10  6.561917e-11  3.198401e-10
+    ENSG00000109775  3.234854e-10  1.171794e-10  2.063060e-10
+    ENSG00000164758  2.571498e-10  7.245402e-11  1.846958e-10
+  #+END_EXAMPLE
+  :END:
+
+  Compare against the estimated sampling variance from the simulation.
+
+  #+BEGIN_SRC ipython
+    data[np.logical_and(data['num_samples'] == 95, data['num_mols'] == 114026)]['latent_mean_hat'].describe()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[105]:
+  #+BEGIN_EXAMPLE
+    count    8.000000e+01
+    mean     9.264424e-09
+    std      2.667586e-08
+    min      1.169715e-11
+    25%      1.685388e-10
+    50%      9.926134e-10
+    75%      4.742833e-09
+    max      1.403023e-07
+    Name: latent_mean_hat, dtype: float64
+  #+END_EXAMPLE
+  :END:
+
+  Estimate bootstrap SEs on a GPU.
+
+  #+NAME: tf-zinb.py
+  #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb-se.py
+    <<zinb-imports>>
+    <<tf-imports>>
+    import tabix
+    import scipy.linalg as sl
+
+    <<tf-zinb-impl>>
+    <<recode-impl>>
+    <<extract-impl>>
+    <<bootstrap-impl>>
+
+    <<read-qtls>>
+    <<extract-counts>>
+
+    results = []
+    for trial in range(100):
+      C, A = bootstrap(counts, annotations)
+      onehot = recode(annotations, 'chip_id')
+      chip = recode(annotations, 'experiment')
+      chip -= chip.mean(axis=0)
+
+      results.append(fit(
+        umi=C.values.T.astype(np.float32),
+        onehot=onehot.astype(np.float32),
+        design=chip.astype(np.float32),
+        size_factor=annotations['mol_hs'].astype(np.float32).values.reshape(-1, 1),
+        learning_rate=5e-2,
+        max_epochs=4000))
+
+    estimates = {
+      'mean': np.array([np.exp(r[0] - np.log1p(np.exp(r[2]))) for r in results]),
+      'disp': np.array([r[1] for r in results])
+    }
+
+    for k in estimates:
+      (pd.DataFrame(estimates[k].var(axis=0).T, columns=sorted(set(annotations['chip_id'])), index=counts.index)
+       .to_csv('/scratch/midway2/aksarkar/singlecell/power/{}-se.txt.gz'.format(k), sep='\t', compression='gzip'))
+  #+END_SRC
+
+  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/power
+    sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --job-name=tf-zinb-se --out=tf-zinb-se.out
+    #!/bin/bash
+    source activate scqtl
+    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb-se.py
+  #+END_SRC
+
+  #+RESULTS:
+  : Submitted batch job 47382783
+
+  Read the results.
+
+  #+BEGIN_SRC ipython
+    mean_sampling_var = pd.read_table('/scratch/midway2/aksarkar/singlecell/power/mean-se.txt.gz', index_col=0)
+    disp_sampling_var = pd.read_table('/scratch/midway2/aksarkar/singlecell/power/disp-se.txt.gz', index_col=0)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[5]:
+  :END:
+
+  Estimate the reduction in effective PVE for eQTLs.
+
+  #+BEGIN_SRC ipython
+    S, M = mean_sampling_var.align(mean_by_ind, join='inner', axis='index')
+    pd.DataFrame({'prop': S.mean(axis=1) / M.var(axis=1), 'factor': M.var(axis=1) / np.ma.masked_less((M.var(axis=1) - S.mean(axis=1)).values, 0)}).describe()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[41]:
+  #+BEGIN_EXAMPLE
+    factor        prop
+    count  75.000000  100.000000
+    mean    3.365234    0.698366
+    std     4.746555    0.407146
+    min     1.109361    0.098580
+    25%     1.458076    0.380033
+    50%     2.043664    0.626091
+    75%     3.229525    0.978929
+    max    34.946118    2.004026
+  #+END_EXAMPLE
+  :END:
+
+  Estimate how many more cells would be required so the median factor is 1.1.
+
+  \[ (\sigma^2_y + \sigma^2_u) / \sigma^2_y \leq 1.1 \]
+
+  \[ \sigma^2_u \leq .1 \sigma^2 y \]
+
+  #+BEGIN_SRC ipython
+    (S.mean(axis=1) / (.1 * np.ma.masked_less((M.var(axis=1) - S.mean(axis=1)).values, 0))).describe()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[42]:
+  #+BEGIN_EXAMPLE
+    count     75.000000
+    mean      23.652338
+    std       47.465547
+    min        1.093611
+    25%        4.580756
+    50%       10.436642
+    75%       22.295255
+    max      339.461176
+    dtype: float64
+  #+END_EXAMPLE
+  :END:
+
+  #+BEGIN_SRC ipython
+    (M.var(axis=1) / np.ma.masked_less((M.var(axis=1) - S.mean(axis=1) / 2.82).values, 0)).describe()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[43]:
+  #+BEGIN_EXAMPLE
+    count    100.000000
+    mean       1.398247
+    std        0.388211
+    min        1.036224
+    25%        1.155754
+    50%        1.285377
+    75%        1.531795
+    max        3.455993
+    dtype: float64
+  #+END_EXAMPLE
+  :END:
+
+  Do the same for dQTLs.
+
+  #+BEGIN_SRC ipython
+    S, M = disp_sampling_var.align(log_phi, join='inner', axis='index')
+    pd.DataFrame({'prop': S.mean(axis=1) / M.var(axis=1), 'factor': M.var(axis=1) / np.ma.masked_less((M.var(axis=1) - S.mean(axis=1)).values, 0)}).describe()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[44]:
+  #+BEGIN_EXAMPLE
+    factor        prop
+    count  92.000000  100.000000
+    mean    2.346648    0.383063
+    std     3.382984    0.342855
+    min     1.041327    0.039686
+    25%     1.117332    0.108174
+    50%     1.281986    0.228490
+    75%     1.914243    0.636540
+    max    23.984483    1.541178
+  #+END_EXAMPLE
+  :END:
+
+  #+BEGIN_SRC ipython
+    (S.mean(axis=1) / (.1 * np.ma.masked_less((M.var(axis=1) - S.mean(axis=1)).values, 0))).describe()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[45]:
+  #+BEGIN_EXAMPLE
+    count     92.000000
+    mean      13.466479
+    std       33.829841
+    min        0.413266
+    25%        1.173316
+    50%        2.819856
+    75%        9.142426
+    max      229.844830
+    dtype: float64
+  #+END_EXAMPLE
+  :END:
 * Distribution of PVE
 
   We can use shrunk marginal effect size estimates to bound the proportion of
@@ -1048,6 +1411,11 @@
       return pve.groupby(level=0).agg(max)
   #+END_SRC
 
+  #+RESULTS: get-pve-impl
+  :RESULTS:
+  # Out[64]:
+  :END:
+
   #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/estimate-pve.py
     <<power-imports>>
     <<downsample-impl>>
@@ -1074,19 +1442,19 @@
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 46541723
+  : Submitted batch job 47408762
 
   Read the results.
 
   #+BEGIN_SRC ipython
     estimated_pve = pd.read_table('/scratch/midway2/aksarkar/singlecell/power/estimated-pve.txt.gz', index_col=0)
-    estimated_pve.columns = ['Bulk', 'Abundance', 'Dispersion']
-    estimated_pve = estimated_pve[['Dispersion', 'Abundance', 'Bulk']]
+    estimated_pve.columns = ['Bulk', 'Mean', 'Dispersion']
+    estimated_pve = estimated_pve[['Dispersion', 'Mean', 'Bulk']]
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[6]:
+  # Out[67]:
   :END:
 
   #+BEGIN_SRC ipython :ipyfile figure/power.org/estimated-pve.png
@@ -1107,7 +1475,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[55]:
+  # Out[68]:
   : Text(0,0.5,'Density')
   [[file:figure/power.org/estimated-pve.png]]
   :END:
@@ -1116,7 +1484,7 @@
   from the simulation.
 
   #+BEGIN_SRC ipython
-    (estimated_pve['Abundance'] / estimated_pve['Bulk']).describe()  
+    (estimated_pve['Mean'] / estimated_pve['Bulk']).describe()  
   #+END_SRC
 
   #+RESULTS:
@@ -1148,7 +1516,7 @@
     plt.plot(grid, f1(grid), c='c', lw=1, label='Bulk + noise')
     plt.fill_between(grid, f1(grid), color='c', alpha=0.1)
 
-    f2 = st.gaussian_kde(estimated_pve['Abundance'].dropna())
+    f2 = st.gaussian_kde(estimated_pve['Mean'].dropna())
     plt.plot(grid, f2(grid), c='k', lw=1, label='SC')
     plt.fill_between(grid, f2(grid), color='k', alpha=0.1)
 
@@ -1166,33 +1534,30 @@
   [[file:figure/power.org/effective-pve.png]]
   :END:
 
-  Estimate the quantiles of the distribution of dispersion PVE.
+  Estimate the proportion of large effect dQTLs.
 
   #+BEGIN_SRC ipython
-    import scipy.integrate as si
     f = st.gaussian_kde(estimated_pve['Dispersion'].dropna())
-    x = np.linspace(0, 1, 1000)
-    x[np.where(si.cumtrapz(f(x), x) > 0.9)[0].min()]
+    si.quad(f, .01, 1)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[4]:
-  : 0.01001001001001001
+  # Out[84]:
+  : (0.06961646614211667, 4.412386762494795e-09)
   :END:
 
-  Estimate the same for mean PVE
+  Estimate the same for eQTLs.
 
   #+BEGIN_SRC ipython
     f = st.gaussian_kde(estimated_pve['Bulk'].dropna())
-    x = np.linspace(0, 1, 1000)
-    x[np.where(si.cumtrapz(f(x), x) > 0.9)[0].min()]
+    si.quad(f, 0.01, 1)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[6]:
-  : 0.1041041041041041
+  # Out[85]:
+  : (0.7296000671917134, 1.95708035203864e-12)
   :END:
 
   Compare the distribution of PVE for iPSCs against DGN whole blood ([[http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1006423][Wheeler et
@@ -1240,6 +1605,82 @@
   : Text(0,0.5,'Density')
   [[file:figure/power.org/ipsc-vs-dgn-pve.png]]
   :END:
+
+  Compute the expected power over the estimated distribution of PVE.
+
+  #+BEGIN_SRC ipython
+    def average_power(g, f):
+      x = g['pve']
+      return si.trapz(g['power'] * f(x), x)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[46]:
+  :END:
+
+  Estimate the distribution of effective PVE by correcting for the median
+  reduction in PVE (at the current experiment size), and then assuming a large
+  enough experiment to only reduce effective PVE by 10%..
+
+  #+BEGIN_SRC ipython
+    f = st.gaussian_kde(.9 * estimated_pve['Bulk'].dropna())
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[49]:
+  :END:
+
+  Estimate the average power as a function of the number of individuals and
+  number of causal variants.
+
+  #+BEGIN_SRC ipython
+    (qtl_power.groupby(['num_individuals', 'num_causal']).apply(average_power, f=f)).reset_index()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[52]:
+  #+BEGIN_EXAMPLE
+    num_individuals  num_causal         0
+    0               53        -1.0  0.067524
+    1               53         1.0  0.078898
+    2              100        -1.0  0.104900
+    3              100         1.0  0.114457
+    4              200        -1.0  0.152676
+    5              200         1.0  0.201122
+    6              300        -1.0  0.250451
+    7              300         1.0  0.280708
+    8              400        -1.0  0.276784
+    9              400         1.0  0.303322
+  #+END_EXAMPLE
+  :END:
+
+  Repeat the analysis for dQTLs.
+
+  #+BEGIN_SRC ipython
+    (qtl_power.groupby(['num_individuals', 'num_causal']).apply(average_power, f=st.gaussian_kde(estimated_pve['Dispersion'].dropna() * .9 * 1.28))).reset_index()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[54]:
+  #+BEGIN_EXAMPLE
+    num_individuals  num_causal         0
+    0               53        -1.0  0.008282
+    1               53         1.0  0.007657
+    2              100        -1.0  0.014693
+    3              100         1.0  0.015392
+    4              200        -1.0  0.016902
+    5              200         1.0  0.018266
+    6              300        -1.0  0.029801
+    7              300         1.0  0.031696
+    8              400        -1.0  0.030865
+    9              400         1.0  0.037992
+  #+END_EXAMPLE
+  :END:
+
 * Estimate the error variance
 
   The single cell experiment size determines the standard error of the
@@ -1351,153 +1792,3 @@
   #+END_EXAMPLE
   :END:
 
-* Compare experimental variance to biological variance
-
-  Let \hat{\theta}_i be an estimate of some phenotype \(\theta_i\). Assume:
-
-  \[ \hat{\theta}_i = \theta_i + u_i \]
-
-  where \(u_i\) is a random effect capturing experimental noise, finite
-  sampling variance, and estimator sampling variance.
-
-  Above, we estimated the scale of the finite sampling variance and estimator
-  sampling variance. Here, we relate it to the genetic variance.
-
-  #+CALL: recode-impl()
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[3]:
-  :END:
-
-  Extract the genotypes and UMI counts.
-
-  #+BEGIN_SRC ipython
-    def parse_vcf_dosage(record):
-      geno = [float(g) for g in record[9:]]
-      return pd.Series(geno)
-
-    def extract_geno(qtls, dosages):
-      header = pd.read_table(dosages, skiprows=2, nrows=1, header=0).columns[9:]
-      genotypes = tabix.open(dosages)
-      X = np.round(
-        qtls
-        .apply(lambda x: parse_vcf_dosage(next(genotypes.query(x['chr'], int(x['var_start']) - 1, int(x['var_start'])))), axis=1)
-        .rename(columns={i: ind for i, ind in enumerate(header)}))
-      return X
-
-    def extract_counts(qtls, counts):
-      X = pd.concat(
-        [chunk.align(qtls, axis='index', join='inner')[0]
-         for chunk in pd.read_table(counts, index_col=0, chunksize=1000)])
-      return X
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[4]:
-  :END:
-
-  Read the data.
-
-  #+BEGIN_SRC ipython
-    qtls = (pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/mean.txt.gz', sep=' ', index_col=0)
-            .sort_values('p_beta')
-            .head(n=100))
-    annotations = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
-    keep_samples = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[75]:
-  :END:
-
-  Extract the subset we want.
-
-  #+BEGIN_SRC ipython
-    counts = extract_counts(qtls, '/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz')
-    annotations = annotations.loc[keep_samples.values.ravel()]
-    counts = counts.loc[:,keep_samples.values.ravel()]
-    geno = extract_geno(qtls, '/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz')
-    geno = geno.loc[:,list(set(annotations['chip_id']))]
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[76]:
-  :END:
-
-  Read the parameters.
-
-  #+CALL: point-gamma-moments()
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[8]:
-  :END:
-
-  Partition the sum of squares.
-
-  #+BEGIN_SRC ipython
-    def ss(y):
-      return np.square(y - y.mean()).sum()
-
-    def partition(x, y):
-      total = ss(y)
-      within = y.groupby(x.values).apply(ss).sum()
-      between = total - within
-      return total, between, within
-
-    X, Y = geno.align(mean_by_ind, join='inner')
-    var_comps = pd.DataFrame([partition(X.loc[i], Y.loc[i]) for i in Y.index])
-    var_comps.index = X.index
-    var_comps.columns = ['total', 'between', 'within']
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[95]:
-  :END:
-
-  Look at the ANOVA for weak eQTLs.
-
-  #+BEGIN_SRC ipython
-    var_comps.tail()
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[102]:
-  #+BEGIN_EXAMPLE
-    total       between        within
-    gene
-    ENSG00000163961  3.681769e-10  9.298483e-11  2.751920e-10
-    ENSG00000151806  1.530030e-10  5.271346e-11  1.002895e-10
-    ENSG00000116260  3.854593e-10  6.561917e-11  3.198401e-10
-    ENSG00000109775  3.234854e-10  1.171794e-10  2.063060e-10
-    ENSG00000164758  2.571498e-10  7.245402e-11  1.846958e-10
-  #+END_EXAMPLE
-  :END:
-
-  Compare against the estimated sampling variance from the simulation.
-
-  #+BEGIN_SRC ipython
-    data[np.logical_and(data['num_samples'] == 95, data['num_mols'] == 114026)]['latent_mean_hat'].describe()
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[105]:
-  #+BEGIN_EXAMPLE
-    count    8.000000e+01
-    mean     9.264424e-09
-    std      2.667586e-08
-    min      1.169715e-11
-    25%      1.685388e-10
-    50%      9.926134e-10
-    75%      4.742833e-09
-    max      1.403023e-07
-    Name: latent_mean_hat, dtype: float64
-  #+END_EXAMPLE
-  :END:
