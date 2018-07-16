@@ -27,7 +27,7 @@
   #+CALL: ipython3(memory="8G", venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 47401086
+  : Submitted batch job 47545464
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -39,7 +39,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[3]:
+  # Out[1]:
   :END:
 
   #+NAME: power-imports
@@ -65,7 +65,7 @@
 
   #+RESULTS: power-imports
   :RESULTS:
-  # Out[4]:
+  # Out[2]:
   :END:
 
 * Differential dispersion
@@ -753,6 +753,19 @@
   #+RESULTS:
   : Submitted batch job 47404147
 
+  Run nominal passes on residualized variance phenotypes.
+
+  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/power/
+    sbatch --partition=broadwl -n1 -c28 --exclusive --job-name=nominal --out nominal.out --time=60:00
+    #!/bin/bash
+    source activate scqtl
+    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /scratch/midway2/aksarkar/singlecell/scqtl-mapping/resid.bed.gz --cov /scratch/midway2/aksarkar/singlecell/scqtl-mapping/resid-covars.txt --out resid.txt.gz
+    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /scratch/midway2/aksarkar/singlecell/scqtl-mapping/cv_resid.bed.gz --out cv_resid.txt.gz
+  #+END_SRC
+
+  #+RESULTS:
+  : Submitted batch job 47484361
+
   #+BEGIN_SRC sh
     rsync -au /scratch/midway2/aksarkar/singlecell/power/ /project2/mstephens/aksarkar/projects/singlecell-qtl/data/power/
   #+END_SRC
@@ -866,19 +879,19 @@
 
   #+RESULTS: downsample-impl
   :RESULTS:
-  # Out[56]:
+  # Out[3]:
   :END:
 
   Fit ~ash~.
 
   #+BEGIN_SRC ipython :async t
     ash_results = {x: fit_ash('/scratch/midway2/aksarkar/singlecell/power/{}.txt.gz'.format(x))
-                   for x in ('log_phi', 'mean', 'bulk')}
+                   for x in ('log_phi', 'mean', 'bulk', 'resid', 'cv_resid')}
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[60]:
+  # Out[4]:
   :END:
 
   Serialize the results.
@@ -890,7 +903,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[62]:
+  # Out[6]:
   :END:
 
   Read the results.
@@ -902,7 +915,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[104]:
+  # Out[4]:
   :END:
 
   Plot the estimated distributions of effect sizes.
@@ -986,7 +999,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[5]:
+  # Out[34]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -1378,6 +1391,7 @@
     dtype: float64
   #+END_EXAMPLE
   :END:
+
 * Distribution of PVE
 
   We can use shrunk marginal effect size estimates to bound the proportion of
@@ -1406,14 +1420,14 @@
     def get_pve(summary_stats, ash_result):
       res = ashr.ash(summary_stats['beta'], summary_stats['se'], fixg=True,
                      g=ash_result.rx2('fitted_g'))
-      pve = np.square(pd.Series(np.square(ashr.get_sd(res)) + ashr.get_pm(res),
+      pve = np.square(pd.Series(np.square(ashr.get_psd(res)) + ashr.get_pm(res),
                                 index=summary_stats['gene']))
       return pve.groupby(level=0).agg(max)
   #+END_SRC
 
   #+RESULTS: get-pve-impl
   :RESULTS:
-  # Out[64]:
+  # Out[35]:
   :END:
 
   #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/estimate-pve.py
@@ -1425,7 +1439,7 @@
                  .groupby('gene')
                  .agg(lambda x: x.loc[x['beta'].idxmax()])
                  .reset_index())
-             for x in ('log_phi', 'log_mu', 'bulk')}
+             for x in ('log_phi', 'mean', 'bulk', 'resid', 'cv_resid')}
     # Munge gene names in bulk summary statistics
     stats['bulk']['gene'] = [x.split('.')[0] for x in stats['bulk']['gene']]
     with open('/scratch/midway2/aksarkar/singlecell/power/ash-results.pkl', 'rb') as f:
@@ -1442,19 +1456,19 @@
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 47408762
+  : Submitted batch job 47546035
 
   Read the results.
 
   #+BEGIN_SRC ipython
     estimated_pve = pd.read_table('/scratch/midway2/aksarkar/singlecell/power/estimated-pve.txt.gz', index_col=0)
-    estimated_pve.columns = ['Bulk', 'Mean', 'Dispersion']
-    estimated_pve = estimated_pve[['Dispersion', 'Mean', 'Bulk']]
+    estimated_pve.columns = ['Bulk', 'CV residual', 'Dispersion', 'Mean', 'Residual']
+    estimated_pve = estimated_pve[['Dispersion', 'Mean', 'Bulk', 'Residual', 'CV residual']]
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[67]:
+  # Out[7]:
   :END:
 
   #+BEGIN_SRC ipython :ipyfile figure/power.org/estimated-pve.png
@@ -1475,9 +1489,34 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[68]:
+  # Out[8]:
   : Text(0,0.5,'Density')
   [[file:figure/power.org/estimated-pve.png]]
+  :END:
+
+  Plot the PVE of vQTLs/CV-QTLs after regressing out the mean.
+
+  #+BEGIN_SRC ipython :ipyfile figure/power.org/residual-pve.png
+    plt.clf()
+    plt.gcf().set_size_inches(3, 3)
+    M = 0.1
+    grid = np.linspace(0, M, 100)
+    for k, c in zip(['Dispersion', 'Residual', 'CV residual'], ['r', 'purple', 'orange']):
+      f = st.gaussian_kde(estimated_pve[k].dropna())
+      plt.plot(grid, f(grid), c=c, lw=1, label=k)
+      plt.fill_between(grid, f(grid), color=c, alpha=0.1)
+    plt.legend(frameon=False)
+    plt.xlim(0, M)
+    plt.ylim(0, plt.ylim()[1])
+    plt.xlabel('Proportion of variance explained')
+    plt.ylabel('Log density')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[25]:
+  : Text(0,0.5,'Log density')
+  [[file:figure/power.org/residual-pve.png]]
   :END:
 
   Plot the expected density of mean expression PVE assuming measurement noise
