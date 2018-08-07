@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-07-12 Thu 13:09 -->
+<!-- 2018-07-16 Mon 12:42 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>QTL mapping pipeline</title>
@@ -1638,9 +1638,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-orgfb7230d" class="outline-3">
-<h3 id="orgfb7230d">Call variance-QTLs</h3>
-<div class="outline-text-3" id="text-orgfb7230d">
+<div id="outline-container-org66091a6" class="outline-3">
+<h3 id="org66091a6">Call variance-QTLs</h3>
+<div class="outline-text-3" id="text-org66091a6">
 <p>
 Normalize the variance matrix. Restrict to genes with \(\ln\mu > 0.5\) in at
 least half the individuals.
@@ -1746,9 +1746,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-org21118da" class="outline-3">
-<h3 id="org21118da">Call CV-QTLs</h3>
-<div class="outline-text-3" id="text-org21118da">
+<div id="outline-container-orga059a73" class="outline-3">
+<h3 id="orga059a73">Call CV-QTLs</h3>
+<div class="outline-text-3" id="text-orga059a73">
 <p>
 Estimate the coefficient of variation.
 </p>
@@ -1953,155 +1953,15 @@ Take QTLs at FDR 10%.
 </pre>
 </div>
 </div>
-
-<div id="outline-container-org28f3922" class="outline-3">
-<h3 id="org28f3922">Explain away variance-QTLs</h3>
-<div class="outline-text-3" id="text-org28f3922">
-<p>
-Regress out the (standardized) mean from the (standardized) variance. 
-</p>
-
-<p>
-This is a set of independent univariate regressions which can be done in
-parallel.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">M</span> = mean_by_ind.transform(<span class="org-keyword">lambda</span> x: (x - x.mean()) / x.std(), axis=1)
-<span class="org-variable-name">V</span> = variance_by_ind.transform(<span class="org-keyword">lambda</span> x: (x - x.mean()) / x.std(), axis=1)
-<span class="org-variable-name">beta</span> = (M * V).<span class="org-builtin">sum</span>(axis=1) / M.shape[1]
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython">np.square(beta).describe()
-</pre>
-</div>
-
-<pre class="example">
-count    9957.000000
-mean        0.962620
-std         0.000009
-min         0.961706
-25%         0.962620
-50%         0.962620
-75%         0.962620
-max         0.962620
-dtype: float64
-</pre>
-
-<p>
-Normalize the residual matrix.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">resid</span> = ((V - M.mul(beta, axis=<span class="org-string">'index'</span>))
-         .transform(<span class="org-keyword">lambda</span> x: (x - x.mean()) / x.std(), axis=1)
-         .<span class="org-builtin">apply</span>(qqnorm, axis=0))
-</pre>
-</div>
-
-<p>
-Compute principal components of the resid matrix.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">covars</span> = pd.DataFrame(skd.PCA(n_components=2).fit(resid).components_, columns=resid.columns)
-<span class="org-variable-name">covars.index.name</span> = <span class="org-string">'id'</span>
-covars.to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/resid-covars.txt'</span>, sep=<span class="org-string">'\t'</span>)
-</pre>
-</div>
-
-<p>
-Write out the <a href="https://qtltools.github.io/qtltools/pages/input_files.html">phenotype file</a> for <code>qtltools</code>.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">write_pheno_file(resid, gene_info, <span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/resid.bed'</span>, holdout=<span class="org-constant">False</span>)
-</pre>
-</div>
-
-<p>
-Index the phenotype file.
-</p>
-
-<pre class="example">
-Submitted batch job 47240125
-
-</pre>
-
-<p>
-Run <code>qtltools</code>.
-</p>
-
-<pre class="example">
-Submitted batch job 47240127
-
-</pre>
-
-<p>
-Read the output.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">resid_qtls</span> = read_qtltools_output(<span class="org-string">'scqtl-mapping/resid'</span>)
-</pre>
-</div>
-
-<p>
-Check the beta approximation to the permutation p-values.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">plot_approx_permutation(resid_qtls)
-</pre>
-</div>
-
-
-<div class="figure">
-<p><img src="figure/qtl-mapping.org/resid-qtl-beta-approx.png" alt="resid-qtl-beta-approx.png">
-</p>
-</div>
-
-<p>
-Plot a QQ plot of the adjusted p-values.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">qqplot(resid_qtls)
-</pre>
-</div>
-
-
-<div class="figure">
-<p><img src="figure/qtl-mapping.org/resid-qtl-qq.png" alt="resid-qtl-qq.png">
-</p>
-</div>
-
-<p>
-Take QTLs at FDR 10%.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">resid_qtls[<span class="org-string">'fdr_pass'</span>].<span class="org-builtin">sum</span>()
-</pre>
-</div>
-
-<pre class="example">
-221
-
-</pre>
-</div>
-</div>
 </div>
 
 <div id="outline-container-org0358668" class="outline-2">
 <h2 id="org0358668">Explain away variance QTLs</h2>
 <div class="outline-text-2" id="text-org0358668">
 </div>
-<div id="outline-container-org66091a6" class="outline-3">
-<h3 id="org66091a6">Call variance-QTLs</h3>
-<div class="outline-text-3" id="text-org66091a6">
+<div id="outline-container-org0b6f9c0" class="outline-3">
+<h3 id="org0b6f9c0">Call variance-QTLs</h3>
+<div class="outline-text-3" id="text-org0b6f9c0">
 <p>
 Regress out mean from variance.
 </p>
@@ -2149,7 +2009,7 @@ Index the phenotype file.
 </p>
 
 <pre class="example">
-Submitted batch job 47257336
+Submitted batch job 47483170
 
 </pre>
 
@@ -2158,7 +2018,7 @@ Run <code>qtltools</code>.
 </p>
 
 <pre class="example">
-Submitted batch job 47257338
+Submitted batch job 47483181
 
 </pre>
 
@@ -2217,9 +2077,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-orga059a73" class="outline-3">
-<h3 id="orga059a73">Call CV-QTLs</h3>
-<div class="outline-text-3" id="text-orga059a73">
+<div id="outline-container-org4b989f5" class="outline-3">
+<h3 id="org4b989f5">Call CV-QTLs</h3>
+<div class="outline-text-3" id="text-org4b989f5">
 <p>
 Estimate the coefficient of variation.
 </p>
@@ -2245,7 +2105,7 @@ Normalize the CV matrix.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">resid</span> = ((V - M.mul(beta, axis=<span class="org-string">'index'</span>))
+<pre class="src src-ipython"><span class="org-variable-name">cv_resid</span> = ((V - M.mul(beta, axis=<span class="org-string">'index'</span>))
             .transform(<span class="org-keyword">lambda</span> x: (x - x.mean()) / x.std(), axis=1)
             .<span class="org-builtin">apply</span>(qqnorm, axis=0))
 </pre>
@@ -2257,7 +2117,7 @@ optimizing the power to detect eQTLs.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython">write_pheno_file(resid, gene_info, <span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/resid.bed'</span>, holdout=<span class="org-constant">False</span>)
+<pre class="src src-ipython">write_pheno_file(cv_resid, gene_info, <span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/cv_resid.bed'</span>, holdout=<span class="org-constant">False</span>)
 </pre>
 </div>
 
@@ -2266,7 +2126,7 @@ Index the phenotype file.
 </p>
 
 <pre class="example">
-Submitted batch job 47432008
+Submitted batch job 47483587
 
 </pre>
 
@@ -2275,7 +2135,7 @@ Run <code>qtltools</code>.
 </p>
 
 <pre class="example">
-Submitted batch job 47432031
+Submitted batch job 47483612
 
 </pre>
 
@@ -2284,7 +2144,7 @@ Read the output.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">resid_qtls</span> = read_qtltools_output(<span class="org-string">'scqtl-mapping/resid'</span>)
+<pre class="src src-ipython"><span class="org-variable-name">cv_resid_qtls</span> = read_qtltools_output(<span class="org-string">'scqtl-mapping/cv_resid'</span>)
 </pre>
 </div>
 
@@ -2293,13 +2153,13 @@ Check the beta approximation to the permutation p-values.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython">plot_approx_permutation(resid_qtls)
+<pre class="src src-ipython">plot_approx_permutation(cv_resid_qtls)
 </pre>
 </div>
 
 
 <div class="figure">
-<p><img src="figure/qtl-mapping.org/resid-qtl-beta-approx.png" alt="resid-qtl-beta-approx.png">
+<p><img src="figure/qtl-mapping.org/cv_resid-qtl-beta-approx.png" alt="cv_resid-qtl-beta-approx.png">
 </p>
 </div>
 
@@ -2308,13 +2168,13 @@ Plot a QQ plot of the adjusted p-values.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython">qqplot(resid_qtls)
+<pre class="src src-ipython">qqplot(cv_resid_qtls)
 </pre>
 </div>
 
 
 <div class="figure">
-<p><img src="figure/qtl-mapping.org/resid-qtl-qq.png" alt="resid-qtl-qq.png">
+<p><img src="figure/qtl-mapping.org/cv_resid-qtl-qq.png" alt="cv_resid-qtl-qq.png">
 </p>
 </div>
 
@@ -2323,7 +2183,7 @@ Take QTLs at FDR 10%.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython">resid_qtls[<span class="org-string">'fdr_pass'</span>].<span class="org-builtin">sum</span>()
+<pre class="src src-ipython">cv_resid_qtls[<span class="org-string">'fdr_pass'</span>].<span class="org-builtin">sum</span>()
 </pre>
 </div>
 
@@ -2358,13 +2218,13 @@ cat &gt;.rsync-filter &lt;&lt;EOF
 <span class="org-sh-heredoc">EOF</span>
 <span class="org-keyword">function</span> <span class="org-function-name">z</span> { <span class="org-builtin">test</span> $<span class="org-variable-name">1</span>-qtl.1.txt -nt $<span class="org-variable-name">1</span>.txt.gz &amp;&amp; cat $<span class="org-variable-name">1</span>-qtl.*.txt | awk <span class="org-string">'BEGIN {print "gene", "chr", "start", "end", "strand", "num_vars", "distance", "id", "var_chr", "var_start", "var_end", "df", "dummy", "a", "b", "p_nominal", "beta", "p_empirical", "p_beta"} {print}'</span> | gzip &gt;$<span class="org-variable-name">1</span>.txt.gz; }
 <span class="org-builtin">export</span> -f z
-parallel -j1 z ::: cv fano mean variance
+parallel -j1 z ::: cv fano mean variance resid cv_resid
 rsync -FFau . /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/
 </pre>
 </div>
 
 <pre class="example">
-Submitted batch job 47411644
+Submitted batch job 47484078
 
 </pre>
 </div>
@@ -3261,7 +3121,7 @@ Extract the QTLs for the browser.
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-07-12 Thu 13:09</p>
+<p class="date">Created: 2018-07-16 Mon 12:42</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>

@@ -60,7 +60,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[1]:
+  # Out[28]:
   :END:
 
 * Implementation
@@ -83,7 +83,7 @@
 
   #+RESULTS: r-wrappers
   :RESULTS:
-  # Out[2]:
+  # Out[55]:
   :END:
 
   #+NAME: get-gene-info
@@ -98,7 +98,7 @@
 
   #+RESULTS: get-gene-info
   :RESULTS:
-  # Out[3]:
+  # Out[56]:
   :END:
 
   #+NAME: write-gene-info
@@ -147,7 +147,7 @@
 
   #+RESULTS: write-pheno-def
   :RESULTS:
-  # Out[4]:
+  # Out[57]:
   :END:
 
   #+NAME: tabix
@@ -217,7 +217,7 @@
 
   #+RESULTS: read-qtltools-def
   :RESULTS:
-  # Out[5]:
+  # Out[58]:
   :END:
 
   #+RESULTS:
@@ -238,7 +238,7 @@
 
   #+RESULTS: plot-approx-perm-def
   :RESULTS:
-  # Out[6]:
+  # Out[59]:
   :END:
 
   #+NAME: qqplot-def
@@ -261,7 +261,7 @@
 
   #+RESULTS: qqplot-def
   :RESULTS:
-  # Out[7]:
+  # Out[60]:
   :END:
 
   #+NAME: replication-tests-def
@@ -349,7 +349,7 @@
 
   #+RESULTS: replication-tests-def
   :RESULTS:
-  # Out[8]:
+  # Out[61]:
   :END:
 
   #+NAME: bootstrap-def
@@ -368,7 +368,7 @@
 
   #+RESULTS: bootstrap-def
   :RESULTS:
-  # Out[9]:
+  # Out[62]:
   :END:
 
   #+NAME: bootstrap-betahat-se-def
@@ -430,7 +430,7 @@
 
   #+RESULTS: bootstrap-betahat-se-def
   :RESULTS:
-  # Out[10]:
+  # Out[63]:
   :END:
 
 * Preliminaries
@@ -1889,7 +1889,7 @@
 
    #+RESULTS: point-gamma-moments
    :RESULTS:
-   # Out[101]:
+   # Out[52]:
    :END:
 
    Normalize the mean matrix analagous to the bulk data.
@@ -2001,7 +2001,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[78]:
+   # Out[64]:
    :END:
 
    Write out the phenotype file.
@@ -2012,7 +2012,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[79]:
+   # Out[65]:
    :END:
 
    Index the phenotype file.
@@ -2020,7 +2020,7 @@
    #+CALL: tabix(input="log_phi.bed") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
 
    #+RESULTS:
-   : Submitted batch job 46547240
+   : Submitted batch job 47553002
 
    Run ~qtltools~.
 
@@ -3014,7 +3014,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[27]:
+   # Out[26]:
    :END:
 
   Read covariates.

@@ -24,10 +24,10 @@
   #+RESULTS:
   : 16
 
-  #+CALL: ipython3(memory="8G", venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
+  #+CALL: ipython3(memory="32G", venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 47545464
+  : Submitted batch job 48220194
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -39,7 +39,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[1]:
+  # Out[2]:
   :END:
 
   #+NAME: power-imports
@@ -65,7 +65,7 @@
 
   #+RESULTS: power-imports
   :RESULTS:
-  # Out[2]:
+  # Out[3]:
   :END:
 
 * Differential dispersion
@@ -448,8 +448,6 @@
       records = list(vcf.query(row['#Chr'], row['start'] - window, row['start'] + window))
       if records:
         x = np.array([record[9:] for record in records]).astype(np.float).T
-        x -= x.mean(axis=0)
-        x /= x.std(axis=0)
         x = pd.DataFrame(x, columns=[record[2] for record in records])
         return x
       else:
@@ -548,7 +546,7 @@
 
   #+RESULTS: eqtl-sim-impl
   :RESULTS:
-  # Out[154]:
+  # Out[4]:
   :END:
 
   QC the GEUVADIS genotypes.
@@ -630,16 +628,6 @@
 
   Plot the results.
 
-  #+BEGIN_SRC ipython
-    colorcet.cm.keys()
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[23]:
-  : odict_keys(['cyclic_grey_15_85_c0', 'cyclic_grey_15_85_c0_r', 'cyclic_grey_15_85_c0_s25', 'cyclic_grey_15_85_c0_s25_r', 'cyclic_mrybm_35_75_c68', 'cyclic_mrybm_35_75_c68_r', 'cyclic_mrybm_35_75_c68_s25', 'cyclic_mrybm_35_75_c68_s25_r', 'cyclic_mygbm_30_95_c78', 'cyclic_mygbm_30_95_c78_r', 'cyclic_mygbm_30_95_c78_s25', 'cyclic_mygbm_30_95_c78_s25_r', 'colorwheel', 'colorwheel_r', 'cyclic_wrwbw_40_90_c42', 'cyclic_wrwbw_40_90_c42_r', 'cyclic_wrwbw_40_90_c42_s25', 'cyclic_wrwbw_40_90_c42_s25_r', 'diverging_isoluminant_cjm_75_c23', 'diverging_isoluminant_cjm_75_c23_r', 'diverging_isoluminant_cjm_75_c24', 'diverging_isoluminant_cjm_75_c24_r', 'diverging_isoluminant_cjo_70_c25', 'diverging_isoluminant_cjo_70_c25_r', 'diverging_linear_bjr_30_55_c53', 'diverging_linear_bjr_30_55_c53_r', 'diverging_linear_bjy_30_90_c45', 'diverging_linear_bjy_30_90_c45_r', 'bjy', 'bjy_r', 'diverging_rainbow_bgymr_45_85_c67', 'diverging_rainbow_bgymr_45_85_c67_r', 'diverging_bkr_55_10_c35', 'diverging_bkr_55_10_c35_r', 'bkr', 'bkr_r', 'diverging_bky_60_10_c30', 'diverging_bky_60_10_c30_r', 'bky', 'bky_r', 'diverging_bwr_40_95_c42', 'diverging_bwr_40_95_c42_r', 'coolwarm', 'coolwarm_r', 'diverging_bwr_55_98_c37', 'diverging_bwr_55_98_c37_r', 'diverging_cwm_80_100_c22', 'diverging_cwm_80_100_c22_r', 'diverging_gkr_60_10_c40', 'diverging_gkr_60_10_c40_r', 'diverging_gwr_55_95_c38', 'diverging_gwr_55_95_c38_r', 'diverging_gwv_55_95_c39', 'diverging_gwv_55_95_c39_r', 'gwv', 'gwv_r', 'isoluminant_cgo_70_c39', 'isoluminant_cgo_70_c39_r', 'isoluminant_cgo_80_c38', 'isoluminant_cgo_80_c38_r', 'isolum', 'isolum_r', 'isoluminant_cm_70_c39', 'isoluminant_cm_70_c39_r', 'linear_bgy_10_95_c74', 'linear_bgy_10_95_c74_r', 'bgy', 'bgy_r', 'linear_bgyw_15_100_c67', 'linear_bgyw_15_100_c67_r', 'linear_bgyw_15_100_c68', 'linear_bgyw_15_100_c68_r', 'bgyw', 'bgyw_r', 'linear_blue_5_95_c73', 'linear_blue_5_95_c73_r', 'kbc', 'kbc_r', 'linear_blue_95_50_c20', 'linear_blue_95_50_c20_r', 'blues', 'blues_r', 'linear_bmw_5_95_c86', 'linear_bmw_5_95_c86_r', 'linear_bmw_5_95_c89', 'linear_bmw_5_95_c89_r', 'bmw', 'bmw_r', 'linear_bmy_10_95_c71', 'linear_bmy_10_95_c71_r', 'linear_bmy_10_95_c78', 'linear_bmy_10_95_c78_r', 'inferno', 'inferno_r', 'linear_gow_60_85_c27', 'linear_gow_60_85_c27_r', 'linear_gow_65_90_c35', 'linear_gow_65_90_c35_r', 'linear_green_5_95_c69', 'linear_green_5_95_c69_r', 'kgy', 'kgy_r', 'linear_grey_0_100_c0', 'linear_grey_0_100_c0_r', 'gray', 'gray_r', 'linear_grey_10_95_c0', 'linear_grey_10_95_c0_r', 'dimgray', 'dimgray_r', 'linear_kry_5_95_c72', 'linear_kry_5_95_c72_r', 'linear_kry_5_98_c75', 'linear_kry_5_98_c75_r', 'linear_kryw_0_100_c71', 'linear_kryw_0_100_c71_r', 'fire', 'fire_r', 'linear_kryw_5_100_c64', 'linear_kryw_5_100_c64_r', 'linear_kryw_5_100_c67', 'linear_kryw_5_100_c67_r', 'linear_ternary_blue_0_44_c57', 'linear_ternary_blue_0_44_c57_r', 'kb', 'kb_r', 'linear_ternary_green_0_46_c42', 'linear_ternary_green_0_46_c42_r', 'kg', 'kg_r', 'linear_ternary_red_0_50_c52', 'linear_ternary_red_0_50_c52_r', 'kr', 'kr_r', 'rainbow_bgyr_35_85_c72', 'rainbow_bgyr_35_85_c72_r', 'rainbow_bgyr_35_85_c73', 'rainbow_bgyr_35_85_c73_r', 'rainbow', 'rainbow_r', 'rainbow_bgyrm_35_85_c69', 'rainbow_bgyrm_35_85_c69_r', 'rainbow_bgyrm_35_85_c71', 'rainbow_bgyrm_35_85_c71_r'])
-  :END:
-
   #+BEGIN_SRC ipython :ipyfile figure/power.org/eqtl-power.png
     plt.clf()
     fig, ax = plt.subplots(1, 2, sharey=True)
@@ -676,10 +664,8 @@
 
 * Distribution of effect sizes.
 
-  Use ~ash~ to estimate the distribution of true effect sizes, borrowing
-  information across genes.
-
-  We need to compute regression standard errors ourselves.
+  Use ~ash~ to estimate the distribution of true effect sizes across all
+  genes. We need to compute regression standard errors ourselves.
 
   #+NAME: nominal-pass-def
   #+BEGIN_SRC ipython
@@ -693,7 +679,10 @@
           x.index = header
           y = record
           x, y = x.align(y, axis='index', join='inner')
-          y = y.astype(float)
+          import pdb; pdb.set_trace()
+          x -= x.mean(axis=0)
+          x /= x.std(axis=0)
+          y = y.astype(float).values.reshape(-1, 1)
           if M is None and cov is not None:
             cov = cov.T.align(y, axis='index', join='inner')[0]
             C = np.array(cov - cov.mean(axis=0))
@@ -709,7 +698,7 @@
 
   #+RESULTS: nominal-pass-def
   :RESULTS:
-  # Out[24]:
+  # Out[35]:
   :END:
 
   #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py
@@ -742,35 +731,152 @@
   #+END_SRC
 
   #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/power/
-    sbatch --partition=broadwl -n1 -c28 --exclusive --job-name=nominal --out nominal.out --time=60:00
+    sbatch --partition=broadwl -a 1-7 -n1 -c28 --exclusive --job-name=nominal --out nominal.out --time=60:00
     #!/bin/bash
     source activate scqtl
-    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /scratch/midway2/aksarkar/singlecell/scqtl-mapping/log_phi.bed.gz --out log_phi.txt.gz
-    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/mean.bed.gz --cov /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/mean-covars.txt --out mean.txt.gz
-    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/bulk.bed.gz --cov /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/bulk-covars.txt --out bulk.txt.gz
+    tasks=(
+        "python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /scratch/midway2/aksarkar/singlecell/scqtl-mapping/log_phi.bed.gz --out log_phi.txt.gz"
+        "python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/mean.bed.gz --cov /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/mean-covars.txt --out mean.txt.gz"
+        "python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/bulk.bed.gz --cov /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/bulk-covars.txt --out bulk.txt.gz"
+        "python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /scratch/midway2/aksarkar/singlecell/scqtl-mapping/resid.bed.gz --cov /scratch/midway2/aksarkar/singlecell/scqtl-mapping/resid-covars.txt --out resid.txt.gz"
+        "python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /scratch/midway2/aksarkar/singlecell/scqtl-mapping/cv_resid.bed.gz --out cv_resid.txt.gz"
+        "python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /scratch/midway2/aksarkar/singlecell/scqtl-mapping/variance.bed.gz --cov /scratch/midway2/aksarkar/singlecell/scqtl-mapping/variance-covars.txt --out variance.txt.gz"
+        "python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/fano.bed.gz --out fano.txt.gz"
+        "python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/cv.bed.gz --out cv.txt.gz"
+    )
+    exec ${tasks[$SLURM_ARRAY_TASK_ID]}
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 47404147
-
-  Run nominal passes on residualized variance phenotypes.
-
-  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/power/
-    sbatch --partition=broadwl -n1 -c28 --exclusive --job-name=nominal --out nominal.out --time=60:00
-    #!/bin/bash
-    source activate scqtl
-    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /scratch/midway2/aksarkar/singlecell/scqtl-mapping/resid.bed.gz --cov /scratch/midway2/aksarkar/singlecell/scqtl-mapping/resid-covars.txt --out resid.txt.gz
-    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /scratch/midway2/aksarkar/singlecell/scqtl-mapping/cv_resid.bed.gz --out cv_resid.txt.gz
-  #+END_SRC
-
-  #+RESULTS:
-  : Submitted batch job 47484361
+  : Submitted batch job 47554516
 
   #+BEGIN_SRC sh
-    rsync -au /scratch/midway2/aksarkar/singlecell/power/ /project2/mstephens/aksarkar/projects/singlecell-qtl/data/power/
+    rsync -FFau /scratch/midway2/aksarkar/singlecell/power/ /project2/mstephens/aksarkar/projects/singlecell-qtl/data/power/
   #+END_SRC
 
   #+RESULTS:
+
+  Compare nominal passes.
+
+  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping/
+    zcat /scratch/midway2/aksarkar/singlecell/scqtl-mapping/variance.bed.gz | head -n100 | bgzip >test.bed.gz
+    tabix test.bed.gz
+  #+END_SRC
+
+  #+RESULTS:
+
+  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/power/
+    sbatch --partition=broadwl -a 0-1 --job-name=qtltools --out=qtltools.out --mem=8G
+    #!/bin/bash
+    source activate scqtl
+    tasks=(
+        "python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /scratch/midway2/aksarkar/singlecell/scqtl-mapping/test.bed.gz --out test0.txt.gz"
+        "qtltools cis --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --bed /scratch/midway2/aksarkar/singlecell/scqtl-mapping/test.bed.gz --nominal 1 --out test1.txt"
+    )
+    exec ${tasks[$SLURM_ARRAY_TASK_ID]}
+  #+END_SRC
+
+  #+RESULTS:
+  : Submitted batch job 48221006
+
+  #+BEGIN_SRC ipython
+    qtltools_nominal = pd.read_table('/scratch/midway2/aksarkar/singlecell/power/test1.txt', sep=' ', nrows=1000)
+    qtltools_nominal.columns = [
+      'gene', 'chr', 'start', 'end', 'strand', 'num_vars',
+      'distance', 'id', 'var_chr', 'var_start', 'var_end', 'p', 'beta', 'top']
+    my_nominal = pd.read_table('/scratch/midway2/aksarkar/singlecell/power/test0.txt.gz', sep='\t').rename(columns={'Unnamed: 0': 'id'})
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[23]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    my_nominal.reset_index().merge(qtltools_nominal, on=['id', 'gene'])[['id', 'beta_x', 'beta_y']]
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[15]:
+  #+BEGIN_EXAMPLE
+    id    beta_x    beta_y
+    0    rs142686126.chr1.794778  0.051682  0.216358
+    1      rs3131935.chr1.795414 -0.050426 -0.119040
+    2    rs146592146.chr1.795753  0.001788  0.006190
+    3    rs112896657.chr1.795824  0.051891  0.214589
+    4     rs59380221.chr1.795988  0.032952  0.074112
+    5     rs12132398.chr1.796100 -0.174481 -0.758004
+    6     rs12083781.chr1.796375  0.057476  0.147094
+    7      rs2980291.chr1.796511 -0.042158 -0.180669
+    8    rs115637794.chr1.796727 -0.076004 -0.168515
+    9     rs75932129.chr1.796767 -0.017476 -0.055272
+    10   rs116099766.chr1.797037  0.124858  0.613323
+    11    rs58013264.chr1.797440 -0.032593 -0.071501
+    12   rs115861588.chr1.797820  0.099642  0.382590
+    13     rs4951864.chr1.798026  0.002535  0.007094
+    14   rs138433656.chr1.798185  0.099495  0.380502
+    15    rs10900604.chr1.798400 -0.113678 -0.265585
+    16    rs11240777.chr1.798959 -0.114018 -0.266249
+    17   rs147406924.chr1.799079  0.154399  0.585582
+    18     rs4245756.chr1.799463 -0.065371 -0.211145
+    19    rs56737117.chr1.799770  0.154298  0.585004
+    20     rs6681049.chr1.800007 -0.032110 -0.098891
+    21     rs4951931.chr1.800383  0.072846  0.189145
+    22    rs61768212.chr1.801467 -0.029307 -0.063779
+    23     rs7516866.chr1.801943 -0.028939 -0.062082
+    24     rs7553084.chr1.801995 -0.001968 -0.004610
+    25     rs7553096.chr1.802026 -0.001366 -0.003171
+    26     rs7553197.chr1.802093  0.040481  0.115622
+    27    rs10157494.chr1.802496 -0.015210 -0.031884
+    28   rs143833712.chr1.803560  0.068789  0.289046
+    29    rs17080269.chr1.803582  0.068744  0.288917
+    ..                       ...       ...       ...
+    655    rs9697457.chr1.934345 -0.010590 -0.054242
+    656  rs113602214.chr1.935046  0.164753  0.414303
+    657    rs3128113.chr1.935459 -0.207823 -0.417954
+    658    rs3121571.chr1.935492 -0.207805 -0.417907
+    659  rs139298395.chr1.935659  0.029185  0.075963
+    660  rs116904365.chr1.935671 -0.037574 -0.079749
+    661    rs3128114.chr1.935715  0.043071  0.185346
+    662    rs3128115.chr1.935833 -0.041650 -0.084187
+    663    rs1936360.chr1.936111 -0.069018 -0.154572
+    664    rs3121570.chr1.936194  0.008492  0.017539
+    665    rs3121569.chr1.936210  0.065106  0.131308
+    666  rs114518990.chr1.936687  0.105122  0.850814
+    667   rs28615823.chr1.937250 -0.043994 -0.094377
+    668    rs2489000.chr1.937688  0.102750  0.245056
+    669  rs116316555.chr1.937778  0.082389  0.670716
+    670    rs2710869.chr1.938116  0.103067  0.245825
+    671    rs2710868.chr1.938125 -0.055675 -0.108116
+    672    rs2799058.chr1.938213  0.134820  0.295558
+    673    rs9697602.chr1.938220  0.132325  0.462519
+    674    rs4595317.chr1.938300 -0.093668 -0.206930
+    675  rs201843604.chr1.938709  0.166522  0.483151
+    676  rs200016087.chr1.939491  0.021671  0.106809
+    677  rs115139441.chr1.939813  0.128923  0.351112
+    678    rs2799056.chr1.940005  0.006854  0.012488
+    679    rs4503294.chr1.940096  0.054534  0.130647
+    680  rs200808990.chr1.940331  0.130108  0.354378
+    681   rs58913475.chr1.940809 -0.010181 -0.022233
+    682  rs114443588.chr1.941101  0.131836  0.359123
+    683   rs61703480.chr1.941137  0.095570  0.230451
+    684    rs3128116.chr1.941284 -0.010262 -0.022411
+
+    [685 rows x 3 columns]
+  #+END_EXAMPLE
+  :END:
+
+  ~qtltools~ appears to compute \(X' y\) on standardized \(X, y\), but then
+  reports \(\hat\beta\) on some other scale. Our implementation agrees with
+  ~numpy.linalg.lstsq~ on standardized data.
+
+  #+BEGIN_SRC c++ :eval never
+    inline double cis_data::getSlope(double nominal_correlation, double gsd, double psd) {
+            if (gsd < 1e-16 || psd < 1e-16) return 0;
+            else return nominal_correlation * psd / gsd;
+    }
+  #+END_SRC
 
   Compare standard error computations.
 
@@ -813,18 +919,6 @@
   #+RESULTS:
   :RESULTS:
   # Out[57]:
-  :END:
-
-  #+BEGIN_SRC ipython
-    header = pd.read_table('/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz', skiprows=2, nrows=1, header=0).columns[9:]
-    vcf = tabix.open('/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz')
-    pheno = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/bulk.bed.gz', index_col=4)
-    cov = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/bulk-covars.txt', sep=r'\s+', engine='python', index_col=0)
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[54]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -944,9 +1038,6 @@
     sbatch --partition=broadwl -n1 -c28 --exclusive --job-name=nominal --out nominal.out --time=60:00
     #!/bin/bash
     source activate scqtl
-    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /scratch/midway2/aksarkar/singlecell/scqtl-mapping/variance.bed.gz --cov /scratch/midway2/aksarkar/singlecell/scqtl-mapping/variance-covars.txt --out variance.txt.gz
-    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/fano.bed.gz --out fano.txt.gz
-    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/cv.bed.gz --out cv.txt.gz
   #+END_SRC
 
   #+RESULTS:

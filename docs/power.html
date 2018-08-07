@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-07-12 Thu 13:09 -->
+<!-- 2018-07-16 Mon 12:42 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Power to detect QTLs in single cell data</title>
@@ -949,6 +949,24 @@ Submitted batch job 47404147
 
 </pre>
 
+<p>
+Run nominal passes on residualized variance phenotypes.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">sbatch --partition=broadwl -n1 -c28 --exclusive --job-name=nominal --out nominal.out --time=60:00
+<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
+<span class="org-builtin">source</span> activate scqtl
+python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /scratch/midway2/aksarkar/singlecell/scqtl-mapping/resid.bed.gz --cov /scratch/midway2/aksarkar/singlecell/scqtl-mapping/resid-covars.txt --out resid.txt.gz
+python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /scratch/midway2/aksarkar/singlecell/scqtl-mapping/cv_resid.bed.gz --out cv_resid.txt.gz
+</pre>
+</div>
+
+<pre class="example">
+Submitted batch job 47484361
+
+</pre>
+
 <div class="org-src-container">
 <pre class="src src-sh">rsync -au /scratch/midway2/aksarkar/singlecell/power/ /project2/mstephens/aksarkar/projects/singlecell-qtl/data/power/
 </pre>
@@ -1059,7 +1077,7 @@ Fit <code>ash</code>.
 
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-variable-name">ash_results</span> = {x: fit_ash(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/{}.txt.gz'</span>.<span class="org-builtin">format</span>(x))
-               <span class="org-keyword">for</span> x <span class="org-keyword">in</span> (<span class="org-string">'log_phi'</span>, <span class="org-string">'mean'</span>, <span class="org-string">'bulk'</span>)}
+               <span class="org-keyword">for</span> x <span class="org-keyword">in</span> (<span class="org-string">'log_phi'</span>, <span class="org-string">'mean'</span>, <span class="org-string">'bulk'</span>, <span class="org-string">'resid'</span>, <span class="org-string">'cv_resid'</span>)}
 </pre>
 </div>
 
@@ -1528,6 +1546,7 @@ dtype: float64
 </pre>
 </div>
 </div>
+
 <div id="outline-container-orge79ccc3" class="outline-2">
 <h2 id="orge79ccc3">Distribution of PVE</h2>
 <div class="outline-text-2" id="text-orge79ccc3">
@@ -1572,7 +1591,7 @@ this is still a lower bound
 <pre class="src src-ipython" id="org2793091"><span class="org-keyword">def</span> <span class="org-function-name">get_pve</span>(summary_stats, ash_result):
   <span class="org-variable-name">res</span> = ashr.ash(summary_stats[<span class="org-string">'beta'</span>], summary_stats[<span class="org-string">'se'</span>], fixg=<span class="org-constant">True</span>,
                  g=ash_result.rx2(<span class="org-string">'fitted_g'</span>))
-  <span class="org-variable-name">pve</span> = np.square(pd.Series(np.square(ashr.get_sd(res)) + ashr.get_pm(res),
+  <span class="org-variable-name">pve</span> = np.square(pd.Series(np.square(ashr.get_psd(res)) + ashr.get_pm(res),
                             index=summary_stats[<span class="org-string">'gene'</span>]))
   <span class="org-keyword">return</span> pve.groupby(level=0).agg(<span class="org-builtin">max</span>)
 </pre>
@@ -1587,7 +1606,7 @@ np.random.seed(0)
              .groupby(<span class="org-string">'gene'</span>)
              .agg(<span class="org-keyword">lambda</span> x: x.loc[x[<span class="org-string">'beta'</span>].idxmax()])
              .reset_index())
-         <span class="org-keyword">for</span> x <span class="org-keyword">in</span> (<span class="org-string">'log_phi'</span>, <span class="org-string">'log_mu'</span>, <span class="org-string">'bulk'</span>)}
+         <span class="org-keyword">for</span> x <span class="org-keyword">in</span> (<span class="org-string">'log_phi'</span>, <span class="org-string">'mean'</span>, <span class="org-string">'bulk'</span>, <span class="org-string">'resid'</span>, <span class="org-string">'cv_resid'</span>)}
 <span class="org-comment-delimiter"># </span><span class="org-comment">Munge gene names in bulk summary statistics</span>
 stats[<span class="org-string">'bulk'</span>][<span class="org-string">'gene'</span>] = [x.split(<span class="org-string">'.'</span>)[0] <span class="org-keyword">for</span> x <span class="org-keyword">in</span> stats[<span class="org-string">'bulk'</span>][<span class="org-string">'gene'</span>]]
 <span class="org-keyword">with</span> <span class="org-builtin">open</span>(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/ash-results.pkl'</span>, <span class="org-string">'rb'</span>) <span class="org-keyword">as</span> f:
@@ -1606,7 +1625,7 @@ python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/estimate-pve.py
 </div>
 
 <pre class="example">
-Submitted batch job 47408762
+Submitted batch job 47546035
 
 </pre>
 
@@ -1616,8 +1635,8 @@ Read the results.
 
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-variable-name">estimated_pve</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/estimated-pve.txt.gz'</span>, index_col=0)
-<span class="org-variable-name">estimated_pve.columns</span> = [<span class="org-string">'Bulk'</span>, <span class="org-string">'Mean'</span>, <span class="org-string">'Dispersion'</span>]
-<span class="org-variable-name">estimated_pve</span> = estimated_pve[[<span class="org-string">'Dispersion'</span>, <span class="org-string">'Mean'</span>, <span class="org-string">'Bulk'</span>]]
+<span class="org-variable-name">estimated_pve.columns</span> = [<span class="org-string">'Bulk'</span>, <span class="org-string">'CV residual'</span>, <span class="org-string">'Dispersion'</span>, <span class="org-string">'Mean'</span>, <span class="org-string">'Residual'</span>]
+<span class="org-variable-name">estimated_pve</span> = estimated_pve[[<span class="org-string">'Dispersion'</span>, <span class="org-string">'Mean'</span>, <span class="org-string">'Bulk'</span>, <span class="org-string">'Residual'</span>, <span class="org-string">'CV residual'</span>]]
 </pre>
 </div>
 
@@ -1645,6 +1664,37 @@ Text(0,0.5,'Density')
 
 <div class="figure">
 <p><img src="figure/power.org/estimated-pve.png" alt="estimated-pve.png">
+</p>
+</div>
+
+<p>
+Plot the PVE of vQTLs/CV-QTLs after regressing out the mean.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.gcf().set_size_inches(3, 3)
+<span class="org-variable-name">M</span> = 0.1
+<span class="org-variable-name">grid</span> = np.linspace(0, M, 100)
+<span class="org-keyword">for</span> k, c <span class="org-keyword">in</span> <span class="org-builtin">zip</span>([<span class="org-string">'Dispersion'</span>, <span class="org-string">'Residual'</span>, <span class="org-string">'CV residual'</span>], [<span class="org-string">'r'</span>, <span class="org-string">'purple'</span>, <span class="org-string">'orange'</span>]):
+  <span class="org-variable-name">f</span> = st.gaussian_kde(estimated_pve[k].dropna())
+  plt.plot(grid, f(grid), c=c, lw=1, label=k)
+  plt.fill_between(grid, f(grid), color=c, alpha=0.1)
+plt.legend(frameon=<span class="org-constant">False</span>)
+plt.xlim(0, M)
+plt.ylim(0, plt.ylim()[1])
+plt.xlabel(<span class="org-string">'Proportion of variance explained'</span>)
+plt.ylabel(<span class="org-string">'Log density'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0,0.5,'Log density')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/power.org/residual-pve.png" alt="residual-pve.png">
 </p>
 </div>
 
@@ -1982,7 +2032,7 @@ array([[-0.94347526, -1.02803879],
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-07-12 Thu 13:09</p>
+<p class="date">Created: 2018-07-16 Mon 12:42</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
