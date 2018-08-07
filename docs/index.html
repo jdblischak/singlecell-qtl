@@ -23,8 +23,8 @@
 <link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
 <script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
 <script src="site_libs/navigation-1.1/tabsets.js"></script>
-<link href="site_libs/highlightjs-1.1/textmate.css" rel="stylesheet" />
-<script src="site_libs/highlightjs-1.1/highlight.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
 <link href="site_libs/font-awesome-4.5.0/css/font-awesome.min.css" rel="stylesheet" />
 
 <style type="text/css">code{white-space: pre;}</style>
@@ -34,10 +34,12 @@
   }
 </style>
 <script type="text/javascript">
-if (window.hljs && document.readyState && document.readyState === "complete") {
-   window.setTimeout(function() {
-      hljs.initHighlighting();
-   }, 0);
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
 }
 </script>
 
@@ -311,23 +313,20 @@ div.tocify {
 </div>
 
 
-<section id="introduction" class="level2">
-<h2>Introduction</h2>
 <p>Phenotypic heterogeneity in cell populations has been shown to play critical roles in determining biologically and clinically significant phenotypes. The goal of this project is to identify <em>robustness QTLs</em>, loci in the human genome that are associated with within-individual variation in gene expression levels.</p>
-</section>
-<section id="data-collection" class="level2">
-<h2>Data collection</h2>
+<div id="data-collection-and-quality-control" class="section level2">
+<h2>Data collection and quality control</h2>
 <p>We <a href="data-collection.html">collected single cell RNA-seq data</a> from YRI invididuals using the C1 platform. We <a href="totals.html">pooled and sequenced</a> each C1 chip on an Illumina HiSeq 2500.</p>
-<p>We identified sample swaps and <a href="identity.html">matched samples to individuals</a> using verifyBamID.</p>
-<p>Next, we <a href="sampleqc.html">filtered low quality samples</a> and both <a href="filter-gene.html">over- and lowly-expressed genes</a> for downstream analysis.</p>
-<p>We then <a href="dim-reduction.html">performed dimensionality reduction</a> on the quality-controlled samples and genes to identify the remaining major sources of variation.</p>
-</section>
-<section id="qtl-mapping" class="level2">
+<p>We <a href="identity.html">matched samples to individuals</a> using <code>verifyBamID</code>.</p>
+<p>We <a href="sampleqc.html">filtered low quality samples</a> and both <a href="filter-gene.html">over- and lowly-expressed genes</a> for downstream analysis.</p>
+<p>We <a href="dim-reduction.html">performed dimensionality reduction</a> on the quality-controlled samples and genes to identify the remaining major sources of variation.</p>
+</div>
+<div id="qtl-mapping" class="section level2">
 <h2>QTL mapping</h2>
-<p>We first <a href="sc-vs-bulk.html">investigated the concordance between scRNA-Seq and matched bulk RNA-seq data</a>.</p>
-<p>We then built an <a href="https://hpimentel.shinyapps.io/eqtl-shiny/">interactive browser</a> to view the distribution of scRNA-Seq counts stratified by genotype at top eQTLs in the matched bulk RNA-Seq data.</p>
-<p>Next, we <a href="zinb.html">estimated means and dispersions</a> per individual per gene. We then <a href="qtl-mapping.html">treated these as continuous phenotypes and mapped QTLs</a> using QTLtools. We built an <a href="http://shiny.stephenslab.uchicago.edu:5006/fano-qtls">interactive browser</a> to view the discovered robustness QTLs.</p>
-</section>
+<p>We <a href="zinb.html">estimated means and dispersions</a> per individual per gene using zero-inflated negative binomial models.</p>
+<p>We <a href="qtl-mapping.html">derived continuous phenotypes from the fitted models and mapped QTLs</a> using QTLtools.</p>
+<p>We <a href="power.html">estimated the power to detect dispersion effects</a> as a function of the single cell experiment size.</p>
+</div>
 
 <hr>
 <p>

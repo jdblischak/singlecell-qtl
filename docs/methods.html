@@ -25,8 +25,8 @@
 <link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
 <script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
 <script src="site_libs/navigation-1.1/tabsets.js"></script>
-<link href="site_libs/highlightjs-1.1/textmate.css" rel="stylesheet" />
-<script src="site_libs/highlightjs-1.1/highlight.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
 <link href="site_libs/font-awesome-4.5.0/css/font-awesome.min.css" rel="stylesheet" />
 
 <style type="text/css">code{white-space: pre;}</style>
@@ -36,10 +36,12 @@
   }
 </style>
 <script type="text/javascript">
-if (window.hljs && document.readyState && document.readyState === "complete") {
-   window.setTimeout(function() {
-      hljs.initHighlighting();
-   }, 0);
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
 }
 </script>
 
@@ -319,20 +321,20 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2018-04-10</p>
+<p><strong>Last updated:</strong> 2018-08-07</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> a7dd0a3</p>
-<section id="sample-collection" class="level2">
+<p><strong>Code version:</strong> 408838a</p>
+<div id="sample-collection" class="section level2">
 <h2>Sample collection</h2>
-<p>The Yoruba (YRI) iPSCs<span class="citation" data-cites="Banovich">[@Banovich]</span> were cultured in feeder-free conditions for at least ten passages in E8 medium (Life Technologies)<span class="citation" data-cites="Chen2011">[@Chen2011]</span> before being colleted using the C1 Single-Cell Auto Prep IFC microfluidic chip (Fluidigm). A mixture of cell suspensions from four different individuals were prepared freshly each time for C1 collection. Additionally, cell viability was measured by the trypan blue staining (ThermoFisher) using the Automated Cell Counter (Bio-Rad) to obtain eqaul cell numbers across individuals in each cell mixture. Single cell capture and library preparation were performed as described in <span class="citation" data-cites="Tung2017">[@Tung2017]</span>, except that 6-bp random sequence UMIs were included instead of 5-bp. The 96 single cell samples from one C1 chip were pooled and sequenced on an Illumina HiSeq 2500 instrument using the TruSeq SBS Kit v3-HS (FC-401-3002). Each of the pooled sample were sequenced in more than two lanes to obtain two million mapped reads of each single cell sample.</p>
-<p>We collected total X,XXX cells from total 54 different YRI <a href="data-collection.html">invididuals</a>. We obtained an average of XX million <a href="totals.html">sequencing reads</a> per single cell sample. Using the UMI information, we obtained an median of XX molecules per sample. We performed <a href="pca-variable.html">PCA</a> on a subset of most variable genes and found that PC1 is most highly correlated with the percentage of detected genes and other metrics of sequencing depth, which is consistent with the observations of Hicks et al., 2017 <span class="citation" data-cites="Hicks2017">[@Hicks2017]</span>.</p>
-</section>
-<section id="sample-quality-control" class="level2">
+<p>The Yoruba (YRI) iPSCs<span class="citation">[@Banovich]</span> were cultured in feeder-free conditions for at least ten passages in E8 medium (Life Technologies)<span class="citation">[@Chen2011]</span> before collection using the C1 Single-Cell Auto Prep IFC microfluidic chips (Fluidigm). A standard maintenance of passaging the cells every 3–4 days at the confluence of 75-80% was performed using cell release solution (0.5 mM EDTA and NaCl in PBS). A mixture of cell suspensions from four different individuals were prepared freshly each time for C1 collection. The single cell suspensions was generated immediately before each experiment by TrypLE Express Enzyme (1X, no phenol red, ThermoFihser Scientific) for 2-3 minutes at 37 °C and washed twice with E8 media. Additionally, cell viability was measured by the trypan blue staining (ThermoFisher Scientific) using the Automated Cell Counter (Bio-Rad) to obtain eqaul cell numbers across individuals. Single cell capture and library preparation were performed as described in <span class="citation">[@Tung2017]</span>, except that 6-bp random sequence UMIs were included instead of 5-bp. The 96 single cell samples from one C1 chip were pooled and sequenced on an Illumina HiSeq 2500 instrument using the TruSeq SBS Kit v3-HS (FC-401-3002). Each of the pooled sample were sequenced in more than two lanes to obtain two million mapped reads of each single cell sample.</p>
+<p>We collected total X,XXX cells from total 54 different YRI <a href="data-collection.html">invididuals</a>. We obtained an average of XX million <a href="totals.html">sequencing reads</a> per single cell sample. Using the UMI information, we obtained an median of XX molecules per sample. We performed <a href="pca-variable.html">PCA</a> on a subset of most variable genes and found that PC1 is most highly correlated with the percentage of detected genes and other metrics of sequencing depth, which is consistent with the observations of Hicks et al., 2017 <span class="citation">[@Hicks2017]</span>.</p>
+</div>
+<div id="sample-quality-control" class="section level2">
 <h2>Sample quality control</h2>
-<p>Single cell <a href="identity.html">sample identification</a> were determined by examining the SNPs present in their RNA sequencing reads using the method verifyBamID as described <span class="citation" data-cites="Tung2017">[@Tung2017]</span>. We obtained a 97.6 % valid identification from 54 individuals. We did not observe any systematic contamination arocss any C1 IFC collection. Using the identification of each single cell sample, we performed <a href="correlations.html">pairwise correlations</a> between the samples and found that the effect of individual is stronger than the effect of C1 chip. We also analyzed per-gene expression profiles and computed <a href="partition.html">variance component</a> estimates for the effects of individual and C1 batch.</p>
-<p>Next, we performed <a href="sampleqc.html">quality control</a> to identify low quality single cells. We kept from high quality single cell samples which passed the following criteria: * Only one cell observed per well * Valid identification * More than XX million mapped reads * Less than XX % unmapped reads * Less than X.X % ERCC reads * More than X,XXX genes with at least one read</p>
-</section>
+<p>Single cell <a href="identity.html">sample identification</a> were determined by examining the SNPs present in their RNA sequencing reads using the method verifyBamID as described <span class="citation">[@Tung2017]</span>. We obtained a 97.6 % valid identification from 54 individuals. We did not observe any systematic contamination arocss any C1 IFC collection. Using the identification of each single cell sample, we performed <a href="correlations.html">pairwise correlations</a> between the samples and found that the effect of individual is stronger than the effect of C1 chip. We also analyzed per-gene expression profiles and computed <a href="partition.html">variance component</a> estimates for the effects of individual and C1 batch.</p>
+<p>Next, we performed <a href="sampleqc.html">quality control</a> to identify low quality single cells. Using the same method as descirbed previously, we kept from high quality single cell samples which passed the following criteria: * Only one cell observed per well * Valid identification * More than XX million mapped reads * Less than XX % unmapped reads * Less than X.X % ERCC reads * More than X,XXX genes with at least one read</p>
+</div>
 
 <hr>
 <p>
