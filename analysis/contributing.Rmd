@@ -225,6 +225,8 @@ The description of the annotation columns is in
 
 ```{r input-combined-annotation}
 anno <- read.delim("../data/scqtl-annotation.txt", stringsAsFactors = FALSE)
+# Add back leading zero for experiment ID to get MMDDYYYY
+anno$experiment <- sprintf("%08d", anno$experiment)
 anno_descrip <- read.delim("../data/scqtl-annotation-description.txt",
                            stringsAsFactors = FALSE)
 head(anno_descrip, 3)
