@@ -321,10 +321,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2018-04-25</p>
+<p><strong>Last updated:</strong> 2018-08-14</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> 3e5a366</p>
+<p><strong>Code version:</strong> 23f7c47</p>
 <div id="initial-setup" class="section level2">
 <h2>Initial setup</h2>
 <p>The initial setup only has to be performed once for each computer that you use.</p>
@@ -388,7 +388,7 @@ eset &lt;- readRDS(&quot;../data/eset/03162017.rds&quot;)</code></pre>
 <p>Executing the object in the R console provides an overall summary of what it contains.</p>
 <pre class="r"><code>eset</code></pre>
 <pre><code>ExpressionSet (storageMode: lockedEnvironment)
-assayData: 54792 features, 96 samples 
+assayData: 54616 features, 96 samples 
   element names: exprs 
 protocolData: none
 phenoData
@@ -398,7 +398,7 @@ phenoData
   varMetadata: labelDescription
 featureData
   featureNames: ENSG00000000003 ENSG00000000005 ... WBGene00235374
-    (54792 total)
+    (54616 total)
   fvarLabels: chr start ... source (6 total)
   fvarMetadata: labelDescription
 experimentData: use &#39;experimentData(object)&#39;
@@ -407,7 +407,7 @@ Annotation:  </code></pre>
 <pre class="r"><code># Dimensions
 dim(eset)</code></pre>
 <pre><code>Features  Samples 
-   54792       96 </code></pre>
+   54616       96 </code></pre>
 <pre class="r"><code># Sample names
 head(sampleNames(eset))</code></pre>
 <pre><code>[1] &quot;03162017-A01&quot; &quot;03162017-A02&quot; &quot;03162017-A03&quot; &quot;03162017-A04&quot;
@@ -417,14 +417,14 @@ exprs(eset)[1:5, 1:5]</code></pre>
 <pre><code>                03162017-A01 03162017-A02 03162017-A03 03162017-A04
 ENSG00000000003            0            3            3            3
 ENSG00000000005            0            0            0            0
-ENSG00000000419            0            3            1            2
+ENSG00000000419            0            3            1            3
 ENSG00000000457            1            0            1            0
-ENSG00000000460            0            2            0            0
+ENSG00000000460            0            3            0            0
                 03162017-A05
 ENSG00000000003            2
 ENSG00000000005            0
 ENSG00000000419            2
-ENSG00000000457            2
+ENSG00000000457            3
 ENSG00000000460            0</code></pre>
 <pre class="r"><code># Sample-level variables (&quot;phenotype data&quot;)
 pData(eset)[1:5, 1:5]</code></pre>
@@ -445,11 +445,11 @@ concentration The cDNA concentration of the well prior to library prep</code></p
 <pre class="r"><code># Gene-level variables (&quot;feature data&quot;)
 head(fData(eset))</code></pre>
 <pre><code>                 chr     start       end     name strand     source
-ENSG00000000003  hsX  99883667  99894988   TSPAN6      - H. sapiens
+ENSG00000000003  hsX  99883667  99891803   TSPAN6      - H. sapiens
 ENSG00000000005  hsX  99839799  99854882     TNMD      + H. sapiens
 ENSG00000000419 hs20  49551404  49575092     DPM1      - H. sapiens
 ENSG00000000457  hs1 169818772 169863408    SCYL3      - H. sapiens
-ENSG00000000460  hs1 169631245 169823221 C1orf112      + H. sapiens
+ENSG00000000460  hs1 169764181 169823221 C1orf112      + H. sapiens
 ENSG00000000938  hs1  27938575  27961788      FGR      - H. sapiens</code></pre>
 <pre class="r"><code># Descriptions of the gene-level metrics
 fvarMetadata(eset)</code></pre>
@@ -493,7 +493,7 @@ $verify
                      eset$cell_number == 1 &amp; eset$tra1.60]
 dim(eset_quality)</code></pre>
 <pre><code>Features  Samples 
-   20327       85 </code></pre>
+   20151       85 </code></pre>
 <p>Multiple ExpressionSet objects can also be combined. The following code imports and combines the data for all 10 C1 chips from batch 1.</p>
 <pre class="r"><code>chips &lt;- c(&quot;03162017.rds&quot;, &quot;03172017.rds&quot;, &quot;03232017.rds&quot;,
            &quot;03302017.rds&quot;, &quot;03312017.rds&quot;, &quot;04052017.rds&quot;,
@@ -503,12 +503,12 @@ fname &lt;- Map(function(x) paste0(&quot;../data/eset/&quot;, x), chips)
 batch1 &lt;- Reduce(combine, Map(readRDS, fname))
 dim(batch1)</code></pre>
 <pre><code>Features  Samples 
-   54792      960 </code></pre>
+   54616      960 </code></pre>
 <p>To read in the entire data set, use the combined ExpressionSet object (it's much faster to load just one serialized data file).</p>
 <pre class="r"><code>eset_total &lt;- readRDS(&quot;../data/eset.rds&quot;)
 dim(eset_total)</code></pre>
 <pre><code>Features  Samples 
-   54792     7200 </code></pre>
+   54616     7584 </code></pre>
 <p>To learn more about the data that can be stored in an ExpressionSet object and methods to access the data, please see the help pages for ExpressionSet and its parent class eSet.</p>
 <pre class="r"><code>?ExpressionSet
 ?eSet</code></pre>
@@ -518,6 +518,8 @@ dim(eset_total)</code></pre>
 <p>For convenience, the combined data are available in single files.</p>
 <p>The annotation for all the single cells is in <a href="https://github.com/jdblischak/singlecell-qtl/blob/master/data/scqtl-annotation.txt">data/scqtl-annotation.txt</a>. The description of the annotation columns is in <a href="https://github.com/jdblischak/singlecell-qtl/blob/master/data/scqtl-annotation-description.txt">data/scqtl-annotation-description.txt</a>.</p>
 <pre class="r"><code>anno &lt;- read.delim(&quot;../data/scqtl-annotation.txt&quot;, stringsAsFactors = FALSE)
+# Add back leading zero for experiment ID to get MMDDYYYY
+anno$experiment &lt;- sprintf(&quot;%08d&quot;, anno$experiment)
 anno_descrip &lt;- read.delim(&quot;../data/scqtl-annotation-description.txt&quot;,
                            stringsAsFactors = FALSE)
 head(anno_descrip, 3)</code></pre>
@@ -529,17 +531,17 @@ head(anno_descrip, 3)</code></pre>
 <pre class="r"><code>library(&quot;data.table&quot;)
 counts &lt;- data.frame(fread(&quot;zcat ../data/scqtl-counts.txt.gz&quot;), row.names = 1)</code></pre>
 <pre><code>
-Read 49.2% of 20327 rows
-Read 98.4% of 20327 rows
-Read 20327 rows and 7201 (of 7201) columns from 0.279 GB file in 00:00:10</code></pre>
+Read 49.6% of 20151 rows
+Read 99.3% of 20151 rows
+Read 20151 rows and 7585 (of 7585) columns from 0.292 GB file in 00:00:10</code></pre>
 <pre class="r"><code>dim(counts)</code></pre>
-<pre><code>[1] 20327  7200</code></pre>
+<pre><code>[1] 20151  7584</code></pre>
 <pre class="r"><code>counts[1:5, 1:2]</code></pre>
-<pre><code>                NA19210.02192018.A01 NA18913.02192018.A02
-ENSG00000000003                    1                    1
+<pre><code>                NA18517.02192018.A01 NA18913.02192018.A02
+ENSG00000000003                    2                    1
 ENSG00000000005                    0                    0
 ENSG00000000419                    1                    0
-ENSG00000000457                    0                    0
+ENSG00000000457                    0                    1
 ENSG00000000460                    0                    0</code></pre>
 </div>
 <div id="data-analysis-workflow" class="section level2">
@@ -679,7 +681,7 @@ $ rstudio</code></pre>
 <pre class="r"><code>sessionInfo()</code></pre>
 <pre><code>R version 3.4.1 (2017-06-30)
 Platform: x86_64-pc-linux-gnu (64-bit)
-Running under: Scientific Linux 7.2 (Nitrogen)
+Running under: Scientific Linux 7.4 (Nitrogen)
 
 Matrix products: default
 BLAS: /project2/gilad/jdblischak/miniconda3/envs/scqtl/lib/R/lib/libRblas.so
