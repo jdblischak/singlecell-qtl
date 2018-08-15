@@ -153,17 +153,54 @@ feature_anno <- new("AnnotatedDataFrame", data = feature,
 
 experiment <- new(
   "MIAME",
-  name = "PoYuan Tung, Harold Pimentel, Joyce Hsiao, John Blischak",
-  lab = "Gilad/Pritchard",
+  name = "Abhishek K. Sarkar, Po-Yuan Tung, John D. Blischak, Yang I. Li, Matthew Stephens, and Yoav Gilad",
+  lab = "Gilad (University of Chicago)",
   contact = "https://github.com/jdblischak/singlecell-qtl/issues",
-  title = "singlecell-qtl",
-  abstract = "Mapping genetic variants associated with cell-to-cell variation in gene expression in the HapMap Yoruba population.",
+  title = "Discovery and characterization of variance QTLs in human induced pluripotent stem cells",
+  abstract =
+"Quantification of gene expression levels at the single cell level has
+revealed that gene expression can vary substantially even across a
+population of homogeneous cells. However, it is currently unclear what
+genomic features control variation in gene expression levels, and whether
+common genetic variants may impact gene expression variation. Here, we
+take a genome-wide approach to identify expression variance quantitative
+trait loci (vQTLs). To this end, we generated single cell RNA-seq
+(scRNA-seq) data from induced pluripotent stem cells (iPSCs) derived from
+53 Yoruba individuals. We collected data for a median of 95 cells per
+individual and a total of 5,447 single cells, and identified 241 mean
+expression QTLs (eQTLs) at 10% FDR, of which 82% replicate in bulk RNA-seq
+data from the same individuals. We further identified 14 vQTLs at 10% FDR,
+but demonstrate that these can also be explained as effects on mean
+expression. Our study suggests that dispersion QTLs (dQTLs), which could
+alter the variance of expression independently of the mean, have
+systematically smaller effect sizes than eQTLs. We estimate that at least
+300 cells per individual and 400 individuals would be required to have
+modest power to detect the strongest dQTLs in iPSCs. These results will
+guide the design of future studies on understanding the genetic control of
+gene expression variance.",
   url = "https://jdblischak.github.io/singlecell-qtl",
   preprocessing = list(
-    mapping = "Mapped to GRCh37 with Sunjunc",
-    umi = "UMIs were extracted and deduplicated with umi_tools",
-    counting = "Counts per gene (Ensembl 75) were obtained with featureCounts",
-    verify = "Individuals were identified by verifyBamID"
+    umi_extract =
+"We used `umi_tools extract` (UMI-tools 0.5.3) to extract the 6 base
+pair unique molecular identifier (UMI) from the 5’ end of each read.",
+    mapping =
+"We used `subjunc` (Subread 1.5.3) to map reads to the human genome
+(Ensembl GRCh37.75; chromosomes 1-22, X, Y, MT) and ERCC spike-ins
+(http://tools.invitrogen.com/downloads/ERCC92.fa). Some samples included
+spike-in RNA from Drosophila melanogaster or Caenorhabditis elegans, so
+we also included the Ensembl genomes BDGP5.75 and WBcel235.75.",
+    counting =
+"We used `featureCounts` (Subread 1.5.3) to count the number of reads
+for all protein-coding genes (Ensembl GRCh37 release 75) and the ERCC
+spike-in genes. We performed strand-specific counting (flag -s 1)
+because the UMI protocol preserves sequence strand information.",
+    umi_dedup =
+"We used `umi_tools dedup` (UMI-tools 0.5.3) to deduplicate reads with
+the same UMI and start position to molecules.",
+    verify =
+"We used `verifyBamID` (1.1.3) to identify the individual of origin for
+each sample based on the overlap of the RNA-seq reads with the known
+genotypes."
   ))
 
 # Create ExpressionSet object --------------------------------------------------
