@@ -168,9 +168,12 @@ fvarMetadata(eset)
 # Experimental details
 experimentData(eset)
 # Abstract
-abstract(eset)
+cat(abstract(eset))
 # Proprocessing steps
-preproc(eset)
+steps <- preproc(eset)
+for (i in seq_along(steps)) {
+  cat(steps[[i]], sep = "\n")
+}
 ```
 
 A nice feature of ExpressionSets is that any subsetting applied to either the
