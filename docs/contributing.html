@@ -321,10 +321,10 @@ div.tocify {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2018-08-14</p>
+<p><strong>Last updated:</strong> 2018-08-15</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> 23f7c47</p>
+<p><strong>Code version:</strong> ede57c0</p>
 <div id="initial-setup" class="section level2">
 <h2>Initial setup</h2>
 <p>The initial setup only has to be performed once for each computer that you use.</p>
@@ -463,31 +463,58 @@ source                                            Source of RNA</code></pre>
 <pre class="r"><code># Experimental details
 experimentData(eset)</code></pre>
 <pre><code>Experiment data
-  Experimenter name: PoYuan Tung, Harold Pimentel, Joyce Hsiao, John Blischak 
-  Laboratory: Gilad/Pritchard 
+  Experimenter name: Abhishek K. Sarkar, Po-Yuan Tung, John D. Blischak, Yang I. Li, Matthew Stephens, and Yoav Gilad 
+  Laboratory: Gilad (University of Chicago) 
   Contact information: https://github.com/jdblischak/singlecell-qtl/issues 
-  Title: singlecell-qtl 
+  Title: Discovery and characterization of variance QTLs in human induced pluripotent stem cells 
   URL: https://jdblischak.github.io/singlecell-qtl 
   PMIDs:  
 
-  Abstract: A 15 word abstract is available. Use &#39;abstract&#39; method.
+  Abstract: A 195 word abstract is available. Use &#39;abstract&#39; method.
   Information is available on: preprocessing </code></pre>
 <pre class="r"><code># Abstract
-abstract(eset)</code></pre>
-<pre><code>[1] &quot;Mapping genetic variants associated with cell-to-cell variation in gene expression in the HapMap Yoruba population.&quot;</code></pre>
+cat(abstract(eset))</code></pre>
+<pre><code>Quantification of gene expression levels at the single cell level has
+revealed that gene expression can vary substantially even across a
+population of homogeneous cells. However, it is currently unclear what
+genomic features control variation in gene expression levels, and whether
+common genetic variants may impact gene expression variation. Here, we
+take a genome-wide approach to identify expression variance quantitative
+trait loci (vQTLs). To this end, we generated single cell RNA-seq
+(scRNA-seq) data from induced pluripotent stem cells (iPSCs) derived from
+53 Yoruba individuals. We collected data for a median of 95 cells per
+individual and a total of 5,447 single cells, and identified 241 mean
+expression QTLs (eQTLs) at 10% FDR, of which 82% replicate in bulk RNA-seq
+data from the same individuals. We further identified 14 vQTLs at 10% FDR,
+but demonstrate that these can also be explained as effects on mean
+expression. Our study suggests that dispersion QTLs (dQTLs), which could
+alter the variance of expression independently of the mean, have
+systematically smaller effect sizes than eQTLs. We estimate that at least
+300 cells per individual and 400 individuals would be required to have
+modest power to detect the strongest dQTLs in iPSCs. These results will
+guide the design of future studies on understanding the genetic control of
+gene expression variance.</code></pre>
 <pre class="r"><code># Proprocessing steps
-preproc(eset)</code></pre>
-<pre><code>$mapping
-[1] &quot;Mapped to GRCh37 with Sunjunc&quot;
-
-$umi
-[1] &quot;UMIs were extracted and deduplicated with umi_tools&quot;
-
-$counting
-[1] &quot;Counts per gene (Ensembl 75) were obtained with featureCounts&quot;
-
-$verify
-[1] &quot;Individuals were identified by verifyBamID&quot;</code></pre>
+steps &lt;- preproc(eset)
+for (i in seq_along(steps)) {
+  cat(steps[[i]], sep = &quot;\n&quot;)
+}</code></pre>
+<pre><code>We used `umi_tools extract` (UMI-tools 0.5.3) to extract the 6 base
+pair unique molecular identifier (UMI) from the 5’ end of each read.
+We used `subjunc` (Subread 1.5.3) to map reads to the human genome
+(Ensembl GRCh37.75; chromosomes 1-22, X, Y, MT) and ERCC spike-ins
+(http://tools.invitrogen.com/downloads/ERCC92.fa). Some samples included
+spike-in RNA from Drosophila melanogaster or Caenorhabditis elegans, so
+we also included the Ensembl genomes BDGP5.75 and WBcel235.75.
+We used `featureCounts` (Subread 1.5.3) to count the number of reads
+for all protein-coding genes (Ensembl GRCh37 release 75) and the ERCC
+spike-in genes. We performed strand-specific counting (flag -s 1)
+because the UMI protocol preserves sequence strand information.
+We used `umi_tools dedup` (UMI-tools 0.5.3) to deduplicate reads with
+the same UMI and start position to molecules.
+We used `verifyBamID` (1.1.3) to identify the individual of origin for
+each sample based on the overlap of the RNA-seq reads with the known
+genotypes.</code></pre>
 <p>A nice feature of ExpressionSets is that any subsetting applied to either the sample-level or gene-level variables is automatically propagated to the expression matrix.</p>
 <pre class="r"><code>eset_quality &lt;- eset[fData(eset)$source == &quot;H. sapiens&quot;,
                      eset$cell_number == 1 &amp; eset$tra1.60]
