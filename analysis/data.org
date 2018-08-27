@@ -1,0 +1,51 @@
+#+TITLE: Data for "Discovery and characterization of variance QTLs in human induced pluripotent stem cells"
+#+SETUPFILE: setup.org
+
+This page provides data for our paper:
+
+Sarkar A.K.*, Tung P.*, Blischak J.D., Burnett J.E., Li Y.I., Stephens M.,
+Gilad Y. "Discovery and characterization of variance QTLs in human induced
+pluripotent stem cells." /biorXiv/, 2018.
+
+For questions, please contact:
+
+- Abhishek K. Sarkar (aksarkar@uchicago.edu)
+- Yoav Gilad (gilad@uchicago.edu)
+
+* Sequencing data
+
+  The single cell RNA-seq data, sample metadata, and filtered gene expression count matrix
+  have been deposited in GEO under accession number [[http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE118723][GSE118723]].
+
+* Estimated parameter matrices
+
+  The results of our ZINB model fitting are available as parameter
+  matrices. These can be read like:
+
+  #+BEGIN_SRC ipython :eval never
+    # Python
+    import pandas as pd
+    log_mu = pd.read_table('zi2-log-mu.txt.gz', index_col=0, sep=' ')
+  #+END_SRC
+
+  #+BEGIN_SRC R :eval never
+    # R
+    log_mu <- read.table(gzfile('zi2-log-mu.txt.gz'), sep=' ')
+  #+END_SRC
+
+  - [[file:zi2-log-mu.txt.gz][Log-transformed mean parameter log μ]]
+  - [[file:zi2-log-phi.txt.gz][Log-transformed dispersion parameter log φ]]
+  - [[file:zi2-logodds.txt.gz][Logit-transformed zero proportion parameter logit π]]
+
+* QTL summary statistics
+
+  The full results of QTL mapping are available in ~qtltools~ [[https://qtltools.github.io/qtltools/][format]].
+
+  - [[file:bulk.txt.gz][Re-processed bulk eQTL]]
+  - [[file:mean.txt.gz][Single cell eQTL]]
+  - [[file:log_phi.txt.gz][Dispersion QTL (dQTL)]]
+  - [[file:variance.txt.gz][Variance QTL (vQTL)]]
+  - [[file:cv.txt.gz][Coefficient of variation QTL (CV-QTL)]]
+  - [[file:fano.txt.gz][Fano factor QTL (Fano-QTL)]]
+  - [[file:resid.txt.gz][Residualized vQTL]]
+  - [[file:cv_resid.txt.gz][Residualized CV-QTL]]

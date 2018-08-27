@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-08-24 Fri 13:30 -->
+<!-- 2018-08-24 Fri 11:14 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Power to detect QTLs in single cell data</title>
+<title>Data for "Discovery and characterization of variance QTLs in human induced pluripotent stem cells"</title>
 <meta name="generator" content="Org mode">
 <meta name="author" content="Abhishek Sarkar">
 <style type="text/css">
@@ -227,177 +227,91 @@ for the JavaScript code in this tag.
  }
 /*]]>*///-->
 </script>
-<script type="text/x-mathjax-config">
-    MathJax.Hub.Config({
-        displayAlign: "center",
-        displayIndent: "0em",
-
-        "HTML-CSS": { scale: 100,
-                        linebreaks: { automatic: "false" },
-                        webFont: "TeX"
-                       },
-        SVG: {scale: 100,
-              linebreaks: { automatic: "false" },
-              font: "TeX"},
-        NativeMML: {scale: 100},
-        TeX: { equationNumbers: {autoNumber: "AMS"},
-               MultLineWidth: "85%",
-               TagSide: "right",
-               TagIndent: ".8em"
-             }
-});
-</script>
-<script type="text/javascript"
-        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS_HTML"></script>
 </head>
 <body>
 <div id="content">
-<h1 class="title">Power to detect QTLs in single cell data</h1>
-<div id="table-of-contents">
-<h2>Table of Contents</h2>
-<div id="text-table-of-contents">
-<ul>
-<li><a href="#orgcb1bb11">Analytic power calculation</a></li>
+<h1 class="title">Data for "Discovery and characterization of variance QTLs in human induced pluripotent stem cells"</h1>
+<p>
+This page provides data for our paper:
+</p>
+
+<p>
+Sarkar A.K.*, Tung P.*, Blischak J.D., Burnett J.E., Li Y.I., Stephens M.,
+Gilad Y. "Discovery and characterization of variance QTLs in human induced
+pluripotent stem cells." <i>biorXiv</i>, 2018.
+</p>
+
+<p>
+For questions, please contact:
+</p>
+
+<ul class="org-ul">
+<li>Abhishek K. Sarkar (aksarkar@uchicago.edu)</li>
+<li>Yoav Gilad (gilad@uchicago.edu)</li>
+</ul>
+
+<div id="outline-container-orgd00c5f3" class="outline-2">
+<h2 id="orgd00c5f3">Sequencing data</h2>
+<div class="outline-text-2" id="text-orgd00c5f3">
+<p>
+The single cell RNA-seq data, sample metadata, and filtered gene expression count matrix
+have been deposited in GEO under accession number <a href="http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE118723">GSE118723</a>.
+</p>
+</div>
+</div>
+
+<div id="outline-container-org8572000" class="outline-2">
+<h2 id="org8572000">Estimated parameter matrices</h2>
+<div class="outline-text-2" id="text-org8572000">
+<p>
+The results of our ZINB model fitting are available as parameter
+matrices. These can be read like:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-comment-delimiter"># </span><span class="org-comment">Python</span>
+<span class="org-keyword">import</span> pandas <span class="org-keyword">as</span> pd
+<span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-R"><span class="org-comment-delimiter"># </span><span class="org-comment">R</span>
+log_mu <span class="org-ess-assignment">&lt;-</span> read.table(gzfile(<span class="org-string">'zi2-log-mu.txt.gz'</span>), sep=<span class="org-string">' '</span>)
+</pre>
+</div>
+
+<ul class="org-ul">
+<li><a href="zi2-log-mu.txt.gz">Log-transformed mean parameter log μ</a></li>
+<li><a href="zi2-log-phi.txt.gz">Log-transformed dispersion parameter log φ</a></li>
+<li><a href="zi2-logodds.txt.gz">Logit-transformed zero proportion parameter logit π</a></li>
 </ul>
 </div>
 </div>
-<div id="outline-container-orgcb1bb11" class="outline-2">
-<h2 id="orgcb1bb11">Analytic power calculation</h2>
-<div class="outline-text-2" id="text-orgcb1bb11">
+
+<div id="outline-container-orge5508f4" class="outline-2">
+<h2 id="orge5508f4">QTL summary statistics</h2>
+<div class="outline-text-2" id="text-orge5508f4">
 <p>
-For phenotype \(y\) (either mean, variance, or dispersion), assume the
-generative process:
+The full results of QTL mapping are available in <code>qtltools</code> <a href="https://qtltools.github.io/qtltools/">format</a>.
 </p>
 
-<p>
-\[ y_i = x_i b + e_{\mathrm{resid}} \]
-</p>
-
-<p>
-where \(x_i\) is the genotype at one SNP, \(b = \lambda \sigma_r\), and
-\(e_{\mathrm{resid}} \sim N(0, \sigma^2_r)\)
-</p>
-
-<p>
-We observe \(y_i\) with error:
-</p>
-
-<p>
-\[ \tilde{y}_i = y_i + e_{\mathrm{meas},i} \]
-</p>
-
-<p>
-where \(e_{\mathrm{meas},i} \sim N(0, \sigma^2_m)\).
-</p>
-
-<p>
-To perform QTL mapping, we fit a regression model:
-</p>
-
-<p>
-\[ \tilde{y}_i = x_i \beta + \epsilon_i \]
-</p>
-
-<p>
-where \(\epsilon_i \sim N(0, \sigma^2)\).
-</p>
-
-<p>
-Assuming \(V[x] = 1\), we have:
-</p>
-
-<p>
-\[\hat\beta \sim \mathcal{N}\left(b, \frac{\sigma^2_r + \sigma^2_m}{n}\right) \]
-</p>
-
-<p>
-where \(n\) is the number of individuals.
-</p>
-
-<p>
-Therefore, the power function is:
-</p>
-
-<p>
-\[ \mathrm{Pow}(\lambda, n, \sigma^2_r, \sigma^2_m) = 1 -
-  2 \Phi\left(-\vert\lambda\vert \sqrt{\frac{n}{1 + \sigma^2_m / \sigma^2_r}}\right) \]
-</p>
-
-<p>
-where \(\Phi(\cdot)\) denotes the Gaussian CDF.
-</p>
-
-<p>
-We need to perform two tasks empirically: (1) we need to estimate the
-dependence of \(\sigma^2_m\) on the number of cells, the number of molecules,
-and the ZINB parameters.
-</p>
-
-<p>
-One complication is that we actually have \(e_{\mathrm{meas},i} \sim N(0,
-  \sigma^2_{mi})\). However, our analysis carries through assuming
-\(\sigma^2_{mi} \sim N(\sigma^2_m, \cdot)\), and estimating \(\hat\sigma^2_m
-  = \frac{1}{n} \sum_i \sigma^2_{mi}\).
-</p>
-
-<p>
-We can estimate this dependence via parametric bootstrap.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">
-</pre>
-</div>
-
-<p>
-(2) we need to estimate the dependence of \(\sigma^2_r\) on the ZINB
-parameters.
-</p>
-
-<p>
-Using the estimated \(\sigma^2_m\) from above, we can fit OLS and correct the
-estimated residual variance to recover \(\sigma^2_r\).
-</p>
-
-<p>
-Finally, we can combine these results to plot power curves.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">plt.clf()
-<span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(1, 3)
-fig.set_size_inches(9, 3)
-<span class="org-variable-name">grid</span> = np.geomspace(0.001, 1, 100)
-<span class="org-keyword">for</span> i, n <span class="org-keyword">in</span> <span class="org-builtin">enumerate</span>([100, 500, 1000]):
-  <span class="org-keyword">for</span> ratio <span class="org-keyword">in</span> np.linspace(0, 4, 5):
-    <span class="org-variable-name">power</span> = 1 - 2 * st.norm().cdf(-grid * np.sqrt(n / (1 + ratio)))
-    <span class="org-variable-name">color</span> = colorcet.cm[<span class="org-string">'fire_r'</span>]((ratio + .5) / 4.5)
-    ax[i].set_xscale(<span class="org-string">'log'</span>)
-    ax[i].plot(grid, power, lw=1, color=color, label=<span class="org-string">'{:.2g}'</span>.<span class="org-builtin">format</span>(ratio))
-    ax[i].grid(ls=<span class="org-string">':'</span>, lw=1, c=<span class="org-string">'0.75'</span>)
-    ax[i].set_ylim(0, 1)
-    ax[i].set_title(<span class="org-string">'n = {}'</span>.<span class="org-builtin">format</span>(n))
-    ax[i].set_xlabel(<span class="org-string">'Relative effect size'</span>)
-ax[-1].legend(title=<span class="org-string">'Noise ratio'</span>, frameon=<span class="org-constant">False</span>, bbox_to_anchor=(1, .5), loc=<span class="org-string">'center left'</span>)
-ax[0].set_ylabel(<span class="org-string">'Power'</span>)
-</pre>
-</div>
-
-<pre class="example">
-Text(0,0.5,'Power')
-
-</pre>
-
-<div class="figure">
-<p><img src="figure/power.org/analytic-power.png" alt="analytic-power.png">
-</p>
-</div>
+<ul class="org-ul">
+<li><a href="bulk.txt.gz">Re-processed bulk eQTL</a></li>
+<li><a href="mean.txt.gz">Single cell eQTL</a></li>
+<li><a href="log_phi.txt.gz">Dispersion QTL (dQTL)</a></li>
+<li><a href="variance.txt.gz">Variance QTL (vQTL)</a></li>
+<li><a href="cv.txt.gz">Coefficient of variation QTL (CV-QTL)</a></li>
+<li><a href="fano.txt.gz">Fano factor QTL (Fano-QTL)</a></li>
+<li><a href="resid.txt.gz">Residualized vQTL</a></li>
+<li><a href="cv_resid.txt.gz">Residualized CV-QTL</a></li>
+</ul>
 </div>
 </div>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-08-24 Fri 13:30</p>
+<p class="date">Created: 2018-08-24 Fri 11:14</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>

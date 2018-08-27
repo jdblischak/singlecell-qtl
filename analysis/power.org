@@ -27,7 +27,7 @@
   #+CALL: ipython3(memory="32G", venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 48220194
+  : Submitted batch job 48702761
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -39,7 +39,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[2]:
+  # Out[1]:
   :END:
 
   #+NAME: power-imports
@@ -65,7 +65,7 @@
 
   #+RESULTS: power-imports
   :RESULTS:
-  # Out[3]:
+  # Out[2]:
   :END:
 
 * Differential dispersion
@@ -669,7 +669,7 @@
 
   #+NAME: nominal-pass-def
   #+BEGIN_SRC ipython
-    def run_nominal_pass(vcf, pheno, header, cov=None):
+    def run_nominal_pass(vcf, pheno, header, std=True, cov=None):
       # Annihilator matrix I - X X^+
       M = None
       result = []
@@ -679,28 +679,29 @@
           x.index = header
           y = record
           x, y = x.align(y, axis='index', join='inner')
-          import pdb; pdb.set_trace()
           x -= x.mean(axis=0)
           x /= x.std(axis=0)
-          y = y.astype(float).values.reshape(-1, 1)
           if M is None and cov is not None:
             cov = cov.T.align(y, axis='index', join='inner')[0]
             C = np.array(cov - cov.mean(axis=0))
             M = np.eye(C.shape[0]) - C.dot(np.linalg.pinv(C))
+          y = y.astype(float).values.reshape(-1, 1)
           if M is not None:
             y = M.dot(y)
           y -= y.mean()
-          y /= y.std()
+          if std:
+            y /= y.std()
           beta, se = lm(x, y)
-          result.append(pd.DataFrame({'gene': record.name, 'beta': beta, 'se': se}))
+          result.append(pd.DataFrame({'gene': record.name, 'beta': beta[0], 'se': se[0]}))
       return pd.concat(result)
   #+END_SRC
 
   #+RESULTS: nominal-pass-def
   :RESULTS:
-  # Out[35]:
+  # Out[48]:
   :END:
 
+  #+NAME: qtl-nominal.py
   #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py
     <<power-imports>>
     import argparse
@@ -711,6 +712,7 @@
     parser.add_argument('--vcf', required=True)
     parser.add_argument('--pheno', required=True)
     parser.add_argument('--cov')
+    parser.add_argument('--no-std', action='store_false')
     parser.add_argument('--out', default=None)
     args = parser.parse_args()
 
@@ -722,7 +724,7 @@
     else:
       cov = None
 
-    result = run_nominal_pass(vcf, pheno, header, cov)
+    result = run_nominal_pass(vcf, pheno, header, cov=cov, std=not args.no_std)
     if args.out is None:
       out = 'nominal-pass.txt.gz'
     else:
@@ -1194,7 +1196,7 @@
 
   #+RESULTS: read-qtls
   :RESULTS:
-  # Out[84]:
+  # Out[28]:
   :END:
 
   #+RESULTS:
@@ -1239,7 +1241,57 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[6]:
+  # Out[4]:
+  :END:
+
+  Compare the phenotypic variance of mean against dispersion. Use squared
+  coefficient of variation to get dimensionless quantities.
+
+  #+BEGIN_SRC ipython
+    scv = pd.Series(np.square(st.variation(mean_by_ind, axis=1)) / np.square(st.variation(log_phi, axis=1)))
+    scv.describe()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[22]:
+  #+BEGIN_EXAMPLE
+    count    9957.000000
+    mean        0.388954
+    std         0.537197
+    min         0.000067
+    25%         0.164379
+    50%         0.267103
+    75%         0.459509
+    max        25.724706
+    dtype: float64
+  #+END_EXAMPLE
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/power.org/mean-var-vs-phi-var.png
+    plt.clf()
+    plt.gcf().set_size_inches(3, 3)
+    plt.semilogx()
+    plt.semilogy()
+    all_qtls = (pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/mean.txt.gz', sep=' ', index_col=0)
+                .sort_values('p_beta')
+                .head(n=241))
+    plt.scatter(np.square(st.variation(mean_by_ind, axis=1)),
+                np.square(st.variation(log_phi, axis=1)),
+                s=2, c='.75', label='Not eQTL')
+    plt.scatter(np.square(st.variation(mean_by_ind.loc[all_qtls.index], axis=1)),
+                np.square(st.variation(log_phi.loc[all_qtls.index], axis=1)),
+                s=2, c='k', label='eQTL')
+    plt.plot(plt.xlim(), plt.xlim(), c='r', ls=':')
+    plt.legend(frameon=False, markerscale=2, handletextpad=0)
+    plt.xlabel('SCV of mean')
+    _ = plt.ylabel('SCV of $\ln(\phi)$')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[40]:
+  [[file:figure/power.org/mean-var-vs-phi-var.png]]
   :END:
 
   Partition the sum of squares.
@@ -1368,7 +1420,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[5]:
+  # Out[3]:
   :END:
 
   Estimate the reduction in effective PVE for eQTLs.
@@ -1922,3 +1974,106 @@
   #+END_EXAMPLE
   :END:
 
+* Analytic power calculation
+
+  For phenotype \(y\) (either mean, variance, or dispersion), assume the
+  generative process:
+
+  \[ y_i = x_i b + e_{\mathrm{resid}} \]
+
+  where \(x_i\) is the genotype at one SNP, \(b = \lambda \sigma_r\), and
+  \(e_{\mathrm{resid}} \sim N(0, \sigma^2_r)\)
+
+  We observe \(y_i\) with error:
+
+  \[ \tilde{y}_i = y_i + e_{\mathrm{meas},i} \]
+
+  where \(e_{\mathrm{meas},i} \sim N(0, \sigma^2_m)\).
+
+  To perform QTL mapping, we fit a regression model:
+
+  \[ \tilde{y}_i = x_i \beta + \epsilon_i \]
+
+  where \(\epsilon_i \sim N(0, \sigma^2)\).
+
+  Assuming \(V[x] = 1\), we have:
+
+  \[\hat\beta \sim \mathcal{N}\left(b, \frac{\sigma^2_r + \sigma^2_m}{n}\right) \]
+
+  where \(n\) is the number of individuals.
+
+  Therefore, the power function is:
+
+  \[ \mathrm{Pow}(\lambda, n, \sigma^2_r, \sigma^2_m) = 1 -
+  2 \Phi\left(-\vert\lambda\vert \sqrt{\frac{n}{1 + \sigma^2_m / \sigma^2_r}}\right) \]
+
+  where \(\Phi(\cdot)\) denotes the Gaussian CDF.
+
+  We need to perform two tasks empirically: (1) we need to estimate the
+  dependence of \(\sigma^2_m\) on the number of cells, the number of molecules,
+  and the ZINB parameters.
+
+  One complication is that we actually have \(e_{\mathrm{meas},i} \sim N(0,
+  \sigma^2_{mi})\). However, our analysis carries through assuming
+  \(\sigma^2_{mi} \sim N(\sigma^2_m, \cdot)\), and estimating \(\hat\sigma^2_m
+  = \frac{1}{n} \sum_i \sigma^2_{mi}\).
+
+  We can estimate this dependence via parametric bootstrap.
+
+  #+BEGIN_SRC ipython
+    mean_sampling_var = pd.read_table('/scratch/midway2/aksarkar/singlecell/power/mean-se.txt.gz', index_col=0)
+    disp_sampling_var = pd.read_table('/scratch/midway2/aksarkar/singlecell/power/disp-se.txt.gz', index_col=0)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[3]:
+  :END:
+
+  (2) we need to estimate the dependence of \(\sigma^2_r\) on the ZINB
+  parameters.
+
+  Using the estimated \(\sigma^2_m\) from above, we can fit OLS and correct the
+  estimated residual variance to recover \(\sigma^2_r\).
+
+  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/power/analytic/
+    sbatch --partition=broadwl -a 1 -n1 -c28 --exclusive --job-name=nominal --out nominal.out --time=60:00
+    #!/bin/bash
+    source activate scqtl
+    tasks=(
+        "python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /scratch/midway2/aksarkar/singlecell/scqtl-mapping/log_phi.bed.gz --no-std --out log_phi.txt.gz"
+        "python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/mean.bed.gz --cov /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/mean-covars.txt --no-std --out mean.txt.gz"
+    )
+    exec ${tasks[$SLURM_ARRAY_TASK_ID]}
+  #+END_SRC
+
+  #+RESULTS:
+  : Submitted batch job 48714257
+
+  Finally, we can combine these results to plot power curves.
+
+  #+BEGIN_SRC ipython :ipyfile figure/power.org/analytic-power.png
+    plt.clf()
+    fig, ax = plt.subplots(1, 3, sharey=True)
+    fig.set_size_inches(9, 3)
+    grid = np.geomspace(0.001, 1, 100)
+    for i, n in enumerate([100, 500, 1000]):
+      for ratio in np.linspace(0, 4, 5):
+        power = 1 - 2 * st.norm().cdf(-grid * np.sqrt(n / (1 + ratio)))
+        color = colorcet.cm['fire_r']((ratio + .5) / 4.5)
+        ax[i].set_xscale('log')
+        ax[i].plot(grid, power, lw=1, color=color, label='{:.2g}'.format(ratio))
+        ax[i].grid(ls=':', lw=1, c='0.75')
+        ax[i].set_ylim(0, 1)
+        ax[i].set_title('n = {}'.format(n))
+        ax[i].set_xlabel('Relative effect size')
+    ax[-1].legend(title='Noise ratio', frameon=False, bbox_to_anchor=(1, .5), loc='center left')
+    _ = ax[0].set_ylabel('Power')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[45]:
+  : Text(0,0.5,'Power')
+  [[file:figure/power.org/analytic-power.png]]
+  :END:
