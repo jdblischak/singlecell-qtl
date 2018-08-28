@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-08-24 Fri 11:14 -->
+<!-- 2018-08-28 Tue 16:03 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>QTL mapping pipeline</title>
@@ -1544,6 +1544,140 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
+<div id="outline-container-org26eee6b" class="outline-3">
+<h3 id="org26eee6b">Fit multiplicative model</h3>
+<div class="outline-text-3" id="text-org26eee6b">
+<p>
+Estimate the moments of latent gene expression. We have:
+</p>
+
+<p>
+\[ \mathbb{E}[\lambda_{ijk}] = (1 - \pi_{ik}) \mu_{ik} \]
+</p>
+
+<p>
+\[ \mathbb{V}[\lambda_{ijk}] = (1 - \pi_{ik}) \phi_{ik}^{-1} + \pi_{ik} (1 -
+   \pi_{ik}) \mu_{ik}^2 \]
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython" id="orgd94f07c"><span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">log_phi</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-phi.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">logodds</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-logodds.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-keyword">for</span> x <span class="org-keyword">in</span> (log_mu, log_phi, logodds):
+  <span class="org-keyword">del</span> x[<span class="org-string">'NA18498'</span>]
+
+<span class="org-comment-delimiter"># </span><span class="org-comment">Important: log(sigmoid(x)) = -softplus(-x)</span>
+<span class="org-variable-name">mean_by_ind</span> = np.exp(log_mu - np.log1p(np.exp(logodds)))
+<span class="org-variable-name">variance_by_ind</span> = np.exp(2 * log_mu + log_phi - np.log1p(np.exp(logodds))) + np.exp(-np.log1p(np.exp(logodds)) - np.log1p(np.exp(-logodds)) + 2 * log_mu)
+</pre>
+</div>
+
+<p>
+Normalize the mean matrix analagous to the bulk data.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">multmean</span> = (np.log(mean_by_ind)
+        .transform(<span class="org-keyword">lambda</span> x: (x - x.mean()) / x.std(), axis=1)
+        .<span class="org-builtin">apply</span>(qqnorm, axis=0))
+</pre>
+</div>
+
+<p>
+Compute principal components of the mean matrix.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">covars</span> = pd.DataFrame(skd.PCA(n_components=10).fit(multmean).components_, columns=multmean.columns)
+<span class="org-variable-name">covars.index.name</span> = <span class="org-string">'id'</span>
+covars.to_csv(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/multmean-covars.txt'</span>, sep=<span class="org-string">'\t'</span>)
+</pre>
+</div>
+
+<p>
+Write out the <a href="https://qtltools.github.io/qtltools/pages/input_files.html">phenotype file</a> for <code>qtltools</code>. Hold out even chromosomes while
+optimizing the power to detect eQTLs.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">write_pheno_file(multmean, gene_info, <span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/multmean.bed'</span>, holdout=<span class="org-constant">False</span>)
+</pre>
+</div>
+
+<p>
+Index the phenotype file.
+</p>
+
+<pre class="example">
+Submitted batch job 48837662
+
+</pre>
+
+<p>
+Run <code>qtltools</code>.
+</p>
+
+<pre class="example">
+Submitted batch job 48837665
+
+</pre>
+
+<p>
+Read the output.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">multmean_qtls</span> = read_qtltools_output(<span class="org-string">'scqtl-mapping/mean'</span>)
+</pre>
+</div>
+
+<p>
+Check the beta approximation to the permutation p-values.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plot_approx_permutation(multmean_qtls)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/qtl-mapping.org/multmean-qtl-beta-approx.png" alt="multmean-qtl-beta-approx.png">
+</p>
+</div>
+
+<p>
+Plot a QQ plot of the adjusted p-values.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">qqplot(multmean_qtls)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/qtl-mapping.org/multmean-qtl-qq.png" alt="multmean-qtl-qq.png">
+</p>
+</div>
+
+<p>
+Take QTLs at FDR 10%.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">multmean_qtls[<span class="org-string">'fdr_pass'</span>].<span class="org-builtin">sum</span>()
+</pre>
+</div>
+
+<pre class="example">
+241
+
+</pre>
+</div>
+</div>
+
 <div id="outline-container-org0f59e46" class="outline-3">
 <h3 id="org0f59e46">Call &phi;-QTLs</h3>
 <div class="outline-text-3" id="text-org0f59e46">
@@ -1638,9 +1772,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-org8c0ed3e" class="outline-3">
-<h3 id="org8c0ed3e">Call variance-QTLs</h3>
-<div class="outline-text-3" id="text-org8c0ed3e">
+<div id="outline-container-org33adcba" class="outline-3">
+<h3 id="org33adcba">Call variance-QTLs</h3>
+<div class="outline-text-3" id="text-org33adcba">
 <p>
 Normalize the variance matrix. Restrict to genes with \(\ln\mu > 0.5\) in at
 least half the individuals.
@@ -1746,9 +1880,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-org15d90ad" class="outline-3">
-<h3 id="org15d90ad">Call CV-QTLs</h3>
-<div class="outline-text-3" id="text-org15d90ad">
+<div id="outline-container-orgc1304e3" class="outline-3">
+<h3 id="orgc1304e3">Call CV-QTLs</h3>
+<div class="outline-text-3" id="text-orgc1304e3">
 <p>
 Estimate the coefficient of variation.
 </p>
@@ -1959,9 +2093,9 @@ Take QTLs at FDR 10%.
 <h2 id="org0358668">Explain away variance QTLs</h2>
 <div class="outline-text-2" id="text-org0358668">
 </div>
-<div id="outline-container-org33adcba" class="outline-3">
-<h3 id="org33adcba">Call variance-QTLs</h3>
-<div class="outline-text-3" id="text-org33adcba">
+<div id="outline-container-org1b036d3" class="outline-3">
+<h3 id="org1b036d3">Call variance-QTLs</h3>
+<div class="outline-text-3" id="text-org1b036d3">
 <p>
 Regress out mean from variance.
 </p>
@@ -2077,9 +2211,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-orgc1304e3" class="outline-3">
-<h3 id="orgc1304e3">Call CV-QTLs</h3>
-<div class="outline-text-3" id="text-orgc1304e3">
+<div id="outline-container-orgfcfd48e" class="outline-3">
+<h3 id="orgfcfd48e">Call CV-QTLs</h3>
+<div class="outline-text-3" id="text-orgfcfd48e">
 <p>
 Estimate the coefficient of variation.
 </p>
@@ -2218,13 +2352,13 @@ cat &gt;.rsync-filter &lt;&lt;EOF
 <span class="org-sh-heredoc">EOF</span>
 <span class="org-keyword">function</span> <span class="org-function-name">z</span> { <span class="org-builtin">test</span> $<span class="org-variable-name">1</span>-qtl.1.txt -nt $<span class="org-variable-name">1</span>.txt.gz &amp;&amp; cat $<span class="org-variable-name">1</span>-qtl.*.txt | awk <span class="org-string">'BEGIN {print "gene", "chr", "start", "end", "strand", "num_vars", "distance", "id", "var_chr", "var_start", "var_end", "df", "dummy", "a", "b", "p_nominal", "beta", "p_empirical", "p_beta"} {print}'</span> | gzip &gt;$<span class="org-variable-name">1</span>.txt.gz; }
 <span class="org-builtin">export</span> -f z
-parallel -j1 z ::: cv fano mean variance resid cv_resid
+parallel -j1 z ::: cv fano mean multmean variance resid cv_resid
 rsync -FFau . /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/
 </pre>
 </div>
 
 <pre class="example">
-Submitted batch job 47484078
+Submitted batch job 48837869
 
 </pre>
 </div>
@@ -2245,7 +2379,7 @@ Read the QTLs and normalized expression matrices.
 <pre class="src src-ipython"><span class="org-variable-name">prefix</span> = <span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/'</span>
 <span class="org-variable-name">qtls</span> = {pheno: [pd.read_table(<span class="org-string">'{}/{}.txt.gz'</span>.<span class="org-builtin">format</span>(prefix, pheno), sep=<span class="org-string">' '</span>),
                 pd.read_table(<span class="org-string">'{}/{}.bed.gz'</span>.<span class="org-builtin">format</span>(prefix, pheno)).set_index(<span class="org-string">'pid'</span>).<span class="org-builtin">filter</span>(like=<span class="org-string">'NA'</span>, axis=<span class="org-string">'columns'</span>)]
-        <span class="org-keyword">for</span> pheno <span class="org-keyword">in</span> [<span class="org-string">'bulk'</span>, <span class="org-string">'mean'</span>, <span class="org-string">'variance'</span>, <span class="org-string">'cv'</span>, <span class="org-string">'fano'</span>]}
+        <span class="org-keyword">for</span> pheno <span class="org-keyword">in</span> [<span class="org-string">'bulk'</span>, <span class="org-string">'mean'</span>, <span class="org-string">'multmean'</span>, <span class="org-string">'variance'</span>, <span class="org-string">'cv'</span>, <span class="org-string">'fano'</span>]}
 </pre>
 </div>
 
@@ -2256,7 +2390,7 @@ Read covariates.
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-variable-name">base</span> = pathlib.Path(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/'</span>)
 <span class="org-variable-name">covars</span> = [pd.read_table(base / <span class="org-string">'{}-covars.txt'</span>.<span class="org-builtin">format</span>(f), sep=<span class="org-string">'\s+'</span>, engine=<span class="org-string">'python'</span>, index_col=0)
-          <span class="org-keyword">for</span> f <span class="org-keyword">in</span> (<span class="org-string">'bulk'</span>, <span class="org-string">'mean'</span>, <span class="org-string">'variance'</span>)]
+          <span class="org-keyword">for</span> f <span class="org-keyword">in</span> (<span class="org-string">'bulk'</span>, <span class="org-string">'mean'</span>, <span class="org-string">'multmean'</span>, <span class="org-string">'variance'</span>)]
 </pre>
 </div>
 
@@ -2288,16 +2422,17 @@ Estimate replication rates for mean QTLs.
 <pre class="src src-ipython"><span class="org-variable-name">pd.options.display.float_format</span> = <span class="org-string">'{:.3g}'</span>.<span class="org-builtin">format</span>
 pairwise_replication(
   qtls,
-  phenos=[<span class="org-string">'bulk'</span>, <span class="org-string">'mean'</span>],
-  ticks=[<span class="org-string">'Bulk'</span>, <span class="org-string">'Mean'</span>],
-  covars=covars[:2])
+  phenos=[<span class="org-string">'bulk'</span>, <span class="org-string">'mean'</span>, <span class="org-string">'multmean'</span>],
+  ticks=[<span class="org-string">'Bulk'</span>, <span class="org-string">'Mean'</span>, <span class="org-string">'log mean'</span>],
+  covars=covars[:3])
 </pre>
 </div>
 
 <pre class="example">
-Bulk  Mean
-Bulk   100    80
-Mean    82   100
+Bulk  Mean  log mean
+Bulk       100    80      79.4
+Mean        82   100       100
+log mean  83.5   100       100
 </pre>
 
 <p>
@@ -3121,7 +3256,7 @@ Extract the QTLs for the browser.
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-08-24 Fri 11:14</p>
+<p class="date">Created: 2018-08-28 Tue 16:03</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>

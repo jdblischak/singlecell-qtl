@@ -27,7 +27,7 @@
   #+CALL: ipython3(memory="32G", venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 48702761
+  : Submitted batch job 48829444
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -68,7 +68,8 @@
   # Out[2]:
   :END:
 
-* Differential dispersion
+* Empirical power calculation
+** Differential dispersion
 
   Perform a nested model comparison for each gene \(k\), comparing the model:
 
@@ -429,7 +430,7 @@
    [[file:figure/power.org/lrt-power.png]]
    :END:
 
-* QTL discovery
+** QTL discovery
 
   We assume the phenotype is generated from \(m\) causal effects (out of \(p\)
   variants) following a linear model:
@@ -662,7 +663,7 @@
   [[file:figure/power.org/eqtl-power.png]]
   :END:
 
-* Distribution of effect sizes.
+** Distribution of effect sizes.
 
   Use ~ash~ to estimate the distribution of true effect sizes across all
   genes. We need to compute regression standard errors ourselves.
@@ -712,7 +713,7 @@
     parser.add_argument('--vcf', required=True)
     parser.add_argument('--pheno', required=True)
     parser.add_argument('--cov')
-    parser.add_argument('--no-std', action='store_false')
+    parser.add_argument('--no-std', action='store_true')
     parser.add_argument('--out', default=None)
     args = parser.parse_args()
 
@@ -1130,7 +1131,7 @@
   #+END_EXAMPLE
   :END:
 
-* Compare experimental variance to biological variance
+** Compare experimental variance to biological variance
 
   Let \hat{\theta}_i be an estimate of some phenotype \(\theta_i\). Assume:
 
@@ -1361,7 +1362,7 @@
 
   Estimate bootstrap SEs on a GPU.
 
-  #+NAME: tf-zinb.py
+  #+NAME: tf-zinb-se.py
   #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb-se.py
     <<zinb-imports>>
     <<tf-imports>>
@@ -1535,8 +1536,8 @@
   #+END_EXAMPLE
   :END:
 
-* Distribution of PVE
-
+** Distribution of PVE
+  
   We can use shrunk marginal effect size estimates to bound the proportion of
   phenotypic variance explained. We claim:
 
@@ -1863,7 +1864,7 @@
   #+END_EXAMPLE
   :END:
 
-* Estimate the error variance
+** Estimate the error variance
 
   The single cell experiment size determines the standard error of the
   estimator, which can be thought of as measurement error.
@@ -1976,13 +1977,12 @@
 
 * Analytic power calculation
 
-  For phenotype \(y\) (either mean, variance, or dispersion), assume the
-  generative process:
+  We assume the generative process:
 
   \[ y_i = x_i b + e_{\mathrm{resid}} \]
 
-  where \(x_i\) is the genotype at one SNP, \(b = \lambda \sigma_r\), and
-  \(e_{\mathrm{resid}} \sim N(0, \sigma^2_r)\)
+  where \(y_i\) is the phenotype of individual \(i\), \(x_i\) is the genotype
+  at the SNP of interest, and \(e_{\mathrm{resid}} \sim N(0, \sigma^2_r)\)
 
   We observe \(y_i\) with error:
 
@@ -2002,65 +2002,25 @@
 
   where \(n\) is the number of individuals.
 
-  Therefore, the power function is:
+  Assume \(b = \lambda \sigma_r\), and define \(\delta = \sigma^2_m /
+  \sigma^2_r\) as the /noise ratio/. Then, the power function is:
 
-  \[ \mathrm{Pow}(\lambda, n, \sigma^2_r, \sigma^2_m) = 1 -
-  2 \Phi\left(-\vert\lambda\vert \sqrt{\frac{n}{1 + \sigma^2_m / \sigma^2_r}}\right) \]
+  \[ \mathrm{Pow}(\lambda, n, \delta) = 1 -
+  2 \Phi\left(-\vert\lambda\vert \sqrt{\frac{n}{1 + \delta}}\right) \]
 
   where \(\Phi(\cdot)\) denotes the Gaussian CDF.
 
-  We need to perform two tasks empirically: (1) we need to estimate the
-  dependence of \(\sigma^2_m\) on the number of cells, the number of molecules,
-  and the ZINB parameters.
-
-  One complication is that we actually have \(e_{\mathrm{meas},i} \sim N(0,
-  \sigma^2_{mi})\). However, our analysis carries through assuming
-  \(\sigma^2_{mi} \sim N(\sigma^2_m, \cdot)\), and estimating \(\hat\sigma^2_m
-  = \frac{1}{n} \sum_i \sigma^2_{mi}\).
-
-  We can estimate this dependence via parametric bootstrap.
-
-  #+BEGIN_SRC ipython
-    mean_sampling_var = pd.read_table('/scratch/midway2/aksarkar/singlecell/power/mean-se.txt.gz', index_col=0)
-    disp_sampling_var = pd.read_table('/scratch/midway2/aksarkar/singlecell/power/disp-se.txt.gz', index_col=0)
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[3]:
-  :END:
-
-  (2) we need to estimate the dependence of \(\sigma^2_r\) on the ZINB
-  parameters.
-
-  Using the estimated \(\sigma^2_m\) from above, we can fit OLS and correct the
-  estimated residual variance to recover \(\sigma^2_r\).
-
-  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/power/analytic/
-    sbatch --partition=broadwl -a 1 -n1 -c28 --exclusive --job-name=nominal --out nominal.out --time=60:00
-    #!/bin/bash
-    source activate scqtl
-    tasks=(
-        "python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /scratch/midway2/aksarkar/singlecell/scqtl-mapping/log_phi.bed.gz --no-std --out log_phi.txt.gz"
-        "python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/mean.bed.gz --cov /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/mean-covars.txt --no-std --out mean.txt.gz"
-    )
-    exec ${tasks[$SLURM_ARRAY_TASK_ID]}
-  #+END_SRC
-
-  #+RESULTS:
-  : Submitted batch job 48714257
-
-  Finally, we can combine these results to plot power curves.
+  We plot the power function varying \(n, \delta\).
 
   #+BEGIN_SRC ipython :ipyfile figure/power.org/analytic-power.png
     plt.clf()
     fig, ax = plt.subplots(1, 3, sharey=True)
     fig.set_size_inches(9, 3)
     grid = np.geomspace(0.001, 1, 100)
-    for i, n in enumerate([100, 500, 1000]):
+    for i, n in enumerate([60, 100, 500]):
       for ratio in np.linspace(0, 4, 5):
         power = 1 - 2 * st.norm().cdf(-grid * np.sqrt(n / (1 + ratio)))
-        color = colorcet.cm['fire_r']((ratio + .5) / 4.5)
+        color = colorcet.cm['fire_r']((ratio + 1) / 5)
         ax[i].set_xscale('log')
         ax[i].plot(grid, power, lw=1, color=color, label='{:.2g}'.format(ratio))
         ax[i].grid(ls=':', lw=1, c='0.75')
@@ -2073,7 +2033,194 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[45]:
-  : Text(0,0.5,'Power')
+  # Out[36]:
   [[file:figure/power.org/analytic-power.png]]
+  :END:
+
+  Now, we need to answer the following questions: 
+
+  1. What is the typical noise ratio of the current study?
+  2. What is the typical effect size?
+  3. How does the noise ratio vary with the number of cells and number of molecules?
+
+  To answer (1), we need to estimate \(\sigma^2_m\) and \(\sigma^2_r\).
+
+  One complication is that we actually have \(e_{\mathrm{meas},i} \sim N(0,
+  \sigma^2_{mi})\). We estimate \(\sigma^2_{mi}\) via non-parametric bootstrap.
+
+  #+BEGIN_SRC ipython
+    mean_sampling_var = pd.read_table('/scratch/midway2/aksarkar/singlecell/power/mean-se.txt.gz', index_col=0)
+    disp_sampling_var = pd.read_table('/scratch/midway2/aksarkar/singlecell/power/disp-se.txt.gz', index_col=0)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[33]:
+  :END:
+
+  Assuming that \(\hat\sigma^2_{mi}\) is unbiased, \(\hat\sigma^2_r =
+  \frac{1}{n - 1}\sum_i (\tilde{y}_i - \bar{y})^2 - \frac{1}{n}\sum_i
+  \hat\sigma^2_{mi}\) is also unbiased (Buonaccorsi 2010, Eq. 10.1).
+
+  It can happen that \(\hat\sigma^2_r \leq 0\). In this case, the simplest
+  thing to do is clip its value to 0.
+
+  #+CALL: point-gamma-moments()
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[34]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    def get_residual_var(pheno, error_var):
+      u = pheno.var(axis=1)
+      v = error_var.mean(axis=1)
+      u, v = u.align(v, axis='index', join='inner')
+      return np.clip(u - v, 0, None)
+
+    def get_noise_ratio(pheno, error_var):
+      resid_var = get_residual_var(pheno, error_var)
+      return ((error_var.mean(axis=1) / resid_var)
+              .mask(lambda x: ~np.isfinite(x))
+              .dropna())
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[35]:
+  :END:
+
+  Estimate the noise ratio for the mean.
+
+  #+BEGIN_SRC ipython
+    get_noise_ratio(mean_by_ind, mean_sampling_var).describe()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[33]:
+  #+BEGIN_EXAMPLE
+    count    75.000000
+    mean      2.365234
+    std       4.746555
+    min       0.109361
+    25%       0.458076
+    50%       1.043664
+    75%       2.229525
+    max      33.946118
+    dtype: float64
+  #+END_EXAMPLE
+  :END:
+
+  Estimate the noise ratio for the logarithm of the mean using the delta
+  method.
+
+  #+BEGIN_SRC ipython
+    get_noise_ratio(np.log(mean_by_ind), mean_sampling_var / np.square(mean_by_ind)).describe()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[37]:
+  #+BEGIN_EXAMPLE
+    count         72
+    mean        23.3
+    std          145
+    min        0.161
+    25%          0.7
+    50%         1.35
+    75%         2.99
+    max     1.22e+03
+    dtype: float64
+  #+END_EXAMPLE
+  :END:
+
+  Estimate the noise ratio for the dispersion.
+
+  #+BEGIN_SRC ipython
+    get_noise_ratio(log_phi, disp_sampling_var).describe()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[35]:
+  #+BEGIN_EXAMPLE
+    count    92.000000
+    mean      1.346648
+    std       3.382984
+    min       0.041327
+    25%       0.117332
+    50%       0.281986
+    75%       0.914243
+    max      22.984483
+    dtype: float64
+  #+END_EXAMPLE
+  :END:
+
+  To answer (2), we need to apply ~ash~. To make effect sizes comparable
+  between mean and dispersion, fit multiplicative models.
+
+  #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/nominal-log-fc.py
+    <<power-imports>>
+    <<eqtl-sim-impl>>
+    <<write-pheno-def>>
+    <<nominal-pass-def>>
+
+    vcf = tabix.open('/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz')
+    header = pd.read_table('/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz', skiprows=2, nrows=1, header=0).columns[9:]
+
+    <<point-gamma-moments>>
+
+    <<get-gene-info>>
+    log_phi = (gene_info
+               .apply(qtltools_format, axis=1)
+               .merge(log_phi, left_index=True, right_index=True))
+    mean_by_ind = (gene_info
+                   .apply(qtltools_format, axis=1)
+                   .merge(log_mu, left_index=True, right_index=True))
+
+    # run_nominal_pass(vcf, log_phi, header, std=False).to_csv('disp.txt.gz', sep='\t', compression='gzip')
+    run_nominal_pass(vcf, mean_by_ind, header, std=False).to_csv('mean.txt.gz', sep='\t', compression='gzip')
+  #+END_SRC
+
+  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/power/analytic/
+    sbatch --partition=broadwl -n1 -c28 --exclusive --job-name=nominal --out=nominal.out --time=60:00
+    #!/bin/bash
+    source activate scqtl
+    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/nominal-log-fc.py
+  #+END_SRC
+
+  #+RESULTS:
+  : Submitted batch job 48830791
+
+  #+BEGIN_SRC ipython :async t
+    ash_results = {x: fit_ash('/scratch/midway2/aksarkar/singlecell/power/analytic/{}.txt.gz'.format(x))
+                   for x in ('mean', 'disp')}
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[10]:
+  :END:
+
+  Look at the fitted \(g\).
+
+  #+BEGIN_SRC ipython :ipyfile figure/power.org/log-fc-ash-g.png
+    plt.clf()
+    plt.gcf().set_size_inches(3, 3)
+    grid = np.linspace(-.25, .25, num=1000)
+    for k, c, l in zip(['disp', 'mean'], ['r', 'k'], ['Dispersion', 'Mean']):
+      y = np.array(ashr.cdf_ash(ash_results[k], grid).rx2('y')).ravel()
+      plt.plot(grid, y, c=c, lw=1, label=l)
+    plt.xlabel('Effect size')
+    plt.ylabel('Cumulative density')
+    plt.legend(frameon=False, loc='center left', bbox_to_anchor=(1, .5))
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[11]:
+  : <matplotlib.legend.Legend at 0x7f104f95c2b0>
+  [[file:figure/power.org/log-fc-ash-g.png]]
   :END:

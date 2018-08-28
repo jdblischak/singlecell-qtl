@@ -26,7 +26,7 @@
   #+CALL: ipython3(memory="16G", venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 47482812
+  : Submitted batch job 48837506
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -60,7 +60,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[28]:
+  # Out[1]:
   :END:
 
 * Implementation
@@ -83,7 +83,7 @@
 
   #+RESULTS: r-wrappers
   :RESULTS:
-  # Out[55]:
+  # Out[2]:
   :END:
 
   #+NAME: get-gene-info
@@ -98,7 +98,7 @@
 
   #+RESULTS: get-gene-info
   :RESULTS:
-  # Out[56]:
+  # Out[3]:
   :END:
 
   #+NAME: write-gene-info
@@ -147,7 +147,7 @@
 
   #+RESULTS: write-pheno-def
   :RESULTS:
-  # Out[57]:
+  # Out[4]:
   :END:
 
   #+NAME: tabix
@@ -217,7 +217,7 @@
 
   #+RESULTS: read-qtltools-def
   :RESULTS:
-  # Out[58]:
+  # Out[5]:
   :END:
 
   #+RESULTS:
@@ -238,7 +238,7 @@
 
   #+RESULTS: plot-approx-perm-def
   :RESULTS:
-  # Out[59]:
+  # Out[6]:
   :END:
 
   #+NAME: qqplot-def
@@ -261,7 +261,7 @@
 
   #+RESULTS: qqplot-def
   :RESULTS:
-  # Out[60]:
+  # Out[7]:
   :END:
 
   #+NAME: replication-tests-def
@@ -349,7 +349,7 @@
 
   #+RESULTS: replication-tests-def
   :RESULTS:
-  # Out[61]:
+  # Out[8]:
   :END:
 
   #+NAME: bootstrap-def
@@ -368,7 +368,7 @@
 
   #+RESULTS: bootstrap-def
   :RESULTS:
-  # Out[62]:
+  # Out[9]:
   :END:
 
   #+NAME: bootstrap-betahat-se-def
@@ -430,7 +430,7 @@
 
   #+RESULTS: bootstrap-betahat-se-def
   :RESULTS:
-  # Out[63]:
+  # Out[10]:
   :END:
 
 * Preliminaries
@@ -1889,7 +1889,7 @@
 
    #+RESULTS: point-gamma-moments
    :RESULTS:
-   # Out[52]:
+   # Out[11]:
    :END:
 
    Normalize the mean matrix analagous to the bulk data.
@@ -1988,6 +1988,132 @@
    #+RESULTS:
    :RESULTS:
    # Out[19]:
+   : 241
+   :END:
+
+** Fit multiplicative model
+
+   Estimate the moments of latent gene expression. We have:
+
+   \[ \mathbb{E}[\lambda_{ijk}] = (1 - \pi_{ik}) \mu_{ik} \]
+
+   \[ \mathbb{V}[\lambda_{ijk}] = (1 - \pi_{ik}) \phi_{ik}^{-1} + \pi_{ik} (1 -
+   \pi_{ik}) \mu_{ik}^2 \]
+
+   #+NAME: point-gamma-moments
+   #+BEGIN_SRC ipython
+     log_mu = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz', index_col=0, sep=' ')
+     log_phi = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-phi.txt.gz', index_col=0, sep=' ')
+     logodds = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-logodds.txt.gz', index_col=0, sep=' ')
+     for x in (log_mu, log_phi, logodds):
+       del x['NA18498']
+
+     # Important: log(sigmoid(x)) = -softplus(-x)
+     mean_by_ind = np.exp(log_mu - np.log1p(np.exp(logodds)))
+     variance_by_ind = np.exp(2 * log_mu + log_phi - np.log1p(np.exp(logodds))) + np.exp(-np.log1p(np.exp(logodds)) - np.log1p(np.exp(-logodds)) + 2 * log_mu)
+   #+END_SRC
+
+   #+RESULTS: point-gamma-moments
+   :RESULTS:
+   # Out[52]:
+   :END:
+
+   Normalize the mean matrix analagous to the bulk data.
+
+   #+BEGIN_SRC ipython
+     multmean = (np.log(mean_by_ind)
+             .transform(lambda x: (x - x.mean()) / x.std(), axis=1)
+             .apply(qqnorm, axis=0))
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[12]:
+   :END:
+
+   Compute principal components of the mean matrix.
+
+   #+BEGIN_SRC ipython
+    covars = pd.DataFrame(skd.PCA(n_components=10).fit(multmean).components_, columns=multmean.columns)
+    covars.index.name = 'id'
+    covars.to_csv('/scratch/midway2/aksarkar/singlecell/scqtl-mapping/multmean-covars.txt', sep='\t')
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[13]:
+   :END:
+
+   Write out the [[https://qtltools.github.io/qtltools/pages/input_files.html][phenotype file]] for ~qtltools~. Hold out even chromosomes while
+   optimizing the power to detect eQTLs.
+
+   #+BEGIN_SRC ipython
+     write_pheno_file(multmean, gene_info, '/scratch/midway2/aksarkar/singlecell/scqtl-mapping/multmean.bed', holdout=False)
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[14]:
+   :END:
+
+   Index the phenotype file.
+
+   #+CALL: tabix(input="multmean.bed") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
+
+   #+RESULTS:
+   : Submitted batch job 48837662
+
+   Run ~qtltools~.
+
+   #+CALL: qtltools(pheno="multmean", geno="/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz", op="--cov multmean-covars.txt --window 100000 --permute 10000") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
+
+   #+RESULTS:
+   : Submitted batch job 48837665
+
+   Read the output.
+
+   #+BEGIN_SRC ipython
+     multmean_qtls = read_qtltools_output('scqtl-mapping/mean')
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[15]:
+   :END:
+
+   Check the beta approximation to the permutation p-values.
+
+   #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/multmean-qtl-beta-approx.png
+     plot_approx_permutation(multmean_qtls)
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[16]:
+   [[file:figure/qtl-mapping.org/multmean-qtl-beta-approx.png]]
+   :END:
+
+   Plot a QQ plot of the adjusted p-values.
+
+   #+BEGIN_SRC ipython :ipyfile figure/qtl-mapping.org/multmean-qtl-qq.png
+     qqplot(multmean_qtls)
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[17]:
+   [[file:figure/qtl-mapping.org/multmean-qtl-qq.png]]
+   :END:
+
+   Take QTLs at FDR 10%.
+
+   #+BEGIN_SRC ipython
+     multmean_qtls['fdr_pass'].sum()
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[18]:
    : 241
    :END:
 
@@ -2993,12 +3119,12 @@
     EOF
     function z { test $1-qtl.1.txt -nt $1.txt.gz && cat $1-qtl.*.txt | awk 'BEGIN {print "gene", "chr", "start", "end", "strand", "num_vars", "distance", "id", "var_chr", "var_start", "var_end", "df", "dummy", "a", "b", "p_nominal", "beta", "p_empirical", "p_beta"} {print}' | gzip >$1.txt.gz; }
     export -f z
-    parallel -j1 z ::: cv fano mean variance resid cv_resid
+    parallel -j1 z ::: cv fano mean multmean variance resid cv_resid
     rsync -FFau . /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 47484078
+  : Submitted batch job 48837869
 
 * QTL overlap
 ** Replication rates
@@ -3009,12 +3135,12 @@
      prefix = '/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/'
      qtls = {pheno: [pd.read_table('{}/{}.txt.gz'.format(prefix, pheno), sep=' '),
                      pd.read_table('{}/{}.bed.gz'.format(prefix, pheno)).set_index('pid').filter(like='NA', axis='columns')]
-             for pheno in ['bulk', 'mean', 'variance', 'cv', 'fano']}
+             for pheno in ['bulk', 'mean', 'multmean', 'variance', 'cv', 'fano']}
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[26]:
+   # Out[22]:
    :END:
 
   Read covariates.
@@ -3022,12 +3148,12 @@
   #+BEGIN_SRC ipython
     base = pathlib.Path('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/')
     covars = [pd.read_table(base / '{}-covars.txt'.format(f), sep='\s+', engine='python', index_col=0)
-              for f in ('bulk', 'mean', 'variance')]
+              for f in ('bulk', 'mean', 'multmean', 'variance')]
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[33]:
+  # Out[23]:
   :END:
 
    The bulk QTL gene names need to be munged.
@@ -3039,7 +3165,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[28]:
+   # Out[24]:
    :END:
 
    Compute the gene-level FDR filter.
@@ -3051,7 +3177,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[30]:
+   # Out[28]:
    :END:
 
    Estimate replication rates for mean QTLs.
@@ -3060,18 +3186,19 @@
     pd.options.display.float_format = '{:.3g}'.format
     pairwise_replication(
       qtls,
-      phenos=['bulk', 'mean'],
-      ticks=['Bulk', 'Mean'],
-      covars=covars[:2])
+      phenos=['bulk', 'mean', 'multmean'],
+      ticks=['Bulk', 'Mean', 'log mean'],
+      covars=covars[:3])
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[34]:
+   # Out[31]:
    #+BEGIN_EXAMPLE
-     Bulk  Mean
-     Bulk   100    80
-     Mean    82   100
+     Bulk  Mean  log mean
+     Bulk       100    80      79.4
+     Mean        82   100       100
+     log mean  83.5   100       100
    #+END_EXAMPLE
    :END:
 
