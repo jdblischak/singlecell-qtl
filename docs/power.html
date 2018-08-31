@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-08-28 Tue 16:04 -->
+<!-- 2018-08-29 Wed 13:18 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Power to detect QTLs in single cell data</title>
@@ -257,17 +257,17 @@ for the JavaScript code in this tag.
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents">
 <ul>
-<li><a href="#org7a45ff7">Introduction</a></li>
-<li><a href="#org02ec729">Empirical power calculation</a>
+<li><a href="#orgdee1485">Introduction</a></li>
+<li><a href="#org77e9e95">Empirical power calculation</a>
 <ul>
-<li><a href="#orgb2eeac7">Differential dispersion</a></li>
-<li><a href="#orgef1c0e7">Null calibration via parametric bootstrap</a></li>
-<li><a href="#org2e8084c">Power</a></li>
-<li><a href="#org909e586">QTL discovery</a></li>
-<li><a href="#org5523bce">Distribution of effect sizes.</a></li>
-<li><a href="#orgc861e78">Compare experimental variance to biological variance</a></li>
-<li><a href="#orgbf487a9">Distribution of PVE</a></li>
-<li><a href="#orgfbe050a">Estimate the error variance</a></li>
+<li><a href="#org5ce8db1">Differential dispersion</a></li>
+<li><a href="#orgfbdc914">Null calibration via parametric bootstrap</a></li>
+<li><a href="#org4deff04">Power</a></li>
+<li><a href="#org0244399">QTL discovery</a></li>
+<li><a href="#org9a2ab29">Distribution of effect sizes.</a></li>
+<li><a href="#org9f6cd72">Compare experimental variance to biological variance</a></li>
+<li><a href="#org3ff32d5">Distribution of PVE</a></li>
+<li><a href="#org9c2a8ae">Estimate the error variance</a></li>
 </ul>
 </li>
 <li><a href="#orgcb1bb11">Analytic power calculation</a></li>
@@ -275,9 +275,9 @@ for the JavaScript code in this tag.
 </div>
 </div>
 
-<div id="outline-container-org7a45ff7" class="outline-2">
-<h2 id="org7a45ff7">Introduction</h2>
-<div class="outline-text-2" id="text-org7a45ff7">
+<div id="outline-container-orgdee1485" class="outline-2">
+<h2 id="orgdee1485">Introduction</h2>
+<div class="outline-text-2" id="text-orgdee1485">
 <p>
 We <a href="qtl-mapping.html">previously found</a> that our study lost power to detect eQTLs, and was
 underpowered to directly detect dispersion-QTLs.
@@ -295,13 +295,13 @@ Here, we estimate power to detect eQTLs and dispersion-QTLs as a function of:
 </div>
 </div>
 
-<div id="outline-container-org02ec729" class="outline-2">
-<h2 id="org02ec729">Empirical power calculation</h2>
-<div class="outline-text-2" id="text-org02ec729">
+<div id="outline-container-org77e9e95" class="outline-2">
+<h2 id="org77e9e95">Empirical power calculation</h2>
+<div class="outline-text-2" id="text-org77e9e95">
 </div>
-<div id="outline-container-orgb2eeac7" class="outline-3">
-<h3 id="orgb2eeac7">Differential dispersion</h3>
-<div class="outline-text-3" id="text-orgb2eeac7">
+<div id="outline-container-org5ce8db1" class="outline-3">
+<h3 id="org5ce8db1">Differential dispersion</h3>
+<div class="outline-text-3" id="text-org5ce8db1">
 <p>
 Perform a nested model comparison for each gene \(k\), comparing the model:
 </p>
@@ -319,7 +319,7 @@ against the model:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org3c919fd"><span class="org-keyword">def</span> <span class="org-function-name">lrt</span>(umi, onehot, design, size_factor):
+<pre class="src src-ipython" id="orgf9f0d78"><span class="org-keyword">def</span> <span class="org-function-name">lrt</span>(umi, onehot, design, size_factor):
   <span class="org-variable-name">_</span>, <span class="org-variable-name">_</span>, <span class="org-variable-name">_</span>, <span class="org-variable-name">llik0</span> = fit(
     umi=umi.values.T.astype(np.float32),
     onehot=onehot.astype(np.float32),
@@ -344,9 +344,9 @@ against the model:
 </div>
 </div>
 
-<div id="outline-container-orgef1c0e7" class="outline-3">
-<h3 id="orgef1c0e7">Null calibration via parametric bootstrap</h3>
-<div class="outline-text-3" id="text-orgef1c0e7">
+<div id="outline-container-orgfbdc914" class="outline-3">
+<h3 id="orgfbdc914">Null calibration via parametric bootstrap</h3>
+<div class="outline-text-3" id="text-orgfbdc914">
 <p>
 Sample null data from the model, using empirical estimates of the parameters
 in the observed data.
@@ -453,9 +453,9 @@ plt.xlabel(<span class="org-string">'Expected $\chi^2$ statistic'</span>)
 </div>
 </div>
 
-<div id="outline-container-org2e8084c" class="outline-3">
-<h3 id="org2e8084c">Power</h3>
-<div class="outline-text-3" id="text-org2e8084c">
+<div id="outline-container-org4deff04" class="outline-3">
+<h3 id="org4deff04">Power</h3>
+<div class="outline-text-3" id="text-org4deff04">
 <p>
 Sample from the assumed model.
 </p>
@@ -602,9 +602,9 @@ fig.tight_layout()
 </div>
 </div>
 
-<div id="outline-container-org909e586" class="outline-3">
-<h3 id="org909e586">QTL discovery</h3>
-<div class="outline-text-3" id="text-org909e586">
+<div id="outline-container-org0244399" class="outline-3">
+<h3 id="org0244399">QTL discovery</h3>
+<div class="outline-text-3" id="text-org0244399">
 <p>
 We assume the phenotype is generated from \(m\) causal effects (out of \(p\)
 variants) following a linear model:
@@ -627,7 +627,7 @@ variants) following a linear model:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="orgd8d73ac"><span class="org-keyword">def</span> <span class="org-function-name">read_dosage</span>(vcf, row, window=100000):
+<pre class="src src-ipython" id="org432bce0"><span class="org-keyword">def</span> <span class="org-function-name">read_dosage</span>(vcf, row, window=100000):
   <span class="org-variable-name">records</span> = <span class="org-builtin">list</span>(vcf.query(row[<span class="org-string">'#Chr'</span>], row[<span class="org-string">'start'</span>] - window, row[<span class="org-string">'start'</span>] + window))
   <span class="org-keyword">if</span> records:
     <span class="org-variable-name">x</span> = np.array([record[9:] <span class="org-keyword">for</span> record <span class="org-keyword">in</span> records]).astype(np.<span class="org-builtin">float</span>).T
@@ -860,16 +860,16 @@ fig.tight_layout()
 </div>
 </div>
 
-<div id="outline-container-org5523bce" class="outline-3">
-<h3 id="org5523bce">Distribution of effect sizes.</h3>
-<div class="outline-text-3" id="text-org5523bce">
+<div id="outline-container-org9a2ab29" class="outline-3">
+<h3 id="org9a2ab29">Distribution of effect sizes.</h3>
+<div class="outline-text-3" id="text-org9a2ab29">
 <p>
 Use <code>ash</code> to estimate the distribution of true effect sizes across all
 genes. We need to compute regression standard errors ourselves.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="orgc83609b"><span class="org-keyword">def</span> <span class="org-function-name">run_nominal_pass</span>(vcf, pheno, header, std=<span class="org-constant">True</span>, cov=<span class="org-constant">None</span>):
+<pre class="src src-ipython" id="org22226bd"><span class="org-keyword">def</span> <span class="org-function-name">run_nominal_pass</span>(vcf, pheno, header, std=<span class="org-constant">True</span>, cov=<span class="org-constant">None</span>):
   <span class="org-comment-delimiter"># </span><span class="org-comment">Annihilator matrix I - X X^+</span>
   <span class="org-variable-name">M</span> = <span class="org-constant">None</span>
   <span class="org-variable-name">result</span> = []
@@ -898,7 +898,7 @@ genes. We need to compute regression standard errors ourselves.
 </div>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="orgdeec973">&lt;&lt;power-imports&gt;&gt;
+<pre class="src src-ipython" id="org478d7e7">&lt;&lt;power-imports&gt;&gt;
 <span class="org-keyword">import</span> argparse
 &lt;&lt;eqtl-sim-impl&gt;&gt;
 &lt;&lt;nominal-<span class="org-keyword">pass</span>-<span class="org-keyword">def</span>&gt;&gt;
@@ -1156,7 +1156,7 @@ problem easier.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org1e20b89"><span class="org-keyword">def</span> <span class="org-function-name">downsample</span>(x, n):
+<pre class="src src-ipython" id="org8633725"><span class="org-keyword">def</span> <span class="org-function-name">downsample</span>(x, n):
   <span class="org-keyword">assert</span> n &gt;= 0
   <span class="org-keyword">if</span> x.shape[0] &gt;= n:
     <span class="org-keyword">return</span> x.loc[np.random.choice(x.index, n, replace=<span class="org-constant">False</span>)]
@@ -1316,9 +1316,9 @@ CV         94.2       97.4      97.1  97.2  100
 </div>
 </div>
 
-<div id="outline-container-orgc861e78" class="outline-3">
-<h3 id="orgc861e78">Compare experimental variance to biological variance</h3>
-<div class="outline-text-3" id="text-orgc861e78">
+<div id="outline-container-org9f6cd72" class="outline-3">
+<h3 id="org9f6cd72">Compare experimental variance to biological variance</h3>
+<div class="outline-text-3" id="text-org9f6cd72">
 <p>
 Let \hat{\theta}<sub>i</sub> be an estimate of some phenotype \(\theta_i\). Assume:
 </p>
@@ -1342,7 +1342,7 @@ Extract the genotypes and UMI counts.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="orgf1a4210"><span class="org-keyword">def</span> <span class="org-function-name">parse_vcf_dosage</span>(record):
+<pre class="src src-ipython" id="org7f1be20"><span class="org-keyword">def</span> <span class="org-function-name">parse_vcf_dosage</span>(record):
   <span class="org-variable-name">geno</span> = [<span class="org-builtin">float</span>(g) <span class="org-keyword">for</span> g <span class="org-keyword">in</span> record[9:]]
   <span class="org-keyword">return</span> pd.Series(geno)
 
@@ -1368,7 +1368,7 @@ Read the data.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="orgd31f005"><span class="org-variable-name">qtls</span> = (pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/mean.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
+<pre class="src src-ipython" id="org4ebe18a"><span class="org-variable-name">qtls</span> = (pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/mean.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
         .sort_values(<span class="org-string">'p_beta'</span>)
         .head(n=100))
 <span class="org-variable-name">annotations</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
@@ -1381,7 +1381,7 @@ Extract the subset we want.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org10f7d25"><span class="org-variable-name">counts</span> = extract_counts(qtls, <span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>)
+<pre class="src src-ipython" id="orgdccb38b"><span class="org-variable-name">counts</span> = extract_counts(qtls, <span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>)
 <span class="org-variable-name">annotations</span> = annotations.loc[keep_samples.values.ravel()].reset_index(drop=<span class="org-constant">True</span>)
 <span class="org-variable-name">counts</span> = counts.loc[:,keep_samples.values.ravel()]
 <span class="org-variable-name">geno</span> = extract_geno(qtls, <span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz'</span>)
@@ -1394,7 +1394,7 @@ Bootstrap the subset.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org0e16389"><span class="org-keyword">def</span> <span class="org-function-name">bootstrap</span>(counts, annotations):
+<pre class="src src-ipython" id="org1ea132a"><span class="org-keyword">def</span> <span class="org-function-name">bootstrap</span>(counts, annotations):
   <span class="org-variable-name">idx</span> = np.hstack({k: np.random.choice(g, size=<span class="org-builtin">len</span>(g))
                    <span class="org-keyword">for</span> k, g <span class="org-keyword">in</span> annotations.groupby(<span class="org-string">'chip_id'</span>).groups.items()}.values())
   <span class="org-keyword">return</span> counts.iloc[:,idx], annotations.iloc[idx]
@@ -1521,7 +1521,7 @@ Estimate bootstrap SEs on a GPU.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org59413ca">&lt;&lt;zinb-imports&gt;&gt;
+<pre class="src src-ipython" id="orgb7518ff">&lt;&lt;zinb-imports&gt;&gt;
 &lt;&lt;tf-imports&gt;&gt;
 <span class="org-keyword">import</span> tabix
 <span class="org-keyword">import</span> scipy.linalg <span class="org-keyword">as</span> sl
@@ -1551,6 +1551,7 @@ Estimate bootstrap SEs on a GPU.
 
 <span class="org-variable-name">estimates</span> = {
   <span class="org-string">'mean'</span>: np.array([np.exp(r[0] - np.log1p(np.exp(r[2]))) <span class="org-keyword">for</span> r <span class="org-keyword">in</span> results]),
+  <span class="org-string">'log_mean'</span>: np.array([r[0] - np.log1p(np.exp(r[2])) <span class="org-keyword">for</span> r <span class="org-keyword">in</span> results]),
   <span class="org-string">'disp'</span>: np.array([r[1] <span class="org-keyword">for</span> r <span class="org-keyword">in</span> results])
 }
 
@@ -1569,7 +1570,7 @@ python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb-se.py
 </div>
 
 <pre class="example">
-Submitted batch job 47382783
+Submitted batch job 48840035
 
 </pre>
 
@@ -1692,9 +1693,9 @@ dtype: float64
 </div>
 </div>
 
-<div id="outline-container-orgbf487a9" class="outline-3">
-<h3 id="orgbf487a9">Distribution of PVE</h3>
-<div class="outline-text-3" id="text-orgbf487a9">
+<div id="outline-container-org3ff32d5" class="outline-3">
+<h3 id="org3ff32d5">Distribution of PVE</h3>
+<div class="outline-text-3" id="text-org3ff32d5">
 <p>
 We can use shrunk marginal effect size estimates to bound the proportion of
 phenotypic variance explained. We claim:
@@ -1733,7 +1734,7 @@ this is still a lower bound
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org31d0bd9"><span class="org-keyword">def</span> <span class="org-function-name">get_pve</span>(summary_stats, ash_result):
+<pre class="src src-ipython" id="org3582b85"><span class="org-keyword">def</span> <span class="org-function-name">get_pve</span>(summary_stats, ash_result):
   <span class="org-variable-name">res</span> = ashr.ash(summary_stats[<span class="org-string">'beta'</span>], summary_stats[<span class="org-string">'se'</span>], fixg=<span class="org-constant">True</span>,
                  g=ash_result.rx2(<span class="org-string">'fitted_g'</span>))
   <span class="org-variable-name">pve</span> = np.square(pd.Series(np.square(ashr.get_psd(res)) + ashr.get_pm(res),
@@ -2049,9 +2050,9 @@ num_individuals  num_causal         0
 </div>
 </div>
 
-<div id="outline-container-orgfbe050a" class="outline-3">
-<h3 id="orgfbe050a">Estimate the error variance</h3>
-<div class="outline-text-3" id="text-orgfbe050a">
+<div id="outline-container-org9c2a8ae" class="outline-3">
+<h3 id="org9c2a8ae">Estimate the error variance</h3>
+<div class="outline-text-3" id="text-org9c2a8ae">
 <p>
 The single cell experiment size determines the standard error of the
 estimator, which can be thought of as measurement error.
@@ -2293,6 +2294,7 @@ One complication is that we actually have \(e_{\mathrm{meas},i} \sim N(0,
 
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-variable-name">mean_sampling_var</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/mean-se.txt.gz'</span>, index_col=0)
+<span class="org-variable-name">log_mean_sampling_var</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/log_mean-se.txt.gz'</span>, index_col=0)
 <span class="org-variable-name">disp_sampling_var</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/disp-se.txt.gz'</span>, index_col=0)
 </pre>
 </div>
@@ -2333,36 +2335,35 @@ Estimate the noise ratio for the mean.
 </div>
 
 <pre class="example">
-count    75.000000
-mean      2.365234
-std       4.746555
-min       0.109361
-25%       0.458076
-50%       1.043664
-75%       2.229525
-max      33.946118
+count     79.000000
+mean      11.526313
+std       75.780308
+min        0.094306
+25%        0.467233
+50%        1.076610
+75%        2.163613
+max      671.817753
 dtype: float64
 </pre>
 
 <p>
-Estimate the noise ratio for the logarithm of the mean using the delta
-method.
+Estimate the noise ratio for the logarithm of the mean.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython">get_noise_ratio(np.log(mean_by_ind), mean_sampling_var / np.square(mean_by_ind)).describe()
+<pre class="src src-ipython">get_noise_ratio(np.log(mean_by_ind), log_mean_sampling_var).describe()
 </pre>
 </div>
 
 <pre class="example">
-count         72
-mean        23.3
-std          145
-min        0.161
-25%          0.7
-50%         1.35
-75%         2.99
-max     1.22e+03
+count    91.000000
+mean      3.166803
+std       8.663277
+min       0.049376
+25%       0.385514
+50%       0.902767
+75%       1.924632
+max      66.847803
 dtype: float64
 </pre>
 
@@ -2376,14 +2377,14 @@ Estimate the noise ratio for the dispersion.
 </div>
 
 <pre class="example">
-count    92.000000
-mean      1.346648
-std       3.382984
-min       0.041327
-25%       0.117332
-50%       0.281986
-75%       0.914243
-max      22.984483
+count     92.000000
+mean       3.275456
+std       22.581266
+min        0.041767
+25%        0.115687
+50%        0.260369
+75%        0.872810
+max      216.963117
 dtype: float64
 </pre>
 
@@ -2461,12 +2462,39 @@ plt.legend(frameon=<span class="org-constant">False</span>, loc=<span class="org
 <p><img src="figure/power.org/log-fc-ash-g.png" alt="log-fc-ash-g.png">
 </p>
 </div>
+
+<p>
+Directly compare log fold changes.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">mean_stats</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/analytic/mean.txt.gz'</span>)
+<span class="org-variable-name">disp_stats</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/analytic/disp.txt.gz'</span>)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">(<span class="org-builtin">abs</span>(mean_stats[<span class="org-string">'beta'</span>]) / <span class="org-builtin">abs</span>(disp_stats[<span class="org-string">'beta'</span>])).describe()
+</pre>
+</div>
+
+<pre class="example">
+count    5.466489e+06
+mean     2.552768e+00
+std      1.098922e+03
+min      3.312243e-08
+25%      8.630427e-02
+50%      2.124558e-01
+75%      5.216188e-01
+max      1.791181e+06
+Name: beta, dtype: float64
+</pre>
 </div>
 </div>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-08-28 Tue 16:04</p>
+<p class="date">Created: 2018-08-29 Wed 13:18</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>

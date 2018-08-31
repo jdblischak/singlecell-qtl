@@ -22,17 +22,19 @@ def update_gene(attr, old, new):
     return
   with sqlite3.connect(db) as conn:
     global gene
-    gene = next(conn.execute('select gene from cv_qtls where cv_qtls.gene == ?;', (gene_data.data['gene'][selected[0]],)))[0]
+    gene = next(conn.execute('select gene from mean_qtls where mean_qtls.gene == ?;', (gene_data.data['gene'][selected[0]],)))[0]
     params = pd.read_sql(
-      sql="""select cv_qtl_geno.ind, cv_qtl_geno.value as genotype, log_mu, log_phi,
-      logodds, mean, variance, cv, fano from cv_qtl_geno, params where
-      cv_qtl_geno.gene == ? and cv_qtl_geno.gene == params.gene and
-      cv_qtl_geno.ind == params.ind;""",
+      sql="""select mean_qtl_geno.ind, mean_qtl_geno.value as genotype, log_mu, log_phi,
+      logodds, log_mean, log_mean_se, log_phi_se, log_mean + log_mean_se as log_mean_upper, log_mean - log_mean_se as
+      log_mean_lower, log_phi + log_phi_se as log_phi_upper, log_phi - log_phi_se
+      as log_phi_lower from mean_qtl_geno, params where mean_qtl_geno.gene == ?
+      and mean_qtl_geno.gene == params.gene and mean_qtl_geno.ind ==
+      params.ind;""",
       params=(gene,),
       con=conn)
     # Jitter the points
-    # np.random.seed(0)
-    # params['genotype'] += np.random.normal(scale=0.01, size=params.shape[0])
+    np.random.seed(0)
+    params['genotype'] += np.random.normal(scale=0.01, size=params.shape[0])
     # Scale ln to log2
     for k in params:
       if k.startswith('log'):
@@ -76,16 +78,15 @@ def update_umi(attr, old, new):
 def init():
   with sqlite3.connect(db) as conn:
     gene_data.data = bokeh.models.ColumnDataSource.from_df(pd.read_sql(
-      sql="""select gene, name, id, p_beta as p, beta from cv_qtls order by p_beta;""",
+      sql="""select gene, name, id, p_beta as p, beta, log_mean_resid_var, log_mean_error_var, log_phi_resid_var, log_phi_error_var from mean_qtls order by p_beta;""",
       con=conn))
 
 # These need to be separate because they have different dimension
 ind_data = bokeh.models.ColumnDataSource(pd.DataFrame(
-  columns=['ind', 'genotype', 'log_mu', 'log_phi', 'logodds', 'mean', 'variance',
-           'cv', 'fano']))
+  columns=['ind', 'genotype', 'log_mu', 'log_phi', 'logodds', 'log_mean', 'log_mean_se', 'log_phi_se', 'log_mean_upper', 'log_mean_lower', 'log_phi_upper', 'log_phi_lower']))
 ind_data.on_change('selected', update_umi)
 
-gene_data = bokeh.models.ColumnDataSource(pd.DataFrame(columns=['gene', 'id', 'p', 'beta']))
+gene_data = bokeh.models.ColumnDataSource(pd.DataFrame(columns=['gene', 'id', 'p', 'beta', 'log_mean_resid_var', 'log_mean_error_var', 'log_phi_resid_var', 'log_phi_error_var']))
 gene_data.on_change('selected', update_gene)
 
 umi_data = bokeh.models.ColumnDataSource(pd.DataFrame(columns=['left', 'right', 'count']))
@@ -94,46 +95,23 @@ dist_data = bokeh.models.ColumnDataSource(pd.DataFrame(columns=['x', 'y']))
 # These need to be module scope because bokeh.server looks there
 qtls = bokeh.models.widgets.DataTable(
     source=gene_data,
-    columns=[bokeh.models.widgets.TableColumn(field=x, title=x) for x in ['gene', 'name', 'id', 'p', 'beta']],
+    columns=[bokeh.models.widgets.TableColumn(field=x, title=x) for x in ['gene', 'name', 'id', 'p', 'beta', 'log_mean_resid_var', 'log_mean_error_var', 'log_phi_resid_var', 'log_phi_error_var']],
     width=1200,
     height=300)
 
-hover = bokeh.models.HoverTool(tooltips=[('Individual', '@ind')])
-
-sc_mu_by_geno = bokeh.plotting.figure(width=300, height=300, tools=['pan', 'wheel_zoom', 'reset', 'tap', hover, ])
-sc_mu_by_geno.scatter(source=ind_data, x='genotype', y='log_mu', color='black', size=6)
-sc_mu_by_geno.xaxis.axis_label = 'Dosage'
-sc_mu_by_geno.yaxis.axis_label = 'log2(μ)'
+hover = bokeh.models.HoverTool(tooltips=[('Individual', '@ind'), ('log2 mean SE', '@log_mean_se'), ('log2(φ) SE', '@log_phi_se')])
 
 sc_phi_by_geno = bokeh.plotting.figure(width=300, height=300, tools=['pan', 'wheel_zoom', 'reset', 'tap', hover])
 sc_phi_by_geno.scatter(source=ind_data, x='genotype', y='log_phi', color='black', size=6)
+sc_phi_by_geno.segment(source=ind_data, x0='genotype', y0='log_phi_lower', x1='genotype', y1='log_phi_upper', color='black', line_width=2)
 sc_phi_by_geno.xaxis.axis_label = 'Dosage'
 sc_phi_by_geno.yaxis.axis_label = 'log2(φ)'
 
-sc_logodds_by_geno = bokeh.plotting.figure(width=300, height=300, tools=['tap', hover])
-sc_logodds_by_geno.scatter(source=ind_data, x='genotype', y='logodds', color='black', size=6)
-sc_logodds_by_geno.xaxis.axis_label = 'Dosage'
-sc_logodds_by_geno.yaxis.axis_label = 'logit(π)'
-
-sc_mean_by_geno = bokeh.plotting.figure(width=300, height=300, tools=['tap', hover])
-sc_mean_by_geno.scatter(source=ind_data, x='genotype', y='mean', color='black', size=6)
-sc_mean_by_geno.xaxis.axis_label = 'Dosage'
-sc_mean_by_geno.yaxis.axis_label = 'ZINB mean'
-
-sc_var_by_geno = bokeh.plotting.figure(width=300, height=300, tools=['tap', hover])
-sc_var_by_geno.scatter(source=ind_data, x='genotype', y='variance', color='black', size=6)
-sc_var_by_geno.xaxis.axis_label = 'Dosage'
-sc_var_by_geno.yaxis.axis_label = 'ZINB variance'
-
-sc_cv_by_geno = bokeh.plotting.figure(width=300, height=300, tools=['tap', hover])
-sc_cv_by_geno.scatter(source=ind_data, x='genotype', y='cv', color='black', size=6)
-sc_cv_by_geno.xaxis.axis_label = 'Dosage'
-sc_cv_by_geno.yaxis.axis_label = 'ZINB CV'
-
-sc_fano_by_geno = bokeh.plotting.figure(width=300, height=300, tools=['tap', hover])
-sc_fano_by_geno.scatter(source=ind_data, x='genotype', y='fano', color='black', size=6)
-sc_fano_by_geno.xaxis.axis_label = 'Dosage'
-sc_fano_by_geno.yaxis.axis_label = 'ZINB Fano factor'
+sc_log_mean_by_geno = bokeh.plotting.figure(width=300, height=300, tools=['pan', 'wheel_zoom', 'reset', 'tap', hover])
+sc_log_mean_by_geno.scatter(source=ind_data, x='genotype', y='log_mean', color='black', size=6)
+sc_log_mean_by_geno.segment(source=ind_data, x0='genotype', y0='log_mean_lower', x1='genotype', y1='log_mean_upper', color='black', line_width=2)
+sc_log_mean_by_geno.xaxis.axis_label = 'Dosage'
+sc_log_mean_by_geno.yaxis.axis_label = 'Deconvolved log2 mean'
 
 umi = bokeh.plotting.figure(width=300, height=300, tools=[])
 umi.quad(source=umi_data, bottom=0, top='count', left='left', right='right', color='black')
@@ -142,14 +120,13 @@ umi.xaxis.axis_label = 'Observed UMI'
 umi.yaxis.axis_label = 'Number of cells'
 
 panels = bokeh.layouts.gridplot([
-   [sc_mean_by_geno, sc_var_by_geno, sc_cv_by_geno, sc_fano_by_geno],
-   [sc_mu_by_geno, sc_phi_by_geno, sc_logodds_by_geno, umi],
+   [sc_log_mean_by_geno, sc_phi_by_geno, umi],
 ])
 
 layout = bokeh.layouts.layout([[qtls], [panels]], sizing_mode='fixed')
 
 doc = bokeh.io.curdoc()
-doc.title = 'CV-QTL browser'
+doc.title = 'scQTL browser'
 doc.add_root(layout)
 
 init()

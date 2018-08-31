@@ -22,12 +22,12 @@
   #+END_SRC
 
   #+RESULTS:
-  : 16
+  : 17
 
   #+CALL: ipython3(memory="32G", venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 48829444
+  : Submitted batch job 48870599
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -65,7 +65,7 @@
 
   #+RESULTS: power-imports
   :RESULTS:
-  # Out[2]:
+  # Out[1]:
   :END:
 
 * Empirical power calculation
@@ -1394,6 +1394,7 @@
 
     estimates = {
       'mean': np.array([np.exp(r[0] - np.log1p(np.exp(r[2]))) for r in results]),
+      'log_mean': np.array([r[0] - np.log1p(np.exp(r[2])) for r in results]),
       'disp': np.array([r[1] for r in results])
     }
 
@@ -1410,7 +1411,7 @@
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 47382783
+  : Submitted batch job 48840035
 
   Read the results.
 
@@ -2050,12 +2051,13 @@
 
   #+BEGIN_SRC ipython
     mean_sampling_var = pd.read_table('/scratch/midway2/aksarkar/singlecell/power/mean-se.txt.gz', index_col=0)
+    log_mean_sampling_var = pd.read_table('/scratch/midway2/aksarkar/singlecell/power/log_mean-se.txt.gz', index_col=0)
     disp_sampling_var = pd.read_table('/scratch/midway2/aksarkar/singlecell/power/disp-se.txt.gz', index_col=0)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[33]:
+  # Out[3]:
   :END:
 
   Assuming that \(\hat\sigma^2_{mi}\) is unbiased, \(\hat\sigma^2_r =
@@ -2069,7 +2071,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[34]:
+  # Out[4]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -2088,7 +2090,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[35]:
+  # Out[5]:
   :END:
 
   Estimate the noise ratio for the mean.
@@ -2099,39 +2101,38 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[33]:
+  # Out[7]:
   #+BEGIN_EXAMPLE
-    count    75.000000
-    mean      2.365234
-    std       4.746555
-    min       0.109361
-    25%       0.458076
-    50%       1.043664
-    75%       2.229525
-    max      33.946118
+    count     79.000000
+    mean      11.526313
+    std       75.780308
+    min        0.094306
+    25%        0.467233
+    50%        1.076610
+    75%        2.163613
+    max      671.817753
     dtype: float64
   #+END_EXAMPLE
   :END:
 
-  Estimate the noise ratio for the logarithm of the mean using the delta
-  method.
+  Estimate the noise ratio for the logarithm of the mean.
 
   #+BEGIN_SRC ipython
-    get_noise_ratio(np.log(mean_by_ind), mean_sampling_var / np.square(mean_by_ind)).describe()
+    get_noise_ratio(np.log(mean_by_ind), log_mean_sampling_var).describe()
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[37]:
+  # Out[14]:
   #+BEGIN_EXAMPLE
-    count         72
-    mean        23.3
-    std          145
-    min        0.161
-    25%          0.7
-    50%         1.35
-    75%         2.99
-    max     1.22e+03
+    count    91.000000
+    mean      3.166803
+    std       8.663277
+    min       0.049376
+    25%       0.385514
+    50%       0.902767
+    75%       1.924632
+    max      66.847803
     dtype: float64
   #+END_EXAMPLE
   :END:
@@ -2144,16 +2145,16 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[35]:
+  # Out[8]:
   #+BEGIN_EXAMPLE
-    count    92.000000
-    mean      1.346648
-    std       3.382984
-    min       0.041327
-    25%       0.117332
-    50%       0.281986
-    75%       0.914243
-    max      22.984483
+    count     92.000000
+    mean       3.275456
+    std       22.581266
+    min        0.041767
+    25%        0.115687
+    50%        0.260369
+    75%        0.872810
+    max      216.963117
     dtype: float64
   #+END_EXAMPLE
   :END:
@@ -2223,4 +2224,36 @@
   # Out[11]:
   : <matplotlib.legend.Legend at 0x7f104f95c2b0>
   [[file:figure/power.org/log-fc-ash-g.png]]
+  :END:
+
+  Directly compare log fold changes.
+
+  #+BEGIN_SRC ipython
+    mean_stats = pd.read_table('/scratch/midway2/aksarkar/singlecell/power/analytic/mean.txt.gz')
+    disp_stats = pd.read_table('/scratch/midway2/aksarkar/singlecell/power/analytic/disp.txt.gz')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[9]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    (abs(mean_stats['beta']) / abs(disp_stats['beta'])).describe()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[13]:
+  #+BEGIN_EXAMPLE
+    count    5.466489e+06
+    mean     2.552768e+00
+    std      1.098922e+03
+    min      3.312243e-08
+    25%      8.630427e-02
+    50%      2.124558e-01
+    75%      5.216188e-01
+    max      1.791181e+06
+    Name: beta, dtype: float64
+  #+END_EXAMPLE
   :END:

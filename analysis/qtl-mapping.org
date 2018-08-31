@@ -26,7 +26,7 @@
   #+CALL: ipython3(memory="16G", venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 48837506
+  : Submitted batch job 48987409
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -60,7 +60,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[1]:
+  # Out[2]:
   :END:
 
 * Implementation
@@ -83,7 +83,7 @@
 
   #+RESULTS: r-wrappers
   :RESULTS:
-  # Out[2]:
+  # Out[4]:
   :END:
 
   #+NAME: get-gene-info
@@ -98,7 +98,7 @@
 
   #+RESULTS: get-gene-info
   :RESULTS:
-  # Out[3]:
+  # Out[5]:
   :END:
 
   #+NAME: write-gene-info
@@ -147,7 +147,7 @@
 
   #+RESULTS: write-pheno-def
   :RESULTS:
-  # Out[4]:
+  # Out[6]:
   :END:
 
   #+NAME: tabix
@@ -217,7 +217,7 @@
 
   #+RESULTS: read-qtltools-def
   :RESULTS:
-  # Out[5]:
+  # Out[7]:
   :END:
 
   #+RESULTS:
@@ -238,7 +238,7 @@
 
   #+RESULTS: plot-approx-perm-def
   :RESULTS:
-  # Out[6]:
+  # Out[8]:
   :END:
 
   #+NAME: qqplot-def
@@ -261,7 +261,7 @@
 
   #+RESULTS: qqplot-def
   :RESULTS:
-  # Out[7]:
+  # Out[9]:
   :END:
 
   #+NAME: replication-tests-def
@@ -349,7 +349,7 @@
 
   #+RESULTS: replication-tests-def
   :RESULTS:
-  # Out[8]:
+  # Out[10]:
   :END:
 
   #+NAME: bootstrap-def
@@ -368,7 +368,7 @@
 
   #+RESULTS: bootstrap-def
   :RESULTS:
-  # Out[9]:
+  # Out[11]:
   :END:
 
   #+NAME: bootstrap-betahat-se-def
@@ -430,7 +430,7 @@
 
   #+RESULTS: bootstrap-betahat-se-def
   :RESULTS:
-  # Out[10]:
+  # Out[12]:
   :END:
 
 * Preliminaries
@@ -2324,6 +2324,7 @@
 
    Estimate the moments (on the scale of molecules).
 
+   #+NAME: read-annotations
    #+BEGIN_SRC ipython
      annotations = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
      annotations = annotations.loc[keep_samples.values.ravel()]
@@ -3126,6 +3127,142 @@
   #+RESULTS:
   : Submitted batch job 48837869
 
+** QTL browser
+
+   Read the QTLs.
+
+   #+BEGIN_SRC ipython
+     prefix = '/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/'
+     qtls = (pd.read_table('{}/multmean.txt.gz'.format(prefix), sep=' ')
+             .sort_values('p_beta')
+             .head(n=100))
+     norm = (pd.read_table('{}/multmean.bed.gz'.format(prefix))
+             .set_index('pid')
+             .filter(like='NA', axis='columns'))
+     X, Y = extract_qtl_gene_pair(qtls, norm, '/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz')
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[28]:
+   :END:
+
+   Read the un-normalized phenotypes.
+
+   #+CALL: point-gamma-moments()
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[29]:
+   :END:
+
+   Read the estimated standard errors.
+
+   #+BEGIN_SRC ipython
+     log_mean_sampling_var = pd.read_table('/scratch/midway2/aksarkar/singlecell/power/log_mean-se.txt.gz', index_col=0)
+     log_phi_sampling_var = pd.read_table('/scratch/midway2/aksarkar/singlecell/power/disp-se.txt.gz', index_col=0)
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[30]:
+   :END:
+
+   Annotate the genes with the estimated measurement error variances.
+
+   #+BEGIN_SRC ipython
+     qtls = qtls.set_index('gene')
+     W = qtls.align(np.log(mean_by_ind), axis='index', join='inner')[1]
+     Z = qtls.align(log_mean_sampling_var, axis='index', join='inner')[1]
+     qtls['log_mean_error_var'] = Z.mean(axis=1)
+     qtls['log_mean_resid_var'] = W.var(axis=1) - Z.mean(axis=1)
+
+     W = qtls.align(log_phi, axis='index', join='inner')[1]
+     Z = qtls.align(log_phi_sampling_var, axis='index', join='inner')[1]
+     qtls['log_phi_error_var'] = Z.mean(axis=1)
+     qtls['log_phi_resid_var'] = W.var(axis=1) - Z.mean(axis=1)
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[123]:
+   :END:
+
+   Read the counts.
+
+   #+CALL: qc-filters()
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[33]:
+   :END:
+
+   #+CALL: read-umi()
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[34]:
+   :END:
+
+   #+BEGIN_SRC ipython
+     with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
+       (qtls
+        .merge(gene_info, left_index=True, right_index=True)
+        .reset_index()
+        [['gene', 'name', 'id', 'p_beta', 'beta', 'log_mean_resid_var', 'log_mean_error_var', 'log_phi_resid_var', 'log_phi_error_var']]
+        .to_sql('mean_qtls', conn, index=False, if_exists='replace'))
+       conn.execute('create index ix_mean_qtls on mean_qtls("gene");')
+
+       (X.reset_index()
+        .melt(id_vars='index', var_name='ind')
+        .rename(columns={'index': 'gene'})
+        .to_sql('mean_qtl_geno', conn, index=False, if_exists='replace'))
+       conn.execute('create index ix_mean_qtl_geno on mean_qtl_geno("gene", "ind");')
+
+       (Y.reset_index()
+        .melt(id_vars='index', var_name='ind')
+        .rename(columns={'index': 'gene', 'value': 'norm'})
+        .merge(
+          log_mu.reset_index().melt(id_vars='gene', var_name='ind').rename(columns={'value': 'log_mu'})
+        )
+        .merge(
+          log_phi.reset_index().melt(id_vars='gene', var_name='ind').rename(columns={'value': 'log_phi'})
+        )
+        .merge(
+          logodds.reset_index().melt(id_vars='gene', var_name='ind').rename(columns={'value': 'logodds'})     
+        )
+        .merge(
+          np.log(mean_by_ind).reset_index().melt(id_vars='gene', var_name='ind').rename(columns={'value': 'log_mean'})
+        )
+        .merge(
+          np.sqrt(log_mean_sampling_var).reset_index().melt(id_vars='gene', var_name='ind').rename(columns={'value': 'log_mean_se'})
+        )
+        .merge(
+          np.sqrt(log_phi_sampling_var).reset_index().melt(id_vars='gene', var_name='ind').rename(columns={'value': 'log_phi_se'})     
+        )
+        .to_sql('params', conn, index=False, if_exists='replace'))
+       conn.execute('create index ix_params on params("gene", "ind");')
+
+
+       (umi.loc[qtls.index]
+        .reset_index()
+        .melt(id_vars='gene', var_name='sample')
+        .to_sql('umi', conn, index=False, if_exists='replace'))
+       conn.execute('create index ix_umi on umi("gene", "ind");')
+
+       annotations = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
+       annotations['sample'] = annotations.apply(lambda x: '{chip_id}.{experiment:08d}.{well}'.format(**dict(x)), axis=1)
+       annotations['size'] = annotations['mol_hs']
+       (annotations.loc[keep_samples.values.ravel(), ['sample', 'chip_id', 'size']]
+        .to_sql('annotation', con=conn, if_exists='replace'))
+       conn.execute('create index ix_annotation on annotation(chip_id, sample);')
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[131]:
+   :END:
+
 * QTL overlap
 ** Replication rates
 
@@ -3915,101 +4052,4 @@
      ENSG00000108528   SLC25A11
    #+END_EXAMPLE
    :END:
-
-  Extract the QTLs for the browser.
-
-  #+BEGIN_SRC ipython
-    X, Y = extract_qtl_gene_pair(qtls['cv'][0][qtls['cv'][0]['fdr_pass']], qtls['cv'][1], '/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz')
-    log_mu = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-log-mu.txt.gz', index_col=0, sep=' ')
-    log_phi = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-log-phi.txt.gz', index_col=0, sep=' ')
-    logodds = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-logodds.txt.gz', index_col=0, sep=' ')
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[235]:
-  :END:
-
-  #+CALL: zinb-moments()
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[236]:
-  :END:
-
-  #+CALL: zinb-mix-moments()
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[237]:
-  :END:
-
-  #+BEGIN_SRC ipython
-    mean = pd.DataFrame(mean_by_ind.T, index=log_mu.index, columns=log_mu.columns)
-    variance = pd.DataFrame(var_by_ind.T, index=log_mu.index, columns=log_mu.columns)
-    fano = variance / mean
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[238]:
-  :END:
-
-  #+BEGIN_SRC ipython
-    with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
-      (qtls['cv'][0][qtls['cv'][0]['fdr_pass']]
-       .set_index('gene')
-       .merge(gene_info, left_index=True, right_index=True)
-       .reset_index()[['gene', 'name', 'id', 'p_beta', 'beta']]
-       .to_sql('cv_qtls', conn, index=False, if_exists='replace'))
-      conn.execute('create index ix_cv_qtls on cv_qtls("gene");')
-
-      (X.reset_index()
-       .melt(id_vars='index', var_name='ind')
-       .rename(columns={'index': 'gene'})
-       .to_sql('cv_qtl_geno', conn, index=False, if_exists='replace'))
-      conn.execute('create index ix_cv_qtl_geno on cv_qtl_geno("gene", "ind");')
-
-      (Y.reset_index()
-       .melt(id_vars='index', var_name='ind')
-       .rename(columns={'index': 'gene', 'value': 'cv'})
-       .merge(
-         log_mu.reset_index().melt(id_vars='gene', var_name='ind').rename(columns={'value': 'log_mu'})
-       )
-       .merge(
-         log_phi.reset_index().melt(id_vars='gene', var_name='ind').rename(columns={'value': 'log_phi'})
-       )
-       .merge(
-         logodds.reset_index().melt(id_vars='gene', var_name='ind').rename(columns={'value': 'logodds'})     
-       )
-       .merge(
-         mean.reset_index().melt(id_vars='gene', var_name='ind').rename(columns={'value': 'mean'})
-       )
-       .merge(
-         variance.reset_index().melt(id_vars='gene', var_name='ind').rename(columns={'value': 'variance'})
-       )
-       .merge(
-         fano.reset_index().melt(id_vars='gene', var_name='ind').rename(columns={'value': 'fano'})     
-       )
-       .to_sql('params', conn, index=False, if_exists='replace'))
-      conn.execute('create index ix_params on params("gene", "ind");')
-
-
-      (umi.loc[qtls['cv'][0].loc[qtls['cv'][0]['fdr_pass'], 'gene']]
-       .reset_index()
-       .melt(id_vars='gene', var_name='sample')
-       .to_sql('umi', conn, index=False, if_exists='replace'))
-      conn.execute('create index ix_umi on umi("gene", "ind");')
-
-      annotations['sample'] = annotations.apply(lambda x: '{chip_id}.{experiment:08d}.{well}'.format(**dict(x)), axis=1)
-      annotations['size'] = annotations['mol_hs']
-      (annotations.loc[keep_samples.values.ravel(), ['sample', 'chip_id', 'size']]
-       .to_sql('annotation', conn, con=conn, if_exists='replace'))
-      conn.execute('create index ix_annotation on annotation(chip_id, sample);')
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[204]:
-  :END:
 
