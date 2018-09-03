@@ -35,10 +35,6 @@ def update_gene(attr, old, new):
     # Jitter the points
     np.random.seed(0)
     params['genotype'] += np.random.normal(scale=0.01, size=params.shape[0])
-    # Scale ln to log2
-    for k in params:
-      if k.startswith('log'):
-        params[k] /= np.log(2)
     ind_data.data = bokeh.models.ColumnDataSource.from_df(params)
     umi_data.data = bokeh.models.ColumnDataSource.from_df(pd.DataFrame(columns=['left', 'right', 'count']))
     dist_data.data = bokeh.models.ColumnDataSource.from_df(pd.DataFrame(columns=['x', 'y']))
@@ -99,19 +95,19 @@ qtls = bokeh.models.widgets.DataTable(
     width=1200,
     height=300)
 
-hover = bokeh.models.HoverTool(tooltips=[('Individual', '@ind'), ('log2 mean SE', '@log_mean_se'), ('log2(φ) SE', '@log_phi_se')])
+hover = bokeh.models.HoverTool(tooltips=[('Individual', '@ind'), ('ln mean SE', '@log_mean_se'), ('ln(φ) SE', '@log_phi_se')])
 
 sc_phi_by_geno = bokeh.plotting.figure(width=300, height=300, tools=['pan', 'wheel_zoom', 'reset', 'tap', hover])
 sc_phi_by_geno.scatter(source=ind_data, x='genotype', y='log_phi', color='black', size=6)
 sc_phi_by_geno.segment(source=ind_data, x0='genotype', y0='log_phi_lower', x1='genotype', y1='log_phi_upper', color='black', line_width=2)
 sc_phi_by_geno.xaxis.axis_label = 'Dosage'
-sc_phi_by_geno.yaxis.axis_label = 'log2(φ)'
+sc_phi_by_geno.yaxis.axis_label = 'ln(φ)'
 
 sc_log_mean_by_geno = bokeh.plotting.figure(width=300, height=300, tools=['pan', 'wheel_zoom', 'reset', 'tap', hover])
 sc_log_mean_by_geno.scatter(source=ind_data, x='genotype', y='log_mean', color='black', size=6)
 sc_log_mean_by_geno.segment(source=ind_data, x0='genotype', y0='log_mean_lower', x1='genotype', y1='log_mean_upper', color='black', line_width=2)
 sc_log_mean_by_geno.xaxis.axis_label = 'Dosage'
-sc_log_mean_by_geno.yaxis.axis_label = 'Deconvolved log2 mean'
+sc_log_mean_by_geno.yaxis.axis_label = 'Deconvolved ln mean'
 
 umi = bokeh.plotting.figure(width=300, height=300, tools=[])
 umi.quad(source=umi_data, bottom=0, top='count', left='left', right='right', color='black')

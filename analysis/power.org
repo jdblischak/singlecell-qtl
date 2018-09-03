@@ -65,7 +65,7 @@
 
   #+RESULTS: power-imports
   :RESULTS:
-  # Out[1]:
+  # Out[185]:
   :END:
 
 * Empirical power calculation
@@ -976,7 +976,7 @@
 
   #+RESULTS: downsample-impl
   :RESULTS:
-  # Out[3]:
+  # Out[183]:
   :END:
 
   Fit ~ash~.
@@ -2179,9 +2179,9 @@
                .merge(log_phi, left_index=True, right_index=True))
     mean_by_ind = (gene_info
                    .apply(qtltools_format, axis=1)
-                   .merge(log_mu, left_index=True, right_index=True))
+                   .merge(np.log(mean_by_ind), left_index=True, right_index=True))
 
-    # run_nominal_pass(vcf, log_phi, header, std=False).to_csv('disp.txt.gz', sep='\t', compression='gzip')
+    run_nominal_pass(vcf, log_phi, header, std=False).to_csv('disp.txt.gz', sep='\t', compression='gzip')
     run_nominal_pass(vcf, mean_by_ind, header, std=False).to_csv('mean.txt.gz', sep='\t', compression='gzip')
   #+END_SRC
 
@@ -2193,7 +2193,7 @@
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 48830791
+  : Submitted batch job 49000296
 
   #+BEGIN_SRC ipython :async t
     ash_results = {x: fit_ash('/scratch/midway2/aksarkar/singlecell/power/analytic/{}.txt.gz'.format(x))
@@ -2202,7 +2202,17 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[10]:
+  # Out[186]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    with open('fold-change-ash-results.pkl', 'wb') as f:
+      pickle.dump(ash_results, f)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[187]:
   :END:
 
   Look at the fitted \(g\).
