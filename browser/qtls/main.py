@@ -1,4 +1,4 @@
-"""Single cell variance QTL browser
+"""Single cell QTL browser
 
 """
 import bokeh.io
@@ -22,7 +22,7 @@ def update_gene(attr, old, new):
     return
   with sqlite3.connect(db) as conn:
     global gene
-    gene = next(conn.execute('select gene from mean_qtls where mean_qtls.gene == ?;', (gene_data.data['gene'][selected[0]],)))[0]
+    gene = next(conn.execute('select gene from qtls where qtls.gene == ?;', (gene_data.data['gene'][selected[0]],)))[0]
     params = pd.read_sql(
       sql="""select mean_qtl_geno.ind, mean_qtl_geno.value as genotype, log_mu, log_phi,
       logodds, log_mean, log_mean_se, log_phi_se, log_mean + log_mean_se as log_mean_upper, log_mean - log_mean_se as
@@ -32,6 +32,22 @@ def update_gene(attr, old, new):
       params.ind;""",
       params=(gene,),
       con=conn)
+
+    # Compute the regression line
+    fit_params = pd.read_sql(sql="""select * from qtls where gene == ?;""", con=conn, params=(gene,))
+    x = np.linspace(0, 2, 50)
+    y_mean = params['log_mean'].mean() + (x - params['genotype'].mean()) * fit_params.loc[0, 'beta_mean']
+    y_disp = params['log_phi'].mean() + (x - params['genotype'].mean()) * fit_params.loc[0, 'beta_disp']
+    fit_data.data = bokeh.models.ColumnDataSource.from_df(
+      pd.DataFrame({'x': x, 'y_mean': y_mean, 'y_disp': y_disp,
+                    'beta_mean': fit_params.loc[0, 'beta_mean'],
+                    'pm_mean': fit_params.loc[0, 'pm_mean'],
+                    'lfsr_mean': fit_params.loc[0, 'lfsr_mean'],
+                    'beta_disp': fit_params.loc[0, 'beta_disp'],
+                    'pm_disp': fit_params.loc[0, 'pm_disp'],
+                    'lfsr_disp': fit_params.loc[0, 'lfsr_disp'],
+      }))
+
     # Jitter the points
     np.random.seed(0)
     params['genotype'] += np.random.normal(scale=0.01, size=params.shape[0])
@@ -74,16 +90,22 @@ def update_umi(attr, old, new):
 def init():
   with sqlite3.connect(db) as conn:
     gene_data.data = bokeh.models.ColumnDataSource.from_df(pd.read_sql(
-      sql="""select gene, name, id, p_beta as p, beta, log_mean_resid_var, log_mean_error_var, log_phi_resid_var, log_phi_error_var from mean_qtls order by p_beta;""",
+      sql="""select * from qtls order by lfsr_mean;""",
       con=conn))
+
+# Name this so we can deal with the columns cleanly below
+dummy_gene_data = pd.DataFrame(
+    columns=['gene', 'name', 'id', 'beta_mean', 'pm_mean', 'lfsr_mean', 'beta_disp', 'pm_disp', 'lfsr_disp',
+             'log_mean_resid_var', 'log_mean_error_var', 'log_phi_resid_var', 'log_phi_error_var'])
+gene_data = bokeh.models.ColumnDataSource(dummy_gene_data)
+gene_data.on_change('selected', update_gene)
+
+fit_data = bokeh.models.ColumnDataSource(pd.DataFrame(columns=['x', 'y_mean', 'y_disp']))
 
 # These need to be separate because they have different dimension
 ind_data = bokeh.models.ColumnDataSource(pd.DataFrame(
   columns=['ind', 'genotype', 'log_mu', 'log_phi', 'logodds', 'log_mean', 'log_mean_se', 'log_phi_se', 'log_mean_upper', 'log_mean_lower', 'log_phi_upper', 'log_phi_lower']))
 ind_data.on_change('selected', update_umi)
-
-gene_data = bokeh.models.ColumnDataSource(pd.DataFrame(columns=['gene', 'id', 'p', 'beta', 'log_mean_resid_var', 'log_mean_error_var', 'log_phi_resid_var', 'log_phi_error_var']))
-gene_data.on_change('selected', update_gene)
 
 umi_data = bokeh.models.ColumnDataSource(pd.DataFrame(columns=['left', 'right', 'count']))
 dist_data = bokeh.models.ColumnDataSource(pd.DataFrame(columns=['x', 'y']))
@@ -91,23 +113,28 @@ dist_data = bokeh.models.ColumnDataSource(pd.DataFrame(columns=['x', 'y']))
 # These need to be module scope because bokeh.server looks there
 qtls = bokeh.models.widgets.DataTable(
     source=gene_data,
-    columns=[bokeh.models.widgets.TableColumn(field=x, title=x) for x in ['gene', 'name', 'id', 'p', 'beta', 'log_mean_resid_var', 'log_mean_error_var', 'log_phi_resid_var', 'log_phi_error_var']],
+    columns=[bokeh.models.widgets.TableColumn(field=x, title=x) for x in dummy_gene_data.columns],
     width=1200,
     height=300)
 
-hover = bokeh.models.HoverTool(tooltips=[('Individual', '@ind'), ('ln mean SE', '@log_mean_se'), ('ln(φ) SE', '@log_phi_se')])
+ind_tooltips = [('Individual', '@ind'), ('ln mean SE', '@log_mean_se'), ('ln(φ) SE', '@log_phi_se')]
 
-sc_phi_by_geno = bokeh.plotting.figure(width=300, height=300, tools=['pan', 'wheel_zoom', 'reset', 'tap', hover])
-sc_phi_by_geno.scatter(source=ind_data, x='genotype', y='log_phi', color='black', size=6)
-sc_phi_by_geno.segment(source=ind_data, x0='genotype', y0='log_phi_lower', x1='genotype', y1='log_phi_upper', color='black', line_width=2)
-sc_phi_by_geno.xaxis.axis_label = 'Dosage'
-sc_phi_by_geno.yaxis.axis_label = 'ln(φ)'
+def generate_fit_tooltips(pheno):
+  return [(x, '@{}_{}'.format(x, pheno)) for x in ('beta', 'pm', 'lfsr')]
 
-sc_log_mean_by_geno = bokeh.plotting.figure(width=300, height=300, tools=['pan', 'wheel_zoom', 'reset', 'tap', hover])
-sc_log_mean_by_geno.scatter(source=ind_data, x='genotype', y='log_mean', color='black', size=6)
-sc_log_mean_by_geno.segment(source=ind_data, x0='genotype', y0='log_mean_lower', x1='genotype', y1='log_mean_upper', color='black', line_width=2)
-sc_log_mean_by_geno.xaxis.axis_label = 'Dosage'
-sc_log_mean_by_geno.yaxis.axis_label = 'Deconvolved ln mean'
+def generate_figure(pheno, fit_pheno, ylabel):
+  res = bokeh.plotting.figure(width=300, height=300, tools=['pan', 'wheel_zoom', 'reset', 'tap'])
+  r1 = res.scatter(source=ind_data, x='genotype', y='log_{}'.format(pheno), color='black', size=6)
+  r2 = res.segment(source=ind_data, x0='genotype', y0='log_{}_lower'.format(pheno), x1='genotype', y1='log_{}_upper'.format(pheno), color='black', line_width=2)
+  res.add_tools(bokeh.models.HoverTool(renderers=[r1, r2], tooltips=ind_tooltips))
+  r3 = res.line(source=fit_data, x='x', y='y_{}'.format(fit_pheno), color='red', line_width=2)
+  res.add_tools(bokeh.models.HoverTool(renderers=[r3], tooltips=generate_fit_tooltips(fit_pheno)))
+  res.xaxis.axis_label = 'Dosage'
+  res.yaxis.axis_label = ylabel
+  return res
+  
+sc_log_mean_by_geno = generate_figure(pheno='mean', fit_pheno='mean', ylabel='Deconvolved ln mean')
+sc_phi_by_geno = generate_figure(pheno='phi', fit_pheno='disp', ylabel='ln(φ)')
 
 umi = bokeh.plotting.figure(width=300, height=300, tools=[])
 umi.quad(source=umi_data, bottom=0, top='count', left='left', right='right', color='black')

@@ -14,8 +14,6 @@
 
   #+RESULTS:
   : 
-  : srun: job 48988896 queued and waiting for resources
-  : srun: job 48988896 has been allocated resources
   : cd /project2/mstephens/aksarkar/projects/singlecell-qtl/browser/
   : cd  /project2/mstephens/aksarkar/projects/singlecell-qtl/browser/
   : sou rce activate scqtl
@@ -24,7 +22,7 @@
 
   #+BEGIN_SRC sh :session midway2
     pkill -u aksarkar bokeh
-    bokeh serve fano-qtls simulation poisson-beta --address $(hostname -i) --allow-websocket-origin=$(hostname -i):5006 &
+    bokeh serve qtls --address $(hostname -i) --allow-websocket-origin=$(hostname -i):5006 &
     echo "http://$(hostname -i):5006"
   #+END_SRC
 
@@ -32,11 +30,11 @@
   : pkill -u aksarkar bokeh
   : Received signal 15, shutting down
   : (hostname -i) --allow-websocket-origin=$(hostname -i):5006
-  : bokeh serve fano-qtls simulation poisson-beta --address $(hostname -i) --allow -websocket-origin=$(hostname -i):5006 &
-  : [13] 48150
+  : bokeh serve qtls --address $(hostname -i) --allow-websocket-origin=$(hostname -i ):5006 &
+  : [24] 46077
   : echo "http://$(hostname -i):5006"
   : echo 'org_babel_sh_eoe'
-  : http://10.50.221.2:5006
+  : http://10.50.221.29:5006
 
 * Production environment
 
@@ -47,25 +45,56 @@
   #+END_SRC
 
   #+RESULTS:
-  |         |                |                          |          |          |            |                  |         |                 |
-  | Welcome | to             | Ubuntu                   | 16.04    | LTS      | (GNU/Linux | 4.4.0-98-generic | x86_64) |                 |
-  |         |                |                          |          |          |            |                  |         |                 |
-  | *       | Documentation: | https://help.ubuntu.com/ |          |          |            |                  |         |                 |
-  |         |                |                          |          |          |            |                  |         |                 |
-  | 231     | packages       | can                      | be       | updated. |            |                  |         |                 |
-  | 23      | updates        | are                      | security | updates. |            |                  |         |                 |
-  |         |                |                          |          |          |            |                  |         |                 |
-  |         |                |                          |          |          |            |                  |         |                 |
-  | ***     | System         | restart                  | required | ***      |            |                  |         |                 |
-  | Last    | login:         | Tue                      | Apr      | 3        |   20:33:33 |             2018 | from    | 107.210.252.224 |
+  #+begin_example
 
-  The version of ~vagrant~ on ~shiny.stephenslab.uchicago.edu~ is old, and
-  appears to use a broken URL to download Vagrant boxes. Add the Debian Stretch
-  box using the full URL.
+  Welcome to Ubuntu 18.04.1 LTS (GNU/Linux 4.15.0-33-generic x86_64)
+
+   ,* Documentation:  https://help.ubuntu.com
+   ,* Management:     https://landscape.canonical.com
+   ,* Support:        https://ubuntu.com/advantage
+
+    System information as of Tue Sep  4 13:49:02 CDT 2018
+
+    System load:    0.08             Processes:              199
+  of 1.79TB   Users logged in:        0
+  IP address for enp3s0:  128.135.144.117
+  IP address for docker0: 172.17.0.1
+
+   ,* Read about Ubuntu updates for L1 Terminal Fault Vulnerabilities
+     (L1TF).
+
+     - https://ubu.one/L1TF
+
+   ,* Check out 6 great IDEs now available on Ubuntu. There may even be
+     something worthwhile there for those crazy EMACS fans ;)
+
+     - https://bit.ly/6-cool-IDEs
+
+   ,* Canonical Livepatch is available for installation.
+     - Reduce system reboots and improve kernel security. Activate at:
+       https://ubuntu.com/livepatch
+
+  0 packages can be updated.
+  0 updates are security updates.
+
+
+  Last login: Tue Sep  4 11:07:44 2018 from 128.135.112.68
+  #+end_example
+
+  Add the Debian Stretch box using the full URL.
 
   #+BEGIN_SRC sh :session shiny
-  vagrant box add "https://app.vagrantup.com/debian/boxes/stretch64"
+  vagrant box add --provider=virtualbox "https://app.vagrantup.com/debian/boxes/stretch64"
   #+END_SRC
+
+  #+RESULTS:
+  #+BEGIN_EXAMPLE
+    ==> box: Loading metadata for box 'https://app.vagrantup.com/debian/boxes/stretch64'
+    echo 'org_babel_sh_eoe'
+    ==> box: Adding box 'debian/stretch64' (v9.5.0) for provider: virtualbox
+        box: Downloading: https://vagrantcloud.com/debian/boxes/stretch64/versions/9.5.0/providers/virtualbox.box
+    ==> box: Successfully added box 'debian/stretch64' (v9.5.0) for 'virtualbox'!
+  #+END_EXAMPLE
 
   (Re)start the VM.
 
@@ -79,14 +108,15 @@
   #+RESULTS:
   #+begin_example
 
-  aksarkar@shiny:~/scqtl-browser$ aksarkar@shiny:~/scqtl-browser$ [0mBringing machine 'default' up with 'virtualbox' provider...[0m
+  aksarkar@shiny:~/scqtl-browser/scqtl-browser$ [1m==> default: Attempting graceful shutdown of VM...[0m
+  [0mBringing machine 'default' up with 'virtualbox' provider...[0m
   default: Checking if box 'debian/stretch64' is up to date...[0m
   default: Clearing any previously set forwarded ports...[0m
   default: Clearing any previously set network interfaces...[0m
   default: Preparing network interfaces based on configuration...[0m
   [0m    default: Adapter 1: nat[0m
   default: Forwarding ports...[0m
-  5006 (host) (adapter 1)[0m
+  5007 (host) (adapter 1)[0m
   2222 (host) (adapter 1)[0m
   default: Running 'pre-boot' VM customizations...[0m
   default: Booting VM...[0m
@@ -104,17 +134,12 @@
       default: This is not an error message; everything may continue to work properly,
       default: in which case you may ignore this message.[0m
   default: Rsyncing folder: /home/aksarkar/scqtl-browser/ => /vagrant[0m
-  [0;31mThere was an error when attempting to rsync a synced folder.
-  Please inspect the error message below for more info.
-
-  Host path: /home/aksarkar/scqtl-browser/
-  Guest path: /vagrant
-  Command: rsync --verbose --archive --delete -z --copy-links --no-owner --no-group --rsync-path sudo rsync -e ssh -p 2222 -o ControlMaster=auto -o ControlPath=/tmp/ssh.214 -o ControlPersist=10m -o StrictHostKeyChecking=no -o IdentitiesOnly=true -o UserKnownHostsFile=/dev/null -i '/home/aksarkar/scqtl-browser/.vagrant/machines/default/virtualbox/private_key' --exclude .vagrant/ /home/aksarkar/scqtl-browser/ vagrant@127.0.0.1:/vagrant
-  Error: Warning: Permanently added '[127.0.0.1]:2222' (ECDSA) to the list of known hosts.
-  deploy.org"
-  rsync: write failed on "/vagrant/browser.db": No space left on device (28)
-  rsync error: error in file IO (code 11) at receiver.c(393) [receiver=3.1.2]
-  [0m
+  default: Machine not provisioned because `--no-provision` is specified.[0m
+  [0m[0m
+  default: Machine 'default' has a post `vagrant up` message. This is a message
+  default: from the creator of the Vagrantfile, and not from Vagrant itself:
+  default:
+  default: Vanilla Debian box. See https://app.vagrantup.com/debian for help and bug reports[0m
   #+end_example
 
   ssh into the VM.
@@ -127,7 +152,7 @@
   #+begin_example
   [0mid       [0m[0mname    [0m[0mprovider   [0m[0mstate   [0m[0mdirectory                           [0m[0m[0m
   [0m------------------------------------------------------------------------[0m
-  [0md0744a6  [0m[0mdefault [0m[0mvirtualbox [0m[0mrunning [0m[0m/home/aksarkar/scqtl-browser        [0m[0m[0m
+  [0m21c0820  [0m[0mdefault [0m[0mvirtualbox [0m[0mrunning [0m[0m/home/aksarkar/scqtl-browser        [0m[0m[0m
   [0m 
   The above shows information about all known Vagrant environments
   on this machine. This data is cached and may not be completely
@@ -138,13 +163,13 @@
   #+end_example
 
   #+BEGIN_SRC sh :session shiny :results output
-  vagrant ssh d0744a6
+  vagrant ssh 21c0820
   #+END_SRC
 
   #+RESULTS:
   #+begin_example
 
-  1 SMP Debian 4.9.82-1+deb9u3 (2018-03-02) x86_64
+  1 SMP Debian 4.9.110-3+deb9u2 (2018-08-13) x86_64
 
   The programs included with the Debian GNU/Linux system are free software;
   the exact distribution terms for each program are described in the
@@ -152,7 +177,7 @@
 
   Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
   permitted by applicable law.
-  Last login: Wed Apr  4 01:33:47 2018 from 10.0.2.2
+  Last login: Tue Sep  4 18:50:59 2018 from 10.0.2.2
   #+end_example
 
   The data are available on the VM under ~/vagrant~. Fake the location of the
@@ -163,41 +188,91 @@
   sudo ln -s /vagrant /project2/mstephens/aksarkar/projects/singlecell-qtl/browser
   #+END_SRC
 
+  #+RESULTS:
+
   Install ~miniconda3~ as user ~vagrant~.
 
   #+BEGIN_SRC sh :session shiny
   wget -q https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
-  bash Miniconda3-latest-Linux-x86_64.sh -p
+  bash Miniconda3-latest-Linux-x86_64.sh -b
   echo "export PATH=$PATH:$HOME/miniconda3/bin" >>$HOME/.bashrc
   . $HOME/.bashrc
   #+END_SRC
+
+  #+RESULTS:
+  #+begin_example
+
+  PREFIX=/home/vagrant/miniconda3
+  installing: python-3.6.5-hc3d631a_2 ...
+  Python 3.6.5 :: Anaconda, Inc.
+  installing: ca-certificates-2018.03.07-0 ...
+  installing: conda-env-2.6.0-h36134e3_1 ...
+  installing: libgcc-ng-7.2.0-hdf63c60_3 ...
+  installing: libstdcxx-ng-7.2.0-hdf63c60_3 ...
+  installing: libffi-3.2.1-hd88cf55_4 ...
+  installing: ncurses-6.1-hf484d3e_0 ...
+  installing: openssl-1.0.2o-h20670df_0 ...
+  installing: tk-8.6.7-hc745277_3 ...
+  installing: xz-5.2.4-h14c3975_4 ...
+  installing: yaml-0.1.7-had09818_2 ...
+  installing: zlib-1.2.11-ha838bed_2 ...
+  installing: libedit-3.1.20170329-h6b74fdf_2 ...
+  installing: readline-7.0-ha6073c6_4 ...
+  installing: sqlite-3.23.1-he433501_0 ...
+  installing: asn1crypto-0.24.0-py36_0 ...
+  installing: certifi-2018.4.16-py36_0 ...
+  installing: chardet-3.0.4-py36h0f667ec_1 ...
+  installing: idna-2.6-py36h82fb2a8_1 ...
+  installing: pycosat-0.6.3-py36h0a5515d_0 ...
+  installing: pycparser-2.18-py36hf9f622e_1 ...
+  installing: pysocks-1.6.8-py36_0 ...
+  installing: ruamel_yaml-0.15.37-py36h14c3975_2 ...
+  installing: six-1.11.0-py36h372c433_1 ...
+  installing: cffi-1.11.5-py36h9745a5d_0 ...
+  installing: setuptools-39.2.0-py36_0 ...
+  installing: cryptography-2.2.2-py36h14c3975_0 ...
+  installing: wheel-0.31.1-py36_0 ...
+  installing: pip-10.0.1-py36_0 ...
+  installing: pyopenssl-18.0.0-py36_0 ...
+  installing: urllib3-1.22-py36hbe7ace6_0 ...
+  installing: requests-2.18.4-py36he2e5f8d_1 ...
+  installing: conda-4.5.4-py36_0 ...
+  installation finished.
+  #+end_example
 
   Initialize a new environment. We don't need the full environment from
   ~singlecell-qtl~.
 
   #+BEGIN_SRC sh :session shiny
-  conda env create -n "scqtl-browser" numpy scipy pandas matplotlib bokeh
+  conda update -yn base conda
+  conda create -yqn "scqtl-browser" numpy scipy pandas matplotlib bokeh=0.12.14
   #+END_SRC
+
+  #+RESULTS:
+  : usage: conda-env [-h] {attach,create,export,list,remove,upload,update} ...
+  : conda-env: error: unrecognized arguments: scipy pandas matplotlib bokeh
 
   ~rsync~ the code and data to the server.
 
   #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell
-  sbatch --partition=broadwl
+  sbatch --partition=broadwl --job-name=rsync
   #!/bin/bash
   rsync -au /project2/mstephens/aksarkar/projects/singlecell-qtl/browser/ shiny:scqtl-browser/
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 44985280
+  : Submitted batch job 49170826
 
   Start the QTL browser. The code/data are available under ~/vagrant~ inside the VM.
 
   #+BEGIN_SRC sh :session shiny
   cd /vagrant
   source activate scqtl-browser
-  nohup bokeh serve simulation fano-qtls --port 5006 --allow-websocket-origin=shiny.stephenslab.uchicago.edu:5006 &
+  nohup bokeh serve simulation qtls --port 5006 --allow-websocket-origin=shiny.stephenslab.uchicago.edu:5007 &
   #+END_SRC
 
   #+RESULTS:
-  : 
-  : (scqtl-browser) vagrant@stretch:/vagrant$ [1] 618
+  : cd /vagrant
+  : source activate scqtl-browser
+  : <-websocket-origin=shiny.stephenslab.uchicago.edu:5007 &
+  : [1] 709

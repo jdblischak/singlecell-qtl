@@ -26,7 +26,7 @@
   #+CALL: ipython3(memory="16G", venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 49117410
+  : Submitted batch job 49160922
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -3165,13 +3165,12 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[13]:
+   # Out[14]:
    :END:
 
    Annotate the genes with the estimated measurement error variances.
 
    #+BEGIN_SRC ipython
-     qtls = qtls.set_index('gene')
      W = qtls.align(np.log(mean_by_ind), axis='index', join='inner')[1]
      Z = qtls.align(log_mean_sampling_var, axis='index', join='inner')[1]
      qtls['log_mean_error_var'] = Z.mean(axis=1)
@@ -3185,7 +3184,51 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[14]:
+   # Out[19]:
+   :END:
+
+   Read the un-normalized effect sizes.
+
+   #+BEGIN_SRC ipython
+     mean_stats = pd.read_table('/scratch/midway2/aksarkar/singlecell/power/analytic/mean.txt.gz')
+     disp_stats = pd.read_table('/scratch/midway2/aksarkar/singlecell/power/analytic/disp.txt.gz')
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[34]:
+   :END:
+
+   Read the fitted ~ash~ models.
+
+   #+BEGIN_SRC ipython
+    with open('fold-change-ash-results.pkl', 'rb') as f:
+      ash_results = pickle.load(f)
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[35]:
+   :END:
+
+   Annotate the genes with the posterior marginal effect size.
+
+   #+BEGIN_SRC ipython :async t
+     pandas2ri.activate()
+     mean_stats_subset = mean_stats.merge(qtls.reset_index(), left_on=['gene', 'Unnamed: 0'], right_on=['gene', 'id'], suffixes=['', '_norm'])
+     res = ashr.ash(mean_stats_subset['beta'], mean_stats_subset['se'], fixg=True, g=ash_results['mean'].rx2('fitted_g'))
+     mean_stats_subset['pm'] = np.array(ashr.get_pm(res))
+     mean_stats_subset['lfsr'] = np.array(ashr.get_lfsr(res))
+
+     disp_stats_subset = disp_stats.merge(qtls.reset_index(), left_on=['gene', 'Unnamed: 0'], right_on=['gene', 'id'], suffixes=['', '_norm'])
+     res = ashr.ash(disp_stats_subset['beta'], disp_stats_subset['se'], fixg=True, g=ash_results['disp'].rx2('fitted_g'))
+     disp_stats_subset['pm'] = np.array(ashr.get_pm(res))
+     disp_stats_subset['lfsr'] = np.array(ashr.get_lfsr(res))
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[51]:
    :END:
 
    Read the counts.
@@ -3194,24 +3237,64 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[15]:
+   # Out[54]:
    :END:
 
    #+CALL: read-umi()
 
    #+RESULTS:
    :RESULTS:
-   # Out[16]:
+   # Out[55]:
+   :END:
+
+   #+BEGIN_SRC ipython
+     (mean_stats_subset
+      .dropna()
+      .merge(disp_stats_subset, on=['Unnamed: 0', 'gene', 'log_mean_resid_var', 'log_mean_error_var', 'log_phi_resid_var', 'log_phi_error_var'], suffixes=['_mean', '_disp'])
+      .merge(gene_info, left_on='gene', right_index=True)
+      .rename(columns={'Unnamed: 0': 'id'})
+      [['gene', 'name', 'id', 'beta_mean', 'pm_mean', 'lfsr_mean', 'beta_disp', 'pm_disp', 'lfsr_disp',
+        'log_mean_resid_var', 'log_mean_error_var', 'log_phi_resid_var', 'log_phi_error_var']]).head()
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[63]:
+   #+BEGIN_EXAMPLE
+     gene    name                          id  beta_mean   pm_mean  \
+     0  ENSG00000005075  POLR2J  rs113524320.chr7.102091990  -0.133238 -0.122851
+     1  ENSG00000008394   MGST1    rs9332891.chr12.16503789  -0.052297 -0.048002
+     2  ENSG00000008988   RPS20    rs73679777.chr8.56987059  -0.051499 -0.049712
+     3  ENSG00000029639   TFB1M   rs79805895.chr6.155635281  -0.128963 -0.108330
+     4  ENSG00000042753   AP2S1   rs10569642.chr19.47352660  -0.045408 -0.035699
+
+     lfsr_mean  beta_disp   pm_disp  lfsr_disp  log_mean_resid_var  \
+     0  6.306067e-14   0.156411  0.084523   0.133519            0.018223
+     1  1.324717e-05  -0.031652 -0.002645   0.888211            0.003425
+     2  4.717338e-13  -0.104588 -0.006367   0.839005            0.000912
+     3  1.837927e-05  -0.010367 -0.000462   0.905676            0.025056
+     4  9.047097e-03  -0.129085 -0.009645   0.800620            0.001014
+
+     log_mean_error_var  log_phi_resid_var  log_phi_error_var
+     0            0.011825           0.088176           0.038666
+     1            0.003648           0.098297           0.023262
+     2            0.003831           0.332455           0.021787
+     3            0.014941           0.264272           0.140184
+     4            0.006730           0.295754           0.037082
+   #+END_EXAMPLE
    :END:
 
    #+BEGIN_SRC ipython
      with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
-       (qtls
-        .merge(gene_info, left_index=True, right_index=True)
-        .reset_index()
-        [['gene', 'name', 'id', 'p_beta', 'beta', 'log_mean_resid_var', 'log_mean_error_var', 'log_phi_resid_var', 'log_phi_error_var']]
-        .to_sql('mean_qtls', conn, index=False, if_exists='replace'))
-       conn.execute('create index ix_mean_qtls on mean_qtls("gene");')
+       (mean_stats_subset
+        .dropna()
+        .merge(disp_stats_subset, on=['Unnamed: 0', 'gene', 'log_mean_resid_var', 'log_mean_error_var', 'log_phi_resid_var', 'log_phi_error_var'], suffixes=['_mean', '_disp'])
+        .merge(gene_info, left_on='gene', right_index=True)
+        .rename(columns={'Unnamed: 0': 'id'})
+        [['gene', 'name', 'id', 'beta_mean', 'pm_mean', 'lfsr_mean', 'beta_disp', 'pm_disp', 'lfsr_disp',
+          'log_mean_resid_var', 'log_mean_error_var', 'log_phi_resid_var', 'log_phi_error_var']]
+        .to_sql('qtls', conn, index=False, if_exists='replace'))
+       conn.execute('create index ix_mean_qtls on qtls("gene");')
 
        (X.reset_index()
         .melt(id_vars='index', var_name='ind')
@@ -3260,7 +3343,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[17]:
+   # Out[64]:
    :END:
 
 * QTL overlap
