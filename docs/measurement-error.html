@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- 2018-09-04 Tue 16:09 -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Examples of single cell measurement error</title>
+<meta name="generator" content="Org mode">
+<meta name="author" content="Abhishek Sarkar">
+<style type="text/css">
+ <!--/*--><![CDATA[/*><!--*/
+  .title  { text-align: center;
+             margin-bottom: .2em; }
+  .subtitle { text-align: center;
+              font-size: medium;
+              font-weight: bold;
+              margin-top:0; }
+  .todo   { font-family: monospace; color: red; }
+  .done   { font-family: monospace; color: green; }
+  .priority { font-family: monospace; color: orange; }
+  .tag    { background-color: #eee; font-family: monospace;
+            padding: 2px; font-size: 80%; font-weight: normal; }
+  .timestamp { color: #bebebe; }
+  .timestamp-kwd { color: #5f9ea0; }
+  .org-right  { margin-left: auto; margin-right: 0px;  text-align: right; }
+  .org-left   { margin-left: 0px;  margin-right: auto; text-align: left; }
+  .org-center { margin-left: auto; margin-right: auto; text-align: center; }
+  .underline { text-decoration: underline; }
+  #postamble p, #preamble p { font-size: 90%; margin: .2em; }
+  p.verse { margin-left: 3%; }
+  pre {
+    border: 1px solid #ccc;
+    box-shadow: 3px 3px 3px #eee;
+    padding: 8pt;
+    font-family: monospace;
+    overflow: auto;
+    margin: 1.2em;
+  }
+  pre.src {
+    position: relative;
+    overflow: visible;
+    padding-top: 1.2em;
+  }
+  pre.src:before {
+    display: none;
+    position: absolute;
+    background-color: white;
+    top: -10px;
+    right: 10px;
+    padding: 3px;
+    border: 1px solid black;
+  }
+  pre.src:hover:before { display: inline;}
+  /* Languages per Org manual */
+  pre.src-asymptote:before { content: 'Asymptote'; }
+  pre.src-awk:before { content: 'Awk'; }
+  pre.src-C:before { content: 'C'; }
+  /* pre.src-C++ doesn't work in CSS */
+  pre.src-clojure:before { content: 'Clojure'; }
+  pre.src-css:before { content: 'CSS'; }
+  pre.src-D:before { content: 'D'; }
+  pre.src-ditaa:before { content: 'ditaa'; }
+  pre.src-dot:before { content: 'Graphviz'; }
+  pre.src-calc:before { content: 'Emacs Calc'; }
+  pre.src-emacs-lisp:before { content: 'Emacs Lisp'; }
+  pre.src-fortran:before { content: 'Fortran'; }
+  pre.src-gnuplot:before { content: 'gnuplot'; }
+  pre.src-haskell:before { content: 'Haskell'; }
+  pre.src-hledger:before { content: 'hledger'; }
+  pre.src-java:before { content: 'Java'; }
+  pre.src-js:before { content: 'Javascript'; }
+  pre.src-latex:before { content: 'LaTeX'; }
+  pre.src-ledger:before { content: 'Ledger'; }
+  pre.src-lisp:before { content: 'Lisp'; }
+  pre.src-lilypond:before { content: 'Lilypond'; }
+  pre.src-lua:before { content: 'Lua'; }
+  pre.src-matlab:before { content: 'MATLAB'; }
+  pre.src-mscgen:before { content: 'Mscgen'; }
+  pre.src-ocaml:before { content: 'Objective Caml'; }
+  pre.src-octave:before { content: 'Octave'; }
+  pre.src-org:before { content: 'Org mode'; }
+  pre.src-oz:before { content: 'OZ'; }
+  pre.src-plantuml:before { content: 'Plantuml'; }
+  pre.src-processing:before { content: 'Processing.js'; }
+  pre.src-python:before { content: 'Python'; }
+  pre.src-R:before { content: 'R'; }
+  pre.src-ruby:before { content: 'Ruby'; }
+  pre.src-sass:before { content: 'Sass'; }
+  pre.src-scheme:before { content: 'Scheme'; }
+  pre.src-screen:before { content: 'Gnu Screen'; }
+  pre.src-sed:before { content: 'Sed'; }
+  pre.src-sh:before { content: 'shell'; }
+  pre.src-sql:before { content: 'SQL'; }
+  pre.src-sqlite:before { content: 'SQLite'; }
+  /* additional languages in org.el's org-babel-load-languages alist */
+  pre.src-forth:before { content: 'Forth'; }
+  pre.src-io:before { content: 'IO'; }
+  pre.src-J:before { content: 'J'; }
+  pre.src-makefile:before { content: 'Makefile'; }
+  pre.src-maxima:before { content: 'Maxima'; }
+  pre.src-perl:before { content: 'Perl'; }
+  pre.src-picolisp:before { content: 'Pico Lisp'; }
+  pre.src-scala:before { content: 'Scala'; }
+  pre.src-shell:before { content: 'Shell Script'; }
+  pre.src-ebnf2ps:before { content: 'ebfn2ps'; }
+  /* additional language identifiers per "defun org-babel-execute"
+       in ob-*.el */
+  pre.src-cpp:before  { content: 'C++'; }
+  pre.src-abc:before  { content: 'ABC'; }
+  pre.src-coq:before  { content: 'Coq'; }
+  pre.src-groovy:before  { content: 'Groovy'; }
+  /* additional language identifiers from org-babel-shell-names in
+     ob-shell.el: ob-shell is the only babel language using a lambda to put
+     the execution function name together. */
+  pre.src-bash:before  { content: 'bash'; }
+  pre.src-csh:before  { content: 'csh'; }
+  pre.src-ash:before  { content: 'ash'; }
+  pre.src-dash:before  { content: 'dash'; }
+  pre.src-ksh:before  { content: 'ksh'; }
+  pre.src-mksh:before  { content: 'mksh'; }
+  pre.src-posh:before  { content: 'posh'; }
+  /* Additional Emacs modes also supported by the LaTeX listings package */
+  pre.src-ada:before { content: 'Ada'; }
+  pre.src-asm:before { content: 'Assembler'; }
+  pre.src-caml:before { content: 'Caml'; }
+  pre.src-delphi:before { content: 'Delphi'; }
+  pre.src-html:before { content: 'HTML'; }
+  pre.src-idl:before { content: 'IDL'; }
+  pre.src-mercury:before { content: 'Mercury'; }
+  pre.src-metapost:before { content: 'MetaPost'; }
+  pre.src-modula-2:before { content: 'Modula-2'; }
+  pre.src-pascal:before { content: 'Pascal'; }
+  pre.src-ps:before { content: 'PostScript'; }
+  pre.src-prolog:before { content: 'Prolog'; }
+  pre.src-simula:before { content: 'Simula'; }
+  pre.src-tcl:before { content: 'tcl'; }
+  pre.src-tex:before { content: 'TeX'; }
+  pre.src-plain-tex:before { content: 'Plain TeX'; }
+  pre.src-verilog:before { content: 'Verilog'; }
+  pre.src-vhdl:before { content: 'VHDL'; }
+  pre.src-xml:before { content: 'XML'; }
+  pre.src-nxml:before { content: 'XML'; }
+  /* add a generic configuration mode; LaTeX export needs an additional
+     (add-to-list 'org-latex-listings-langs '(conf " ")) in .emacs */
+  pre.src-conf:before { content: 'Configuration File'; }
+
+  table { border-collapse:collapse; }
+  caption.t-above { caption-side: top; }
+  caption.t-bottom { caption-side: bottom; }
+  td, th { vertical-align:top;  }
+  th.org-right  { text-align: center;  }
+  th.org-left   { text-align: center;   }
+  th.org-center { text-align: center; }
+  td.org-right  { text-align: right;  }
+  td.org-left   { text-align: left;   }
+  td.org-center { text-align: center; }
+  dt { font-weight: bold; }
+  .footpara { display: inline; }
+  .footdef  { margin-bottom: 1em; }
+  .figure { padding: 1em; }
+  .figure p { text-align: center; }
+  .inlinetask {
+    padding: 10px;
+    border: 2px solid gray;
+    margin: 10px;
+    background: #ffffcc;
+  }
+  #org-div-home-and-up
+   { text-align: right; font-size: 70%; white-space: nowrap; }
+  textarea { overflow-x: auto; }
+  .linenr { font-size: smaller }
+  .code-highlighted { background-color: #ffff00; }
+  .org-info-js_info-navigation { border-style: none; }
+  #org-info-js_console-label
+    { font-size: 10px; font-weight: bold; white-space: nowrap; }
+  .org-info-js_search-highlight
+    { background-color: #ffff00; color: #000000; font-weight: bold; }
+  .org-svg { width: 90%; }
+  /*]]>*/-->
+</style>
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<link rel="stylesheet" type="text/css" href="https://www.pirilampo.org/styles/readtheorg/css/htmlize.css"/>
+<style type="text/css">body {width: 60em; margin:auto} pre.src {overflow:auto}</style>
+<script type="text/javascript">
+/*
+@licstart  The following is the entire license notice for the
+JavaScript code in this tag.
+
+Copyright (C) 2012-2017 Free Software Foundation, Inc.
+
+The JavaScript code in this tag is free software: you can
+redistribute it and/or modify it under the terms of the GNU
+General Public License (GNU GPL) as published by the Free Software
+Foundation, either version 3 of the License, or (at your option)
+any later version.  The code is distributed WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU GPL for more details.
+
+As additional permission under GNU GPL version 3 section 7, you
+may distribute non-source (e.g., minimized or compacted) forms of
+that code without the copy of the GNU GPL normally required by
+section 4, provided you include this license notice and a URL
+through which recipients can access the Corresponding Source.
+
+
+@licend  The above is the entire license notice
+for the JavaScript code in this tag.
+*/
+<!--/*--><![CDATA[/*><!--*/
+ function CodeHighlightOn(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(null != target) {
+     elem.cacheClassElem = elem.className;
+     elem.cacheClassTarget = target.className;
+     target.className = "code-highlighted";
+     elem.className   = "code-highlighted";
+   }
+ }
+ function CodeHighlightOff(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(elem.cacheClassElem)
+     elem.className = elem.cacheClassElem;
+   if(elem.cacheClassTarget)
+     target.className = elem.cacheClassTarget;
+ }
+/*]]>*///-->
+</script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+        displayAlign: "center",
+        displayIndent: "0em",
+
+        "HTML-CSS": { scale: 100,
+                        linebreaks: { automatic: "false" },
+                        webFont: "TeX"
+                       },
+        SVG: {scale: 100,
+              linebreaks: { automatic: "false" },
+              font: "TeX"},
+        NativeMML: {scale: 100},
+        TeX: { equationNumbers: {autoNumber: "AMS"},
+               MultLineWidth: "85%",
+               TagSide: "right",
+               TagIndent: ".8em"
+             }
+});
+</script>
+<script type="text/javascript"
+        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS_HTML"></script>
+</head>
+<body>
+<div id="content">
+<h1 class="title">Examples of single cell measurement error</h1>
+
+<div id="outline-container-org32ced63" class="outline-2">
+<h2 id="org32ced63">Introduction</h2>
+<div class="outline-text-2" id="text-org32ced63">
+<p>
+Our <a href="power.html#org72721e3">power analysis</a> found several counter-intuitive results:
+</p>
+
+<ol class="org-ol">
+<li>The <i>noise ratio</i> (measurement error variance divided by residual
+variance) is typically larger for the mean than for the dispersion</li>
+<li>The measurement error variance is sometimes larger than the sample
+variance, but we still find a QTL</li>
+<li>The estimated prior on effect sizes on mean expression has more density
+close to zero than the estimated prior on effect sizes on dispersion</li>
+</ol>
+
+<p>
+Here, we demonstrate these results reflect real features of the data on
+several examples.
+</p>
+</div>
+</div>
+
+<div id="outline-container-orgd73fb53" class="outline-2">
+<h2 id="orgd73fb53">Read the data</h2>
+<div class="outline-text-2" id="text-orgd73fb53">
+<p>
+Read the summary statistics \(\hat\beta, SE(\hat\beta)\).
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">mean_stats</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/analytic/mean.txt.gz'</span>)
+<span class="org-variable-name">disp_stats</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/analytic/disp.txt.gz'</span>)
+</pre>
+</div>
+
+<p>
+Read the sampling variances \(\hat\sigma^2_{mi}\).
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">log_mean_sampling_var</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/log_mean-se.txt.gz'</span>, index_col=0)
+<span class="org-variable-name">disp_sampling_var</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/disp-se.txt.gz'</span>, index_col=0)
+</pre>
+</div>
+
+<p>
+Read the fitted <code>ash</code> models.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">with</span> <span class="org-builtin">open</span>(<span class="org-string">'fold-change-ash-results.pkl'</span>, <span class="org-string">'rb'</span>) <span class="org-keyword">as</span> f:
+  <span class="org-variable-name">ash_results</span> = pickle.load(f)
+</pre>
+</div>
+</div>
+</div>
+
+<div id="outline-container-org2c4c02b" class="outline-2">
+<h2 id="org2c4c02b"><i>CCT8</i></h2>
+<div class="outline-text-2" id="text-org2c4c02b">
+<p>
+<i>CCT8</i> is one of the cases where we find an eQTL, even though the estimated
+measurement error variance is larger than the estimated residual variance.
+</p>
+
+<p>
+Extract the data pre-computed for the interactive browser.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'</span>) <span class="org-keyword">as</span> conn:
+  <span class="org-variable-name">params</span> = pd.read_sql(
+    sql=<span class="org-string">"""select mean_qtl_geno.ind, mean_qtl_geno.value as genotype, log_mu, log_phi,</span>
+<span class="org-string">  logodds, log_mean, log_mean_se, log_phi_se, log_mean + log_mean_se as log_mean_upper, log_mean - log_mean_se as</span>
+<span class="org-string">  log_mean_lower, log_phi + log_phi_se as log_phi_upper, log_phi - log_phi_se</span>
+<span class="org-string">  as log_phi_lower from mean_qtl_geno, params where mean_qtl_geno.gene == ?</span>
+<span class="org-string">  and mean_qtl_geno.gene == params.gene and mean_qtl_geno.ind ==</span>
+<span class="org-string">  params.ind;"""</span>,
+    params=(<span class="org-string">'ENSG00000156261'</span>,),
+    con=conn)
+</pre>
+</div>
+
+<p>
+Estimate the residual variance for the mean, corrected for measurement error.
+</p>
+
+<p>
+\[ \hat\sigma^2_r = \frac{1}{n - 1}\sum_i (\tilde{y}_i - \bar{y})^2 - \frac{1}{n}\sum_i \hat\sigma^2_{mi} \]
+</p>
+
+<p>
+where \(\tilde{y}_i\) is the observed phenotype of individual \(i\), \(i = 1,
+  \ldots, n\), \(\bar{y} = \frac{1}{n} \sum_i \tilde{y}_i\), and
+\(\hat\sigma^2_{mi}\) is the estimated sampling variance associated with
+\(\tilde{y}_i\).
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">params[<span class="org-string">'log_mean'</span>].var() - log_mean_sampling_var.loc[<span class="org-string">'ENSG00000156261'</span>].mean()
+</pre>
+</div>
+
+<pre class="example">
+-0.00148092262834108
+
+</pre>
+
+<p>
+Do the same for the dispersion.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">params[<span class="org-string">'log_phi'</span>].var() - disp_sampling_var.loc[<span class="org-string">'ENSG00000156261'</span>].mean()
+</pre>
+</div>
+
+<pre class="example">
+0.36559941312947225
+
+</pre>
+
+<p>
+For this gene, get the SNP with best Wald statistic
+\(\frac{{\hat\beta}^2}{V[\hat\beta]}\).
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">best_eqtl</span> = mean_stats.groupby(<span class="org-string">'gene'</span>).<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: x.loc[np.square(x[<span class="org-string">'beta'</span>] / x[<span class="org-string">'se'</span>]).idxmax()]).loc[<span class="org-string">'ENSG00000156261'</span>]
+best_eqtl
+</pre>
+</div>
+
+<pre class="example">
+Unnamed: 0    rs2070611.chr21.30445774
+beta                          0.028947
+gene                   ENSG00000156261
+se                          0.00691489
+Name: ENSG00000156261, dtype: object
+</pre>
+
+<p>
+We previously estimated the <code>ash</code> prior genome-wide by taking 10 random SNPs
+for every gene. 
+</p>
+
+
+<div class="figure">
+<p><img src="figure/power.org/log-fc-ash-g.png" alt="log-fc-ash-g.png">
+</p>
+</div>
+
+<p>
+Given the EB prior, recover the posterior distribution of the effect size for
+the best SNP identified above.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">shrunk_eqtl</span> = ashr.ash(best_eqtl[<span class="org-string">'beta'</span>], best_eqtl[<span class="org-string">'se'</span>], fixg=<span class="org-constant">True</span>, g=ash_results[<span class="org-string">'mean'</span>].rx2(<span class="org-string">'fitted_g'</span>))
+pd.Series({<span class="org-string">'pm'</span>: <span class="org-builtin">float</span>(np.array(ashr.get_pm(shrunk_eqtl))), <span class="org-string">'lfsr'</span>: <span class="org-builtin">float</span>(np.array(ashr.get_lfsr(shrunk_eqtl)))})
+</pre>
+</div>
+
+<pre class="example">
+lfsr    0.008324
+pm      0.021778
+dtype: float64
+</pre>
+
+<p>
+On the log scale, the posterior effect size on the natural log of the mean is
+roughly 0.2, despite the prior putting most density much closer to 0.
+</p>
+
+<p>
+Do the same for the best dQTL.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">best_dqtl</span> = disp_stats.groupby(<span class="org-string">'gene'</span>).<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: x.loc[np.square(x[<span class="org-string">'beta'</span>] / x[<span class="org-string">'se'</span>]).idxmax()]).loc[<span class="org-string">'ENSG00000156261'</span>]
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">shrunk_dqtl</span> = ashr.ash(best_dqtl[<span class="org-string">'beta'</span>], best_dqtl[<span class="org-string">'se'</span>], fixg=<span class="org-constant">True</span>, g=ash_results[<span class="org-string">'disp'</span>].rx2(<span class="org-string">'fitted_g'</span>))
+pd.Series({<span class="org-string">'beta'</span>: best_dqtl[<span class="org-string">'beta'</span>], <span class="org-string">'se'</span>: best_dqtl[<span class="org-string">'se'</span>], <span class="org-string">'pm'</span>: <span class="org-builtin">float</span>(np.array(ashr.get_pm(shrunk_dqtl))), <span class="org-string">'lfsr'</span>: <span class="org-builtin">float</span>(np.array(ashr.get_lfsr(shrunk_dqtl)))})
+</pre>
+</div>
+
+<pre class="example">
+beta   -0.176113
+lfsr    0.750243
+pm     -0.014714
+se      0.082764
+dtype: float64
+</pre>
+
+<p>
+Unlike the eQTL effect size, the dQTL effect size is shrunk essentially to
+zero, and has high <i>lfsr</i>.
+</p>
+
+<p>
+Plot the phenotype by genotype class, along with the estimated regression
+line and prediction confidence intervals.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+<span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(1, 2)
+fig.set_size_inches(6, 3)
+<span class="org-variable-name">x</span> = params[<span class="org-string">'genotype'</span>] + np.random.normal(scale=0.05, size=params.shape[0])
+ax[0].errorbar(x=x, y=params[<span class="org-string">'log_mean'</span>],
+               yerr=params[<span class="org-string">'log_mean_se'</span>], marker=<span class="org-string">'o'</span>, c=<span class="org-string">'k'</span>, ms=3, lw=1, ls=<span class="org-string">''</span>)
+ax[0].set_ylabel(<span class="org-string">'Deconvolved ln mean'</span>)
+
+<span class="org-variable-name">grid</span> = np.linspace(0, 2, 100)
+<span class="org-variable-name">yhat</span> = params[<span class="org-string">'log_mean'</span>].mean() + (grid - grid.mean()) * best_eqtl[<span class="org-string">'beta'</span>]
+<span class="org-comment-delimiter"># </span><span class="org-comment">https://rpubs.com/aaronsc32/regression-confidence-prediction-intervals</span>
+<span class="org-variable-name">pred_se</span> = best_eqtl[<span class="org-string">'se'</span>] * (1 + 1 / grid.shape[0] + np.square(grid - grid.mean()) / np.square(grid - grid.mean()).<span class="org-builtin">sum</span>())
+ax[0].plot(grid, yhat, c=<span class="org-string">'r'</span>, lw=2, zorder=99)
+ax[0].fill_between(grid, yhat - 1.96 * pred_se, yhat + 1.96 * pred_se, color=<span class="org-string">'r'</span>, alpha=0.25)
+
+ax[1].errorbar(x=x, y=params[<span class="org-string">'log_phi'</span>],
+               yerr=params[<span class="org-string">'log_phi_se'</span>], marker=<span class="org-string">'o'</span>, c=<span class="org-string">'k'</span>, ms=3, lw=1, ls=<span class="org-string">''</span>)
+
+<span class="org-variable-name">yhat</span> = params[<span class="org-string">'log_phi'</span>].mean() + (grid - grid.mean()) * best_dqtl[<span class="org-string">'beta'</span>]
+<span class="org-variable-name">pred_se</span> = best_dqtl[<span class="org-string">'se'</span>] * (1 + 1 / grid.shape[0] + np.square(grid - grid.mean()) / np.square(grid - grid.mean()).<span class="org-builtin">sum</span>())
+ax[1].plot(grid, yhat, c=<span class="org-string">'r'</span>, lw=2, zorder=99)
+ax[1].fill_between(grid, yhat - 1.96 * pred_se, yhat + 1.96 * pred_se, color=<span class="org-string">'r'</span>, alpha=0.25)
+ax[1].set_ylabel(<span class="org-string">'$\ln(\phi)$'</span>)
+<span class="org-keyword">for</span> a <span class="org-keyword">in</span> ax:
+  a.set_xlabel(<span class="org-string">'Dosage'</span>)
+fig.tight_layout()
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/measurement-error.org/cct8.png" alt="cct8.png">
+</p>
+</div>
+
+<p>
+Overall, the example suggests:
+</p>
+
+<ol class="org-ol">
+<li>The major difference between eQTL mapping and dQTL mapping is within
+genotype class variance. The within genotype class variance reflects PVE
+(namely, variance unexplained by genotype)</li>
+<li>Even if the measurement error variance is comparable to the effect size or
+even the phenotypic variance, we can still find a QTL if the PVE is high
+enough (within genotype class variance is low enough)</li>
+</ol>
+</div>
+</div>
+</div>
+<div id="postamble" class="status">
+<p class="author">Author: Abhishek Sarkar</p>
+<p class="date">Created: 2018-09-04 Tue 16:09</p>
+<p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
+</div>
+</body>
+</html>

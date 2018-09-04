@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-08-29 Wed 13:18 -->
+<!-- 2018-09-04 Tue 16:09 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Power to detect QTLs in single cell data</title>
@@ -2410,9 +2410,9 @@ between mean and dispersion, fit multiplicative models.
            .merge(log_phi, left_index=<span class="org-constant">True</span>, right_index=<span class="org-constant">True</span>))
 <span class="org-variable-name">mean_by_ind</span> = (gene_info
                .<span class="org-builtin">apply</span>(qtltools_format, axis=1)
-               .merge(log_mu, left_index=<span class="org-constant">True</span>, right_index=<span class="org-constant">True</span>))
+               .merge(np.log(mean_by_ind), left_index=<span class="org-constant">True</span>, right_index=<span class="org-constant">True</span>))
 
-<span class="org-comment-delimiter"># </span><span class="org-comment">run_nominal_pass(vcf, log_phi, header, std=False).to_csv('disp.txt.gz', sep='\t', compression='gzip')</span>
+run_nominal_pass(vcf, log_phi, header, std=<span class="org-constant">False</span>).to_csv(<span class="org-string">'disp.txt.gz'</span>, sep=<span class="org-string">'\t'</span>, compression=<span class="org-string">'gzip'</span>)
 run_nominal_pass(vcf, mean_by_ind, header, std=<span class="org-constant">False</span>).to_csv(<span class="org-string">'mean.txt.gz'</span>, sep=<span class="org-string">'\t'</span>, compression=<span class="org-string">'gzip'</span>)
 </pre>
 </div>
@@ -2426,13 +2426,19 @@ python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/nominal-log-fc.
 </div>
 
 <pre class="example">
-Submitted batch job 48830791
+Submitted batch job 49000296
 
 </pre>
 
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-variable-name">ash_results</span> = {x: fit_ash(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/analytic/{}.txt.gz'</span>.<span class="org-builtin">format</span>(x))
                <span class="org-keyword">for</span> x <span class="org-keyword">in</span> (<span class="org-string">'mean'</span>, <span class="org-string">'disp'</span>)}
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">with</span> <span class="org-builtin">open</span>(<span class="org-string">'fold-change-ash-results.pkl'</span>, <span class="org-string">'wb'</span>) <span class="org-keyword">as</span> f:
+  pickle.dump(ash_results, f)
 </pre>
 </div>
 
@@ -2494,7 +2500,7 @@ Name: beta, dtype: float64
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-08-29 Wed 13:18</p>
+<p class="date">Created: 2018-09-04 Tue 16:09</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
