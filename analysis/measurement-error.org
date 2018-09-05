@@ -25,12 +25,12 @@
   #+END_SRC
 
   #+RESULTS:
-  : 0
+  : 18
 
   #+CALL: ipython3(memory="32G", venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 48870599
+  : Submitted batch job 49231262
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -43,10 +43,15 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[148]:
+  # Out[1]:
   :END:
 
   #+CALL: power-imports()
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[2]:
+  :END:
 
 * Read the data
 
@@ -59,7 +64,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[152]:
+  # Out[3]:
   :END:
 
   Read the sampling variances \(\hat\sigma^2_{mi}\).
@@ -71,7 +76,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[235]:
+  # Out[4]:
   :END:
 
   Read the fitted ~ash~ models.
@@ -83,7 +88,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[188]:
+  # Out[5]:
   :END:
 
 * /CCT8/
@@ -108,7 +113,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[166]:
+  # Out[3]:
   :END:
 
   Estimate the residual variance for the mean, corrected for measurement error.
@@ -186,7 +191,15 @@
   :END:
 
   On the log scale, the posterior effect size on the natural log of the mean is
-  roughly 0.2, despite the prior putting most density much closer to 0.
+  roughly 0.02, despite the prior putting most density much closer to 0.
+
+  This is a tiny effect size, but we need to consider it relative to the
+  variation in the phenotype. Define \(\beta = \lambda \sigma_r\), and estimate
+  \(\lambda\) assuming \(V[y] = \sigma_r^2\).
+
+  #+BEGIN_SRC ipython
+    best_eqtl['beta'] / params['log_mean'].std()
+  #+END_SRC
 
   Do the same for the best dQTL.
 
@@ -264,3 +277,37 @@
   2. Even if the measurement error variance is comparable to the effect size or
      even the phenotypic variance, we can still find a QTL if the PVE is high
      enough (within genotype class variance is low enough)
+
+* Plot synthetic example
+
+  #+BEGIN_SRC ipython
+    def rnbinom(log_mu, log_phi, n_samples):
+      n = np.exp(-log_phi)
+      p = 1 / (1 + np.exp(log_mu + log_phi))
+      return st.nbinom(n=n, p=p).rvs(n_samples)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[80]:
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/measurement-error.org/rnbinom.png
+    plt.clf()
+    plt.gcf().set_size_inches(3, 3)
+    for log_phi in (-5, -2):
+      x = rnbinom(np.log(1.5e5) - 8, log_phi, 5000)
+      f = st.gaussian_kde(x)
+      grid = np.linspace(0, 100, 1000)
+      plt.plot(grid, f(grid), label=log_phi)
+    plt.legend(frameon=False, title='$\ln(\phi)$')
+    plt.xlabel('Count')
+    plt.ylabel('Density')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[93]:
+  : Text(0,0.5,'Frequency')
+  [[file:figure/measurement-error.org/rnbinom.png]]
+  :END:
