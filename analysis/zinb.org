@@ -277,7 +277,8 @@
         return control_flow_ops.group(*update_ops + [update_beta1, update_beta2],
                                       name=name_scope)
 
-    def fit(umi, onehot, size_factor, design, learning_rate=1e-2, max_epochs=1000, fit_null=False, return_llik=False):
+    def fit(umi, onehot, size_factor, design, learning_rate=1e-2, max_epochs=1000,
+            fit_null=False, return_llik=False, warm_start=None):
       """Return estimated log mean and log dispersion. 
 
       umi - count matrix (n x p; float32)
@@ -286,6 +287,7 @@
       design - confounder matrix (n x q; float32)
       fit_null - whether to fit the null model (common dispersion)
       return_llik - whether to return the log likelihood matrix
+      warm_start - tuple of (log_mean, log_disp, logodds)
 
       Returns:
 
@@ -307,12 +309,21 @@
         onehot = tf.Variable(onehot, trainable=False)
         design = tf.Variable(design, trainable=False)
 
-        mean = tf.exp(tf.Variable(tf.zeros([m, p])))
-        if fit_null:
-          inv_disp = tf.exp(tf.Variable(tf.zeros([1, p])))
+        if warm_start is not None:
+          log_mean, log_disp, logodds = warm_start
+          assert log_mean.shape == (m, p)
+          assert log_disp.shape == (m, p)
+          assert logodds.shape == (m, p)
+          mean = tf.exp(tf.Variable(mean))
+          inv_disp = tf.exp(tf.Variable(-disp))
+          logodds = tf.Variable(logodds)
         else:
-          inv_disp = tf.exp(tf.Variable(tf.zeros([m, p])))
-        logodds = tf.Variable(tf.zeros([m, p]))
+          mean = tf.exp(tf.Variable(tf.zeros([m, p])))
+          if fit_null:
+            inv_disp = tf.exp(tf.Variable(tf.zeros([1, p])))
+          else:
+            inv_disp = tf.exp(tf.Variable(tf.zeros([m, p])))
+          logodds = tf.Variable(tf.zeros([m, p]))
         beta = tf.Variable(tf.zeros([k, p]))
 
         if fit_null:

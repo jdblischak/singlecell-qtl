@@ -22,7 +22,7 @@
   #+END_SRC
 
   #+RESULTS:
-  : 17
+  : 18
 
   #+CALL: ipython3(memory="32G", venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
@@ -1189,8 +1189,7 @@
   #+NAME: read-qtls
   #+BEGIN_SRC ipython
     qtls = (pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/mean.txt.gz', sep=' ', index_col=0)
-            .sort_values('p_beta')
-            .head(n=100))
+            .sample(n=1000, random_state=0))
     annotations = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
     keep_samples = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
   #+END_SRC
@@ -1198,11 +1197,6 @@
   #+RESULTS: read-qtls
   :RESULTS:
   # Out[28]:
-  :END:
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[75]:
   :END:
 
   Extract the subset we want.
@@ -1377,6 +1371,10 @@
     <<read-qtls>>
     <<extract-counts>>
 
+    log_mu = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz', index_col=0, sep=' ')
+    log_phi = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-phi.txt.gz', index_col=0, sep=' ')
+    logodds = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz', index_col=0, sep=' ')
+
     results = []
     for trial in range(100):
       C, A = bootstrap(counts, annotations)
@@ -1390,7 +1388,7 @@
         design=chip.astype(np.float32),
         size_factor=annotations['mol_hs'].astype(np.float32).values.reshape(-1, 1),
         learning_rate=5e-2,
-        max_epochs=4000))
+        max_epochs=1000))
 
     estimates = {
       'mean': np.array([np.exp(r[0] - np.log1p(np.exp(r[2]))) for r in results]),
@@ -1411,7 +1409,7 @@
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 48840035
+  : Submitted batch job 49245803
 
   Read the results.
 
