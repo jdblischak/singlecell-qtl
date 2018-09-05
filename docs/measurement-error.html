@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-09-04 Tue 16:09 -->
+<!-- 2018-09-05 Wed 14:22 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Examples of single cell measurement error</title>
@@ -258,7 +258,7 @@ for the JavaScript code in this tag.
 <h2 id="org32ced63">Introduction</h2>
 <div class="outline-text-2" id="text-org32ced63">
 <p>
-Our <a href="power.html#org72721e3">power analysis</a> found several counter-intuitive results:
+Our <a href="power.html#orgb931449">power analysis</a> found several counter-intuitive results:
 </p>
 
 <ol class="org-ol">
@@ -426,8 +426,19 @@ dtype: float64
 
 <p>
 On the log scale, the posterior effect size on the natural log of the mean is
-roughly 0.2, despite the prior putting most density much closer to 0.
+roughly 0.02, despite the prior putting most density much closer to 0.
 </p>
+
+<p>
+This is a tiny effect size, but we need to consider it relative to the
+variation in the phenotype. Define \(\beta = \lambda \sigma_r\), and estimate
+\(\lambda\) assuming \(V[y] = \sigma_r^2\).
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">best_eqtl[<span class="org-string">'beta'</span>] / params[<span class="org-string">'log_mean'</span>].std()
+</pre>
+</div>
 
 <p>
 Do the same for the best dQTL.
@@ -512,10 +523,47 @@ enough (within genotype class variance is low enough)</li>
 </ol>
 </div>
 </div>
+
+<div id="outline-container-orgddfa3aa" class="outline-2">
+<h2 id="orgddfa3aa">Plot synthetic example</h2>
+<div class="outline-text-2" id="text-orgddfa3aa">
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">rnbinom</span>(log_mu, log_phi, n_samples):
+  <span class="org-variable-name">n</span> = np.exp(-log_phi)
+  <span class="org-variable-name">p</span> = 1 / (1 + np.exp(log_mu + log_phi))
+  <span class="org-keyword">return</span> st.nbinom(n=n, p=p).rvs(n_samples)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.gcf().set_size_inches(3, 3)
+<span class="org-keyword">for</span> log_phi <span class="org-keyword">in</span> (-5, -2):
+  <span class="org-variable-name">x</span> = rnbinom(np.log(1.5e5) - 8, log_phi, 5000)
+  <span class="org-variable-name">f</span> = st.gaussian_kde(x)
+  <span class="org-variable-name">grid</span> = np.linspace(0, 100, 1000)
+  plt.plot(grid, f(grid), label=log_phi)
+plt.legend(frameon=<span class="org-constant">False</span>, title=<span class="org-string">'$\ln(\phi)$'</span>)
+plt.xlabel(<span class="org-string">'Count'</span>)
+plt.ylabel(<span class="org-string">'Density'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0,0.5,'Frequency')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/measurement-error.org/rnbinom.png" alt="rnbinom.png">
+</p>
+</div>
+</div>
+</div>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-09-04 Tue 16:09</p>
+<p class="date">Created: 2018-09-05 Wed 14:22</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
