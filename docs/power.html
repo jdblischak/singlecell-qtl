@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-09-05 Wed 14:22 -->
+<!-- 2018-09-08 Sat 12:04 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Power to detect QTLs in single cell data</title>
@@ -257,13 +257,1068 @@ for the JavaScript code in this tag.
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents">
 <ul>
-<li><a href="#org9f6cd72">Compare experimental variance to biological variance</a></li>
+<li><a href="#orga42ca73">Introduction</a></li>
+<li><a href="#org7629be6">Empirical power calculation</a>
+<ul>
+<li><a href="#orge517b0e">Differential dispersion</a></li>
+<li><a href="#org5ec82fa">Null calibration via parametric bootstrap</a></li>
+<li><a href="#org3d39f55">Power</a></li>
+<li><a href="#org601cded">QTL discovery</a></li>
+<li><a href="#org2e0a082">Distribution of effect sizes.</a></li>
+<li><a href="#orga31b1a2">Compare experimental variance to biological variance</a></li>
+<li><a href="#org2be57fa">Distribution of PVE</a></li>
+<li><a href="#orge4a450a">Estimate the error variance</a></li>
+</ul>
+</li>
+<li><a href="#org52da0bd">Analytic power calculation</a></li>
 </ul>
 </div>
 </div>
-<div id="outline-container-org9f6cd72" class="outline-2">
-<h2 id="org9f6cd72">Compare experimental variance to biological variance</h2>
-<div class="outline-text-2" id="text-org9f6cd72">
+
+<div id="outline-container-orga42ca73" class="outline-2">
+<h2 id="orga42ca73">Introduction</h2>
+<div class="outline-text-2" id="text-orga42ca73">
+<p>
+We <a href="qtl-mapping.html">previously found</a> that our study lost power to detect eQTLs, and was
+underpowered to directly detect dispersion-QTLs.
+</p>
+
+<p>
+Here, we estimate power to detect eQTLs and dispersion-QTLs as a function of:
+</p>
+
+<ul class="org-ul">
+<li>number of cells per individual</li>
+<li>number of molecules per cell</li>
+<li>number of individuals</li>
+</ul>
+</div>
+</div>
+
+<div id="outline-container-org7629be6" class="outline-2">
+<h2 id="org7629be6">Empirical power calculation</h2>
+<div class="outline-text-2" id="text-org7629be6">
+</div>
+<div id="outline-container-orge517b0e" class="outline-3">
+<h3 id="orge517b0e">Differential dispersion</h3>
+<div class="outline-text-3" id="text-orge517b0e">
+<p>
+Perform a nested model comparison for each gene \(k\), comparing the model:
+</p>
+
+<p>
+\[ r_{ijk} \sim \mathrm{ZINB}(\pi_{ik}, \mu_{ik}, \phi_{ik}) \]
+</p>
+
+<p>
+against the model:
+</p>
+
+<p>
+\[ r_{ijk} \sim \mathrm{ZINB}(\pi_{ik}, \mu_{ik}, \phi_{i}) \]
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython" id="orgca0b48e"><span class="org-keyword">def</span> <span class="org-function-name">lrt</span>(umi, onehot, design, size_factor):
+  <span class="org-variable-name">_</span>, <span class="org-variable-name">_</span>, <span class="org-variable-name">_</span>, <span class="org-variable-name">llik0</span> = fit(
+    umi=umi.values.T.astype(np.float32),
+    onehot=onehot.astype(np.float32),
+    design=design.astype(np.float32),
+    size_factor=size_factor.astype(np.float32),
+    fit_null=<span class="org-constant">True</span>,
+    return_llik=<span class="org-constant">True</span>,
+    learning_rate=5e-2,
+    max_epochs=4000)
+  <span class="org-variable-name">_</span>, <span class="org-variable-name">_</span>, <span class="org-variable-name">_</span>, <span class="org-variable-name">llik1</span> = fit(
+    umi=umi.values.T.astype(np.float32),
+    onehot=onehot.astype(np.float32),
+    design=design.astype(np.float32),
+    size_factor=size_factor.astype(np.float32),
+    return_llik=<span class="org-constant">True</span>,
+    learning_rate=5e-2,
+    max_epochs=4000)
+  <span class="org-variable-name">T</span> = 2 * (llik1 - llik0)
+  <span class="org-keyword">return</span> T, st.chi2(1).logsf(T)
+</pre>
+</div>
+</div>
+</div>
+
+<div id="outline-container-org5ec82fa" class="outline-3">
+<h3 id="org5ec82fa">Null calibration via parametric bootstrap</h3>
+<div class="outline-text-3" id="text-org5ec82fa">
+<p>
+Sample null data from the model, using empirical estimates of the parameters
+in the observed data.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">&lt;&lt;zinb-imports&gt;&gt;
+&lt;&lt;tf-imports&gt;&gt;
+&lt;&lt;tf-zinb-impl&gt;&gt;
+&lt;&lt;lrt-impl&gt;&gt;
+&lt;&lt;sim-impl&gt;&gt;
+
+<span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">log_phi</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-phi.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">logodds</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">params</span> = pd.DataFrame({<span class="org-string">'log_mu'</span>: log_mu[<span class="org-string">'NA18507'</span>],
+                       <span class="org-string">'log_phi'</span>: log_phi[<span class="org-string">'NA18507'</span>],
+                       <span class="org-string">'logodds'</span>: logodds[<span class="org-string">'NA18507'</span>]},
+                      index=log_mu.index)
+<span class="org-variable-name">params</span> = params[params[<span class="org-string">'log_mu'</span>] &gt; -10]
+<span class="org-variable-name">n</span> = 100
+<span class="org-variable-name">umi</span> = pd.DataFrame([simulate(2 * n, size=1e5, log_mu=log_mu, log_phi=log_phi, logodds=logodds)[0][:,0]
+                    <span class="org-keyword">for</span> _, (log_mu, log_phi, logodds) <span class="org-keyword">in</span> params.iterrows() <span class="org-keyword">if</span> log_mu &gt; -10], index=params.index)
+<span class="org-variable-name">onehot</span> = np.zeros((2 * n, 2))
+<span class="org-variable-name">onehot</span>[:n,0] = 1
+<span class="org-variable-name">onehot</span>[n:,1] = 1
+<span class="org-variable-name">design</span> = np.zeros((2 * n, 1))
+<span class="org-variable-name">size_factor</span> = 1e5 * np.ones((2 * n, 1))
+<span class="org-variable-name">T</span>, <span class="org-variable-name">P</span> = lrt(umi, onehot, design, size_factor)
+pd.DataFrame({<span class="org-string">'chi2'</span>: T, <span class="org-string">'logp'</span>: P}, index=umi.index).to_csv(<span class="org-string">'null-calibration-p.txt.gz'</span>, sep=<span class="org-string">'\t'</span>, compression=<span class="org-string">'gzip'</span>)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-sh">sbatch --partition=gpu --gres=gpu:1 --mem=16G --job-name=tf-lrt-null --output=tf-lrt-null-parametric.out
+<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
+<span class="org-builtin">source</span> activate scqtl
+python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-lrt-null-parametric.py
+</pre>
+</div>
+
+<pre class="example">
+Submitted batch job 46322399
+
+</pre>
+
+<p>
+Read the results.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">null_lrt</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/null-calibration-p.txt.gz'</span>)
+<span class="org-variable-name">N</span> = null_lrt.shape[0]
+</pre>
+</div>
+
+<p>
+Report how many genes were simulated.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">N
+</pre>
+</div>
+
+<pre class="example">
+1832
+
+</pre>
+
+<p>
+Estimate bootstrap CIs for the quantiles.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">B</span> = np.sort(st.chi2(1).rvs((N, 100)), axis=0)
+<span class="org-variable-name">ci</span> = np.percentile(B, [2.5, 97.5], axis=1)
+</pre>
+</div>
+
+<p>
+Plot the QQ-plot.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.gcf().set_size_inches(4, 4)
+<span class="org-variable-name">grid</span> = st.chi2(1).ppf(np.linspace(0, 1 - 1 / N, N))
+plt.scatter(grid, null_lrt[<span class="org-string">'chi2'</span>].sort_values(), c=<span class="org-string">'k'</span>, s=2)
+plt.fill_between(grid, ci[0], ci[1], color=<span class="org-string">'k'</span>, alpha=0.1)
+<span class="org-variable-name">lim</span> = [0, 1.01 * grid.<span class="org-builtin">max</span>()]
+plt.plot(lim, lim, c=<span class="org-string">'r'</span>, lw=1)
+plt.xlim(lim)
+plt.xlabel(<span class="org-string">'Expected $\chi^2$ statistic'</span>)
+<span class="org-variable-name">_</span> = plt.ylabel(<span class="org-string">'Observed $\chi^2$ statistic'</span>)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/power.org/null-calibration-p.png" alt="null-calibration-p.png">
+</p>
+</div>
+</div>
+</div>
+
+<div id="outline-container-org3d39f55" class="outline-3">
+<h3 id="org3d39f55">Power</h3>
+<div class="outline-text-3" id="text-org3d39f55">
+<p>
+Sample from the assumed model.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">&lt;&lt;zinb-imports&gt;&gt;
+&lt;&lt;tf-imports&gt;&gt;
+&lt;&lt;tf-zinb-impl&gt;&gt;
+&lt;&lt;lrt-impl&gt;&gt;
+&lt;&lt;sim-impl&gt;&gt;
+
+<span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">log_phi</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-phi.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">logodds</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">params</span> = pd.DataFrame({<span class="org-string">'log_mu'</span>: log_mu[<span class="org-string">'NA18507'</span>],
+                       <span class="org-string">'log_phi'</span>: log_phi[<span class="org-string">'NA18507'</span>],
+                       <span class="org-string">'logodds'</span>: logodds[<span class="org-string">'NA18507'</span>]},
+                      index=log_mu.index)
+<span class="org-variable-name">params</span> = params[params[<span class="org-string">'log_mu'</span>] &gt; -10].sample(n=50)
+
+<span class="org-variable-name">sample_sizes</span> = np.geomspace(1e2, 1e5, 5).astype(<span class="org-builtin">int</span>)
+<span class="org-variable-name">log_fold_changes</span> = np.log(np.geomspace(1.1, 2, 5))
+<span class="org-variable-name">depths</span> = np.geomspace(1e4, 1e6, 5)
+
+<span class="org-variable-name">result</span> = []
+<span class="org-keyword">for</span> num_mols <span class="org-keyword">in</span> depths:
+  <span class="org-keyword">for</span> log_fc <span class="org-keyword">in</span> log_fold_changes:
+    <span class="org-keyword">for</span> num_samples <span class="org-keyword">in</span> sample_sizes:
+      <span class="org-variable-name">umi</span> = []
+      <span class="org-keyword">for</span> _, (log_mu, log_phi, logodds) <span class="org-keyword">in</span> params.iterrows():
+        umi.append(np.hstack([
+          simulate(num_samples, size=num_mols, log_mu=log_mu, log_phi=log_phi, logodds=logodds)[0][:,0],
+          simulate(num_samples, size=num_mols, log_mu=log_mu, log_phi=log_phi + log_fc, logodds=logodds)[0][:,0]
+        ]))
+      <span class="org-variable-name">umi</span> = pd.DataFrame(umi, index=params.index)
+      <span class="org-variable-name">onehot</span> = np.zeros((umi.shape[1], 2))
+      <span class="org-variable-name">onehot</span>[:num_samples,0] = 1
+      <span class="org-variable-name">onehot</span>[num_samples:,1] = 1
+      <span class="org-variable-name">design</span> = np.zeros((umi.shape[1], 1))
+      <span class="org-variable-name">size_factor</span> = num_mols * np.ones((umi.shape[1], 1))
+      <span class="org-variable-name">T</span>, <span class="org-variable-name">P</span> = lrt(umi, onehot, design, size_factor)
+      result.append(pd.DataFrame({
+        <span class="org-string">'num_mols'</span>: num_mols,
+        <span class="org-string">'num_samples'</span>: num_samples,
+        <span class="org-string">'log_fold_change'</span>: log_fc,
+        <span class="org-string">'chi2'</span>: T,
+        <span class="org-string">'logp'</span>: P}))
+pd.concat(result).to_csv(<span class="org-string">'lrt-power.txt.gz'</span>, sep=<span class="org-string">'\t'</span>, compression=<span class="org-string">'gzip'</span>) 
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-sh">sbatch --partition=gpu --gres=gpu:1 --mem=16G --job-name=tf-lrt-power --output=tf-lrt-power.out
+<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
+<span class="org-builtin">source</span> activate scqtl
+python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-lrt-power.py
+</pre>
+</div>
+
+<pre class="example">
+Submitted batch job 46367157
+
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-sh">sacct -j 46367157 -o Elapsed
+</pre>
+</div>
+
+<pre class="example">
+   Elapsed 
+---------- 
+  06:59:58 
+  06:59:58 
+  06:59:58 
+
+</pre>
+
+<p>
+Move the results to permanent storage.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">rsync -FFau /scratch/midway2/aksarkar/singlecell/power/ /project2/mstephens/aksarkar/projects/singlecell-qtl/data/power/
+</pre>
+</div>
+
+<p>
+Read the results.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">lrt_results</span> = (pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/power/lrt-power.txt.gz'</span>, index_col=0)
+             .reindex())
+<span class="org-variable-name">features</span> = [<span class="org-string">'num_mols'</span>, <span class="org-string">'num_samples'</span>, <span class="org-string">'log_fold_change'</span>]
+<span class="org-variable-name">lrt_power</span> = (lrt_results
+             .groupby(features)
+             .<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: (np.exp(x[<span class="org-string">'logp'</span>]) &lt; 0.05).<span class="org-builtin">sum</span>() / x.shape[0])
+             .to_frame()
+             .reset_index())
+</pre>
+</div>
+
+<p>
+Plot the results.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+<span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(1, 2, sharey=<span class="org-constant">True</span>)
+fig.set_size_inches(5.5, 3)
+
+<span class="org-variable-name">num_samples</span> = 100
+<span class="org-variable-name">groups</span> = <span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(lrt_power[<span class="org-string">'num_mols'</span>]))
+<span class="org-keyword">for</span> i, n <span class="org-keyword">in</span> <span class="org-builtin">enumerate</span>(groups):
+  <span class="org-variable-name">color</span> = colorcet.cm[<span class="org-string">'kbc'</span>]((i + .5) / <span class="org-builtin">len</span>(groups))
+  <span class="org-variable-name">subset</span> = lrt_power[np.logical_and(lrt_power[<span class="org-string">'num_mols'</span>] == n, lrt_power[<span class="org-string">'num_samples'</span>] == num_samples)]
+  ax[0].plot(np.exp(subset[<span class="org-string">'log_fold_change'</span>]), subset[0], lw=1, marker=<span class="org-string">'.'</span>, ms=8, c=color, label=<span class="org-string">'$10^{{{:.1f}}}$'</span>.<span class="org-builtin">format</span>(np.log(n) / np.log(10)))
+ax[0].legend(title=<span class="org-string">'# molecules'</span>, frameon=<span class="org-constant">False</span>)
+ax[0].set_xlabel(<span class="org-string">'Fold change in dispersion'</span>)
+ax[0].set_ylabel(<span class="org-string">'Power at level 0.05'</span>)
+ax[0].set_title(<span class="org-string">'100 cells'</span>)
+
+<span class="org-variable-name">num_mols</span> = 1e5
+<span class="org-variable-name">grid</span> = np.log(np.linspace(1.1, 2, 100))
+<span class="org-variable-name">groups</span> = <span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(lrt_power[<span class="org-string">'num_samples'</span>]))
+<span class="org-keyword">for</span> i, n <span class="org-keyword">in</span> <span class="org-builtin">enumerate</span>(groups):
+  <span class="org-variable-name">color</span> = colorcet.cm[<span class="org-string">'kgy'</span>]((i + .5) / <span class="org-builtin">len</span>(groups))
+  <span class="org-variable-name">subset</span> = lrt_power[np.logical_and(lrt_power[<span class="org-string">'num_mols'</span>] == num_mols, lrt_power[<span class="org-string">'num_samples'</span>] == n)]
+  ax[1].plot(np.exp(subset[<span class="org-string">'log_fold_change'</span>]), subset[0], lw=1, marker=<span class="org-string">'.'</span>, ms=8, c=color, label=<span class="org-string">'$10^{{{:.1f}}}$'</span>.<span class="org-builtin">format</span>(np.log(n) / np.log(10)))
+ax[1].legend(title=<span class="org-string">'# samples'</span>, frameon=<span class="org-constant">False</span>, loc=<span class="org-string">'center left'</span>, bbox_to_anchor=(1, .5))
+ax[1].set_xlabel(<span class="org-string">'Fold change in dispersion'</span>)
+ax[1].set_title(<span class="org-string">'$10^5$ molecules'</span>)
+
+fig.tight_layout()
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/power.org/lrt-power.png" alt="lrt-power.png">
+</p>
+</div>
+</div>
+</div>
+
+<div id="outline-container-org601cded" class="outline-3">
+<h3 id="org601cded">QTL discovery</h3>
+<div class="outline-text-3" id="text-org601cded">
+<p>
+We assume the phenotype is generated from \(m\) causal effects (out of \(p\)
+variants) following a linear model:
+</p>
+
+<p>
+\[ \theta_i = \sum_j X_{ij} \beta_j + \epsilon_i \]
+</p>
+
+<p>
+\[ \mathbb{E}[x_i] = 0, \mathbb{V}[x_i] = 1 \]
+</p>
+
+<p>
+\[ \beta_j \sim N(0, 1) \text{ if \(j\) causal}\]
+</p>
+
+<p>
+\[ \epsilon_i \sim N(0, \mathbb{V[X \beta]} (1 / h^2 - 1)) \]
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython" id="orgb735633"><span class="org-keyword">def</span> <span class="org-function-name">read_dosage</span>(vcf, row, window=100000):
+  <span class="org-variable-name">records</span> = <span class="org-builtin">list</span>(vcf.query(row[<span class="org-string">'#Chr'</span>], row[<span class="org-string">'start'</span>] - window, row[<span class="org-string">'start'</span>] + window))
+  <span class="org-keyword">if</span> records:
+    <span class="org-variable-name">x</span> = np.array([record[9:] <span class="org-keyword">for</span> record <span class="org-keyword">in</span> records]).astype(np.<span class="org-builtin">float</span>).T
+    <span class="org-variable-name">x</span> = pd.DataFrame(x, columns=[record[2] <span class="org-keyword">for</span> record <span class="org-keyword">in</span> records])
+    <span class="org-keyword">return</span> x
+  <span class="org-keyword">else</span>:
+    <span class="org-keyword">return</span> <span class="org-constant">None</span>
+
+<span class="org-keyword">def</span> <span class="org-function-name">read_vcf_geno</span>(vcf, chrom, start, end):
+  <span class="org-variable-name">records</span> = <span class="org-builtin">list</span>(vcf.query(chrom, start, end))
+  <span class="org-keyword">if</span> records:
+    <span class="org-variable-name">x</span> = (np.array([[_.split(<span class="org-string">'/'</span>) <span class="org-keyword">for</span> record <span class="org-keyword">in</span> records <span class="org-keyword">for</span> _ <span class="org-keyword">in</span> record[9:]]])
+         .reshape(<span class="org-builtin">len</span>(records), -1, 2)
+         .astype(<span class="org-builtin">float</span>)
+         .<span class="org-builtin">sum</span>(axis=-1))
+    <span class="org-keyword">return</span> np.array(x).T
+  <span class="org-keyword">else</span>:
+    <span class="org-keyword">return</span> <span class="org-constant">None</span>
+
+<span class="org-keyword">def</span> <span class="org-function-name">generate_pheno</span>(x, pve, m=<span class="org-constant">None</span>):
+  <span class="org-variable-name">x</span> = x[:,np.logical_and(x.mean(axis=0) / 2 &gt; 0.05, x.std(axis=0) &gt; 0)]
+  <span class="org-variable-name">n</span>, <span class="org-variable-name">p</span> = x.shape
+  <span class="org-keyword">if</span> p == 0:
+    <span class="org-keyword">return</span> <span class="org-constant">None</span>
+  <span class="org-keyword">if</span> m <span class="org-keyword">is</span> <span class="org-constant">None</span>:
+    <span class="org-variable-name">theta</span> = np.random.normal(size=p)
+  <span class="org-keyword">else</span>:
+    <span class="org-variable-name">theta</span> = np.zeros(p)
+    <span class="org-variable-name">theta</span>[np.random.choice(p, m, replace=<span class="org-constant">False</span>)] = np.random.normal(size=m)
+  <span class="org-variable-name">x</span> -= x.mean(axis=0)
+  <span class="org-variable-name">x</span> /= x.std(axis=0)
+  <span class="org-variable-name">y</span> = x.dot(theta)
+  <span class="org-variable-name">y</span> += np.random.normal(scale=np.sqrt(y.var() * (1 / pve - 1)), size=n)
+  <span class="org-variable-name">y</span> -= y.mean()
+  <span class="org-variable-name">y</span> /= y.std()
+  <span class="org-keyword">return</span> y.reshape(-1, 1)
+
+<span class="org-keyword">def</span> <span class="org-function-name">lm</span>(x, y):
+  <span class="org-variable-name">n</span> = y.shape[0]
+  <span class="org-variable-name">beta</span> = x.T.dot(y) / n
+  <span class="org-variable-name">df</span> = n - 1
+  <span class="org-variable-name">rss</span> = ((y ** 2).<span class="org-builtin">sum</span>() - beta ** 2 * n)
+  <span class="org-variable-name">sigma2</span> = rss / df
+  <span class="org-variable-name">se</span> = np.sqrt(sigma2 / n)
+  <span class="org-keyword">return</span> beta, se
+
+<span class="org-variable-name">_sf</span> = st.chi2(1).sf
+
+<span class="org-keyword">def</span> <span class="org-function-name">nominal_test</span>(x, y):
+  <span class="org-variable-name">beta</span>, <span class="org-variable-name">se</span> = lm(x, y)
+  <span class="org-keyword">return</span> _sf((beta / se) ** 2)
+
+<span class="org-keyword">def</span> <span class="org-function-name">beta_llik</span>(theta, x):
+  <span class="org-keyword">return</span> -st.beta.logpdf(x, *theta).mean()
+
+<span class="org-keyword">def</span> <span class="org-function-name">permutation_test</span>(x, y, num_trials=100):
+  <span class="org-variable-name">pval</span> = nominal_test(x, y).<span class="org-builtin">min</span>()
+  <span class="org-variable-name">null_pheno</span> = y.copy()
+  <span class="org-variable-name">null_pvals</span> = []
+  <span class="org-keyword">for</span> _ <span class="org-keyword">in</span> <span class="org-builtin">range</span>(num_trials):
+    np.random.shuffle(null_pheno)
+    null_pvals.append(nominal_test(x, null_pheno).<span class="org-builtin">min</span>())
+  <span class="org-variable-name">null_pvals</span> = np.array(null_pvals)
+  <span class="org-variable-name">theta</span> = np.ones(2)
+  <span class="org-variable-name">opt</span> = so.minimize(beta_llik, x0=theta, args=(null_pvals,))
+  <span class="org-keyword">if</span> opt.success:
+    <span class="org-variable-name">theta</span> = opt.x
+  <span class="org-keyword">else</span>:
+    <span class="org-comment-delimiter"># </span><span class="org-comment">Method of moments</span>
+    <span class="org-variable-name">theta</span> = np.array([1, (1 / null_pvals.mean() - 1)])
+    <span class="org-variable-name">theta</span> *= np.square(null_pvals.mean()) * ((1 - null_pvals.mean()) / null_pvals.var() - 1)
+  <span class="org-keyword">return</span> st.beta.cdf(pval, *theta)
+
+<span class="org-keyword">def</span> <span class="org-function-name">evaluate</span>(vcf, eqtls, num_individuals, num_causal, pve, num_genes=100):
+  <span class="org-variable-name">query</span> = eqtls.sample(n=num_genes)
+  <span class="org-variable-name">result</span> = []
+  <span class="org-keyword">for</span> _, record <span class="org-keyword">in</span> query.iterrows():
+    <span class="org-comment-delimiter"># </span><span class="org-comment">Important: GEUVADIS chromosomes are coded 1-22</span>
+    <span class="org-variable-name">x</span> = read_vcf_geno(vcf, record[<span class="org-string">'chr'</span>][3:], record[<span class="org-string">'start'</span>] - 100000, record[<span class="org-string">'start'</span>] + 100000)
+    <span class="org-keyword">if</span> x <span class="org-keyword">is</span> <span class="org-constant">None</span>:
+      <span class="org-keyword">continue</span>
+    <span class="org-variable-name">y</span> = <span class="org-constant">None</span>
+    <span class="org-keyword">while</span> y <span class="org-keyword">is</span> <span class="org-constant">None</span>:
+      <span class="org-comment-delimiter"># </span><span class="org-comment">Important: rejection sampling is needed to get a subset of individuals</span>
+      <span class="org-comment-delimiter"># </span><span class="org-comment">with enough variable SNPs</span>
+      <span class="org-variable-name">keep</span> = np.random.choice(x.shape[0], num_individuals, replace=<span class="org-constant">False</span>)
+      <span class="org-variable-name">z</span> = x[keep]
+      <span class="org-variable-name">y</span> = generate_pheno(z, pve=pve, m=num_causal)
+    <span class="org-variable-name">pval</span> = permutation_test(z, y)
+    result.append({
+      <span class="org-string">'gene'</span>: record.name,
+      <span class="org-string">'num_individuals'</span>: z.shape[0],
+      <span class="org-string">'num_snps'</span>: z.shape[1],
+      <span class="org-string">'num_causal'</span>: num_causal,
+      <span class="org-string">'pve'</span>: pve,
+      <span class="org-string">'pval'</span>: pval})
+  <span class="org-keyword">return</span> pd.DataFrame.from_dict(result)
+</pre>
+</div>
+
+<p>
+QC the GEUVADIS genotypes.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">sbatch --partition=broadwl --mem=4G --job-name=plink -a 1-22
+<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
+plink --memory 4000 --vcf /project/compbio/geuvadis/genotypes/GEUVADIS.chr${<span class="org-variable-name">SLURM_ARRAY_TASK_ID</span>}<span class="org-builtin">.</span>*.vcf.gz --maf 0.05 --geno 0.01 --make-bed --out geuvadis-$<span class="org-variable-name">SLURM_ARRAY_TASK_ID</span>
+</pre>
+</div>
+
+<pre class="example">
+Submitted batch job 46479117
+
+</pre>
+
+<p>
+Write out and index the QC'ed VCF.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">sbatch --partition=broadwl --mem=4G --job-name=geuvadis --out=geuvadis.out
+<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
+<span class="org-builtin">set</span> -e
+module load parallel
+<span class="org-builtin">source</span> activate scqtl
+parallel echo geuvadis-{} ::: $(<span class="org-sh-quoted-exec">seq</span> 1 22) &gt;merge.txt
+plink --memory 4000 --merge-list merge.txt --recode vcf-iid --out geuvadis
+bgzip geuvadis.vcf
+tabix geuvadis.vcf.gz
+</pre>
+</div>
+
+<pre class="example">
+Submitted batch job 46404341
+
+</pre>
+
+<p>
+Run the power calculation on 28 CPUs.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">&lt;&lt;power-imports&gt;&gt;
+&lt;&lt;eqtl-sim-impl&gt;&gt;
+
+<span class="org-variable-name">vcf</span> = tabix.<span class="org-builtin">open</span>(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/geuvadis.vcf.gz'</span>)
+<span class="org-comment-delimiter"># </span><span class="org-comment">Restrict to genes where we previously successfully mapped eQTLs</span>
+<span class="org-variable-name">eqtls</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/pooled.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0).dropna()
+
+<span class="org-variable-name">args</span> = [(vcf, eqtls, n, m, pve)
+        <span class="org-keyword">for</span> n <span class="org-keyword">in</span> (53, 100, 200, 300, 400)
+        <span class="org-keyword">for</span> m <span class="org-keyword">in</span> (1, <span class="org-constant">None</span>)
+        <span class="org-keyword">for</span> pve <span class="org-keyword">in</span> np.linspace(0.01, 0.1, 10)]
+
+np.random.seed(0)
+<span class="org-variable-name">result</span> = [evaluate(*a) <span class="org-keyword">for</span> a <span class="org-keyword">in</span> args]
+pd.concat(result).to_csv(<span class="org-string">'eqtl-power.txt.gz'</span>, compression=<span class="org-string">'gzip'</span>, sep=<span class="org-string">'\t'</span>)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-sh">sbatch --partition=broadwl -n1 -c28 --exclusive --time=3:00:00 --mem=16G --job-name=eqtl-power --output=eqtl-power.out
+<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
+<span class="org-builtin">source</span> activate scqtl
+python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/eqtl-power.py
+</pre>
+</div>
+
+<pre class="example">
+Submitted batch job 46541021
+
+</pre>
+
+<p>
+Read the results.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-comment-delimiter"># </span><span class="org-comment">Important: we used None for infinitesimal, which gets parsed as missing</span>
+<span class="org-variable-name">qtl_results</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/power/eqtl-power.txt.gz'</span>, index_col=0).fillna(-1)
+<span class="org-variable-name">qtl_results</span>[<span class="org-string">'sig'</span>] = qtl_results.<span class="org-builtin">apply</span>(<span class="org-keyword">lambda</span> x: x[<span class="org-string">'pval'</span>] &lt; 0.05, axis=1).astype(<span class="org-builtin">int</span>)
+<span class="org-variable-name">qtl_power</span> = (qtl_results
+             .groupby([<span class="org-string">'num_individuals'</span>, <span class="org-string">'num_causal'</span>, <span class="org-string">'pve'</span>])[<span class="org-string">'sig'</span>]
+             .agg([np.mean, np.std])
+             .reset_index()
+             .rename(columns={<span class="org-string">'mean'</span>: <span class="org-string">'power'</span>, <span class="org-string">'std'</span>: <span class="org-string">'se'</span>}))
+<span class="org-variable-name">qtl_power</span>[<span class="org-string">'se'</span>] /= 10
+</pre>
+</div>
+
+<p>
+Plot the results.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+<span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(1, 2, sharey=<span class="org-constant">True</span>)
+fig.set_size_inches(5.5, 3)
+<span class="org-variable-name">groups</span> = <span class="org-builtin">sorted</span>(<span class="org-builtin">set</span>(qtl_power[<span class="org-string">'num_individuals'</span>]))
+<span class="org-keyword">for</span> i, m <span class="org-keyword">in</span> <span class="org-builtin">enumerate</span>([1, -1]):
+  <span class="org-keyword">for</span> n <span class="org-keyword">in</span> groups:
+    <span class="org-variable-name">subset</span> = np.logical_and(qtl_power[<span class="org-string">'num_individuals'</span>] == n, qtl_power[<span class="org-string">'num_causal'</span>] == m)
+    <span class="org-variable-name">color</span> = colorcet.cm[<span class="org-string">'linear_kry_5_95_c72'</span>]((n - 53) / (<span class="org-builtin">max</span>(groups) - 25))
+    ax[i].plot(qtl_power.loc[subset, <span class="org-string">'pve'</span>],
+               qtl_power.loc[subset, <span class="org-string">'power'</span>],
+               marker=<span class="org-string">'.'</span>, c=color, lw=1, ms=8, label=n)
+    ax[i].fill_between(qtl_power.loc[subset, <span class="org-string">'pve'</span>],
+                       qtl_power.loc[subset, <span class="org-string">'power'</span>] - 1.96 * qtl_power.loc[subset, <span class="org-string">'se'</span>],
+                       qtl_power.loc[subset, <span class="org-string">'power'</span>] + 1.96 * qtl_power.loc[subset, <span class="org-string">'se'</span>],
+                       color=color, alpha=0.1)
+ax[0].set_title(<span class="org-string">'1 causal'</span>)
+ax[1].set_title(<span class="org-string">'Infinitesimal'</span>)
+ax[0].set_ylabel(<span class="org-string">'Power at level 0.05'</span>)
+ax[-1].legend(title=<span class="org-string">'# individuals'</span>, frameon=<span class="org-constant">False</span>, loc=<span class="org-string">'center left'</span>, bbox_to_anchor=(1, .5))
+
+<span class="org-keyword">for</span> a <span class="org-keyword">in</span> ax:
+  a.set_xlabel(<span class="org-string">'Proportion of variance explained'</span>)
+  a.set_xlim(0.005, .105)
+
+fig.tight_layout()
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/power.org/eqtl-power.png" alt="eqtl-power.png">
+</p>
+</div>
+</div>
+</div>
+
+<div id="outline-container-org2e0a082" class="outline-3">
+<h3 id="org2e0a082">Distribution of effect sizes.</h3>
+<div class="outline-text-3" id="text-org2e0a082">
+<p>
+Use <code>ash</code> to estimate the distribution of true effect sizes across all
+genes. We need to compute regression standard errors ourselves.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython" id="org2bfad5a"><span class="org-keyword">def</span> <span class="org-function-name">run_nominal_pass</span>(vcf, pheno, header, std=<span class="org-constant">True</span>, cov=<span class="org-constant">None</span>):
+  <span class="org-comment-delimiter"># </span><span class="org-comment">Annihilator matrix I - X X^+</span>
+  <span class="org-variable-name">M</span> = <span class="org-constant">None</span>
+  <span class="org-variable-name">result</span> = []
+  <span class="org-keyword">for</span> _, record <span class="org-keyword">in</span> pheno.iterrows():
+    <span class="org-variable-name">x</span> = read_dosage(vcf, record)
+    <span class="org-keyword">if</span> x <span class="org-keyword">is</span> <span class="org-keyword">not</span> <span class="org-constant">None</span>:
+      <span class="org-variable-name">x.index</span> = header
+      <span class="org-variable-name">y</span> = record
+      <span class="org-variable-name">x</span>, <span class="org-variable-name">y</span> = x.align(y, axis=<span class="org-string">'index'</span>, join=<span class="org-string">'inner'</span>)
+      <span class="org-variable-name">x</span> -= x.mean(axis=0)
+      <span class="org-variable-name">x</span> /= x.std(axis=0)
+      <span class="org-keyword">if</span> M <span class="org-keyword">is</span> <span class="org-constant">None</span> <span class="org-keyword">and</span> cov <span class="org-keyword">is</span> <span class="org-keyword">not</span> <span class="org-constant">None</span>:
+        <span class="org-variable-name">cov</span> = cov.T.align(y, axis=<span class="org-string">'index'</span>, join=<span class="org-string">'inner'</span>)[0]
+        <span class="org-variable-name">C</span> = np.array(cov - cov.mean(axis=0))
+        <span class="org-variable-name">M</span> = np.eye(C.shape[0]) - C.dot(np.linalg.pinv(C))
+      <span class="org-variable-name">y</span> = y.astype(<span class="org-builtin">float</span>).values.reshape(-1, 1)
+      <span class="org-keyword">if</span> M <span class="org-keyword">is</span> <span class="org-keyword">not</span> <span class="org-constant">None</span>:
+        <span class="org-variable-name">y</span> = M.dot(y)
+      <span class="org-variable-name">y</span> -= y.mean()
+      <span class="org-keyword">if</span> std:
+        <span class="org-variable-name">y</span> /= y.std()
+      <span class="org-variable-name">beta</span>, <span class="org-variable-name">se</span> = lm(x, y)
+      result.append(pd.DataFrame({<span class="org-string">'gene'</span>: record.name, <span class="org-string">'beta'</span>: beta[0], <span class="org-string">'se'</span>: se[0]}))
+  <span class="org-keyword">return</span> pd.concat(result)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython" id="org029be3f">&lt;&lt;power-imports&gt;&gt;
+<span class="org-keyword">import</span> argparse
+&lt;&lt;eqtl-sim-impl&gt;&gt;
+&lt;&lt;nominal-<span class="org-keyword">pass</span>-<span class="org-keyword">def</span>&gt;&gt;
+
+<span class="org-variable-name">parser</span> = argparse.ArgumentParser()
+parser.add_argument(<span class="org-string">'--vcf'</span>, required=<span class="org-constant">True</span>)
+parser.add_argument(<span class="org-string">'--pheno'</span>, required=<span class="org-constant">True</span>)
+parser.add_argument(<span class="org-string">'--cov'</span>)
+parser.add_argument(<span class="org-string">'--no-std'</span>, action=<span class="org-string">'store_true'</span>)
+parser.add_argument(<span class="org-string">'--out'</span>, default=<span class="org-constant">None</span>)
+<span class="org-variable-name">args</span> = parser.parse_args()
+
+<span class="org-variable-name">vcf</span> = tabix.<span class="org-builtin">open</span>(args.vcf)
+<span class="org-variable-name">header</span> = pd.read_table(args.vcf, skiprows=2, nrows=1, header=0).columns[9:]
+<span class="org-variable-name">pheno</span> = pd.read_table(args.pheno, index_col=4)
+<span class="org-keyword">if</span> args.cov <span class="org-keyword">is</span> <span class="org-keyword">not</span> <span class="org-constant">None</span>:
+  <span class="org-variable-name">cov</span> = pd.read_table(args.cov, sep=r<span class="org-string">'\s+'</span>, engine=<span class="org-string">'python'</span>, index_col=0)
+<span class="org-keyword">else</span>:
+  <span class="org-variable-name">cov</span> = <span class="org-constant">None</span>
+
+<span class="org-variable-name">result</span> = run_nominal_pass(vcf, pheno, header, cov=cov, std=<span class="org-keyword">not</span> args.no_std)
+<span class="org-keyword">if</span> args.out <span class="org-keyword">is</span> <span class="org-constant">None</span>:
+  <span class="org-variable-name">out</span> = <span class="org-string">'nominal-pass.txt.gz'</span>
+<span class="org-keyword">else</span>:
+  <span class="org-variable-name">out</span> = args.out
+result.to_csv(out, sep=<span class="org-string">'\t'</span>, compression=<span class="org-string">'gzip'</span>)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-sh">sbatch --partition=broadwl -a 1-7 -n1 -c28 --exclusive --job-name=nominal --out nominal.out --time=60:00
+<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
+<span class="org-builtin">source</span> activate scqtl
+<span class="org-variable-name">tasks</span>=(
+    <span class="org-string">"python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /scratch/midway2/aksarkar/singlecell/scqtl-mapping/log_phi.bed.gz --out log_phi.txt.gz"</span>
+    <span class="org-string">"python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/mean.bed.gz --cov /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/mean-covars.txt --out mean.txt.gz"</span>
+    <span class="org-string">"python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/bulk.bed.gz --cov /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/bulk-covars.txt --out bulk.txt.gz"</span>
+    <span class="org-string">"python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /scratch/midway2/aksarkar/singlecell/scqtl-mapping/resid.bed.gz --cov /scratch/midway2/aksarkar/singlecell/scqtl-mapping/resid-covars.txt --out resid.txt.gz"</span>
+    <span class="org-string">"python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /scratch/midway2/aksarkar/singlecell/scqtl-mapping/cv_resid.bed.gz --out cv_resid.txt.gz"</span>
+    <span class="org-string">"python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /scratch/midway2/aksarkar/singlecell/scqtl-mapping/variance.bed.gz --cov /scratch/midway2/aksarkar/singlecell/scqtl-mapping/variance-covars.txt --out variance.txt.gz"</span>
+    <span class="org-string">"python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/fano.bed.gz --out fano.txt.gz"</span>
+    <span class="org-string">"python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/cv.bed.gz --out cv.txt.gz"</span>
+)
+<span class="org-keyword">exec</span> ${<span class="org-variable-name">tasks</span>[$<span class="org-variable-name">SLURM_ARRAY_TASK_ID</span>]}
+</pre>
+</div>
+
+<pre class="example">
+Submitted batch job 47554516
+
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-sh">rsync -FFau /scratch/midway2/aksarkar/singlecell/power/ /project2/mstephens/aksarkar/projects/singlecell-qtl/data/power/
+</pre>
+</div>
+
+<p>
+Compare nominal passes.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">zcat /scratch/midway2/aksarkar/singlecell/scqtl-mapping/variance.bed.gz | head -n100 | bgzip &gt;test.bed.gz
+tabix test.bed.gz
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-sh">sbatch --partition=broadwl -a 0-1 --job-name=qtltools --out=qtltools.out --mem=8G
+<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
+<span class="org-builtin">source</span> activate scqtl
+<span class="org-variable-name">tasks</span>=(
+    <span class="org-string">"python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/qtl-nominal.py --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --pheno /scratch/midway2/aksarkar/singlecell/scqtl-mapping/test.bed.gz --out test0.txt.gz"</span>
+    <span class="org-string">"qtltools cis --vcf /scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz --bed /scratch/midway2/aksarkar/singlecell/scqtl-mapping/test.bed.gz --nominal 1 --out test1.txt"</span>
+)
+<span class="org-keyword">exec</span> ${<span class="org-variable-name">tasks</span>[$<span class="org-variable-name">SLURM_ARRAY_TASK_ID</span>]}
+</pre>
+</div>
+
+<pre class="example">
+Submitted batch job 48221006
+
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">qtltools_nominal</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/test1.txt'</span>, sep=<span class="org-string">' '</span>, nrows=1000)
+<span class="org-variable-name">qtltools_nominal.columns</span> = [
+  <span class="org-string">'gene'</span>, <span class="org-string">'chr'</span>, <span class="org-string">'start'</span>, <span class="org-string">'end'</span>, <span class="org-string">'strand'</span>, <span class="org-string">'num_vars'</span>,
+  <span class="org-string">'distance'</span>, <span class="org-string">'id'</span>, <span class="org-string">'var_chr'</span>, <span class="org-string">'var_start'</span>, <span class="org-string">'var_end'</span>, <span class="org-string">'p'</span>, <span class="org-string">'beta'</span>, <span class="org-string">'top'</span>]
+<span class="org-variable-name">my_nominal</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/test0.txt.gz'</span>, sep=<span class="org-string">'\t'</span>).rename(columns={<span class="org-string">'Unnamed: 0'</span>: <span class="org-string">'id'</span>})
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">my_nominal.reset_index().merge(qtltools_nominal, on=[<span class="org-string">'id'</span>, <span class="org-string">'gene'</span>])[[<span class="org-string">'id'</span>, <span class="org-string">'beta_x'</span>, <span class="org-string">'beta_y'</span>]]
+</pre>
+</div>
+
+<pre class="example">
+id    beta_x    beta_y
+0    rs142686126.chr1.794778  0.051682  0.216358
+1      rs3131935.chr1.795414 -0.050426 -0.119040
+2    rs146592146.chr1.795753  0.001788  0.006190
+3    rs112896657.chr1.795824  0.051891  0.214589
+4     rs59380221.chr1.795988  0.032952  0.074112
+5     rs12132398.chr1.796100 -0.174481 -0.758004
+6     rs12083781.chr1.796375  0.057476  0.147094
+7      rs2980291.chr1.796511 -0.042158 -0.180669
+8    rs115637794.chr1.796727 -0.076004 -0.168515
+9     rs75932129.chr1.796767 -0.017476 -0.055272
+10   rs116099766.chr1.797037  0.124858  0.613323
+11    rs58013264.chr1.797440 -0.032593 -0.071501
+12   rs115861588.chr1.797820  0.099642  0.382590
+13     rs4951864.chr1.798026  0.002535  0.007094
+14   rs138433656.chr1.798185  0.099495  0.380502
+15    rs10900604.chr1.798400 -0.113678 -0.265585
+16    rs11240777.chr1.798959 -0.114018 -0.266249
+17   rs147406924.chr1.799079  0.154399  0.585582
+18     rs4245756.chr1.799463 -0.065371 -0.211145
+19    rs56737117.chr1.799770  0.154298  0.585004
+20     rs6681049.chr1.800007 -0.032110 -0.098891
+21     rs4951931.chr1.800383  0.072846  0.189145
+22    rs61768212.chr1.801467 -0.029307 -0.063779
+23     rs7516866.chr1.801943 -0.028939 -0.062082
+24     rs7553084.chr1.801995 -0.001968 -0.004610
+25     rs7553096.chr1.802026 -0.001366 -0.003171
+26     rs7553197.chr1.802093  0.040481  0.115622
+27    rs10157494.chr1.802496 -0.015210 -0.031884
+28   rs143833712.chr1.803560  0.068789  0.289046
+29    rs17080269.chr1.803582  0.068744  0.288917
+..                       ...       ...       ...
+655    rs9697457.chr1.934345 -0.010590 -0.054242
+656  rs113602214.chr1.935046  0.164753  0.414303
+657    rs3128113.chr1.935459 -0.207823 -0.417954
+658    rs3121571.chr1.935492 -0.207805 -0.417907
+659  rs139298395.chr1.935659  0.029185  0.075963
+660  rs116904365.chr1.935671 -0.037574 -0.079749
+661    rs3128114.chr1.935715  0.043071  0.185346
+662    rs3128115.chr1.935833 -0.041650 -0.084187
+663    rs1936360.chr1.936111 -0.069018 -0.154572
+664    rs3121570.chr1.936194  0.008492  0.017539
+665    rs3121569.chr1.936210  0.065106  0.131308
+666  rs114518990.chr1.936687  0.105122  0.850814
+667   rs28615823.chr1.937250 -0.043994 -0.094377
+668    rs2489000.chr1.937688  0.102750  0.245056
+669  rs116316555.chr1.937778  0.082389  0.670716
+670    rs2710869.chr1.938116  0.103067  0.245825
+671    rs2710868.chr1.938125 -0.055675 -0.108116
+672    rs2799058.chr1.938213  0.134820  0.295558
+673    rs9697602.chr1.938220  0.132325  0.462519
+674    rs4595317.chr1.938300 -0.093668 -0.206930
+675  rs201843604.chr1.938709  0.166522  0.483151
+676  rs200016087.chr1.939491  0.021671  0.106809
+677  rs115139441.chr1.939813  0.128923  0.351112
+678    rs2799056.chr1.940005  0.006854  0.012488
+679    rs4503294.chr1.940096  0.054534  0.130647
+680  rs200808990.chr1.940331  0.130108  0.354378
+681   rs58913475.chr1.940809 -0.010181 -0.022233
+682  rs114443588.chr1.941101  0.131836  0.359123
+683   rs61703480.chr1.941137  0.095570  0.230451
+684    rs3128116.chr1.941284 -0.010262 -0.022411
+
+[685 rows x 3 columns]
+</pre>
+
+<p>
+<code>qtltools</code> appears to compute \(X' y\) on standardized \(X, y\), but then
+reports \(\hat\beta\) on some other scale. Our implementation agrees with
+<code>numpy.linalg.lstsq</code> on standardized data.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-c++"><span class="org-keyword">inline</span> <span class="org-type">double</span> <span class="org-constant">cis_data</span>::<span class="org-function-name">getSlope</span>(<span class="org-type">double</span> <span class="org-variable-name">nominal_correlation</span>, <span class="org-type">double</span> <span class="org-variable-name">gsd</span>, <span class="org-type">double</span> <span class="org-variable-name">psd</span>) {
+        <span class="org-keyword">if</span> (gsd &lt; 1e-16 || psd &lt; 1e-16) <span class="org-keyword">return</span> 0;
+        <span class="org-keyword">else</span> <span class="org-keyword">return</span> nominal_correlation * psd / gsd;
+}
+</pre>
+</div>
+
+<p>
+Compare standard error computations.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">jacknife</span>(x, y):
+  <span class="org-variable-name">n</span> = y.shape[0]
+  <span class="org-comment-delimiter"># </span><span class="org-comment">pandas is too clever here</span>
+  <span class="org-variable-name">xty</span> = x.values.T * y.values
+  <span class="org-variable-name">beta</span> = xty.<span class="org-builtin">sum</span>(axis=1) / n
+  <span class="org-variable-name">se</span> = np.array([(n * beta - xty[:,i]) / (n - 1) <span class="org-keyword">for</span> i <span class="org-keyword">in</span> <span class="org-builtin">range</span>(y.shape[0])]).std(axis=0)
+  <span class="org-keyword">return</span> beta, se
+
+<span class="org-keyword">def</span> <span class="org-function-name">bootstrap</span>(x, y, b):
+  <span class="org-variable-name">n</span> = y.shape[0]
+  <span class="org-variable-name">beta</span> = x.values.T.dot(y.values) / n
+  <span class="org-variable-name">B</span> = []
+  <span class="org-keyword">for</span> _ <span class="org-keyword">in</span> <span class="org-builtin">range</span>(b):
+    <span class="org-variable-name">index</span> = np.random.choice(n, n, replace=<span class="org-constant">True</span>)
+    B.append(x.iloc[index].values.T.dot(y.iloc[index]) / n)
+  <span class="org-variable-name">se</span> = np.array(B).std(axis=0)
+  <span class="org-keyword">return</span> beta, se
+
+<span class="org-keyword">def</span> <span class="org-function-name">run_se_pass</span>(vcf, pheno, header):
+  np.random.seed(0)
+  <span class="org-variable-name">result</span> = []
+  <span class="org-keyword">for</span> _, record <span class="org-keyword">in</span> pheno.iterrows():
+    <span class="org-variable-name">x</span> = read_dosage(vcf, record)
+    <span class="org-keyword">if</span> x <span class="org-keyword">is</span> <span class="org-keyword">not</span> <span class="org-constant">None</span>:
+      <span class="org-variable-name">x.index</span> = header
+      <span class="org-variable-name">y</span> = record
+      <span class="org-variable-name">x</span>, <span class="org-variable-name">y</span> = x.align(y, axis=<span class="org-string">'index'</span>, join=<span class="org-string">'inner'</span>)
+      <span class="org-variable-name">y</span> = y.astype(<span class="org-builtin">float</span>)
+      <span class="org-variable-name">beta0</span>, <span class="org-variable-name">se0</span> = lm(x, y)
+      <span class="org-variable-name">_</span>, <span class="org-variable-name">se1</span> = jacknife(x, y)
+      <span class="org-variable-name">_</span>, <span class="org-variable-name">se2</span> = bootstrap(x, y, 100)
+      result.append(pd.DataFrame({<span class="org-string">'gene'</span>: record.name, <span class="org-string">'beta0'</span>: beta0, <span class="org-string">'se0'</span>: se0, <span class="org-string">'se1'</span>: se1, <span class="org-string">'se2'</span>: se2}))
+  <span class="org-keyword">return</span> pd.concat(result)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">res</span> = run_se_pass(vcf, pheno.sample(n=100), header)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">ticks</span> = [<span class="org-string">'Analytic'</span>, <span class="org-string">'Jacknife'</span>, <span class="org-string">'Bootstrap'</span>]
+plt.clf()
+<span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(3, 3, sharex=<span class="org-constant">True</span>, sharey=<span class="org-constant">True</span>)
+fig.set_size_inches(8, 8)
+<span class="org-keyword">for</span> y <span class="org-keyword">in</span> <span class="org-builtin">range</span>(3):
+  <span class="org-keyword">for</span> x <span class="org-keyword">in</span> <span class="org-builtin">range</span>(3):
+    <span class="org-keyword">if</span> y &lt;= x:
+      ax[y, x].set_axis_off()
+    <span class="org-keyword">else</span>:
+      ax[y, x].scatter(res[<span class="org-string">'se{}'</span>.<span class="org-builtin">format</span>(x)], res[<span class="org-string">'se{}'</span>.<span class="org-builtin">format</span>(y)], s=2, c=<span class="org-string">'k'</span>, alpha=0.25)
+      ax[y, x].plot([0, .4], [0, .4], c=<span class="org-string">'r'</span>, ls=<span class="org-string">':'</span>, lw=1)
+<span class="org-keyword">for</span> y <span class="org-keyword">in</span> <span class="org-builtin">range</span>(3):
+  ax[y, 0].set_ylabel(ticks[y])
+<span class="org-keyword">for</span> x <span class="org-keyword">in</span> <span class="org-builtin">range</span>(3):
+  ax[-1, x].set_xlabel(ticks[x])
+fig.tight_layout()
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/power.org/standard-errors.png" alt="standard-errors.png">
+</p>
+</div>
+
+<p>
+Downsample variants per gene like in <a href="http://dx.doi.org/10.1101/096552">Urbut et al 2016</a> to make the estimation
+problem easier.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython" id="org226c372"><span class="org-keyword">def</span> <span class="org-function-name">downsample</span>(x, n):
+  <span class="org-keyword">assert</span> n &gt;= 0
+  <span class="org-keyword">if</span> x.shape[0] &gt;= n:
+    <span class="org-keyword">return</span> x.loc[np.random.choice(x.index, n, replace=<span class="org-constant">False</span>)]
+  <span class="org-keyword">else</span>:
+    <span class="org-keyword">return</span> x
+
+<span class="org-keyword">def</span> <span class="org-function-name">fit_ash</span>(summary_stats):
+  <span class="org-variable-name">summary_stats</span> = pd.read_table(summary_stats).groupby(<span class="org-string">'gene'</span>).<span class="org-builtin">apply</span>(downsample, n=10)
+  <span class="org-keyword">return</span> ashr.ash(summary_stats[<span class="org-string">'beta'</span>], summary_stats[<span class="org-string">'se'</span>], method=<span class="org-string">'fdr'</span>, mixcompdist=<span class="org-string">'normal'</span>)
+</pre>
+</div>
+
+<p>
+Fit <code>ash</code>.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">ash_results</span> = {x: fit_ash(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/{}.txt.gz'</span>.<span class="org-builtin">format</span>(x))
+               <span class="org-keyword">for</span> x <span class="org-keyword">in</span> (<span class="org-string">'log_phi'</span>, <span class="org-string">'mean'</span>, <span class="org-string">'bulk'</span>, <span class="org-string">'resid'</span>, <span class="org-string">'cv_resid'</span>)}
+</pre>
+</div>
+
+<p>
+Serialize the results.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">with</span> <span class="org-builtin">open</span>(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/ash-results.pkl'</span>, <span class="org-string">'wb'</span>) <span class="org-keyword">as</span> f:
+  pickle.dump(ash_results, f)
+</pre>
+</div>
+
+<p>
+Read the results.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">with</span> <span class="org-builtin">open</span>(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/ash-results.pkl'</span>, <span class="org-string">'rb'</span>) <span class="org-keyword">as</span> f:
+  <span class="org-variable-name">ash_results</span> = pickle.load(f)
+</pre>
+</div>
+
+<p>
+Plot the estimated distributions of effect sizes.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.gcf().set_size_inches(3, 3)
+<span class="org-variable-name">grid</span> = np.linspace(-.5, .5, num=1000)
+<span class="org-keyword">for</span> k, c, l <span class="org-keyword">in</span> <span class="org-builtin">zip</span>(ash_results, [<span class="org-string">'r'</span>, <span class="org-string">'b'</span>, <span class="org-string">'k'</span>], [<span class="org-string">'Dispersion'</span>, <span class="org-string">'Mean'</span>, <span class="org-string">'Bulk'</span>]):
+  <span class="org-variable-name">y</span> = np.array(ashr.cdf_ash(ash_results[k], grid).rx2(<span class="org-string">'y'</span>)).ravel()
+  plt.plot(grid, y, c=c, lw=1, label=l)
+plt.xlabel(<span class="org-string">'Effect size'</span>)
+plt.ylabel(<span class="org-string">'Cumulative density'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0,0.5,'Cumulative density')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/power.org/ash-fitted-g.png" alt="ash-fitted-g.png">
+</p>
+</div>
+
+<p>
+Run nominal passes on variance phenotypes.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">sbatch --partition=broadwl -n1 -c28 --exclusive --job-name=nominal --out nominal.out --time=60:00
+<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
+<span class="org-builtin">source</span> activate scqtl
+</pre>
+</div>
+
+<pre class="example">
+Submitted batch job 47405002
+
+</pre>
+
+<p>
+Fit <code>mash</code>.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">fit_mash</span>(df, g=<span class="org-constant">None</span>):
+  <span class="org-variable-name">betahat</span> = df.iloc[:,:df.shape[1] // 2]
+  <span class="org-variable-name">se</span> = df.iloc[:,df.shape[1] // 2:]
+  <span class="org-variable-name">data</span> = mashr.mash_set_data(betahat, se)
+  <span class="org-variable-name">U</span> = mashr.cov_canonical(data)
+  <span class="org-keyword">if</span> g <span class="org-keyword">is</span> <span class="org-constant">None</span>:
+    <span class="org-variable-name">V</span> = mashr.estimate_null_correlation(data)
+    <span class="org-variable-name">data</span> = mashr.mash_set_data(betahat, se, V=V)
+    <span class="org-keyword">return</span> mashr.mash(data, U, verbose=<span class="org-constant">True</span>)
+  <span class="org-keyword">else</span>:
+    <span class="org-keyword">return</span> mashr.mash(data, verbose=<span class="org-constant">True</span>, fixg=<span class="org-constant">True</span>, g=g)
+
+<span class="org-keyword">def</span> <span class="org-function-name">train_test_split</span>(betahat, se, train_subsample=10, test_thresh=9):
+  <span class="org-variable-name">df</span> = pd.DataFrame(np.concatenate([betahat, se], axis=-1))
+  <span class="org-variable-name">training_set</span> = df.groupby(stats[0][<span class="org-string">'gene'</span>]).<span class="org-builtin">apply</span>(downsample, n=train_subsample)
+  <span class="org-variable-name">test_set</span> = df[(np.square(betahat / se) &gt; test_thresh).<span class="org-builtin">any</span>(axis=1)]
+  <span class="org-keyword">return</span> training_set, test_set
+
+<span class="org-keyword">def</span> <span class="org-function-name">get_pairwise_sharing</span>(stats):
+  <span class="org-variable-name">common</span> = functools.<span class="org-builtin">reduce</span>(<span class="org-keyword">lambda</span> x, y: x.merge(y, on=[<span class="org-string">'id'</span>, <span class="org-string">'gene'</span>], how=<span class="org-string">'inner'</span>)[[<span class="org-string">'id'</span>, <span class="org-string">'gene'</span>]], stats)
+  <span class="org-variable-name">betahat</span> = np.vstack([s.merge(common, on=[<span class="org-string">'id'</span>, <span class="org-string">'gene'</span>], how=<span class="org-string">'inner'</span>)[<span class="org-string">'beta'</span>] <span class="org-keyword">for</span> s <span class="org-keyword">in</span> stats]).T
+  <span class="org-variable-name">se</span> = np.vstack([s.merge(common, on=[<span class="org-string">'id'</span>, <span class="org-string">'gene'</span>], how=<span class="org-string">'inner'</span>)[<span class="org-string">'se'</span>] <span class="org-keyword">for</span> s <span class="org-keyword">in</span> stats]).T
+  <span class="org-variable-name">training_set</span>, <span class="org-variable-name">test_set</span> = train_test_split(betahat, se)
+  <span class="org-variable-name">mash_result0</span> = fit_mash(training_set)
+  <span class="org-variable-name">mash_result1</span> = fit_mash(test_set, g=mash_result0.rx2(<span class="org-string">'fitted_g'</span>))
+  <span class="org-keyword">return</span> np.array(mashr.get_pairwise_sharing(mash_result1))
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">stats</span> = [pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/{}.txt.gz'</span>.<span class="org-builtin">format</span>(f)).rename(columns={<span class="org-string">'Unnamed: 0'</span>: <span class="org-string">'id'</span>})
+         <span class="org-keyword">for</span> f <span class="org-keyword">in</span> (<span class="org-string">'bulk'</span>, <span class="org-string">'log_mu'</span>,<span class="org-string">'variance'</span>,<span class="org-string">'fano'</span>,<span class="org-string">'cv'</span>)]
+<span class="org-comment-delimiter"># </span><span class="org-comment">Bulk gene names need to be munged</span>
+stats[0][<span class="org-string">'gene'</span>] = [x.split(<span class="org-string">'.'</span>)[0] <span class="org-keyword">for</span> x <span class="org-keyword">in</span> stats[0][<span class="org-string">'gene'</span>]]
+<span class="org-comment-delimiter"># </span><span class="org-comment">CV effect sizes are expected to be anti-correlated to all others</span>
+stats[-1][<span class="org-string">'beta'</span>] *= -1
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">res</span> = get_pairwise_sharing(stats)
+</pre>
+</div>
+
+<pre class="example">
+array([[1.        , 0.94283656, 0.94073996, 0.94026625, 0.94153343],
+[0.94283656, 1.        , 0.99865977, 0.9935249 , 0.97356074],
+[0.94073996, 0.99865977, 1.        , 0.9997103 , 0.9710184 ],
+[0.94026625, 0.9935249 , 0.9997103 , 1.        , 0.97188708],
+[0.94153343, 0.97356074, 0.9710184 , 0.97188708, 1.        ]])
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">pd.options.display.float_format</span> = <span class="org-string">'{:.3g}'</span>.<span class="org-builtin">format</span>
+<span class="org-variable-name">ticks</span> = [<span class="org-string">'Bulk'</span>, <span class="org-string">'Abundance'</span>, <span class="org-string">'Variance'</span>, <span class="org-string">'Fano'</span>, <span class="org-string">'CV'</span>]
+pd.DataFrame(100 * res, columns=ticks, index=ticks)
+</pre>
+</div>
+
+<pre class="example">
+Bulk  Abundance  Variance  Fano   CV
+Bulk        100       94.3      94.1    94 94.2
+Abundance  94.3        100      99.9  99.4 97.4
+Variance   94.1       99.9       100   100 97.1
+Fano         94       99.4       100   100 97.2
+CV         94.2       97.4      97.1  97.2  100
+</pre>
+</div>
+</div>
+
+<div id="outline-container-orga31b1a2" class="outline-3">
+<h3 id="orga31b1a2">Compare experimental variance to biological variance</h3>
+<div class="outline-text-3" id="text-orga31b1a2">
 <p>
 Let \hat{\theta}<sub>i</sub> be an estimate of some phenotype \(\theta_i\). Assume:
 </p>
@@ -287,7 +1342,7 @@ Extract the genotypes and UMI counts.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org7f1be20"><span class="org-keyword">def</span> <span class="org-function-name">parse_vcf_dosage</span>(record):
+<pre class="src src-ipython" id="orgf2dba7f"><span class="org-keyword">def</span> <span class="org-function-name">parse_vcf_dosage</span>(record):
   <span class="org-variable-name">geno</span> = [<span class="org-builtin">float</span>(g) <span class="org-keyword">for</span> g <span class="org-keyword">in</span> record[9:]]
   <span class="org-keyword">return</span> pd.Series(geno)
 
@@ -305,6 +1360,12 @@ Extract the genotypes and UMI counts.
     [chunk.align(qtls, axis=<span class="org-string">'index'</span>, join=<span class="org-string">'inner'</span>)[0]
      <span class="org-keyword">for</span> chunk <span class="org-keyword">in</span> pd.read_table(counts, index_col=0, chunksize=1000)])
   <span class="org-keyword">return</span> X
+
+<span class="org-keyword">def</span> <span class="org-function-name">sample_counts</span>(counts, n):
+  <span class="org-variable-name">X</span> = pd.concat(
+    [chunk.sample(n=n)
+     <span class="org-keyword">for</span> chunk <span class="org-keyword">in</span> pd.read_table(counts, index_col=0, chunksize=1000)])
+  <span class="org-keyword">return</span> X
 </pre>
 </div>
 
@@ -313,8 +1374,8 @@ Read the data.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org4ebe18a"><span class="org-variable-name">qtls</span> = (pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/mean.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
-        .sample(n=1000, random_state=0))
+<pre class="src src-ipython" id="orgf094377"><span class="org-variable-name">qtls</span> = (pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/mean.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
+        .sample(n=200, random_state=1))
 <span class="org-variable-name">annotations</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
 <span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
 </pre>
@@ -325,11 +1386,9 @@ Extract the subset we want.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="orgdccb38b"><span class="org-variable-name">counts</span> = extract_counts(qtls, <span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>)
+<pre class="src src-ipython" id="org84d626d"><span class="org-variable-name">counts</span> = extract_counts(qtls, <span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>)
 <span class="org-variable-name">annotations</span> = annotations.loc[keep_samples.values.ravel()].reset_index(drop=<span class="org-constant">True</span>)
 <span class="org-variable-name">counts</span> = counts.loc[:,keep_samples.values.ravel()]
-<span class="org-variable-name">geno</span> = extract_geno(qtls, <span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz'</span>)
-<span class="org-variable-name">geno</span> = geno.loc[:,<span class="org-builtin">list</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>]))]
 </pre>
 </div>
 
@@ -338,7 +1397,7 @@ Bootstrap the subset.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org1ea132a"><span class="org-keyword">def</span> <span class="org-function-name">bootstrap</span>(counts, annotations):
+<pre class="src src-ipython" id="orgb66e856"><span class="org-keyword">def</span> <span class="org-function-name">bootstrap</span>(counts, annotations):
   <span class="org-variable-name">idx</span> = np.hstack({k: np.random.choice(g, size=<span class="org-builtin">len</span>(g))
                    <span class="org-keyword">for</span> k, g <span class="org-keyword">in</span> annotations.groupby(<span class="org-string">'chip_id'</span>).groups.items()}.values())
   <span class="org-keyword">return</span> counts.iloc[:,idx], annotations.iloc[idx]
@@ -413,6 +1472,8 @@ Partition the sum of squares.
   <span class="org-variable-name">between</span> = total - within
   <span class="org-keyword">return</span> total, between, within
 
+<span class="org-variable-name">geno</span> = extract_geno(qtls, <span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz'</span>)
+<span class="org-variable-name">geno</span> = geno.loc[:,<span class="org-builtin">list</span>(<span class="org-builtin">set</span>(annotations[<span class="org-string">'chip_id'</span>]))]
 <span class="org-variable-name">X</span>, <span class="org-variable-name">Y</span> = geno.align(mean_by_ind, join=<span class="org-string">'inner'</span>)
 <span class="org-variable-name">var_comps</span> = pd.DataFrame([partition(X.loc[i], Y.loc[i]) <span class="org-keyword">for</span> i <span class="org-keyword">in</span> Y.index])
 <span class="org-variable-name">var_comps.index</span> = X.index
@@ -465,7 +1526,7 @@ Estimate bootstrap SEs on a GPU.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="orgb7518ff">&lt;&lt;zinb-imports&gt;&gt;
+<pre class="src src-ipython" id="org0e4883b">&lt;&lt;zinb-imports&gt;&gt;
 &lt;&lt;tf-imports&gt;&gt;
 <span class="org-keyword">import</span> tabix
 <span class="org-keyword">import</span> scipy.linalg <span class="org-keyword">as</span> sl
@@ -478,9 +1539,9 @@ Estimate bootstrap SEs on a GPU.
 &lt;&lt;read-qtls&gt;&gt;
 &lt;&lt;extract-counts&gt;&gt;
 
-<span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
-<span class="org-variable-name">log_phi</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-phi.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
-<span class="org-variable-name">logodds</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>).align(counts, axis=<span class="org-string">'index'</span>, join=<span class="org-string">'inner'</span>)[0]
+<span class="org-variable-name">log_phi</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-phi.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>).align(counts, axis=<span class="org-string">'index'</span>, join=<span class="org-string">'inner'</span>)[0]
+<span class="org-variable-name">logodds</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>).align(counts, axis=<span class="org-string">'index'</span>, join=<span class="org-string">'inner'</span>)[0]
 
 <span class="org-variable-name">results</span> = []
 <span class="org-keyword">for</span> trial <span class="org-keyword">in</span> <span class="org-builtin">range</span>(100):
@@ -494,6 +1555,7 @@ Estimate bootstrap SEs on a GPU.
     onehot=onehot.astype(np.float32),
     design=chip.astype(np.float32),
     size_factor=annotations[<span class="org-string">'mol_hs'</span>].astype(np.float32).values.reshape(-1, 1),
+    warm_start=(log_mu.values.T.astype(np.float32), log_phi.values.T.astype(np.float32), logodds.values.T.astype(np.float32)),
     learning_rate=5e-2,
     max_epochs=1000))
 
@@ -518,7 +1580,7 @@ python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb-se.py
 </div>
 
 <pre class="example">
-Submitted batch job 49245803
+Submitted batch job 49257820
 
 </pre>
 
@@ -640,10 +1702,1104 @@ dtype: float64
 </pre>
 </div>
 </div>
+
+<div id="outline-container-org2be57fa" class="outline-3">
+<h3 id="org2be57fa">Distribution of PVE</h3>
+<div class="outline-text-3" id="text-org2be57fa">
+<p>
+We can use shrunk marginal effect size estimates to bound the proportion of
+phenotypic variance explained. We claim:
+</p>
+
+<p>
+\[ h^2 \geq \arg\max_j E[\beta_j \mid \hat\beta]^2 \]
+</p>
+
+<p>
+<b>Frequentist argument.</b> If the maximizer \(j\) is causal, this is a lower
+bound on PVE because \(h^2 = \sum_k \beta_k^2\) and other variants \(k\)
+could be causal, and because the estimate is shrunk towards zero.
+</p>
+
+<p>
+If it is not causal, then the true marginal effect size is \(\sum_i R_{ij}
+  \beta_i\), where \(R_{ij} = \mathrm{Corr}(X_i, X_j)\). \(R_ij \leq 1\), so
+this is still a lower bound
+</p>
+
+<p>
+<b>Bayesian argument.</b> 
+</p>
+
+<p>
+\[ h^2 \geq \beta_j^2 \text{ for all \(j\)} \]
+</p>
+
+<p>
+\[ E[h^2 \mid \hat\beta] \geq E[\beta_j^2 \mid \hat\beta] \text{ for all \(j\)} \]
+</p>
+
+<p>
+\[ E[h^2 \mid \hat\beta] \geq \arg\max_j E[\beta_j^2 \mid \hat\beta] \]
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython" id="org6e9810c"><span class="org-keyword">def</span> <span class="org-function-name">get_pve</span>(summary_stats, ash_result):
+  <span class="org-variable-name">res</span> = ashr.ash(summary_stats[<span class="org-string">'beta'</span>], summary_stats[<span class="org-string">'se'</span>], fixg=<span class="org-constant">True</span>,
+                 g=ash_result.rx2(<span class="org-string">'fitted_g'</span>))
+  <span class="org-variable-name">pve</span> = np.square(pd.Series(np.square(ashr.get_psd(res)) + ashr.get_pm(res),
+                            index=summary_stats[<span class="org-string">'gene'</span>]))
+  <span class="org-keyword">return</span> pve.groupby(level=0).agg(<span class="org-builtin">max</span>)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">&lt;&lt;power-imports&gt;&gt;
+&lt;&lt;downsample-impl&gt;&gt;
+&lt;&lt;get-pve-impl&gt;&gt;
+np.random.seed(0)
+<span class="org-variable-name">stats</span> = {x: (pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/{}.txt.gz'</span>.<span class="org-builtin">format</span>(x))
+             .groupby(<span class="org-string">'gene'</span>)
+             .agg(<span class="org-keyword">lambda</span> x: x.loc[x[<span class="org-string">'beta'</span>].idxmax()])
+             .reset_index())
+         <span class="org-keyword">for</span> x <span class="org-keyword">in</span> (<span class="org-string">'log_phi'</span>, <span class="org-string">'mean'</span>, <span class="org-string">'bulk'</span>, <span class="org-string">'resid'</span>, <span class="org-string">'cv_resid'</span>)}
+<span class="org-comment-delimiter"># </span><span class="org-comment">Munge gene names in bulk summary statistics</span>
+stats[<span class="org-string">'bulk'</span>][<span class="org-string">'gene'</span>] = [x.split(<span class="org-string">'.'</span>)[0] <span class="org-keyword">for</span> x <span class="org-keyword">in</span> stats[<span class="org-string">'bulk'</span>][<span class="org-string">'gene'</span>]]
+<span class="org-keyword">with</span> <span class="org-builtin">open</span>(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/ash-results.pkl'</span>, <span class="org-string">'rb'</span>) <span class="org-keyword">as</span> f:
+  <span class="org-variable-name">ash_results</span> = pickle.load(f)
+(pd.DataFrame({k: get_pve(v, ash_results[k]) <span class="org-keyword">for</span> k, v <span class="org-keyword">in</span> stats.items()})
+ .to_csv(<span class="org-string">'estimated-pve.txt.gz'</span>, sep=<span class="org-string">'\t'</span>, compression=<span class="org-string">'gzip'</span>))
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-sh">sbatch --partition=broadwl --time=10:00 --mem=4G -n1 -c28 --exclusive --job-name estimate-pve --out estimate-pve.out
+<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
+<span class="org-builtin">source</span> activate scqtl
+python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/estimate-pve.py
+</pre>
+</div>
+
+<pre class="example">
+Submitted batch job 47546035
+
+</pre>
+
+<p>
+Read the results.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">estimated_pve</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/estimated-pve.txt.gz'</span>, index_col=0)
+<span class="org-variable-name">estimated_pve.columns</span> = [<span class="org-string">'Bulk'</span>, <span class="org-string">'CV residual'</span>, <span class="org-string">'Dispersion'</span>, <span class="org-string">'Mean'</span>, <span class="org-string">'Residual'</span>]
+<span class="org-variable-name">estimated_pve</span> = estimated_pve[[<span class="org-string">'Dispersion'</span>, <span class="org-string">'Mean'</span>, <span class="org-string">'Bulk'</span>, <span class="org-string">'Residual'</span>, <span class="org-string">'CV residual'</span>]]
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.gcf().set_size_inches(3, 3)
+<span class="org-variable-name">M</span> = 0.1
+<span class="org-variable-name">grid</span> = np.linspace(0, M, 100)
+<span class="org-keyword">for</span> k, c <span class="org-keyword">in</span> <span class="org-builtin">zip</span>(estimated_pve, [<span class="org-string">'r'</span>, <span class="org-string">'b'</span>, <span class="org-string">'k'</span>]):
+  <span class="org-variable-name">f</span> = st.gaussian_kde(estimated_pve[k].dropna())
+  plt.plot(grid, f(grid), c=c, lw=1, label=k)
+  plt.fill_between(grid, f(grid), color=c, alpha=0.1)
+plt.legend(frameon=<span class="org-constant">False</span>)
+plt.xlim(0, M)
+plt.ylim(0, plt.ylim()[1])
+plt.xlabel(<span class="org-string">'Proportion of variance explained'</span>)
+plt.ylabel(<span class="org-string">'Density'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0,0.5,'Density')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/power.org/estimated-pve.png" alt="estimated-pve.png">
+</p>
+</div>
+
+<p>
+Plot the PVE of vQTLs/CV-QTLs after regressing out the mean.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.gcf().set_size_inches(3, 3)
+<span class="org-variable-name">M</span> = 0.1
+<span class="org-variable-name">grid</span> = np.linspace(0, M, 100)
+<span class="org-keyword">for</span> k, c <span class="org-keyword">in</span> <span class="org-builtin">zip</span>([<span class="org-string">'Dispersion'</span>, <span class="org-string">'Residual'</span>, <span class="org-string">'CV residual'</span>], [<span class="org-string">'r'</span>, <span class="org-string">'purple'</span>, <span class="org-string">'orange'</span>]):
+  <span class="org-variable-name">f</span> = st.gaussian_kde(estimated_pve[k].dropna())
+  plt.plot(grid, f(grid), c=c, lw=1, label=k)
+  plt.fill_between(grid, f(grid), color=c, alpha=0.1)
+plt.legend(frameon=<span class="org-constant">False</span>)
+plt.xlim(0, M)
+plt.ylim(0, plt.ylim()[1])
+plt.xlabel(<span class="org-string">'Proportion of variance explained'</span>)
+plt.ylabel(<span class="org-string">'Log density'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0,0.5,'Log density')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/power.org/residual-pve.png" alt="residual-pve.png">
+</p>
+</div>
+
+<p>
+Plot the expected density of mean expression PVE assuming measurement noise
+from the simulation.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">(estimated_pve[<span class="org-string">'Mean'</span>] / estimated_pve[<span class="org-string">'Bulk'</span>]).describe()  
+</pre>
+</div>
+
+<pre class="example">
+count    8462.000000
+mean        1.587743
+std         3.075250
+min         0.002746
+25%         0.268501
+50%         0.672904
+75%         1.638187
+max        62.349105
+dtype: float64
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.gcf().set_size_inches(3, 3)
+<span class="org-variable-name">M</span> = 0.1
+<span class="org-variable-name">grid</span> = np.linspace(0, M, 100)
+<span class="org-variable-name">f0</span> = st.gaussian_kde(estimated_pve[<span class="org-string">'Bulk'</span>].dropna())
+plt.plot(grid, f0(grid), c=<span class="org-string">'b'</span>, lw=1, label=<span class="org-string">'Bulk'</span>)
+plt.fill_between(grid, f0(grid), color=<span class="org-string">'b'</span>, alpha=0.1)
+
+<span class="org-variable-name">f1</span> = st.gaussian_kde(.67 * estimated_pve[<span class="org-string">'Bulk'</span>].dropna())
+plt.plot(grid, f1(grid), c=<span class="org-string">'c'</span>, lw=1, label=<span class="org-string">'Bulk + noise'</span>)
+plt.fill_between(grid, f1(grid), color=<span class="org-string">'c'</span>, alpha=0.1)
+
+<span class="org-variable-name">f2</span> = st.gaussian_kde(estimated_pve[<span class="org-string">'Mean'</span>].dropna())
+plt.plot(grid, f2(grid), c=<span class="org-string">'k'</span>, lw=1, label=<span class="org-string">'SC'</span>)
+plt.fill_between(grid, f2(grid), color=<span class="org-string">'k'</span>, alpha=0.1)
+
+plt.legend(frameon=<span class="org-constant">False</span>)
+plt.xlim(0, M)
+plt.ylim(0, plt.ylim()[1])
+plt.xlabel(<span class="org-string">'Proportion of variance explained'</span>)
+plt.ylabel(<span class="org-string">'Density'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0,0.5,'Density')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/power.org/effective-pve.png" alt="effective-pve.png">
+</p>
+</div>
+
+<p>
+Estimate the proportion of large effect dQTLs.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">f</span> = st.gaussian_kde(estimated_pve[<span class="org-string">'Dispersion'</span>].dropna())
+si.quad(f, .01, 1)
+</pre>
+</div>
+
+<pre class="example">
+(0.06961646614211667, 4.412386762494795e-09)
+
+</pre>
+
+<p>
+Estimate the same for eQTLs.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">f</span> = st.gaussian_kde(estimated_pve[<span class="org-string">'Bulk'</span>].dropna())
+si.quad(f, 0.01, 1)
+</pre>
+</div>
+
+<pre class="example">
+(0.7296000671917134, 1.95708035203864e-12)
+
+</pre>
+
+<p>
+Compare the distribution of PVE for iPSCs against DGN whole blood (<a href="http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1006423">Wheeler et
+al 2016</a>). The results are <a href="https://github.com/WheelerLab/GenArchDB">available on github</a>.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">import</span> sqlite3
+<span class="org-keyword">with</span> sqlite3.connect(<span class="org-string">'/project2/mstephens/aksarkar/.local/src/GenArchDB/genarch.db'</span>) <span class="org-keyword">as</span> conn:
+  <span class="org-variable-name">dgn_pve</span> = pd.read_sql(<span class="org-string">'select * from results where tissue == "DGN-WB";'</span>, conn)
+  <span class="org-variable-name">gtex_pve</span> = pd.read_sql(<span class="org-string">'select * from results where tissue == "WholeBlood_TW" and pve != "NA";'</span>, conn)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.gcf().set_size_inches(3, 3)
+<span class="org-variable-name">M</span> = 0.1
+<span class="org-variable-name">grid</span> = np.linspace(0, 1, 100)
+<span class="org-variable-name">f0</span> = st.gaussian_kde(estimated_pve[<span class="org-string">'Bulk'</span>].dropna())
+plt.plot(grid, f0(grid), c=<span class="org-string">'k'</span>, lw=1, label=<span class="org-string">'iPSC'</span>)
+plt.fill_between(grid, f0(grid), color=<span class="org-string">'k'</span>, alpha=0.1)
+
+<span class="org-variable-name">f1</span> = st.gaussian_kde(dgn_pve[<span class="org-string">'pve'</span>].dropna())
+plt.plot(grid, f1(grid), c=<span class="org-string">'g'</span>, lw=1, label=<span class="org-string">'Whole blood (DGN)'</span>)
+plt.fill_between(grid, f1(grid), color=<span class="org-string">'g'</span>, alpha=0.1)
+
+<span class="org-variable-name">f2</span> = st.gaussian_kde(gtex_pve[<span class="org-string">'pve'</span>].dropna())
+plt.plot(grid, f2(grid), c=<span class="org-string">'c'</span>, lw=1, label=<span class="org-string">'Whole blood (GTEx)'</span>)
+plt.fill_between(grid, f2(grid), color=<span class="org-string">'c'</span>, alpha=0.1)
+
+plt.legend(frameon=<span class="org-constant">False</span>)
+plt.xlim(0, 1)
+plt.ylim(0, plt.ylim()[1])
+plt.xlabel(<span class="org-string">'Proportion of variance explained'</span>)
+plt.ylabel(<span class="org-string">'Density'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0,0.5,'Density')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/power.org/ipsc-vs-dgn-pve.png" alt="ipsc-vs-dgn-pve.png">
+</p>
+</div>
+
+<p>
+Compute the expected power over the estimated distribution of PVE.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">average_power</span>(g, f):
+  <span class="org-variable-name">x</span> = g[<span class="org-string">'pve'</span>]
+  <span class="org-keyword">return</span> si.trapz(g[<span class="org-string">'power'</span>] * f(x), x)
+</pre>
+</div>
+
+<p>
+Estimate the distribution of effective PVE by correcting for the median
+reduction in PVE (at the current experiment size), and then assuming a large
+enough experiment to only reduce effective PVE by 10%..
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">f</span> = st.gaussian_kde(.9 * estimated_pve[<span class="org-string">'Bulk'</span>].dropna())
+</pre>
+</div>
+
+<p>
+Estimate the average power as a function of the number of individuals and
+number of causal variants.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">(qtl_power.groupby([<span class="org-string">'num_individuals'</span>, <span class="org-string">'num_causal'</span>]).<span class="org-builtin">apply</span>(average_power, f=f)).reset_index()
+</pre>
+</div>
+
+<pre class="example">
+num_individuals  num_causal         0
+0               53        -1.0  0.067524
+1               53         1.0  0.078898
+2              100        -1.0  0.104900
+3              100         1.0  0.114457
+4              200        -1.0  0.152676
+5              200         1.0  0.201122
+6              300        -1.0  0.250451
+7              300         1.0  0.280708
+8              400        -1.0  0.276784
+9              400         1.0  0.303322
+</pre>
+
+<p>
+Repeat the analysis for dQTLs.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">(qtl_power.groupby([<span class="org-string">'num_individuals'</span>, <span class="org-string">'num_causal'</span>]).<span class="org-builtin">apply</span>(average_power, f=st.gaussian_kde(estimated_pve[<span class="org-string">'Dispersion'</span>].dropna() * .9 * 1.28))).reset_index()
+</pre>
+</div>
+
+<pre class="example">
+num_individuals  num_causal         0
+0               53        -1.0  0.008282
+1               53         1.0  0.007657
+2              100        -1.0  0.014693
+3              100         1.0  0.015392
+4              200        -1.0  0.016902
+5              200         1.0  0.018266
+6              300        -1.0  0.029801
+7              300         1.0  0.031696
+8              400        -1.0  0.030865
+9              400         1.0  0.037992
+</pre>
+</div>
+</div>
+
+<div id="outline-container-orge4a450a" class="outline-3">
+<h3 id="orge4a450a">Estimate the error variance</h3>
+<div class="outline-text-3" id="text-orge4a450a">
+<p>
+The single cell experiment size determines the standard error of the
+estimator, which can be thought of as measurement error.
+</p>
+
+<p>
+\[ \hat\theta \sim N(\theta, \sigma^2) \]
+</p>
+
+<p>
+This is the same as changing effective PVE:
+</p>
+
+<p>
+\[ h^2_{\mathrm{eff}} = \frac{h^2}{1 + \sigma^2} \]
+</p>
+
+<p>
+We estimate the standard error as a function of the experiment size from the
+simulation.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">sim_results</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/density-estimation/simulation.txt.gz'</span>, index_col=0)
+<span class="org-variable-name">sim_results</span>[<span class="org-string">'latent_mean'</span>] = np.exp(sim_results[<span class="org-string">'log_mu'</span>] - np.log1p(np.exp(sim_results[<span class="org-string">'logodds'</span>])))
+<span class="org-variable-name">sim_results</span>[<span class="org-string">'latent_mean_hat'</span>] = np.exp(sim_results[<span class="org-string">'log_mu_hat'</span>] - np.log1p(np.exp(sim_results[<span class="org-string">'logodds_hat'</span>])))
+<span class="org-variable-name">sim_results</span>[<span class="org-string">'latent_var'</span>] = np.exp(2 * sim_results[<span class="org-string">'log_mu'</span>] + sim_results[<span class="org-string">'log_phi'</span>] - np.log1p(np.exp(sim_results[<span class="org-string">'logodds'</span>]))) + np.exp(-np.log1p(np.exp(sim_results[<span class="org-string">'logodds'</span>])) - np.log1p(np.exp(-sim_results[<span class="org-string">'logodds'</span>])) + 2 * sim_results[<span class="org-string">'log_mu'</span>])
+<span class="org-variable-name">sim_results</span>[<span class="org-string">'latent_var_hat'</span>] = np.exp(2 * sim_results[<span class="org-string">'log_mu_hat'</span>] + sim_results[<span class="org-string">'log_phi_hat'</span>] - np.log1p(np.exp(sim_results[<span class="org-string">'logodds_hat'</span>]))) + np.exp(-np.log1p(np.exp(sim_results[<span class="org-string">'logodds_hat'</span>])) - np.log1p(np.exp(-sim_results[<span class="org-string">'logodds_hat'</span>])) + 2 * sim_results[<span class="org-string">'log_mu_hat'</span>])
+<span class="org-variable-name">mu_pass</span> = sim_results[<span class="org-string">'log_mu'</span>] &gt; -10
+<span class="org-variable-name">pi_pass</span> = sim_results[<span class="org-string">'logodds'</span>] &lt;= 0
+</pre>
+</div>
+
+<p>
+Restrict the analysis to \(\ln\mu > -10, \mathrm{logit}(\pi) < 0\), because
+this is the part of the parameter space we can reliably estimate in.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">data</span> = sim_results[np.logical_and(mu_pass, pi_pass)].groupby([<span class="org-string">'num_samples'</span>, <span class="org-string">'num_mols'</span>, <span class="org-string">'latent_mean'</span>, <span class="org-string">'latent_var'</span>])[[<span class="org-string">'latent_mean_hat'</span>, <span class="org-string">'latent_var_hat'</span>]].agg(np.var).reset_index()
+</pre>
+</div>
+
+<p>
+For \(x_1, \ldots, x_n \sim N(\mu, \sigma^2)\), we know:
+</p>
+
+<p>
+\[ \bar{x} \sim N(\mu, \sigma^2 / n) \]
+</p>
+
+<p>
+So a priori, we might expect the sampling variance of the single cell latent
+mean to decrease as \(1 / n\).
+</p>
+
+<p>
+Similarly, we know:
+</p>
+
+<p>
+\[ (n - 1)S^2 / \sigma^2 \sim \chi^2(n - 1) \]
+</p>
+
+<p>
+Therefore,
+</p>
+
+<p>
+\[ V[S^2] = 2 (n - 1) sigma^4 / (n - 1)^2 \]
+</p>
+
+<p>
+And a priori, we might also expect the sampling variance of the single cell
+latent variance to decrease as \(1 / n\).
+</p>
+
+<p>
+From the parametric simulation, we can estimate these relationships directly
+by fitting multiplicative models.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">mlm</span>(x, y):
+  <span class="org-variable-name">x</span> -= x.mean(axis=0)
+  <span class="org-variable-name">y</span> -= y.mean()
+  <span class="org-variable-name">beta</span> = np.linalg.pinv(x).dot(y)
+  <span class="org-variable-name">rss</span> = np.square(y - x.dot(beta)).<span class="org-builtin">sum</span>()
+  <span class="org-variable-name">sigma2</span> = rss / (y.shape[0] - 1)
+  <span class="org-variable-name">se</span> = np.sqrt(sigma2 / np.einsum(<span class="org-string">'ij,ij-&gt;j'</span>, x, x))
+  <span class="org-keyword">return</span> beta, se
+
+<span class="org-keyword">def</span> <span class="org-function-name">ci</span>(beta, se):
+  <span class="org-keyword">return</span> np.array([beta + 1.96 * se, beta - 1.96 * se]).reshape(2, -1).T
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython">ci(*mlm(np.log(data[[<span class="org-string">'num_samples'</span>, <span class="org-string">'num_mols'</span>, <span class="org-string">'latent_mean'</span>, <span class="org-string">'latent_var'</span>]]), np.log(data[<span class="org-string">'latent_mean_hat'</span>])))
+</pre>
+</div>
+
+<pre class="example">
+array([[-0.9984868 , -1.03276978],
+[-0.01299114, -0.08496202],
+[-0.01580837, -0.07270787],
+[ 1.01267559,  0.98504366]])
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-ipython">ci(*mlm(np.log(data[[<span class="org-string">'num_samples'</span>, <span class="org-string">'num_mols'</span>, <span class="org-string">'latent_mean'</span>, <span class="org-string">'latent_var'</span>]]), np.log(data[<span class="org-string">'latent_var_hat'</span>])))
+</pre>
+</div>
+
+<pre class="example">
+array([[-0.94347526, -1.02803879],
+[-0.07134441, -0.24887015],
+[ 0.26219289,  0.12184272],
+[ 1.92936491,  1.86120709]])
+</pre>
+</div>
+</div>
+</div>
+
+<div id="outline-container-org52da0bd" class="outline-2">
+<h2 id="org52da0bd">Analytic power calculation</h2>
+<div class="outline-text-2" id="text-org52da0bd">
+<p>
+We assume the generative process:
+</p>
+
+<p>
+\[ y_i = x_i b + e_{\mathrm{resid}} \]
+</p>
+
+<p>
+where \(y_i\) is the phenotype of individual \(i\), \(x_i\) is the genotype
+at the SNP of interest, and \(e_{\mathrm{resid}} \sim N(0, \sigma^2_r)\)
+</p>
+
+<p>
+We observe \(y_i\) with error:
+</p>
+
+<p>
+\[ \tilde{y}_i = y_i + e_{\mathrm{meas},i} \]
+</p>
+
+<p>
+where \(e_{\mathrm{meas},i} \sim N(0, \sigma^2_m)\).
+</p>
+
+<p>
+To perform QTL mapping, we fit a regression model:
+</p>
+
+<p>
+\[ \tilde{y}_i = x_i \beta + \epsilon_i \]
+</p>
+
+<p>
+where \(\epsilon_i \sim N(0, \sigma^2)\).
+</p>
+
+<p>
+Assuming \(V[x] = 1\), we have:
+</p>
+
+<p>
+\[\hat\beta \sim \mathcal{N}\left(b, \frac{\sigma^2_r + \sigma^2_m}{n}\right) \]
+</p>
+
+<p>
+where \(n\) is the number of individuals.
+</p>
+
+<p>
+Assume \(b = \lambda \sigma_r\), \(\lambda > 0\), and define \(\delta =
+  \sigma^2_m / \sigma^2_r\) as the <i>noise ratio</i>. Then, the power at level
+\(\alpha\) is:
+</p>
+
+<p>
+\[ \mathrm{Pow}(\lambda, n, \delta, \alpha) = p\left(\hat\beta > -\sigma_r \sqrt{\frac{1 + \delta}{n}} \Phi^{-1}\left(\frac{\alpha}{2}\right)\right) \]
+</p>
+
+<p>
+\[ = \Phi\left(\Phi^{-1}\left(\frac{\alpha}{2}\right) + \lambda\sqrt{\frac{n}{1 + \delta}}\right) \]
+</p>
+
+<p>
+where \(\Phi(\cdot)\) denotes the standard Gaussian CDF.
+</p>
+
+<p>
+Now, we need to answer the following questions: 
+</p>
+
+<ol class="org-ol">
+<li>What is the typical effect size?</li>
+<li>What is the typical noise ratio of the current study?</li>
+<li>How does the noise ratio vary with the number of cells and number of molecules?</li>
+</ol>
+
+<p>
+To answer (1), we need to apply <code>ash</code>. To make effect sizes comparable
+between mean and dispersion, we need effect sizes in units of natural log
+fold change.
+</p>
+
+<p>
+Compute effect sizes and standard errors.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">&lt;&lt;power-imports&gt;&gt;
+&lt;&lt;eqtl-sim-impl&gt;&gt;
+&lt;&lt;write-pheno-<span class="org-keyword">def</span>&gt;&gt;
+&lt;&lt;nominal-<span class="org-keyword">pass</span>-<span class="org-keyword">def</span>&gt;&gt;
+
+<span class="org-variable-name">vcf</span> = tabix.<span class="org-builtin">open</span>(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz'</span>)
+<span class="org-variable-name">header</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz'</span>, skiprows=2, nrows=1, header=0).columns[9:]
+
+&lt;&lt;point-gamma-moments&gt;&gt;
+
+&lt;&lt;get-gene-info&gt;&gt;
+<span class="org-variable-name">log_phi</span> = (gene_info
+           .<span class="org-builtin">apply</span>(qtltools_format, axis=1)
+           .merge(log_phi, left_index=<span class="org-constant">True</span>, right_index=<span class="org-constant">True</span>))
+<span class="org-variable-name">mean_by_ind</span> = (gene_info
+               .<span class="org-builtin">apply</span>(qtltools_format, axis=1)
+               .merge(np.log(mean_by_ind), left_index=<span class="org-constant">True</span>, right_index=<span class="org-constant">True</span>))
+
+run_nominal_pass(vcf, log_phi, header, std=<span class="org-constant">False</span>).to_csv(<span class="org-string">'disp.txt.gz'</span>, sep=<span class="org-string">'\t'</span>, compression=<span class="org-string">'gzip'</span>)
+run_nominal_pass(vcf, mean_by_ind, header, std=<span class="org-constant">False</span>).to_csv(<span class="org-string">'mean.txt.gz'</span>, sep=<span class="org-string">'\t'</span>, compression=<span class="org-string">'gzip'</span>)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-sh">sbatch --partition=broadwl -n1 -c28 --exclusive --job-name=nominal --out=nominal.out --time=60:00
+<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
+<span class="org-builtin">source</span> activate scqtl
+python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/nominal-log-fc.py
+</pre>
+</div>
+
+<pre class="example">
+Submitted batch job 49000296
+
+</pre>
+
+<p>
+Fit <code>ash</code>.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">ash_results</span> = {x: fit_ash(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/analytic/{}.txt.gz'</span>.<span class="org-builtin">format</span>(x))
+               <span class="org-keyword">for</span> x <span class="org-keyword">in</span> (<span class="org-string">'mean'</span>, <span class="org-string">'disp'</span>)}
+</pre>
+</div>
+
+<p>
+Serialize the results.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">with</span> <span class="org-builtin">open</span>(<span class="org-string">'fold-change-ash-results.pkl'</span>, <span class="org-string">'wb'</span>) <span class="org-keyword">as</span> f:
+  pickle.dump(ash_results, f)
+</pre>
+</div>
+
+<p>
+Read the results.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">with</span> <span class="org-builtin">open</span>(<span class="org-string">'fold-change-ash-results.pkl'</span>, <span class="org-string">'rb'</span>) <span class="org-keyword">as</span> f:
+  <span class="org-variable-name">ash_results</span> = pickle.load(f)
+</pre>
+</div>
+
+<p>
+Look at the fitted \(g\).
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.gcf().set_size_inches(3, 3)
+<span class="org-variable-name">grid</span> = np.linspace(-.25, .25, num=1000)
+<span class="org-keyword">for</span> k, c, l <span class="org-keyword">in</span> <span class="org-builtin">zip</span>([<span class="org-string">'disp'</span>, <span class="org-string">'mean'</span>], [<span class="org-string">'r'</span>, <span class="org-string">'k'</span>], [<span class="org-string">'Dispersion'</span>, <span class="org-string">'Mean'</span>]):
+  <span class="org-variable-name">y</span> = np.array(ashr.cdf_ash(ash_results[k], grid).rx2(<span class="org-string">'y'</span>)).ravel()
+  plt.plot(grid, y, c=c, lw=1, label=l)
+plt.xlabel(<span class="org-string">'Effect size'</span>)
+plt.ylabel(<span class="org-string">'Cumulative density'</span>)
+plt.legend(frameon=<span class="org-constant">False</span>, loc=<span class="org-string">'center left'</span>, bbox_to_anchor=(1, .5))
+</pre>
+</div>
+
+<pre class="example">
+&lt;matplotlib.legend.Legend at 0x7f104f95c2b0&gt;
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/power.org/log-fc-ash-g.png" alt="log-fc-ash-g.png">
+</p>
+</div>
+
+<p>
+Look at the tail behavior of \(g\).
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.gcf().set_size_inches(3, 3)
+plt.semilogx()
+<span class="org-variable-name">grid</span> = np.logspace(-3, 0, num=1000)
+<span class="org-keyword">for</span> k, c, l <span class="org-keyword">in</span> <span class="org-builtin">zip</span>([<span class="org-string">'disp'</span>, <span class="org-string">'mean'</span>], [<span class="org-string">'r'</span>, <span class="org-string">'k'</span>], [<span class="org-string">'Dispersion'</span>, <span class="org-string">'Mean'</span>]):
+  <span class="org-variable-name">y</span> = np.array(ashr.cdf_ash(ash_results[k], grid).rx2(<span class="org-string">'y'</span>)).ravel()
+  plt.plot(grid, y, c=c, lw=1, label=l)
+plt.axhline(y=1, c=<span class="org-string">'k'</span>, lw=1, ls=<span class="org-string">':'</span>)
+plt.xlabel(<span class="org-string">'Effect size'</span>)
+plt.ylabel(<span class="org-string">'Cumulative density'</span>)
+<span class="org-variable-name">_</span> = plt.legend(frameon=<span class="org-constant">False</span>, loc=<span class="org-string">'center left'</span>, bbox_to_anchor=(1, .5))
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/power.org/log-fc-ash-g-inset.png" alt="log-fc-ash-g-inset.png">
+</p>
+</div>
+
+<p>
+Get the effect size by percentile in the prior distribution.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">get_effect_size</span>(ash_result, perc):
+  <span class="org-variable-name">grid</span> = np.linspace(-.25, .25, 1000)
+  <span class="org-keyword">return</span> grid[np.where(np.array(ashr.cdf_ash(ash_result, grid).rx2(<span class="org-string">'y'</span>)).ravel() &gt; perc)][0]
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">mean_effect</span> = get_effect_size(ash_results[<span class="org-string">'mean'</span>], .99)
+mean_effect
+</pre>
+</div>
+
+<pre class="example">
+0.022772772772772787
+
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">disp_effect</span> = get_effect_size(ash_results[<span class="org-string">'disp'</span>], .99)
+disp_effect
+</pre>
+</div>
+
+<pre class="example">
+0.08533533533533533
+
+</pre>
+
+<p>
+To answer (2), we need to estimate \(\sigma^2_m\) and \(\sigma^2_r\).
+</p>
+
+<p>
+One complication is that we actually have \(e_{\mathrm{meas},i} \sim N(0,
+  \sigma^2_{mi})\). We estimate \(\sigma^2_{mi}\) via non-parametric bootstrap
+for 200 randomly chosen genes.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --job-name=tf-zinb-se --out=tf-zinb-se.out
+<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
+<span class="org-builtin">source</span> activate scqtl
+python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb-se.py
+</pre>
+</div>
+
+<pre class="example">
+Submitted batch job 49278176
+
+</pre>
+
+<p>
+Read the results.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">log_mean_sampling_var</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/log_mean-se.txt.gz'</span>, index_col=0)
+<span class="org-variable-name">disp_sampling_var</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/disp-se.txt.gz'</span>, index_col=0)
+</pre>
+</div>
+
+<p>
+Assuming that \(\hat\sigma^2_{mi}\) is unbiased, \(\hat\sigma^2_r =
+  \frac{1}{n - 1}\sum_i (\tilde{y}_i - \bar{y})^2 - \frac{1}{n}\sum_i
+  \hat\sigma^2_{mi}\) is also unbiased (Buonaccorsi 2010, Eq. 10.1).  However,
+it can happen that \(\hat\sigma^2_r \leq 0\). We need the ratio
+\(\hat\sigma^2_m / \hat\sigma^2_r\) so this strategy will not work in
+general.
+</p>
+
+<p>
+Instead, we use <code>ash</code> and <code>vash</code> (<a href="https://academic.oup.com/bioinformatics/article/32/22/3428/2525601">Lu and Stephens 2016</a>) to solve the problem.
+</p>
+
+<p>
+\[ \tilde{y}_i \mid y_i, \sigma^2_{mi} \sim \mathcal{N}(y_i, \sigma^2_{mi}) \]
+</p>
+
+<p>
+We are primarily interested in the typical \(\sigma^2_r\) over all genes,
+rather than estimating \(y_i\) for each gene. Therefore, assume the
+observations \(\tilde{y}_i\) are centered to have mean 0 and jointly analyze
+observations across all genes, assuming a common prior.
+</p>
+
+<p>
+\[ y_i \mid \hat\sigma^2_{mi} \sim g(\cdot) \]
+</p>
+
+<p>
+where \(g\) is a zero-mode scale mixture of normals.
+</p>
+
+<p>
+<a href="https://www.jstor.org/stable/10.2307/2965416">Cordy and Thomas 1997</a> developed the same approach assuming \(\sigma^2_{mi} =
+  \hat\sigma^2_{mi}\) and \(g\) is a unimodal mixture of uniforms.
+</p>
+
+<p>
+However, we also need to estimate the typical \(\sigma^2_m\) over all genes,
+so we instead assume a hierarchical model on \(\hat\sigma^2_{mi}\).
+</p>
+
+<p>
+\[ \hat\sigma^{2}_{mi} \mid \sigma^2_{mi}, \nu_i \sim \mathrm{Gamma}(\cdot) \]
+</p>
+
+<p>
+where \(\nu_i\) denotes the degrees of freedom for observation \(i\).
+</p>
+
+<p>
+\[ \sigma^{-2}_{mi} \sim h(\cdot) \]
+</p>
+
+<p>
+where \(h\) is a unimodal mixture of inverse Gamma distributions.
+</p>
+
+<p>
+Let \(\tilde\sigma^2_{mi} = 1 / E[\sigma^{-2}_{mi} \mid \cdot]\), and let
+\(\tilde{\nu}_i\) denote the posterior mean degrees of freedom. Then,
+</p>
+
+<p>
+\[ \tilde{y}_i \mid y_i, \tilde\sigma^2_{mi}, \tilde{\nu}_i \sim t(y_i,
+  \tilde\sigma^2_{mi}, \tilde{\nu}_i) \]
+</p>
+
+<p>
+where \(t(\cdot)\) denotes the generalized \(t\) distribution.
+</p>
+
+<p>
+Although it would be ideal to jointly estimate \(g\), \(h\), we instead take
+a simpler approach:
+</p>
+
+<ol class="org-ol">
+<li>Given \(\hat\sigma^2_{mi}, \nu_i\), use <code>vash</code> to estimate \(h\),
+\(\tilde\sigma^2_{mi}\), \(\tilde\nu_i\)</li>
+<li>Given \(\tilde{y}_i\), \(\tilde\sigma^2_{mi}\), \(\tilde\nu_i\), use <code>ash</code>
+to estimate \(g\)</li>
+</ol>
+
+<p>
+Then, the required variances are:
+</p>
+
+<p>
+\[ \hat\sigma^2_r = V_g[y_i] \]
+</p>
+
+<p>
+\[ \hat\sigma^2_m = 1 / E_h[\sigma^{-2}_{mi}] \]
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">estimate_variances</span>(y, se):
+  <span class="org-variable-name">y</span>, <span class="org-variable-name">se</span> = y.align(se, join=<span class="org-string">'inner'</span>)
+  <span class="org-variable-name">vash_res</span> = vashr.vash(se.melt()[<span class="org-string">'value'</span>], df=y.shape[1] - 1, unimodal=<span class="org-string">'precision'</span>)
+  <span class="org-variable-name">h</span> = vash_res.rx2(<span class="org-string">'fitted.g'</span>)
+  <span class="org-variable-name">pi</span> = np.array(h.rx2(<span class="org-string">'pi'</span>))
+  <span class="org-variable-name">sigma2_m</span> = pi.dot(ashr.comp_mean(h))
+  <span class="org-variable-name">df</span> = 2 * np.array(vash_res.rx2(<span class="org-string">'PosteriorShape'</span>)).dot(pi)[0]
+
+  <span class="org-variable-name">y</span> = y.transform(<span class="org-keyword">lambda</span> x: x - x.mean(), axis=1)
+  <span class="org-variable-name">lik</span> = ashr.lik_t(df)
+  <span class="org-variable-name">res</span> = ashr.ash(y.melt()[<span class="org-string">'value'</span>], vash_res.rx2(<span class="org-string">'sd.post'</span>), method=<span class="org-string">'shrink'</span>, mixcompdist=<span class="org-string">'uniform'</span>, lik=lik)
+  <span class="org-variable-name">g</span> = res.rx2(<span class="org-string">'fitted_g'</span>)
+  <span class="org-variable-name">sigma2_r</span> = np.array(g.rx2(<span class="org-string">'pi'</span>)).dot(np.square(np.array(g.rx2(<span class="org-string">'b'</span>)) - np.array(g.rx2(<span class="org-string">'a'</span>))) / 12)
+  <span class="org-keyword">return</span> sigma2_m, sigma2_r
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">sigma2_m_mean</span>, <span class="org-variable-name">sigma2_r_mean</span> = estimate_variances(np.log(mean_by_ind), np.sqrt(log_mean_sampling_var))
+sigma2_m_mean, sigma2_r_mean
+</pre>
+</div>
+
+<pre class="example">
+(0.04015464910541205, 0.010743676492444657)
+
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">sigma2_m_disp</span>, <span class="org-variable-name">sigma2_r_disp</span> = estimate_variances(log_phi, np.sqrt(disp_sampling_var))
+sigma2_m_disp, sigma2_r_disp
+</pre>
+</div>
+
+<pre class="example">
+(0.4100403252289386, 0.24894528053223766)
+
+</pre>
+
+<p>
+Compare the phenotypic variances.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">sigma2_r_disp / sigma2_r_mean
+</pre>
+</div>
+
+<pre class="example">
+23.171330662022914
+
+</pre>
+
+<p>
+Finally, get the typical noise ratios.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">delta_mean</span> = sigma2_m_mean / sigma2_r_mean
+<span class="org-variable-name">delta_disp</span> = sigma2_m_disp / sigma2_r_disp
+delta_mean, delta_disp
+</pre>
+</div>
+
+<pre class="example">
+(3.737514726327645, 1.647110257934131)
+
+</pre>
+
+<p>
+To answer (3), we need to develop sampling theory of the ZINB
+distribution. As a first pass, assume that the sampling distributions of the
+mean and dispersion of the NB component remain unchanged.
+</p>
+
+<p>
+<a href="http://dx.doi.org/10.1093/biomet/37.3-4.358">Anscombe 1953</a> develops the sampling theory of the NB distribution,
+parameterized by mean \(m\) and size \(k\).
+</p>
+
+<p>
+\[ \ln p(r) = r \ln (X) + k \ln(1 - X) + \ln \Gamma(k + r) - \ln \Gamma(k) -
+  \ln \Gamma(r + 1) \]
+</p>
+
+<p>
+where \(X = \frac{m}{m + k}\).
+</p>
+
+<p>
+In our parameterization, we have \(m = R \mu\), \(k = \phi^{-1}\).
+</p>
+
+<p>
+The MLE of \(m\) is \(\bar{r}\) where \(\bar{r}\) is the sample mean. Its
+sampling variance is:
+</p>
+
+<p>
+\[ V[\hat{m}] = \frac{1}{N}\left(m + \frac{m^2}{k}\right) \]
+</p>
+
+<p>
+which follows from properties of the sample mean.
+</p>
+
+<p>
+The MLE of \(k\) is non-trivial, and its sampling variance is:
+</p>
+
+<p>
+\[ V[\hat{k}] = \frac{2 k (k + 1)}{N X^2} \cdot \mathrm{const} \]
+</p>
+
+<p>
+where \(N\) is the number of samples, and the constant does not depend on
+\(N\).
+</p>
+
+<p>
+By the delta method,
+</p>
+
+<p>
+\[ V[\ln(\hat\phi)] = V[-\ln(\hat{k})] = \frac{2 (k + 1)}{k N X^2} \cdot \mathrm{const} \]
+</p>
+
+<p>
+where the constant remains unchanged.
+</p>
+
+<p>
+Therefore, the sampling variance of \(\ln\phi\) also goes down linearly in
+the number of samples. Further, holding \(\sigma_r^2\) fixed, the noise ratio
+goes down linearly in the number of cells.
+</p>
+
+<p>
+Now, plot the power function varying \(n, \delta\). Include reference points
+for the 95th percentile effect size relative to \(\sigma_r\), and the power
+achieved to detect effects of that size.
+</p>
+
+<p>
+Fixing \(\lambda, \alpha, \delta\), we can estimate the power achieved by the
+current study.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">rel_effect</span> = disp_effect / sigma2_r_disp
+<span class="org-variable-name">alpha</span> = 5e-6
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">N</span> = st.norm()
+<span class="org-variable-name">pow_53</span> = N.cdf(N.ppf(alpha / 2) + rel_effect * np.sqrt(53 / (1 + delta_disp)))
+pow_53
+</pre>
+</div>
+
+<pre class="example">
+0.001218892495343302
+
+</pre>
+
+<p>
+We can solve analytically for the sample size \(n\) required to achieve 80%
+power, fixing the single cell experiment size (number of cell, number of
+molecules).
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">n_80</span> = <span class="org-builtin">int</span>(np.ceil(np.square(N.ppf(.8) - N.ppf(alpha / 2)) * (1 + delta_disp) / np.square(rel_effect)))
+n_80
+</pre>
+</div>
+
+<pre class="example">
+659
+
+</pre>
+
+<p>
+If we assume the noise ratio goes down in the number of cells, then we can
+solve analytically for the sample size \(n\) to achieve 80% power assuming 10
+times as many cells per individual
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">m_80</span> = <span class="org-builtin">int</span>(np.ceil(np.square(N.ppf(.8) - N.ppf(alpha / 2)) * (1 + delta_disp / 10) / np.square(rel_effect)))
+m_80
+</pre>
+</div>
+
+<pre class="example">
+290
+
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+<span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(1, 3, sharey=<span class="org-constant">True</span>)
+fig.set_size_inches(7, 3)
+<span class="org-variable-name">grid</span> = np.logspace(-2, 0, 100)
+<span class="org-keyword">for</span> i, n <span class="org-keyword">in</span> <span class="org-builtin">enumerate</span>([53, n_80, m_80]):
+  <span class="org-keyword">for</span> ratio <span class="org-keyword">in</span> np.linspace(0, 4, 5):
+    <span class="org-variable-name">scale</span> = np.sqrt((1 + ratio) / n)
+    <span class="org-variable-name">power</span> = N.cdf(N.ppf(alpha / 2) + grid / scale)
+    <span class="org-variable-name">color</span> = colorcet.cm[<span class="org-string">'fire_r'</span>]((ratio + .75) / 5)
+    ax[i].set_xscale(<span class="org-string">'log'</span>)
+    ax[i].plot(grid, power, lw=1, color=color, label=<span class="org-string">'{:.2g}'</span>.<span class="org-builtin">format</span>(ratio))
+
+    ax[i].axvline(x=rel_effect, c=<span class="org-string">'.75'</span>, lw=1, ls=<span class="org-string">'--'</span>)
+    <span class="org-keyword">if</span> i == 2:
+      <span class="org-variable-name">realized_scale</span> = np.sqrt((1 + delta_disp / 10) / n)
+    <span class="org-keyword">else</span>:
+      <span class="org-variable-name">realized_scale</span> = np.sqrt((1 + delta_disp) / n)
+    <span class="org-variable-name">realized_power</span> = N.cdf(N.ppf(alpha / 2) + rel_effect / realized_scale)
+    ax[i].axhline(y=realized_power, c=<span class="org-string">'.75'</span>, lw=1, ls=<span class="org-string">'--'</span>)
+
+    ax[i].set_ylim(0, 1)
+    ax[i].set_title(<span class="org-string">'n = {}'</span>.<span class="org-builtin">format</span>(n))
+    ax[i].set_xlabel(<span class="org-string">'Relative effect size'</span>)
+ax[-1].legend(title=<span class="org-string">'Noise ratio'</span>, frameon=<span class="org-constant">False</span>, bbox_to_anchor=(1, .5), loc=<span class="org-string">'center left'</span>)
+<span class="org-variable-name">_</span> = ax[0].set_ylabel(r<span class="org-string">'Power at level $5 \times 10^{-6}$'</span>)
+fig.tight_layout()
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/power.org/analytic-power.png" alt="analytic-power.png">
+</p>
+</div>
+</div>
+</div>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-09-05 Wed 14:22</p>
+<p class="date">Created: 2018-09-08 Sat 12:04</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
