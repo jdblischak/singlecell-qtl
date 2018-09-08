@@ -1,17 +1,20 @@
 #+TITLE: Power to detect QTLs in single cell data
 #+SETUPFILE: setup.org
-#+OPTIONS: toc:t
 
 * Introduction
 
   We [[file:qtl-mapping.org][previously found]] that our study lost power to detect eQTLs, and was
-  underpowered to directly detect dispersion-QTLs.
+  underpowered to directly detect dQTLs.
 
-  Here, we estimate power to detect eQTLs and dispersion-QTLs as a function of:
+  Here, we perform the following analyses:
 
-  - number of cells per individual
-  - number of molecules per cell
-  - number of individuals
+  - [[*Analytic power calculation][We derive the power function]] accounting for measurement error
+  - [[*Estimating the effect size distribution][We show that dQTL effects are larger than eQTL effects]] (in terms
+    of log fold change)
+  - [[*Estimating measurement error and residual variance][We show that PVE explains lack of power to detect dQTLs]] (rather than
+    measurement error)
+  - [[*Power curves][We solve for the sample size]] required to achieve 80% power to detect the
+    strongest dQTLs
 
 * Setup                                                            :noexport:
  
@@ -2020,11 +2023,19 @@
 
   where \(\Phi(\cdot)\) denotes the standard Gaussian CDF.
 
+  #+BEGIN_SRC ipython
+    def power(lam, n, delta, alpha):
+      N = st.norm()
+      return N.cdf(N.ppf(alpha / 2) + lam * np.sqrt(n / (1 + delta)))
+  #+END_SRC
+
   Now, we need to answer the following questions: 
 
   1. What is the typical effect size?
   2. What is the typical noise ratio of the current study?
   3. How does the noise ratio vary with the number of cells and number of molecules?
+
+** Estimating the effect size distribution
 
   To answer (1), we need to apply ~ash~. To make effect sizes comparable
   between mean and dispersion, we need effect sizes in units of natural log
@@ -2179,6 +2190,8 @@
   : 0.08533533533533533
   :END:
 
+** Estimating measurement error and residual variance
+
   To answer (2), we need to estimate \(\sigma^2_m\) and \(\sigma^2_r\).
 
   One complication is that we actually have \(e_{\mathrm{meas},i} \sim N(0,
@@ -2225,13 +2238,12 @@
 
   \[ y_i \mid \hat\sigma^2_{mi} \sim g(\cdot) \]
 
-  where \(g\) is a zero-mode scale mixture of normals.
+  where \(g\) is a unimodal mixture of uniforms.
 
   [[https://www.jstor.org/stable/10.2307/2965416][Cordy and Thomas 1997]] developed the same approach assuming \(\sigma^2_{mi} =
-  \hat\sigma^2_{mi}\) and \(g\) is a unimodal mixture of uniforms.
-
-  However, we also need to estimate the typical \(\sigma^2_m\) over all genes,
-  so we instead assume a hierarchical model on \(\hat\sigma^2_{mi}\).
+  \hat\sigma^2_{mi}\). However, we also need to estimate the typical
+  \(\sigma^2_m\) over all genes, so we instead assume a hierarchical model on
+  \(\hat\sigma^2_{mi}\).
 
   \[ \hat\sigma^{2}_{mi} \mid \sigma^2_{mi}, \nu_i \sim \mathrm{Gamma}(\cdot) \]
 
@@ -2270,6 +2282,8 @@
       h = vash_res.rx2('fitted.g')
       pi = np.array(h.rx2('pi'))
       sigma2_m = pi.dot(ashr.comp_mean(h))
+      # The observed df is equal for all observations, so the posterior mean df
+      # will also be equal for all observations (Lu and Stephens 2016, eq. 13)
       df = 2 * np.array(vash_res.rx2('PosteriorShape')).dot(pi)[0]
 
       y = y.transform(lambda x: x - x.mean(), axis=1)
@@ -2314,6 +2328,25 @@
   : (0.4100403252289386, 0.24894528053223766)
   :END:
 
+  Serialize the results.
+
+  #+BEGIN_SRC ipython
+    with open('deconvolution-results.pkl', 'wb') as f:
+      pickle.dump((sigma2_m_mean, sigma2_r_mean, sigma2_m_disp, sigma2_r_disp), f)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[28]:
+  :END:
+
+  Read the results.
+
+  #+BEGIN_SRC ipython
+    with open('deconvolution-results.pkl', 'rb') as f:
+      sigma2_m_mean, sigma2_r_mean, sigma2_m_disp, sigma2_r_disp = pickle.load(f)
+  #+END_SRC
+
   Compare the phenotypic variances.
 
   #+BEGIN_SRC ipython
@@ -2339,6 +2372,8 @@
   # Out[12]:
   : (3.737514726327645, 1.647110257934131)
   :END:
+
+** Dependence of measurement error on experiment size
 
   To answer (3), we need to develop sampling theory of the ZINB
   distribution. As a first pass, assume that the sampling distributions of the
@@ -2378,9 +2413,7 @@
   the number of samples. Further, holding \(\sigma_r^2\) fixed, the noise ratio
   goes down linearly in the number of cells.
 
-  Now, plot the power function varying \(n, \delta\). Include reference points
-  for the 95th percentile effect size relative to \(\sigma_r\), and the power
-  achieved to detect effects of that size.
+** Power curves
 
   Fixing \(\lambda, \alpha, \delta\), we can estimate the power achieved by the
   current study.
@@ -2436,6 +2469,10 @@
   # Out[18]:
   : 290
   :END:
+
+  Now, plot the power function varying \(n, \delta\). Include reference points
+  for the 99th percentile effect size relative to \(\sigma_r\), and the power
+  achieved to detect effects of that size.
 
   #+BEGIN_SRC ipython :ipyfile figure/power.org/analytic-power.png
     plt.clf()

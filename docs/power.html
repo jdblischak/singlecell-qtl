@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-09-08 Sat 12:04 -->
+<!-- 2018-09-08 Sat 12:40 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Power to detect QTLs in single cell data</title>
@@ -253,44 +253,27 @@ for the JavaScript code in this tag.
 <body>
 <div id="content">
 <h1 class="title">Power to detect QTLs in single cell data</h1>
-<div id="table-of-contents">
-<h2>Table of Contents</h2>
-<div id="text-table-of-contents">
-<ul>
-<li><a href="#orga42ca73">Introduction</a></li>
-<li><a href="#org7629be6">Empirical power calculation</a>
-<ul>
-<li><a href="#orge517b0e">Differential dispersion</a></li>
-<li><a href="#org5ec82fa">Null calibration via parametric bootstrap</a></li>
-<li><a href="#org3d39f55">Power</a></li>
-<li><a href="#org601cded">QTL discovery</a></li>
-<li><a href="#org2e0a082">Distribution of effect sizes.</a></li>
-<li><a href="#orga31b1a2">Compare experimental variance to biological variance</a></li>
-<li><a href="#org2be57fa">Distribution of PVE</a></li>
-<li><a href="#orge4a450a">Estimate the error variance</a></li>
-</ul>
-</li>
-<li><a href="#org52da0bd">Analytic power calculation</a></li>
-</ul>
-</div>
-</div>
 
 <div id="outline-container-orga42ca73" class="outline-2">
 <h2 id="orga42ca73">Introduction</h2>
 <div class="outline-text-2" id="text-orga42ca73">
 <p>
 We <a href="qtl-mapping.html">previously found</a> that our study lost power to detect eQTLs, and was
-underpowered to directly detect dispersion-QTLs.
+underpowered to directly detect dQTLs.
 </p>
 
 <p>
-Here, we estimate power to detect eQTLs and dispersion-QTLs as a function of:
+Here, we perform the following analyses:
 </p>
 
 <ul class="org-ul">
-<li>number of cells per individual</li>
-<li>number of molecules per cell</li>
-<li>number of individuals</li>
+<li><a href="#org52da0bd">We derive the power function</a> accounting for measurement error</li>
+<li><a href="#orgb4917e3">We show that dQTL effects are larger than eQTL effects</a> (in terms
+of log fold change)</li>
+<li><a href="#orge1e4e0a">We show that PVE explains lack of power to detect dQTLs</a> (rather than
+measurement error)</li>
+<li><a href="#org9494ef4">We solve for the sample size</a> required to achieve 80% power to detect the
+strongest dQTLs</li>
 </ul>
 </div>
 </div>
@@ -2257,6 +2240,13 @@ Assume \(b = \lambda \sigma_r\), \(\lambda > 0\), and define \(\delta =
 where \(\Phi(\cdot)\) denotes the standard Gaussian CDF.
 </p>
 
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">power</span>(lam, n, delta, alpha):
+  <span class="org-variable-name">N</span> = st.norm()
+  <span class="org-keyword">return</span> N.cdf(N.ppf(alpha / 2) + lam * np.sqrt(n / (1 + delta)))
+</pre>
+</div>
+
 <p>
 Now, we need to answer the following questions: 
 </p>
@@ -2266,7 +2256,11 @@ Now, we need to answer the following questions:
 <li>What is the typical noise ratio of the current study?</li>
 <li>How does the noise ratio vary with the number of cells and number of molecules?</li>
 </ol>
+</div>
 
+<div id="outline-container-orgb4917e3" class="outline-3">
+<h3 id="orgb4917e3">Estimating the effect size distribution</h3>
+<div class="outline-text-3" id="text-orgb4917e3">
 <p>
 To answer (1), we need to apply <code>ash</code>. To make effect sizes comparable
 between mean and dispersion, we need effect sizes in units of natural log
@@ -2428,7 +2422,12 @@ disp_effect
 0.08533533533533533
 
 </pre>
+</div>
+</div>
 
+<div id="outline-container-orge1e4e0a" class="outline-3">
+<h3 id="orge1e4e0a">Estimating measurement error and residual variance</h3>
+<div class="outline-text-3" id="text-orge1e4e0a">
 <p>
 To answer (2), we need to estimate \(\sigma^2_m\) and \(\sigma^2_r\).
 </p>
@@ -2491,17 +2490,14 @@ observations across all genes, assuming a common prior.
 </p>
 
 <p>
-where \(g\) is a zero-mode scale mixture of normals.
+where \(g\) is a unimodal mixture of uniforms.
 </p>
 
 <p>
 <a href="https://www.jstor.org/stable/10.2307/2965416">Cordy and Thomas 1997</a> developed the same approach assuming \(\sigma^2_{mi} =
-  \hat\sigma^2_{mi}\) and \(g\) is a unimodal mixture of uniforms.
-</p>
-
-<p>
-However, we also need to estimate the typical \(\sigma^2_m\) over all genes,
-so we instead assume a hierarchical model on \(\hat\sigma^2_{mi}\).
+  \hat\sigma^2_{mi}\). However, we also need to estimate the typical
+\(\sigma^2_m\) over all genes, so we instead assume a hierarchical model on
+\(\hat\sigma^2_{mi}\).
 </p>
 
 <p>
@@ -2565,6 +2561,8 @@ Then, the required variances are:
   <span class="org-variable-name">h</span> = vash_res.rx2(<span class="org-string">'fitted.g'</span>)
   <span class="org-variable-name">pi</span> = np.array(h.rx2(<span class="org-string">'pi'</span>))
   <span class="org-variable-name">sigma2_m</span> = pi.dot(ashr.comp_mean(h))
+  <span class="org-comment-delimiter"># </span><span class="org-comment">The observed df is equal for all observations, so the posterior mean df</span>
+  <span class="org-comment-delimiter"># </span><span class="org-comment">will also be equal for all observations (Lu and Stephens 2016, eq. 13)</span>
   <span class="org-variable-name">df</span> = 2 * np.array(vash_res.rx2(<span class="org-string">'PosteriorShape'</span>)).dot(pi)[0]
 
   <span class="org-variable-name">y</span> = y.transform(<span class="org-keyword">lambda</span> x: x - x.mean(), axis=1)
@@ -2599,6 +2597,26 @@ sigma2_m_disp, sigma2_r_disp
 </pre>
 
 <p>
+Serialize the results.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">with</span> <span class="org-builtin">open</span>(<span class="org-string">'deconvolution-results.pkl'</span>, <span class="org-string">'wb'</span>) <span class="org-keyword">as</span> f:
+  pickle.dump((sigma2_m_mean, sigma2_r_mean, sigma2_m_disp, sigma2_r_disp), f)
+</pre>
+</div>
+
+<p>
+Read the results.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">with</span> <span class="org-builtin">open</span>(<span class="org-string">'deconvolution-results.pkl'</span>, <span class="org-string">'rb'</span>) <span class="org-keyword">as</span> f:
+  <span class="org-variable-name">sigma2_m_mean</span>, <span class="org-variable-name">sigma2_r_mean</span>, <span class="org-variable-name">sigma2_m_disp</span>, <span class="org-variable-name">sigma2_r_disp</span> = pickle.load(f)
+</pre>
+</div>
+
+<p>
 Compare the phenotypic variances.
 </p>
 
@@ -2627,7 +2645,12 @@ delta_mean, delta_disp
 (3.737514726327645, 1.647110257934131)
 
 </pre>
+</div>
+</div>
 
+<div id="outline-container-orgd9d1f44" class="outline-3">
+<h3 id="orgd9d1f44">Dependence of measurement error on experiment size</h3>
+<div class="outline-text-3" id="text-orgd9d1f44">
 <p>
 To answer (3), we need to develop sampling theory of the ZINB
 distribution. As a first pass, assume that the sampling distributions of the
@@ -2695,13 +2718,12 @@ Therefore, the sampling variance of \(\ln\phi\) also goes down linearly in
 the number of samples. Further, holding \(\sigma_r^2\) fixed, the noise ratio
 goes down linearly in the number of cells.
 </p>
+</div>
+</div>
 
-<p>
-Now, plot the power function varying \(n, \delta\). Include reference points
-for the 95th percentile effect size relative to \(\sigma_r\), and the power
-achieved to detect effects of that size.
-</p>
-
+<div id="outline-container-org9494ef4" class="outline-3">
+<h3 id="org9494ef4">Power curves</h3>
+<div class="outline-text-3" id="text-org9494ef4">
 <p>
 Fixing \(\lambda, \alpha, \delta\), we can estimate the power achieved by the
 current study.
@@ -2759,6 +2781,12 @@ m_80
 
 </pre>
 
+<p>
+Now, plot the power function varying \(n, \delta\). Include reference points
+for the 99th percentile effect size relative to \(\sigma_r\), and the power
+achieved to detect effects of that size.
+</p>
+
 <div class="org-src-container">
 <pre class="src src-ipython">plt.clf()
 <span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(1, 3, sharey=<span class="org-constant">True</span>)
@@ -2797,9 +2825,10 @@ fig.tight_layout()
 </div>
 </div>
 </div>
+</div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-09-08 Sat 12:04</p>
+<p class="date">Created: 2018-09-08 Sat 12:40</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
