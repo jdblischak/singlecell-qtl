@@ -314,8 +314,8 @@
           assert log_mean.shape == (m, p)
           assert log_disp.shape == (m, p)
           assert logodds.shape == (m, p)
-          mean = tf.exp(tf.Variable(mean))
-          inv_disp = tf.exp(tf.Variable(-disp))
+          mean = tf.exp(tf.Variable(log_mean))
+          inv_disp = tf.exp(tf.Variable(-log_disp))
           logodds = tf.Variable(logodds)
         else:
           mean = tf.exp(tf.Variable(tf.zeros([m, p])))
