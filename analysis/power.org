@@ -32,7 +32,7 @@
   #+CALL: ipython3(memory="32G", venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 49471539
+  : Submitted batch job 49650587
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -2033,7 +2033,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[15]:
+  # Out[76]:
   :END:
 
   Now, we need to answer the following questions: 
@@ -2116,7 +2116,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[5]:
+  # Out[31]:
   :END:
 
   Look at the fitted \(g\).
@@ -2172,7 +2172,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[6]:
+  # Out[32]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -2182,7 +2182,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[7]:
+  # Out[33]:
   : 0.022772772772772787
   :END:
 
@@ -2193,7 +2193,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[8]:
+  # Out[34]:
   : 0.08533533533533533
   :END:
 
@@ -2224,17 +2224,78 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[7]:
+  # Out[43]:
   :END:
+
+*** Naive approach
 
   Assuming that \(\hat\sigma^2_{mi}\) is unbiased, \(\hat\sigma^2_r =
   \frac{1}{n - 1}\sum_i (\tilde{y}_i - \bar{y})^2 - \frac{1}{n}\sum_i
-  \hat\sigma^2_{mi}\) is also unbiased (Buonaccorsi 2010, Eq. 10.1).  However,
-  it can happen that \(\hat\sigma^2_r \leq 0\). We need the ratio
-  \(\hat\sigma^2_m / \hat\sigma^2_r\) so this strategy will not work in
-  general.
+  \hat\sigma^2_{mi}\) is also unbiased (Buonaccorsi 2010, Eq. 10.1).
 
-  Instead, we use ~ash~ and ~vash~ ([[https://academic.oup.com/bioinformatics/article/32/22/3428/2525601][Lu and Stephens 2016]]) to solve the problem.
+  However, it can happen that \(\hat\sigma^2_r \leq 0\). We need the ratio
+  \(\hat\sigma^2_m / \hat\sigma^2_r\) so this strategy may not work in general.
+
+  #+CALL: point-gamma-moments()
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[44]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    sigma2_m_mean = log_mean_sampling_var.median(axis=1).median()
+    sigma2_r_mean = (np.log(mean_by_ind).var(axis=1) - log_mean_sampling_var.median(axis=1)).median()
+    sigma2_m_mean, sigma2_r_mean
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[45]:
+  : (0.01676837475, 0.0038333371434518104)
+  :END:
+
+  #+BEGIN_SRC ipython
+    sigma2_m_disp = disp_sampling_var.median(axis=1).median()
+    sigma2_r_disp = (log_phi.var(axis=1) - disp_sampling_var.median(axis=1)).median()
+    sigma2_m_disp, sigma2_r_disp
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[46]:
+  : (0.34478114000000004, 0.10712427518144693)
+  :END:
+
+  Compare the phenotypic standard deviations.
+
+  #+BEGIN_SRC ipython
+    np.sqrt(sigma2_r_disp) / np.sqrt(sigma2_r_mean)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[47]:
+  : 5.286344229674782
+  :END:
+
+  Estimate the typical noise ratios.
+
+  #+BEGIN_SRC ipython
+    delta_mean = sigma2_m_mean / sigma2_r_mean
+    delta_disp = sigma2_m_disp / sigma2_r_disp
+    delta_mean, delta_disp
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[48]:
+  : (4.374354282571805, 3.218515499087488)
+  :END:
+
+*** Deconvolution approach
+
+  We can also use ~ash~ and ~vash~ ([[https://academic.oup.com/bioinformatics/article/32/22/3428/2525601][Lu and Stephens 2016]]) to solve the problem.
 
   \[ \tilde{y}_i \mid y_i, \sigma^2_{mi} \sim \mathcal{N}(y_i, \sigma^2_{mi}) \]
 
@@ -2248,9 +2309,10 @@
   where \(g\) is a unimodal mixture of uniforms.
 
   [[https://www.jstor.org/stable/10.2307/2965416][Cordy and Thomas 1997]] developed the same approach assuming \(\sigma^2_{mi} =
-  \hat\sigma^2_{mi}\). However, we also need to estimate the typical
-  \(\sigma^2_m\) over all genes, so we instead assume a hierarchical model on
-  \(\hat\sigma^2_{mi}\).
+  \hat\sigma^2_{mi}\). 
+
+  To estimate the typical \(\sigma^2_m\) over all genes, we could instead
+  assume a hierarchical model on \(\hat\sigma^2_{mi}\).
 
   \[ \hat\sigma^{2}_{mi} \mid \sigma^2_{mi}, \nu_i \sim \mathrm{Gamma}(\cdot) \]
 
@@ -2268,8 +2330,8 @@
 
   where \(t(\cdot)\) denotes the generalized \(t\) distribution.
 
-  Although it would be ideal to jointly estimate \(g\), \(h\), we instead take
-  a simpler approach:
+  Although it would be ideal to jointly estimate \(g\), \(h\), we can take a
+  simpler approach:
 
   1. Given \(\hat\sigma^2_{mi}, \nu_i\), use ~vash~ to estimate \(h\),
      \(\tilde\sigma^2_{mi}\), \(\tilde\nu_i\)
@@ -2304,13 +2366,6 @@
   #+RESULTS:
   :RESULTS:
   # Out[8]:
-  :END:
-
-  #+CALL: point-gamma-moments()
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[9]:
   :END:
 
   #+BEGIN_SRC ipython :async t
@@ -2356,7 +2411,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[9]:
+  # Out[79]:
   :END:
 
   Compare the phenotypic standard deviations.
@@ -2367,7 +2422,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[27]:
+  # Out[80]:
   : 4.813660837867881
   :END:
 
@@ -2381,8 +2436,82 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[10]:
+  # Out[81]:
   : (3.737514726327645, 1.647110257934131)
+  :END:
+
+*** Hybrid approach
+
+  In practice, the median of medians approach produces an acceptable estimate
+  of the typical measurement error variance. However, the naive estimate of the
+  residual variance is very different from the deconvolution estimate.
+
+  The results suggest that we could simplify the overall procedure by just
+  applying ~ash~ as in Cordy and Thomas 1997.
+
+  #+BEGIN_SRC ipython
+    def estimate_sigma2_r(y, se):
+      y, se = y.align(se, join='inner')
+      y = y.transform(lambda x: x - x.mean(), axis=1)
+      res = ashr.ash(y.melt()['value'], se.melt()['value'], method='shrink', mixcompdist='uniform')
+      g = res.rx2('fitted_g')
+      sigma2_r = np.array(g.rx2('pi')).dot(np.square(np.array(g.rx2('b')) - np.array(g.rx2('a'))) / 12)
+      return sigma2_r
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[88]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    sigma2_m_mean = log_mean_sampling_var.median(axis=1).median()
+    sigma2_r_mean = estimate_sigma2_r(np.log(mean_by_ind), np.sqrt(log_mean_sampling_var))
+    sigma2_m_mean, sigma2_r_mean
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[89]:
+  : (0.01676837475, 0.01137813811552999)
+  :END:
+
+  #+BEGIN_SRC ipython
+    sigma2_m_disp = disp_sampling_var.median(axis=1).median()
+    sigma2_r_disp = estimate_sigma2_r(log_phi, np.sqrt(disp_sampling_var))
+    sigma2_m_disp, sigma2_r_disp
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[90]:
+  : (0.34478114000000004, 0.2536911997171098)
+  :END:
+
+  Compare the phenotypic standard deviations.
+
+  #+BEGIN_SRC ipython
+    np.sqrt(sigma2_r_disp) / np.sqrt(sigma2_r_mean)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[91]:
+  : 4.721903426280433
+  :END:
+
+  Finally, get the typical noise ratios.
+  
+  #+BEGIN_SRC ipython
+    delta_mean = sigma2_m_mean / sigma2_r_mean
+    delta_disp = sigma2_m_disp / sigma2_r_disp
+    delta_mean, delta_disp
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[92]:
+  : (1.473736263327028, 1.3590583370036655)
   :END:
 
 ** Dependence of measurement error on experiment size
@@ -2431,13 +2560,13 @@
   current study.
 
   #+BEGIN_SRC ipython
-    rel_effect = disp_effect / sigma2_r_disp
+    rel_effect = disp_effect / np.sqrt(sigma2_r_disp)
     alpha = 5e-6
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[12]:
+  # Out[93]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -2447,8 +2576,8 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[13]:
-  : 0.001218892495343302
+  # Out[94]:
+  : 8.436984369438758e-05
   :END:
 
   We can solve analytically for the sample size \(n\) required to achieve 80%
@@ -2462,8 +2591,8 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[16]:
-  : 659
+  # Out[95]:
+  : 2403
   :END:
 
   We can lower bound \(n\) by taking \(\delta \rightarrow 0\).
@@ -2475,8 +2604,8 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[17]:
-  : 249
+  # Out[96]:
+  : 1019
   :END:
 
   Now, plot the power function varying \(n, \delta\). Include reference points
@@ -2491,10 +2620,10 @@
     for i, n in enumerate([53, n_80, m_80]):
       for ratio in np.linspace(0, 4, 5):
         scale = np.sqrt((1 + ratio) / n)
-        power = N.cdf(N.ppf(alpha / 2) + grid / scale)
+        power_ = N.cdf(N.ppf(alpha / 2) + grid / scale)
         color = colorcet.cm['fire_r']((ratio + .75) / 5)
         ax[i].set_xscale('log')
-        ax[i].plot(grid, power, lw=1, color=color, label='{:.2g}'.format(ratio))
+        ax[i].plot(grid, power_, lw=1, color=color, label='{:.2g}'.format(ratio))
 
         ax[i].axvline(x=rel_effect, c='.75', lw=1, ls='--')
         if i == 2:
@@ -2514,7 +2643,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[18]:
+  # Out[97]:
   [[file:figure/power.org/analytic-power.png]]
   :END:
 
@@ -2527,10 +2656,10 @@
     for i, n in enumerate([53, n_80, m_80]):
       for ratio in np.linspace(0, 4, 5):
         scale = np.sqrt((1 + ratio) / n)
-        power = N.cdf(N.ppf(alpha / 2) + grid / scale)
+        power_ = N.cdf(N.ppf(alpha / 2) + grid / scale)
         color = colorcet.cm['fire_r']((ratio + .75) / 5)
         ax[i].set_xscale('log')
-        ax[i].plot(grid, power, lw=1, color=color, label='{:.2g}'.format(ratio))
+        ax[i].plot(grid, power_, lw=1, color=color, label='{:.2g}'.format(ratio))
 
         ax[i].axvline(x=rel_effect, c='.75', lw=1, ls='--')
         if i == 2:
@@ -2550,6 +2679,6 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[26]:
+  # Out[98]:
   [[file:figure/power.org/analytic-power.svg]]
   :END:

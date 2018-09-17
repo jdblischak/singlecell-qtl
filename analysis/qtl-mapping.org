@@ -26,7 +26,7 @@
   #+CALL: ipython3(memory="16G", venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 49160922
+  : Submitted batch job 49699240
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -2127,7 +2127,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[64]:
+   # Out[12]:
    :END:
 
    Write out the phenotype file.
@@ -2138,7 +2138,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[65]:
+   # Out[13]:
    :END:
 
    Index the phenotype file.
@@ -2146,7 +2146,7 @@
    #+CALL: tabix(input="log_phi.bed") :dir /scratch/midway2/aksarkar/singlecell/scqtl-mapping
 
    #+RESULTS:
-   : Submitted batch job 47553002
+   : Submitted batch job 49699302
 
    Run ~qtltools~.
 
@@ -3120,12 +3120,12 @@
     EOF
     function z { test $1-qtl.1.txt -nt $1.txt.gz && cat $1-qtl.*.txt | awk 'BEGIN {print "gene", "chr", "start", "end", "strand", "num_vars", "distance", "id", "var_chr", "var_start", "var_end", "df", "dummy", "a", "b", "p_nominal", "beta", "p_empirical", "p_beta"} {print}' | gzip >$1.txt.gz; }
     export -f z
-    parallel -j1 z ::: cv fano mean multmean variance resid cv_resid
+    parallel -j1 z ::: cv fano mean log_phi multmean variance resid cv_resid
     rsync -FFau . /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 48837869
+  : Submitted batch job 49699529
 
 ** QTL browser
 

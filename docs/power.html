@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-09-10 Mon 11:48 -->
+<!-- 2018-09-14 Fri 15:55 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Power to detect QTLs in single cell data</title>
@@ -2461,18 +2461,83 @@ Read the results.
 <span class="org-variable-name">disp_sampling_var</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/disp-se.txt.gz'</span>, index_col=0)
 </pre>
 </div>
+</div>
 
+<div id="outline-container-org89e5816" class="outline-4">
+<h4 id="org89e5816">Naive approach</h4>
+<div class="outline-text-4" id="text-org89e5816">
 <p>
 Assuming that \(\hat\sigma^2_{mi}\) is unbiased, \(\hat\sigma^2_r =
   \frac{1}{n - 1}\sum_i (\tilde{y}_i - \bar{y})^2 - \frac{1}{n}\sum_i
-  \hat\sigma^2_{mi}\) is also unbiased (Buonaccorsi 2010, Eq. 10.1).  However,
-it can happen that \(\hat\sigma^2_r \leq 0\). We need the ratio
-\(\hat\sigma^2_m / \hat\sigma^2_r\) so this strategy will not work in
-general.
+  \hat\sigma^2_{mi}\) is also unbiased (Buonaccorsi 2010, Eq. 10.1).
 </p>
 
 <p>
-Instead, we use <code>ash</code> and <code>vash</code> (<a href="https://academic.oup.com/bioinformatics/article/32/22/3428/2525601">Lu and Stephens 2016</a>) to solve the problem.
+However, it can happen that \(\hat\sigma^2_r \leq 0\). We need the ratio
+\(\hat\sigma^2_m / \hat\sigma^2_r\) so this strategy may not work in general.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">sigma2_m_mean</span> = log_mean_sampling_var.median(axis=1).median()
+<span class="org-variable-name">sigma2_r_mean</span> = (np.log(mean_by_ind).var(axis=1) - log_mean_sampling_var.median(axis=1)).median()
+sigma2_m_mean, sigma2_r_mean
+</pre>
+</div>
+
+<pre class="example">
+(0.01676837475, 0.0038333371434518104)
+
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">sigma2_m_disp</span> = disp_sampling_var.median(axis=1).median()
+<span class="org-variable-name">sigma2_r_disp</span> = (log_phi.var(axis=1) - disp_sampling_var.median(axis=1)).median()
+sigma2_m_disp, sigma2_r_disp
+</pre>
+</div>
+
+<pre class="example">
+(0.34478114000000004, 0.10712427518144693)
+
+</pre>
+
+<p>
+Compare the phenotypic standard deviations.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">np.sqrt(sigma2_r_disp) / np.sqrt(sigma2_r_mean)
+</pre>
+</div>
+
+<pre class="example">
+5.286344229674782
+
+</pre>
+
+<p>
+Estimate the typical noise ratios.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">delta_mean</span> = sigma2_m_mean / sigma2_r_mean
+<span class="org-variable-name">delta_disp</span> = sigma2_m_disp / sigma2_r_disp
+delta_mean, delta_disp
+</pre>
+</div>
+
+<pre class="example">
+(4.374354282571805, 3.218515499087488)
+
+</pre>
+</div>
+</div>
+
+<div id="outline-container-orgf0b878e" class="outline-4">
+<h4 id="orgf0b878e">Deconvolution approach</h4>
+<div class="outline-text-4" id="text-orgf0b878e">
+<p>
+We can also use <code>ash</code> and <code>vash</code> (<a href="https://academic.oup.com/bioinformatics/article/32/22/3428/2525601">Lu and Stephens 2016</a>) to solve the problem.
 </p>
 
 <p>
@@ -2496,9 +2561,12 @@ where \(g\) is a unimodal mixture of uniforms.
 
 <p>
 <a href="https://www.jstor.org/stable/10.2307/2965416">Cordy and Thomas 1997</a> developed the same approach assuming \(\sigma^2_{mi} =
-  \hat\sigma^2_{mi}\). However, we also need to estimate the typical
-\(\sigma^2_m\) over all genes, so we instead assume a hierarchical model on
-\(\hat\sigma^2_{mi}\).
+  \hat\sigma^2_{mi}\). 
+</p>
+
+<p>
+To estimate the typical \(\sigma^2_m\) over all genes, we could instead
+assume a hierarchical model on \(\hat\sigma^2_{mi}\).
 </p>
 
 <p>
@@ -2532,8 +2600,8 @@ where \(t(\cdot)\) denotes the generalized \(t\) distribution.
 </p>
 
 <p>
-Although it would be ideal to jointly estimate \(g\), \(h\), we instead take
-a simpler approach:
+Although it would be ideal to jointly estimate \(g\), \(h\), we can take a
+simpler approach:
 </p>
 
 <ol class="org-ol">
@@ -2618,16 +2686,16 @@ Read the results.
 </div>
 
 <p>
-Compare the phenotypic variances.
+Compare the phenotypic standard deviations.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython">sigma2_r_disp / sigma2_r_mean
+<pre class="src src-ipython">np.sqrt(sigma2_r_disp) / np.sqrt(sigma2_r_mean)
 </pre>
 </div>
 
 <pre class="example">
-23.171330662022914
+4.813660837867881
 
 </pre>
 
@@ -2646,6 +2714,88 @@ delta_mean, delta_disp
 (3.737514726327645, 1.647110257934131)
 
 </pre>
+</div>
+</div>
+
+<div id="outline-container-orgb21db70" class="outline-4">
+<h4 id="orgb21db70">Hybrid approach</h4>
+<div class="outline-text-4" id="text-orgb21db70">
+<p>
+In practice, the median of medians approach produces an acceptable estimate
+of the typical measurement error variance. However, the naive estimate of the
+residual variance is very different from the deconvolution estimate.
+</p>
+
+<p>
+The results suggest that we could simplify the overall procedure by just
+applying <code>ash</code> as in Cordy and Thomas 1997.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">estimate_sigma2_r</span>(y, se):
+  <span class="org-variable-name">y</span>, <span class="org-variable-name">se</span> = y.align(se, join=<span class="org-string">'inner'</span>)
+  <span class="org-variable-name">y</span> = y.transform(<span class="org-keyword">lambda</span> x: x - x.mean(), axis=1)
+  <span class="org-variable-name">res</span> = ashr.ash(y.melt()[<span class="org-string">'value'</span>], se.melt()[<span class="org-string">'value'</span>], method=<span class="org-string">'shrink'</span>, mixcompdist=<span class="org-string">'uniform'</span>)
+  <span class="org-variable-name">g</span> = res.rx2(<span class="org-string">'fitted_g'</span>)
+  <span class="org-variable-name">sigma2_r</span> = np.array(g.rx2(<span class="org-string">'pi'</span>)).dot(np.square(np.array(g.rx2(<span class="org-string">'b'</span>)) - np.array(g.rx2(<span class="org-string">'a'</span>))) / 12)
+  <span class="org-keyword">return</span> sigma2_r
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">sigma2_m_mean</span> = log_mean_sampling_var.median(axis=1).median()
+<span class="org-variable-name">sigma2_r_mean</span> = estimate_sigma2_r(np.log(mean_by_ind), np.sqrt(log_mean_sampling_var))
+sigma2_m_mean, sigma2_r_mean
+</pre>
+</div>
+
+<pre class="example">
+(0.01676837475, 0.01137813811552999)
+
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">sigma2_m_disp</span> = disp_sampling_var.median(axis=1).median()
+<span class="org-variable-name">sigma2_r_disp</span> = estimate_sigma2_r(log_phi, np.sqrt(disp_sampling_var))
+sigma2_m_disp, sigma2_r_disp
+</pre>
+</div>
+
+<pre class="example">
+(0.34478114000000004, 0.2536911997171098)
+
+</pre>
+
+<p>
+Compare the phenotypic standard deviations.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">np.sqrt(sigma2_r_disp) / np.sqrt(sigma2_r_mean)
+</pre>
+</div>
+
+<pre class="example">
+4.721903426280433
+
+</pre>
+
+<p>
+Finally, get the typical noise ratios.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">delta_mean</span> = sigma2_m_mean / sigma2_r_mean
+<span class="org-variable-name">delta_disp</span> = sigma2_m_disp / sigma2_r_disp
+delta_mean, delta_disp
+</pre>
+</div>
+
+<pre class="example">
+(1.473736263327028, 1.3590583370036655)
+
+</pre>
+</div>
 </div>
 </div>
 
@@ -2731,7 +2881,7 @@ current study.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">rel_effect</span> = disp_effect / sigma2_r_disp
+<pre class="src src-ipython"><span class="org-variable-name">rel_effect</span> = disp_effect / np.sqrt(sigma2_r_disp)
 <span class="org-variable-name">alpha</span> = 5e-6
 </pre>
 </div>
@@ -2743,7 +2893,7 @@ pow_53
 </div>
 
 <pre class="example">
-0.001218892495343302
+8.436984369438758e-05
 
 </pre>
 
@@ -2760,7 +2910,7 @@ n_80
 </div>
 
 <pre class="example">
-659
+2403
 
 </pre>
 
@@ -2775,7 +2925,7 @@ m_80
 </div>
 
 <pre class="example">
-249
+1019
 
 </pre>
 
@@ -2793,10 +2943,10 @@ fig.set_size_inches(7, 3)
 <span class="org-keyword">for</span> i, n <span class="org-keyword">in</span> <span class="org-builtin">enumerate</span>([53, n_80, m_80]):
   <span class="org-keyword">for</span> ratio <span class="org-keyword">in</span> np.linspace(0, 4, 5):
     <span class="org-variable-name">scale</span> = np.sqrt((1 + ratio) / n)
-    <span class="org-variable-name">power</span> = N.cdf(N.ppf(alpha / 2) + grid / scale)
+    <span class="org-variable-name">power_</span> = N.cdf(N.ppf(alpha / 2) + grid / scale)
     <span class="org-variable-name">color</span> = colorcet.cm[<span class="org-string">'fire_r'</span>]((ratio + .75) / 5)
     ax[i].set_xscale(<span class="org-string">'log'</span>)
-    ax[i].plot(grid, power, lw=1, color=color, label=<span class="org-string">'{:.2g}'</span>.<span class="org-builtin">format</span>(ratio))
+    ax[i].plot(grid, power_, lw=1, color=color, label=<span class="org-string">'{:.2g}'</span>.<span class="org-builtin">format</span>(ratio))
 
     ax[i].axvline(x=rel_effect, c=<span class="org-string">'.75'</span>, lw=1, ls=<span class="org-string">'--'</span>)
     <span class="org-keyword">if</span> i == 2:
@@ -2826,7 +2976,7 @@ fig.tight_layout()
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-09-10 Mon 11:48</p>
+<p class="date">Created: 2018-09-14 Fri 15:55</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
