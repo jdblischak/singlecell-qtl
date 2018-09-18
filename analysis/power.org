@@ -32,7 +32,7 @@
   #+CALL: ipython3(memory="32G", venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 49650587
+  : Submitted batch job 49724312
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -2224,7 +2224,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[43]:
+  # Out[3]:
   :END:
 
 *** Naive approach
@@ -2240,7 +2240,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[44]:
+  # Out[26]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -2513,6 +2513,115 @@
   # Out[92]:
   : (1.473736263327028, 1.3590583370036655)
   :END:
+
+  To understand why the results for the residual variance are different, first
+  look at the distribution of measurement error variances. For reference, put
+  the `vash` estimates on this plot.
+
+  #+BEGIN_SRC ipython :ipyfile figure/power.org/sigma-mik-hist.png
+    with open('deconvolution-results.pkl', 'rb') as f:
+      sigma2_m_mean, sigma2_r_mean, sigma2_m_disp, sigma2_r_disp = pickle.load(f)
+
+    plt.clf()
+    plt.gcf().set_size_inches(3, 3)
+    plt.semilogx()
+    grid = np.logspace(-2, 2, 100)
+
+    f = st.gaussian_kde(log_mean_sampling_var.values.ravel())
+    y = f(grid)
+    plt.plot(grid, y, lw=1, c='k', label=r'$\ln(\mathrm{mean})$')
+    plt.fill_between(grid, y, lw=1, color='k', alpha=0.1)
+    plt.axvline(x=sigma2_m_mean, lw=1, c='k', ls='--')
+
+    f = st.gaussian_kde(disp_sampling_var.values.ravel())
+    y = f(grid)
+    plt.plot(grid, y, lw=1, c='r', label=r'$\ln(\phi)$')
+    plt.fill_between(grid, y, lw=1, color='r', alpha=0.1)
+    plt.axvline(x=sigma2_m_disp, lw=1, c='r', ls='--')
+
+    plt.legend(frameon=False)
+
+    plt.ylim(0, plt.ylim()[1])
+    plt.xlabel(r'Measurement error variance $\sigma^2_{mik}$')
+    _ = plt.ylabel('Density')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[42]:
+  [[file:figure/power.org/sigma-mik-hist.png]]
+  :END:
+
+  Then look at the distribution of estimated per-gene measurement error
+  variances. For reference, put both the `vash` estimate and the naive estimate.q
+
+  #+BEGIN_SRC ipython :ipyfile figure/power.org/sigma-mk.png
+    plt.clf()
+    plt.gcf().set_size_inches(3, 3)
+    plt.semilogx()
+    grid = np.logspace(-2, 2, 100)
+
+    f = st.gaussian_kde(log_mean_sampling_var.median(axis=1))
+    y = f(grid)
+    plt.plot(grid, y, lw=1, c='k', label='$\ln(\\mathrm{mean})$')
+    plt.fill_between(grid, y, lw=1, color='k', alpha=0.1)
+    plt.axvline(x=log_mean_sampling_var.median(axis=1).median(), lw=1, c='k', ls=':')
+    plt.axvline(x=sigma2_m_mean, lw=1, c='k', ls='--')
+
+    f = st.gaussian_kde(disp_sampling_var.median(axis=1))
+    y = f(grid)
+    plt.plot(grid, y, lw=1, c='r', label='$\ln(\phi)$')
+    plt.fill_between(grid, y, lw=1, color='r', alpha=0.1)
+    plt.axvline(x=disp_sampling_var.median(axis=1).median(), lw=1, c='r', ls=':')
+    plt.axvline(x=sigma2_m_disp, lw=1, c='r', ls='--')
+
+    plt.legend(frameon=False)
+
+    plt.ylim(0, plt.ylim()[1])
+    plt.xlabel(r'Measurement error variance $\sigma^2_{mk}$')
+    _ = plt.ylabel('Density')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[45]:
+  [[file:figure/power.org/sigma-mk.png]]
+  :END:
+
+  Look at the distribution of naive residual variance estimates.
+
+  #+BEGIN_SRC ipython :ipyfile figure/power.org/sigma-rk-naive.png
+    plt.clf()
+    plt.gcf().set_size_inches(3, 3)
+    plt.xscale('symlog', linthresh=1e-2)
+    grid = np.linspace(-10, 10, 100)
+
+    sigma2_rk_mean = (np.log(mean_by_ind).var(axis=1) - log_mean_sampling_var.median(axis=1)).dropna()
+    f = st.gaussian_kde(sigma2_rk_mean)
+    y = f(grid)
+    plt.plot(grid, y, lw=1, c='k', label='$\ln(\\mathrm{mean})$')
+    plt.fill_between(grid, y, lw=1, color='k', alpha=0.1)
+
+    sigma2_rk_disp = (log_phi.var(axis=1) - disp_sampling_var.median(axis=1)).dropna()
+    f = st.gaussian_kde(sigma2_rk_disp)
+    y = f(grid)
+    plt.plot(grid, y, lw=1, c='r', label='$\ln(\phi)$')
+    plt.fill_between(grid, y, lw=1, color='r', alpha=0.1)
+
+    plt.legend(frameon=False, loc='center left', bbox_to_anchor=(1, .5))
+
+    plt.xlabel(r'Naive residual variance $\sigma^2_{rk}$')
+    _ = plt.ylabel('Density')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[37]:
+  [[file:figure/power.org/sigma-rk-naive.png]]
+  :END:
+
+  The results suggest the fully naive version will not produce reasonable
+  estimates of the typical residual variance.
 
 ** Dependence of measurement error on experiment size
 

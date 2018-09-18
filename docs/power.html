@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-09-14 Fri 15:55 -->
+<!-- 2018-09-17 Mon 11:09 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Power to detect QTLs in single cell data</title>
@@ -2795,6 +2795,126 @@ delta_mean, delta_disp
 (1.473736263327028, 1.3590583370036655)
 
 </pre>
+
+<p>
+To understand why the results for the residual variance are different, first
+look at the distribution of measurement error variances. For reference, put
+the `vash` estimates on this plot.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">with</span> <span class="org-builtin">open</span>(<span class="org-string">'deconvolution-results.pkl'</span>, <span class="org-string">'rb'</span>) <span class="org-keyword">as</span> f:
+  <span class="org-variable-name">sigma2_m_mean</span>, <span class="org-variable-name">sigma2_r_mean</span>, <span class="org-variable-name">sigma2_m_disp</span>, <span class="org-variable-name">sigma2_r_disp</span> = pickle.load(f)
+
+plt.clf()
+plt.gcf().set_size_inches(3, 3)
+plt.semilogx()
+<span class="org-variable-name">grid</span> = np.logspace(-2, 2, 100)
+
+<span class="org-variable-name">f</span> = st.gaussian_kde(log_mean_sampling_var.values.ravel())
+<span class="org-variable-name">y</span> = f(grid)
+plt.plot(grid, y, lw=1, c=<span class="org-string">'k'</span>, label=r<span class="org-string">'$\ln(\mathrm{mean})$'</span>)
+plt.fill_between(grid, y, lw=1, color=<span class="org-string">'k'</span>, alpha=0.1)
+plt.axvline(x=sigma2_m_mean, lw=1, c=<span class="org-string">'k'</span>, ls=<span class="org-string">'--'</span>)
+
+<span class="org-variable-name">f</span> = st.gaussian_kde(disp_sampling_var.values.ravel())
+<span class="org-variable-name">y</span> = f(grid)
+plt.plot(grid, y, lw=1, c=<span class="org-string">'r'</span>, label=r<span class="org-string">'$\ln(\phi)$'</span>)
+plt.fill_between(grid, y, lw=1, color=<span class="org-string">'r'</span>, alpha=0.1)
+plt.axvline(x=sigma2_m_disp, lw=1, c=<span class="org-string">'r'</span>, ls=<span class="org-string">'--'</span>)
+
+plt.legend(frameon=<span class="org-constant">False</span>)
+
+plt.ylim(0, plt.ylim()[1])
+plt.xlabel(r<span class="org-string">'Measurement error variance $\sigma^2_{mik}$'</span>)
+<span class="org-variable-name">_</span> = plt.ylabel(<span class="org-string">'Density'</span>)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/power.org/sigma-mik-hist.png" alt="sigma-mik-hist.png">
+</p>
+</div>
+
+<p>
+Then look at the distribution of estimated per-gene measurement error
+variances. For reference, put both the `vash` estimate and the naive estimate.q
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.gcf().set_size_inches(3, 3)
+plt.semilogx()
+<span class="org-variable-name">grid</span> = np.logspace(-2, 2, 100)
+
+<span class="org-variable-name">f</span> = st.gaussian_kde(log_mean_sampling_var.median(axis=1))
+<span class="org-variable-name">y</span> = f(grid)
+plt.plot(grid, y, lw=1, c=<span class="org-string">'k'</span>, label=<span class="org-string">'$\ln(\\mathrm{mean})$'</span>)
+plt.fill_between(grid, y, lw=1, color=<span class="org-string">'k'</span>, alpha=0.1)
+plt.axvline(x=log_mean_sampling_var.median(axis=1).median(), lw=1, c=<span class="org-string">'k'</span>, ls=<span class="org-string">':'</span>)
+plt.axvline(x=sigma2_m_mean, lw=1, c=<span class="org-string">'k'</span>, ls=<span class="org-string">'--'</span>)
+
+<span class="org-variable-name">f</span> = st.gaussian_kde(disp_sampling_var.median(axis=1))
+<span class="org-variable-name">y</span> = f(grid)
+plt.plot(grid, y, lw=1, c=<span class="org-string">'r'</span>, label=<span class="org-string">'$\ln(\phi)$'</span>)
+plt.fill_between(grid, y, lw=1, color=<span class="org-string">'r'</span>, alpha=0.1)
+plt.axvline(x=disp_sampling_var.median(axis=1).median(), lw=1, c=<span class="org-string">'r'</span>, ls=<span class="org-string">':'</span>)
+plt.axvline(x=sigma2_m_disp, lw=1, c=<span class="org-string">'r'</span>, ls=<span class="org-string">'--'</span>)
+
+plt.legend(frameon=<span class="org-constant">False</span>)
+
+plt.ylim(0, plt.ylim()[1])
+plt.xlabel(r<span class="org-string">'Measurement error variance $\sigma^2_{mk}$'</span>)
+<span class="org-variable-name">_</span> = plt.ylabel(<span class="org-string">'Density'</span>)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/power.org/sigma-mk.png" alt="sigma-mk.png">
+</p>
+</div>
+
+<p>
+Look at the distribution of naive residual variance estimates.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.gcf().set_size_inches(3, 3)
+plt.xscale(<span class="org-string">'symlog'</span>, linthresh=1e-2)
+<span class="org-variable-name">grid</span> = np.linspace(-10, 10, 100)
+
+<span class="org-variable-name">sigma2_rk_mean</span> = (np.log(mean_by_ind).var(axis=1) - log_mean_sampling_var.median(axis=1)).dropna()
+<span class="org-variable-name">f</span> = st.gaussian_kde(sigma2_rk_mean)
+<span class="org-variable-name">y</span> = f(grid)
+plt.plot(grid, y, lw=1, c=<span class="org-string">'k'</span>, label=<span class="org-string">'$\ln(\\mathrm{mean})$'</span>)
+plt.fill_between(grid, y, lw=1, color=<span class="org-string">'k'</span>, alpha=0.1)
+
+<span class="org-variable-name">sigma2_rk_disp</span> = (log_phi.var(axis=1) - disp_sampling_var.median(axis=1)).dropna()
+<span class="org-variable-name">f</span> = st.gaussian_kde(sigma2_rk_disp)
+<span class="org-variable-name">y</span> = f(grid)
+plt.plot(grid, y, lw=1, c=<span class="org-string">'r'</span>, label=<span class="org-string">'$\ln(\phi)$'</span>)
+plt.fill_between(grid, y, lw=1, color=<span class="org-string">'r'</span>, alpha=0.1)
+
+plt.legend(frameon=<span class="org-constant">False</span>, loc=<span class="org-string">'center left'</span>, bbox_to_anchor=(1, .5))
+
+plt.xlabel(r<span class="org-string">'Naive residual variance $\sigma^2_{rk}$'</span>)
+<span class="org-variable-name">_</span> = plt.ylabel(<span class="org-string">'Density'</span>)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/power.org/sigma-rk-naive.png" alt="sigma-rk-naive.png">
+</p>
+</div>
+
+<p>
+The results suggest the fully naive version will not produce reasonable
+estimates of the typical residual variance.
+</p>
 </div>
 </div>
 </div>
@@ -2976,7 +3096,7 @@ fig.tight_layout()
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-09-14 Fri 15:55</p>
+<p class="date">Created: 2018-09-17 Mon 11:09</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
