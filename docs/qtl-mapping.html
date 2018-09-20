@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-09-17 Mon 11:09 -->
+<!-- 2018-09-20 Thu 10:51 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>QTL mapping pipeline</title>
@@ -1427,7 +1427,7 @@ Estimate the moments of latent gene expression. We have:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org946fac5"><span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<pre class="src src-ipython" id="org09cb514"><span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
 <span class="org-variable-name">log_phi</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-phi.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
 <span class="org-variable-name">logodds</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-logodds.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
 <span class="org-keyword">for</span> x <span class="org-keyword">in</span> (log_mu, log_phi, logodds):
@@ -1561,7 +1561,7 @@ Estimate the moments of latent gene expression. We have:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org09cb514"><span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<pre class="src src-ipython" id="orgcd6a8f1"><span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
 <span class="org-variable-name">log_phi</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-phi.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
 <span class="org-variable-name">logodds</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-logodds.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
 <span class="org-keyword">for</span> x <span class="org-keyword">in</span> (log_mu, log_phi, logodds):
@@ -1772,9 +1772,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-orgf06fa5f" class="outline-3">
-<h3 id="orgf06fa5f">Call variance-QTLs</h3>
-<div class="outline-text-3" id="text-orgf06fa5f">
+<div id="outline-container-orgb379a97" class="outline-3">
+<h3 id="orgb379a97">Call variance-QTLs</h3>
+<div class="outline-text-3" id="text-orgb379a97">
 <p>
 Normalize the variance matrix. Restrict to genes with \(\ln\mu > 0.5\) in at
 least half the individuals.
@@ -1880,9 +1880,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-org6a0b1f7" class="outline-3">
-<h3 id="org6a0b1f7">Call CV-QTLs</h3>
-<div class="outline-text-3" id="text-org6a0b1f7">
+<div id="outline-container-org759fb36" class="outline-3">
+<h3 id="org759fb36">Call CV-QTLs</h3>
+<div class="outline-text-3" id="text-org759fb36">
 <p>
 Estimate the coefficient of variation.
 </p>
@@ -2093,9 +2093,9 @@ Take QTLs at FDR 10%.
 <h2 id="orgd48269b">Explain away variance QTLs</h2>
 <div class="outline-text-2" id="text-orgd48269b">
 </div>
-<div id="outline-container-orgb379a97" class="outline-3">
-<h3 id="orgb379a97">Call variance-QTLs</h3>
-<div class="outline-text-3" id="text-orgb379a97">
+<div id="outline-container-org31b2a32" class="outline-3">
+<h3 id="org31b2a32">Call variance-QTLs</h3>
+<div class="outline-text-3" id="text-org31b2a32">
 <p>
 Regress out mean from variance.
 </p>
@@ -2211,9 +2211,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-org759fb36" class="outline-3">
-<h3 id="org759fb36">Call CV-QTLs</h3>
-<div class="outline-text-3" id="text-org759fb36">
+<div id="outline-container-org14d2da9" class="outline-3">
+<h3 id="org14d2da9">Call CV-QTLs</h3>
+<div class="outline-text-3" id="text-org14d2da9">
 <p>
 Estimate the coefficient of variation.
 </p>
@@ -3369,7 +3369,7 @@ ENSG00000108528   SLC25A11
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-09-17 Mon 11:09</p>
+<p class="date">Created: 2018-09-20 Thu 10:51</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
