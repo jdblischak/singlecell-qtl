@@ -278,7 +278,7 @@
                                       name=name_scope)
 
     def fit(umi, onehot, size_factor, design, learning_rate=1e-2, max_epochs=1000,
-            fit_null=False, return_llik=False, warm_start=None):
+            fit_null=False, return_llik=False, return_beta=False, warm_start=None):
       """Return estimated log mean and log dispersion. 
 
       umi - count matrix (n x p; float32)
@@ -338,6 +338,8 @@
         opt = [tf.log(mean), -tf.log(inv_disp), logodds]
         if return_llik:
           opt.append(tf.reduce_sum(llik, axis=0))
+        if return_beta:
+          opt.append(beta)
         curr = float('-inf')
         with tf.Session() as sess:
           sess.run(tf.global_variables_initializer())
@@ -653,16 +655,19 @@
      args = parser.parse_args()
      <<read-data-qc-impl>>
      <<prepare-covars>>
-     log_mu, log_phi, logodds = fit(
+     log_mu, log_phi, logodds, beta = fit(
        umi=umi.T.astype(np.float32),
        onehot=onehot.astype(np.float32),
        design=designs[args.design].astype(np.float32),
        size_factor=annotations['mol_hs'].astype(np.float32).values.reshape(-1, 1),
        learning_rate=5e-2,
-       max_epochs=4000)
+       max_epochs=4000,
+       return_beta=True,
+     )
      pd.DataFrame(log_mu.T, index=index, columns=header).to_csv('zi2-log-mu.txt.gz', sep=' ', compression='gzip')
      pd.DataFrame(log_phi.T, index=index, columns=header).to_csv('zi2-log-phi.txt.gz', sep=' ', compression='gzip')
      pd.DataFrame(logodds.T, index=index, columns=header).to_csv('zi2-logodds.txt.gz', sep=' ', compression='gzip')
+     pd.DataFrame(beta.T, index=index).to_csv('beta.txt.gz', sep=' ', compression='gzip')
    #+END_SRC
 
    #+NAME: run-tf-zinb
@@ -2006,3 +2011,75 @@
   # Out[59]:
   [[file:figure/zinb.org/example.svg]]
   :END:
+
+* Evaluating goodness of fit
+
+  To test whether the model actually fit the data, we can use a simple fact: if
+  
+  \[ r_{ijk} \sim f_{ijk}(\cdot) \]
+
+  then
+
+  \[ F_{ijk}^{-1}(r_{ijk}) \sim \mathrm{Uniform}(0, 1) \]
+
+  and we can use e.g. the Kolmogorov-Smirnov test to test for departures from
+  uniformity.
+
+  #+CALL: recode-impl()
+
+  Read the estimated parameters.
+
+  #+BEGIN_SRC ipython
+    log_mu = pd.read_table("/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-log-mu.txt.gz", index_col=0, sep=' ')
+    log_phi = pd.read_table("/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-log-phi.txt.gz", index_col=0, sep=' ')
+    logodds = pd.read_table("/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-logodds.txt.gz", index_col=0, sep=' ')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[26]:
+  :END:
+
+  Read the annotations.
+
+  #+BEGIN_SRC ipython
+    keep_samples = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
+    annotations = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
+    annotations = annotations.loc[keep_samples.values.ravel()]
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[27]:
+  :END:
+
+  #+CALL: recode-impl()
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[28]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    onehot = recode(annotations, 'chip_id')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[29]:
+  :END:
+
+  Get the inverse CDF of the data.
+
+  #+BEGIN_SRC ipython
+    n = np.exp(-params['log_phi'])
+    p = 1 / (1 + np.outer(umi['size'], np.exp(params['log_mu'] + params['log_phi'])))
+    assert (n > 0).all(), 'n must be non-negative'
+    assert (p >= 0).all(), 'p must be non-negative'
+    assert (p <= 1).all(), 'p must be <= 1'
+    G = st.nbinom(n=n.values.ravel(), p=p.ravel()).pmf
+    pmf = np.array([G(x).mean() for x in grid])
+    if np.isfinite(params.iloc[0]['logodds']):
+      pmf *= sp.expit(-params['logodds']).values
+      pmf[0] += sp.expit(params['logodds']).values
+  #+END_SRC
