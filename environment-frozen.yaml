@@ -10,6 +10,7 @@ channels:
 dependencies:
 - blas=1.0=mkl
 - libgfortran-ng=7.2.0=hdf63c60_3
+- libiconv=1.15=h63c8f33_5
 - libopenblas=0.2.20=h9ac9557_7
 - numpy=1.14.3=py35hcd700cb_2
 - numpy-base=1.14.3=py35h0ea5e3f_1
@@ -31,7 +32,6 @@ dependencies:
 - multiqc=1.3=py35_2
 - pysam=0.11.2.2=py35_1
 - r-data.table=1.10.4=r3.4.1_0
-- r-purrr=0.2.2=1
 - samtools=1.5=1
 - snakemake=4.4.0=py35_0
 - sra-tools=2.8.2=0
@@ -58,7 +58,7 @@ dependencies:
 - colormath=2.1.1=py35_1
 - configargparse=0.12.0=py35_0
 - cryptography=2.1.4=py35_0
-- curl=7.55.1=0
+- curl=7.54.1=0
 - cycler=0.10.0=py35_0
 - cython=0.27.3=py35_0
 - dbus=1.10.22=0
@@ -101,7 +101,6 @@ dependencies:
 - jupyter_core=4.4.0=py_0
 - krb5=1.14.2=0
 - libffi=3.2.1=3
-- libiconv=1.15=0
 - libpng=1.6.34=0
 - libsodium=1.0.15=1
 - libssh2=1.8.0=2
@@ -242,6 +241,7 @@ dependencies:
 - r-plyr=1.8.4=r3.4.1_0
 - r-prettyunits=1.0.2=r3.4.1_0
 - r-progress=1.1.2=r3.4.1_0
+- r-purrr=0.2.2=r3.4.1_0
 - r-quantreg=5.33=r3.4.1_0
 - r-r.methodss3=1.7.1=r3.4.1_0
 - r-r.oo=1.21.0=r3.4.1_0
@@ -338,15 +338,6 @@ dependencies:
 - r-workflowr=0.11.0=r3.4.1_0
 - bioconductor-scde=1.99.1=r3.4.1_0
 - pip:
-  - backports.functools-lru-cache==1.4
-  - ipython-genutils==0.2.0
-  - jupyter-client==5.2.1
-  - jupyter-console==5.2.0
-  - jupyter-core==4.4.0
-  - mkl-fft==1.0.2
-  - mkl-random==1.0.1
-  - prompt-toolkit==1.0.15
   - tensorflow==1.3.0
-  - umi-tools==0.5.3
 prefix: /project2/gilad/jdblischak/miniconda3/envs/scqtl
 
