@@ -64,15 +64,16 @@
 
   #+BEGIN_SRC emacs-lisp
     (org-babel-lob-ingest "/home/aksarkar/.emacs.d/org-templates/library.org")
+    (org-babel-lob-ingest "zinb.org")
   #+END_SRC
 
   #+RESULTS:
-  : 1
+  : 19
 
   #+CALL: ipython3(memory="16G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 47294314
+  : Submitted batch job 53595685
 
   #+NAME: zinb-imports
   #+BEGIN_SRC ipython
@@ -99,7 +100,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[10]:
+  # Out[2]:
   :END:
 
   #+NAME: tf-imports
@@ -363,6 +364,7 @@
      <<tf-imports>>
      <<sim-impl>>
      <<tf-zinb-impl>>
+     <<zinb-diagnostic>>
 
      def evaluate(num_samples, num_mols, num_trials=10):
        # This will be reset inside the simulation to generate counts, but we need to
@@ -385,7 +387,7 @@
          design=design.astype(np.float32),
          size_factor=(num_mols * np.ones((num_samples * num_trials, 1))).astype(np.float32),
          learning_rate=5e-2,
-         max_epochs=4000)
+         max_epochs=8000)
        result = pd.DataFrame(
          [(a[0] // num_trials, int(a[1]), int(a[2]), int(a[3]), int(a[4]), a[-1], trial)
           for a in args
@@ -400,23 +402,26 @@
        log_cpm = np.log(np.ma.masked_values(umi.reshape(num_trials, -1, umi.shape[-1]), 0)) - np.log(num_mols) + 6 * np.log(10)
        result['mean_log_cpm'] = log_cpm.mean(axis=1).ravel(order='F')
        result['var_log_cpm'] = log_cpm.var(axis=1).ravel(order='F')
+
+       diagnostic = []
+       for k, x in umi.iterrows():
+         diagnostic.append(diagnostic_test(x, log_mu.loc[k], log_phi.loc[k], logodds.loc[k], annotations['mol_hs'], onehot))
+       result['diagnostic'] = diagnostic
        return result
 
-     res = pd.concat([evaluate(num_samples, num_mols)
-                      for num_samples in (10000, 1000, 95)
-                      for num_mols in (114026, 500000, 1000000)])
+     res = evaluate(num_samples=95, num_mols=114026)
      res.to_csv('simulation.txt.gz', compression='gzip', sep='\t')
    #+END_SRC
 
    #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation/
-     sbatch --partition=gpu --gres=gpu:1 --mem=16G --job-name=tf-sim --output=sim.out
+     sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --time=240 --job-name=tf-sim --output=sim.out
      #!/bin/bash
      source activate scqtl
      python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-sim.py
    #+END_SRC
 
    #+RESULTS:
-   : Submitted batch job 47292972
+   : Submitted batch job 53610363
 
    Read the results.
 
@@ -682,16 +687,10 @@
      pushd design1
      python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb.py --design 1
      popd
-     pushd design2
-     python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb.py --design 2
-     popd
-     pushd design3
-     python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb.py --design 3
-     popd
    #+END_SRC
 
    #+RESULTS: run-tf-zinb
-   : Submitted batch job 47228454
+   : Submitted batch job 53395778
 
    #+NAME: rsync
    #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation/
@@ -699,14 +698,14 @@
      #!/bin/bash
      cat >.rsync-filter <<EOF
      + */
-     + zi2*.txt.gz
+     + *.txt.gz
      - *
      EOF
      rsync -FFau --delete . /project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/
    #+END_SRC
 
    #+RESULTS: rsync
-   : Submitted batch job 47231145
+   : Submitted batch job 53397616
 
 * numpy/scipy implementation                                       :noexport:
 
@@ -2020,24 +2019,95 @@
 
   then
 
-  \[ F_{ijk}^{-1}(r_{ijk}) \sim \mathrm{Uniform}(0, 1) \]
+  \[ F_{ijk}(r_{ijk}) \sim \mathrm{Uniform}(0, 1) \]
 
   and we can use e.g. the Kolmogorov-Smirnov test to test for departures from
   uniformity.
 
-  #+CALL: recode-impl()
+  We need to account for the fact that the support of \(f\) is discrete, and
+  therefore \(F\) is discontinuous. This can be done by randomizing ([[https://www.jstor.org/stable/1390802][Dunn and
+  Smyth 1996]], [[https://arxiv.org/abs/1708.08527][Feng et al. 2017]]):
 
-  Read the estimated parameters.
+  \[ a_{ijk} = \lim_{x\rightarrow r_{ijk}^-} F_{ijk}(x) \]
 
+  \[ b_{ijk} = F_{ijk}(r_{ijk}) \]
+
+  \[ u_{ijk} \sim \mathrm{Uniform}(a_{ijk}, b_{ijk}) \]
+
+  Simulate small examples.
+  
   #+BEGIN_SRC ipython
-    log_mu = pd.read_table("/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-log-mu.txt.gz", index_col=0, sep=' ')
-    log_phi = pd.read_table("/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-log-phi.txt.gz", index_col=0, sep=' ')
-    logodds = pd.read_table("/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-logodds.txt.gz", index_col=0, sep=' ')
+    def simulate_nb_diagnostic(pi0=None, seed=0):
+      np.random.seed(seed)
+      N = 1000
+      x = st.nbinom(n=4, p=.5).rvs(N)
+      if pi0 is not None:
+        y = np.random.uniform(size=N) < pi0
+        x[y] = 0
+      cdf = st.nbinom(n=4, p=.5).cdf(x - 1)
+      pmf = st.nbinom(n=4, p=.5).pmf(x)
+      if pi0 is not None:
+        cdf = np.where(x > 0, pi0 + (1 - pi0) * cdf, cdf)
+        pmf *= (1 - pi0)
+        pmf[x == 0] += pi0
+      rpp = cdf + np.random.uniform(size=N) * pmf
+      _, p1 = st.kstest(rpp, 'uniform')
+      nrpp = st.norm().ppf(rpp)
+      _, p2 = st.shapiro(nrpp)
+      return pi0, seed, p1, p2
+
+    pd.DataFrame([simulate_nb_diagnostic(pi0=pi0, seed=trial) for pi0 in (None, 0.01, 0.1) for trial in range(10)], columns=['pi0', 'trial', 'ks', 'sw'])
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[26]:
+  # Out[50]:
+  #+BEGIN_EXAMPLE
+    pi0  trial        ks        sw
+    0    NaN      0  0.030844  0.145921
+    1    NaN      1  0.922857  0.579844
+    2    NaN      2  0.096322  0.995171
+    3    NaN      3  0.425145  0.748691
+    4    NaN      4  0.839172  0.158713
+    5    NaN      5  0.193963  0.305555
+    6    NaN      6  0.645417  0.229020
+    7    NaN      7  0.442194  0.935033
+    8    NaN      8  0.462132  0.280841
+    9    NaN      9  0.883011  0.262984
+    10  0.01      0  0.065004  0.665126
+    11  0.01      1  0.627508  0.902265
+    12  0.01      2  0.061377  0.783419
+    13  0.01      3  0.492274  0.544046
+    14  0.01      4  0.322213  0.120402
+    15  0.01      5  0.170058  0.108539
+    16  0.01      6  0.595968  0.637531
+    17  0.01      7  0.430416  0.812700
+    18  0.01      8  0.599287  0.258203
+    19  0.01      9  0.932962  0.191678
+    20  0.10      0  0.009072  0.263614
+    21  0.10      1  0.905894  0.899727
+    22  0.10      2  0.013516  0.702477
+    23  0.10      3  0.884857  0.659797
+    24  0.10      4  0.858585  0.516515
+    25  0.10      5  0.377873  0.372610
+    26  0.10      6  0.785309  0.800714
+    27  0.10      7  0.109332  0.307531
+    28  0.10      8  0.661486  0.359344
+    29  0.10      9  0.984754  0.085754
+  #+END_EXAMPLE
+  :END:
+
+  Read the estimated parameters.
+
+  #+BEGIN_SRC ipython
+    log_mu = pd.read_table("/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-log-mu.txt.gz", index_col=0, sep=' ')
+    log_phi = pd.read_table("/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-log-phi.txt.gz", index_col=0, sep=' ')
+    logodds = pd.read_table("/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-logodds.txt.gz", index_col=0, sep=' ')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[51]:
   :END:
 
   Read the annotations.
@@ -2050,14 +2120,14 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[27]:
+  # Out[52]:
   :END:
 
   #+CALL: recode-impl()
 
   #+RESULTS:
   :RESULTS:
-  # Out[28]:
+  # Out[53]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -2066,20 +2136,90 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[29]:
+  # Out[54]:
   :END:
 
-  Get the inverse CDF of the data.
+  #+BEGIN_SRC ipython
+    chip = recode(annotations, 'experiment')
+    chip -= chip.mean(axis=0)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[55]:
+  :END:
+
+  Implement the diagnostic test.
+
+  #+NAME: zinb-diagnostic
+  #+BEGIN_SRC ipython
+    def diagnostic_test(x, log_mu, log_phi, logodds, size, onehot):
+      n = onehot.dot(np.exp(-log_phi))
+      pi0 = onehot.dot(sp.expit(-logodds))
+      p = 1 / (1 + (annotations['mol_hs'] * onehot.dot(np.exp(log_mu + log_phi))))
+
+      cdf = st.nbinom(n=n, p=p).cdf(x - 1)
+      # Important: this excludes the right endpoint, so we need to special case x =
+      # 0
+      cdf = np.where(x > 0, pi0 + (1 - pi0) * cdf, cdf)
+      pmf = st.nbinom(n=n, p=p).pmf(x)
+      pmf *= (1 - pi0)
+      pmf[x == 0] += pi0[x == 0]
+      rpp = cdf + np.random.uniform(size=x.shape[0]) * pmf
+      nrpp = st.norm().ppf(rpp)
+      return st.shapiro(nrpp)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[60]:
+  :END:
 
   #+BEGIN_SRC ipython
-    n = np.exp(-params['log_phi'])
-    p = 1 / (1 + np.outer(umi['size'], np.exp(params['log_mu'] + params['log_phi'])))
-    assert (n > 0).all(), 'n must be non-negative'
-    assert (p >= 0).all(), 'p must be non-negative'
-    assert (p <= 1).all(), 'p must be <= 1'
-    G = st.nbinom(n=n.values.ravel(), p=p.ravel()).pmf
-    pmf = np.array([G(x).mean() for x in grid])
-    if np.isfinite(params.iloc[0]['logodds']):
-      pmf *= sp.expit(-params['logodds']).values
-      pmf[0] += sp.expit(params['logodds']).values
+    keep_genes = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt', index_col=0, header=None)
+
+    result = []
+    for chunk in pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', index_col=0, chunksize=100):
+      chunk = chunk.loc[:,keep_samples.values.ravel()].filter(items=log_mu.index, axis='index')
+      if chunk.empty:
+        continue
+      for k, x in chunk.iterrows():
+        result.append(diagnostic_test(x, log_mu.loc[k], log_phi.loc[k], logodds.loc[k], annotations['mol_hs'], onehot))
+      break
   #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[61]:
+  :END:
+
+  Try and generate new data from the estimated parameters, and compare it to
+  the real data.
+
+  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/ppc.png
+    def sample(log_mu, log_phi, logodds, size, onehot):
+      n = onehot.dot(np.exp(-log_phi))
+      p = 1 / (1 + (annotations['mol_hs'] * onehot.dot(np.exp(log_mu + log_phi))))
+      res = st.nbinom(n=n, p=p).rvs(size=onehot.shape[0])
+      pi0 = onehot.dot(sp.expit(logodds))
+      y = np.random.uniform(size=onehot.shape[0]) < pi0
+      res[y] = 0
+      return res
+
+    k = 'ENSG00000005486'
+
+    plt.clf()
+    plt.gcf().set_size_inches(3, 3)
+    plt.hist(chunk.loc[k], histtype='step', lw=3, color='black', bins=chunk.loc[k].max())
+    for _ in range(5):
+      plt.hist(sample(log_mu.loc[k], log_phi.loc[k], logodds.loc[k], annotations['mol_hs'], onehot), histtype='step', bins=chunk.loc[k].max())
+    plt.xlabel('UMI count')
+    _ = plt.ylabel('Number of cells')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[69]:
+  [[file:figure/zinb.org/ppc.png]]
+  :END:
+
