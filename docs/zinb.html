@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-09-17 Mon 11:09 -->
+<!-- 2018-11-27 Tue 14:52 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mean/dispersion estimation</title>
@@ -509,7 +509,7 @@ perform gradient descent.
                                   name=name_scope)
 
 <span class="org-keyword">def</span> <span class="org-function-name">fit</span>(umi, onehot, size_factor, design, learning_rate=1e-2, max_epochs=1000,
-        fit_null=<span class="org-constant">False</span>, return_llik=<span class="org-constant">False</span>, warm_start=<span class="org-constant">None</span>):
+        fit_null=<span class="org-constant">False</span>, return_llik=<span class="org-constant">False</span>, return_beta=<span class="org-constant">False</span>, warm_start=<span class="org-constant">None</span>):
   <span class="org-doc">"""Return estimated log mean and log dispersion. </span>
 
 <span class="org-doc">  umi - count matrix (n x p; float32)</span>
@@ -569,6 +569,8 @@ perform gradient descent.
     <span class="org-variable-name">opt</span> = [tf.log(mean), -tf.log(inv_disp), logodds]
     <span class="org-keyword">if</span> return_llik:
       opt.append(tf.reduce_sum(llik, axis=0))
+    <span class="org-keyword">if</span> return_beta:
+      opt.append(beta)
     <span class="org-variable-name">curr</span> = <span class="org-builtin">float</span>(<span class="org-string">'-inf'</span>)
     <span class="org-keyword">with</span> tf.Session() <span class="org-keyword">as</span> sess:
       sess.run(tf.global_variables_initializer())
@@ -591,6 +593,7 @@ perform gradient descent.
 &lt;&lt;tf-imports&gt;&gt;
 &lt;&lt;sim-impl&gt;&gt;
 &lt;&lt;tf-zinb-impl&gt;&gt;
+&lt;&lt;zinb-diagnostic&gt;&gt;
 
 <span class="org-keyword">def</span> <span class="org-function-name">evaluate</span>(num_samples, num_mols, num_trials=10):
   <span class="org-comment-delimiter"># </span><span class="org-comment">This will be reset inside the simulation to generate counts, but we need to</span>
@@ -613,7 +616,7 @@ perform gradient descent.
     design=design.astype(np.float32),
     size_factor=(num_mols * np.ones((num_samples * num_trials, 1))).astype(np.float32),
     learning_rate=5e-2,
-    max_epochs=4000)
+    max_epochs=8000)
   <span class="org-variable-name">result</span> = pd.DataFrame(
     [(a[0] // num_trials, <span class="org-builtin">int</span>(a[1]), <span class="org-builtin">int</span>(a[2]), <span class="org-builtin">int</span>(a[3]), <span class="org-builtin">int</span>(a[4]), a[-1], trial)
      <span class="org-keyword">for</span> a <span class="org-keyword">in</span> args
@@ -628,17 +631,20 @@ perform gradient descent.
   <span class="org-variable-name">log_cpm</span> = np.log(np.ma.masked_values(umi.reshape(num_trials, -1, umi.shape[-1]), 0)) - np.log(num_mols) + 6 * np.log(10)
   <span class="org-variable-name">result</span>[<span class="org-string">'mean_log_cpm'</span>] = log_cpm.mean(axis=1).ravel(order=<span class="org-string">'F'</span>)
   <span class="org-variable-name">result</span>[<span class="org-string">'var_log_cpm'</span>] = log_cpm.var(axis=1).ravel(order=<span class="org-string">'F'</span>)
+
+  <span class="org-variable-name">diagnostic</span> = []
+  <span class="org-keyword">for</span> k, x <span class="org-keyword">in</span> umi.iterrows():
+    diagnostic.append(diagnostic_test(x, log_mu.loc[k], log_phi.loc[k], logodds.loc[k], annotations[<span class="org-string">'mol_hs'</span>], onehot))
+  <span class="org-variable-name">result</span>[<span class="org-string">'diagnostic'</span>] = diagnostic
   <span class="org-keyword">return</span> result
 
-<span class="org-variable-name">res</span> = pd.concat([evaluate(num_samples, num_mols)
-                 <span class="org-keyword">for</span> num_samples <span class="org-keyword">in</span> (10000, 1000, 95)
-                 <span class="org-keyword">for</span> num_mols <span class="org-keyword">in</span> (114026, 500000, 1000000)])
+<span class="org-variable-name">res</span> = evaluate(num_samples=95, num_mols=114026)
 res.to_csv(<span class="org-string">'simulation.txt.gz'</span>, compression=<span class="org-string">'gzip'</span>, sep=<span class="org-string">'\t'</span>)
 </pre>
 </div>
 
 <div class="org-src-container">
-<pre class="src src-sh">sbatch --partition=gpu --gres=gpu:1 --mem=16G --job-name=tf-sim --output=sim.out
+<pre class="src src-sh">sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --time=240 --job-name=tf-sim --output=sim.out
 <span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
 <span class="org-builtin">source</span> activate scqtl
 python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-sim.py
@@ -646,7 +652,7 @@ python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-sim.py
 </div>
 
 <pre class="example">
-Submitted batch job 47292972
+Submitted batch job 53610363
 
 </pre>
 
@@ -883,16 +889,19 @@ parser.add_argument(<span class="org-string">'--design'</span>, <span class="org
 <span class="org-variable-name">args</span> = parser.parse_args()
 &lt;&lt;read-data-qc-impl&gt;&gt;
 &lt;&lt;prepare-covars&gt;&gt;
-<span class="org-variable-name">log_mu</span>, <span class="org-variable-name">log_phi</span>, <span class="org-variable-name">logodds</span> = fit(
+<span class="org-variable-name">log_mu</span>, <span class="org-variable-name">log_phi</span>, <span class="org-variable-name">logodds</span>, <span class="org-variable-name">beta</span> = fit(
   umi=umi.T.astype(np.float32),
   onehot=onehot.astype(np.float32),
   design=designs[args.design].astype(np.float32),
   size_factor=annotations[<span class="org-string">'mol_hs'</span>].astype(np.float32).values.reshape(-1, 1),
   learning_rate=5e-2,
-  max_epochs=4000)
+  max_epochs=4000,
+  return_beta=<span class="org-constant">True</span>,
+)
 pd.DataFrame(log_mu.T, index=index, columns=header).to_csv(<span class="org-string">'zi2-log-mu.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
 pd.DataFrame(log_phi.T, index=index, columns=header).to_csv(<span class="org-string">'zi2-log-phi.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
 pd.DataFrame(logodds.T, index=index, columns=header).to_csv(<span class="org-string">'zi2-logodds.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
+pd.DataFrame(beta.T, index=index).to_csv(<span class="org-string">'beta.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
 </pre>
 </div>
 
@@ -907,17 +916,11 @@ python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb.py --de
 <span class="org-builtin">pushd</span> design1
 python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb.py --design 1
 <span class="org-builtin">popd</span>
-<span class="org-builtin">pushd</span> design2
-python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb.py --design 2
-<span class="org-builtin">popd</span>
-<span class="org-builtin">pushd</span> design3
-python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb.py --design 3
-<span class="org-builtin">popd</span>
 </pre>
 </div>
 
 <pre class="example">
-Submitted batch job 47228454
+Submitted batch job 53395778
 
 </pre>
 
@@ -926,7 +929,7 @@ Submitted batch job 47228454
 <span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
 cat &gt;.rsync-filter &lt;&lt;EOF
 <span class="org-sh-heredoc">+ */</span>
-<span class="org-sh-heredoc">+ zi2*.txt.gz</span>
+<span class="org-sh-heredoc">+ *.txt.gz</span>
 <span class="org-sh-heredoc">- *</span>
 <span class="org-sh-heredoc">EOF</span>
 rsync -FFau --delete . /project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/
@@ -934,7 +937,7 @@ rsync -FFau --delete . /project2/mstephens/aksarkar/projects/singlecell-qtl/data
 </div>
 
 <pre class="example">
-Submitted batch job 47231145
+Submitted batch job 53397616
 
 </pre>
 </div>
@@ -1477,10 +1480,219 @@ Sorry, your browser does not support SVG.</object>
 </div>
 </div>
 </div>
+
+<div id="outline-container-org92a80c6" class="outline-2">
+<h2 id="org92a80c6">Evaluating goodness of fit</h2>
+<div class="outline-text-2" id="text-org92a80c6">
+<p>
+To test whether the model actually fit the data, we can use a simple fact: if
+</p>
+
+<p>
+\[ r_{ijk} \sim f_{ijk}(\cdot) \]
+</p>
+
+<p>
+then
+</p>
+
+<p>
+\[ F_{ijk}(r_{ijk}) \sim \mathrm{Uniform}(0, 1) \]
+</p>
+
+<p>
+and we can use e.g. the Kolmogorov-Smirnov test to test for departures from
+uniformity.
+</p>
+
+<p>
+We need to account for the fact that the support of \(f\) is discrete, and
+therefore \(F\) is discontinuous. This can be done by randomizing (<a href="https://www.jstor.org/stable/1390802">Dunn and
+Smyth 1996</a>, <a href="https://arxiv.org/abs/1708.08527">Feng et al. 2017</a>):
+</p>
+
+<p>
+\[ a_{ijk} = \lim_{x\rightarrow r_{ijk}^-} F_{ijk}(x) \]
+</p>
+
+<p>
+\[ b_{ijk} = F_{ijk}(r_{ijk}) \]
+</p>
+
+<p>
+\[ u_{ijk} \sim \mathrm{Uniform}(a_{ijk}, b_{ijk}) \]
+</p>
+
+<p>
+Simulate small examples.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">simulate_nb_diagnostic</span>(pi0=<span class="org-constant">None</span>, seed=0):
+  np.random.seed(seed)
+  <span class="org-variable-name">N</span> = 1000
+  <span class="org-variable-name">x</span> = st.nbinom(n=4, p=.5).rvs(N)
+  <span class="org-keyword">if</span> pi0 <span class="org-keyword">is</span> <span class="org-keyword">not</span> <span class="org-constant">None</span>:
+    <span class="org-variable-name">y</span> = np.random.uniform(size=N) &lt; pi0
+    <span class="org-variable-name">x</span>[y] = 0
+  <span class="org-variable-name">cdf</span> = st.nbinom(n=4, p=.5).cdf(x - 1)
+  <span class="org-variable-name">pmf</span> = st.nbinom(n=4, p=.5).pmf(x)
+  <span class="org-keyword">if</span> pi0 <span class="org-keyword">is</span> <span class="org-keyword">not</span> <span class="org-constant">None</span>:
+    <span class="org-variable-name">cdf</span> = np.where(x &gt; 0, pi0 + (1 - pi0) * cdf, cdf)
+    <span class="org-variable-name">pmf</span> *= (1 - pi0)
+    <span class="org-variable-name">pmf</span>[x == 0] += pi0
+  <span class="org-variable-name">rpp</span> = cdf + np.random.uniform(size=N) * pmf
+  <span class="org-variable-name">_</span>, <span class="org-variable-name">p1</span> = st.kstest(rpp, <span class="org-string">'uniform'</span>)
+  <span class="org-variable-name">nrpp</span> = st.norm().ppf(rpp)
+  <span class="org-variable-name">_</span>, <span class="org-variable-name">p2</span> = st.shapiro(nrpp)
+  <span class="org-keyword">return</span> pi0, seed, p1, p2
+
+pd.DataFrame([simulate_nb_diagnostic(pi0=pi0, seed=trial) <span class="org-keyword">for</span> pi0 <span class="org-keyword">in</span> (<span class="org-constant">None</span>, 0.01, 0.1) <span class="org-keyword">for</span> trial <span class="org-keyword">in</span> <span class="org-builtin">range</span>(10)], columns=[<span class="org-string">'pi0'</span>, <span class="org-string">'trial'</span>, <span class="org-string">'ks'</span>, <span class="org-string">'sw'</span>])
+</pre>
+</div>
+
+<pre class="example">
+pi0  trial        ks        sw
+0    NaN      0  0.030844  0.145921
+1    NaN      1  0.922857  0.579844
+2    NaN      2  0.096322  0.995171
+3    NaN      3  0.425145  0.748691
+4    NaN      4  0.839172  0.158713
+5    NaN      5  0.193963  0.305555
+6    NaN      6  0.645417  0.229020
+7    NaN      7  0.442194  0.935033
+8    NaN      8  0.462132  0.280841
+9    NaN      9  0.883011  0.262984
+10  0.01      0  0.065004  0.665126
+11  0.01      1  0.627508  0.902265
+12  0.01      2  0.061377  0.783419
+13  0.01      3  0.492274  0.544046
+14  0.01      4  0.322213  0.120402
+15  0.01      5  0.170058  0.108539
+16  0.01      6  0.595968  0.637531
+17  0.01      7  0.430416  0.812700
+18  0.01      8  0.599287  0.258203
+19  0.01      9  0.932962  0.191678
+20  0.10      0  0.009072  0.263614
+21  0.10      1  0.905894  0.899727
+22  0.10      2  0.013516  0.702477
+23  0.10      3  0.884857  0.659797
+24  0.10      4  0.858585  0.516515
+25  0.10      5  0.377873  0.372610
+26  0.10      6  0.785309  0.800714
+27  0.10      7  0.109332  0.307531
+28  0.10      8  0.661486  0.359344
+29  0.10      9  0.984754  0.085754
+</pre>
+
+<p>
+Read the estimated parameters.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">"/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-log-mu.txt.gz"</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">log_phi</span> = pd.read_table(<span class="org-string">"/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-log-phi.txt.gz"</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">logodds</span> = pd.read_table(<span class="org-string">"/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-logodds.txt.gz"</span>, index_col=0, sep=<span class="org-string">' '</span>)
+</pre>
+</div>
+
+<p>
+Read the annotations.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
+<span class="org-variable-name">annotations</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
+<span class="org-variable-name">annotations</span> = annotations.loc[keep_samples.values.ravel()]
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">onehot</span> = recode(annotations, <span class="org-string">'chip_id'</span>)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">chip</span> = recode(annotations, <span class="org-string">'experiment'</span>)
+<span class="org-variable-name">chip</span> -= chip.mean(axis=0)
+</pre>
+</div>
+
+<p>
+Implement the diagnostic test.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython" id="org8d13f94"><span class="org-keyword">def</span> <span class="org-function-name">diagnostic_test</span>(x, log_mu, log_phi, logodds, size, onehot):
+  <span class="org-variable-name">n</span> = onehot.dot(np.exp(-log_phi))
+  <span class="org-variable-name">pi0</span> = onehot.dot(sp.expit(-logodds))
+  <span class="org-variable-name">p</span> = 1 / (1 + (annotations[<span class="org-string">'mol_hs'</span>] * onehot.dot(np.exp(log_mu + log_phi))))
+
+  <span class="org-variable-name">cdf</span> = st.nbinom(n=n, p=p).cdf(x - 1)
+  <span class="org-comment-delimiter"># </span><span class="org-comment">Important: this excludes the right endpoint, so we need to special case x =</span>
+  <span class="org-comment-delimiter"># </span><span class="org-comment">0</span>
+  <span class="org-variable-name">cdf</span> = np.where(x &gt; 0, pi0 + (1 - pi0) * cdf, cdf)
+  <span class="org-variable-name">pmf</span> = st.nbinom(n=n, p=p).pmf(x)
+  <span class="org-variable-name">pmf</span> *= (1 - pi0)
+  <span class="org-variable-name">pmf</span>[x == 0] += pi0[x == 0]
+  <span class="org-variable-name">rpp</span> = cdf + np.random.uniform(size=x.shape[0]) * pmf
+  <span class="org-variable-name">nrpp</span> = st.norm().ppf(rpp)
+  <span class="org-keyword">return</span> st.shapiro(nrpp)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">keep_genes</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
+
+<span class="org-variable-name">result</span> = []
+<span class="org-keyword">for</span> chunk <span class="org-keyword">in</span> pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>, index_col=0, chunksize=100):
+  <span class="org-variable-name">chunk</span> = chunk.loc[:,keep_samples.values.ravel()].<span class="org-builtin">filter</span>(items=log_mu.index, axis=<span class="org-string">'index'</span>)
+  <span class="org-keyword">if</span> chunk.empty:
+    <span class="org-keyword">continue</span>
+  <span class="org-keyword">for</span> k, x <span class="org-keyword">in</span> chunk.iterrows():
+    result.append(diagnostic_test(x, log_mu.loc[k], log_phi.loc[k], logodds.loc[k], annotations[<span class="org-string">'mol_hs'</span>], onehot))
+  <span class="org-keyword">break</span>
+</pre>
+</div>
+
+<p>
+Try and generate new data from the estimated parameters, and compare it to
+the real data.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">sample</span>(log_mu, log_phi, logodds, size, onehot):
+  <span class="org-variable-name">n</span> = onehot.dot(np.exp(-log_phi))
+  <span class="org-variable-name">p</span> = 1 / (1 + (annotations[<span class="org-string">'mol_hs'</span>] * onehot.dot(np.exp(log_mu + log_phi))))
+  <span class="org-variable-name">res</span> = st.nbinom(n=n, p=p).rvs(size=onehot.shape[0])
+  <span class="org-variable-name">pi0</span> = onehot.dot(sp.expit(logodds))
+  <span class="org-variable-name">y</span> = np.random.uniform(size=onehot.shape[0]) &lt; pi0
+  <span class="org-variable-name">res</span>[y] = 0
+  <span class="org-keyword">return</span> res
+
+<span class="org-variable-name">k</span> = <span class="org-string">'ENSG00000005486'</span>
+
+plt.clf()
+plt.gcf().set_size_inches(3, 3)
+plt.hist(chunk.loc[k], histtype=<span class="org-string">'step'</span>, lw=3, color=<span class="org-string">'black'</span>, bins=chunk.loc[k].<span class="org-builtin">max</span>())
+<span class="org-keyword">for</span> _ <span class="org-keyword">in</span> <span class="org-builtin">range</span>(5):
+  plt.hist(sample(log_mu.loc[k], log_phi.loc[k], logodds.loc[k], annotations[<span class="org-string">'mol_hs'</span>], onehot), histtype=<span class="org-string">'step'</span>, bins=chunk.loc[k].<span class="org-builtin">max</span>())
+plt.xlabel(<span class="org-string">'UMI count'</span>)
+<span class="org-variable-name">_</span> = plt.ylabel(<span class="org-string">'Number of cells'</span>)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/zinb.org/ppc.png" alt="ppc.png">
+</p>
+</div>
+</div>
+</div>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-09-17 Mon 11:09</p>
+<p class="date">Created: 2018-11-27 Tue 14:52</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
