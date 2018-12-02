@@ -68,12 +68,12 @@
   #+END_SRC
 
   #+RESULTS:
-  : 19
+  : 3
 
   #+CALL: ipython3(memory="16G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 53595685
+  : Submitted batch job 54477665
 
   #+NAME: zinb-imports
   #+BEGIN_SRC ipython
@@ -87,7 +87,7 @@
 
   #+RESULTS: zinb-imports
   :RESULTS:
-  # Out[1]:
+  # Out[2]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -100,7 +100,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[2]:
+  # Out[3]:
   :END:
 
   #+NAME: tf-imports
@@ -359,6 +359,7 @@
 
 ** Simulation
 
+   #+NAME: tf-sim.py
    #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-sim.py
      <<zinb-imports>>
      <<tf-imports>>
@@ -387,7 +388,7 @@
          design=design.astype(np.float32),
          size_factor=(num_mols * np.ones((num_samples * num_trials, 1))).astype(np.float32),
          learning_rate=5e-2,
-         max_epochs=8000)
+         max_epochs=4000)
        result = pd.DataFrame(
          [(a[0] // num_trials, int(a[1]), int(a[2]), int(a[3]), int(a[4]), a[-1], trial)
           for a in args
@@ -404,24 +405,26 @@
        result['var_log_cpm'] = log_cpm.var(axis=1).ravel(order='F')
 
        diagnostic = []
-       for k, x in umi.iterrows():
-         diagnostic.append(diagnostic_test(x, log_mu.loc[k], log_phi.loc[k], logodds.loc[k], annotations['mol_hs'], onehot))
+       for i in range(umi.shape[1]):
+         for j in range(onehot.shape[1]):
+           idx = onehot[:,j].astype(bool)
+           diagnostic.append(diagnostic_test(umi[idx,i], log_mu[j,i], log_phi[j,i], -logodds[j,i], num_mols, np.ones((num_samples, 1)))[1])
        result['diagnostic'] = diagnostic
        return result
 
-     res = evaluate(num_samples=95, num_mols=114026)
+     res = evaluate(num_samples=95, num_mols=114026, num_trials=50)
      res.to_csv('simulation.txt.gz', compression='gzip', sep='\t')
    #+END_SRC
 
    #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation/
-     sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --time=240 --job-name=tf-sim --output=sim.out
+     sbatch --partition=gpu --gres=gpu:1 --mem=16G --time=30 --job-name=tf-sim --output=sim.out
      #!/bin/bash
      source activate scqtl
      python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-sim.py
    #+END_SRC
 
    #+RESULTS:
-   : Submitted batch job 53610363
+   : Submitted batch job 54073346
 
    Read the results.
 
@@ -711,7 +714,7 @@
 
   Optimize the negative log-likelihood.
 
-  #+NAME: np-zinb-impl2
+  #+NAME: np-zinb-impl
   #+BEGIN_SRC ipython
     def log(x):
       """Numerically safe log"""
@@ -802,9 +805,9 @@
       return orig + list(se.ravel())
   #+END_SRC
 
-  #+RESULTS: np-zinb-impl2
+  #+RESULTS: np-zinb-impl
   :RESULTS:
-  # Out[26]:
+  # Out[5]:
   :END:
 
   Computing analytic SE runs into numerical problems.
@@ -895,9 +898,9 @@
       return np.vstack((x, size * np.ones(num_samples))).T, design
   #+END_SRC
 
-  #+RESULTS: sim-impl2
+  #+RESULTS: sim-impl
   :RESULTS:
-  # Out[31]:
+  # Out[4]:
   :END:
 
   #+NAME: numpy-eval-impl
@@ -2061,7 +2064,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[50]:
+  # Out[3]:
   #+BEGIN_EXAMPLE
     pi0  trial        ks        sw
     0    NaN      0  0.030844  0.145921
@@ -2097,66 +2100,14 @@
   #+END_EXAMPLE
   :END:
 
-  Read the estimated parameters.
-
-  #+BEGIN_SRC ipython
-    log_mu = pd.read_table("/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-log-mu.txt.gz", index_col=0, sep=' ')
-    log_phi = pd.read_table("/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-log-phi.txt.gz", index_col=0, sep=' ')
-    logodds = pd.read_table("/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-logodds.txt.gz", index_col=0, sep=' ')
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[51]:
-  :END:
-
-  Read the annotations.
-
-  #+BEGIN_SRC ipython
-    keep_samples = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
-    annotations = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
-    annotations = annotations.loc[keep_samples.values.ravel()]
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[52]:
-  :END:
-
-  #+CALL: recode-impl()
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[53]:
-  :END:
-
-  #+BEGIN_SRC ipython
-    onehot = recode(annotations, 'chip_id')
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[54]:
-  :END:
-
-  #+BEGIN_SRC ipython
-    chip = recode(annotations, 'experiment')
-    chip -= chip.mean(axis=0)
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[55]:
-  :END:
-
   Implement the diagnostic test.
 
   #+NAME: zinb-diagnostic
   #+BEGIN_SRC ipython
-    def diagnostic_test(x, log_mu, log_phi, logodds, size, onehot):
+    def rpp(x, log_mu, log_phi, logodds, size, onehot, n_samples=1):
       n = onehot.dot(np.exp(-log_phi))
       pi0 = onehot.dot(sp.expit(-logodds))
-      p = 1 / (1 + (annotations['mol_hs'] * onehot.dot(np.exp(log_mu + log_phi))))
+      p = 1 / (1 + (size * onehot.dot(np.exp(log_mu + log_phi))))
 
       cdf = st.nbinom(n=n, p=p).cdf(x - 1)
       # Important: this excludes the right endpoint, so we need to special case x =
@@ -2165,18 +2116,94 @@
       pmf = st.nbinom(n=n, p=p).pmf(x)
       pmf *= (1 - pi0)
       pmf[x == 0] += pi0[x == 0]
-      rpp = cdf + np.random.uniform(size=x.shape[0]) * pmf
-      nrpp = st.norm().ppf(rpp)
-      return st.shapiro(nrpp)
+      rpp = cdf + np.random.uniform(size=(n_samples, x.shape[0])) * pmf
+      return rpp
+
+    def diagnostic_test(x, log_mu, log_phi, logodds, size, onehot):
+      rpp = rpp(x, log_mu, log_phi, logodds, size, onehot)
+      return st.kstest(rpp, 'uniform')
+  #+END_SRC
+
+  #+RESULTS: zinb-diagnostic
+  :RESULTS:
+  # Out[24]:
+  :END:
+
+  Look at randomized residuals for some simulated data. Use the CPU
+  implementation for convenience.
+
+  #+CALL: np-zinb-impl()
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[50]:
+  :END:
+
+  #+CALL: sim-impl()
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[51]:
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/simulated-rqrs.png
+    X, design = simulate(num_samples=100, size=1e5, log_mu=-13, log_phi=-3, logodds=0, seed=0, design=None, fold=None)
+    res = _fit_gene(X, np.ones((X.shape[0], 1)), design)
+    Z = rpp(X[:,0], res[0], res[1], -res[2], 1e5, np.ones((X.shape[0], 1)), n_samples=100)
+
+    plt.clf()
+    plt.gcf().set_size_inches(3, 3)
+    plt.plot(sorted(Z.ravel()), np.linspace(0, 1, np.prod(Z.shape)), c='k')
+    plt.text(.05, .92, 'ks = {:.2g}'.format(st.kstest(Z.ravel(), 'uniform')[1]), transform=plt.gca().transAxes)
+    plt.text(.05, .82, r'$\ln\phi = -3$', transform=plt.gca().transAxes)
+    plt.text(.05, .72, r'$\ln\hat\phi = {:.2g}$'.format(res[1][0]), transform=plt.gca().transAxes)
+    plt.xlabel('Theoretical quantiles')
+    plt.ylabel('Observed quantiles')
+    plt.plot([0, 1], [0, 1], c='r', ls='--')
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[60]:
+  # Out[150]:
+  : [<matplotlib.lines.Line2D at 0x7fd7a8e0b358>]
+  [[file:figure/zinb.org/simulated-rqrs.png]]
   :END:
 
-  #+BEGIN_SRC ipython
-    keep_genes = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt', index_col=0, header=None)
+  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/simulated-nrpps.png
+    Z = st.norm().ppf(Z)
+    plt.clf()
+    plt.gcf().set_size_inches(3, 3)
+    M = int(X[:,0].max())
+    for v in range(M):
+      if not (X == v).any():
+        continue
+      vp = plt.violinplot(Z[:,X[:,0] == v].ravel(), [v])
+      for b in vp['bodies']:
+        b.set_facecolor('k')
+      vp['cbars'].set_color('k')
+      vp['cmins'].set_color('k')
+      vp['cmaxes'].set_color('k')
+    plt.xlabel('UMI count')
+    plt.ylabel('Randomized residual')
+
+  #+END_SRC
+
+  Run the diagnostic on the estimated parameters.
+
+  #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-diagnostic.py
+    <<zinb-imports>>
+    <<recode-impl>>
+    <<zinb-diagnostic>>
+
+    log_mu = pd.read_table("/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-log-mu.txt.gz", index_col=0, sep=' ')
+    log_phi = pd.read_table("/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-log-phi.txt.gz", index_col=0, sep=' ')
+    logodds = pd.read_table("/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-logodds.txt.gz", index_col=0, sep=' ')
+
+    keep_samples = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
+    annotations = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
+    annotations = annotations.loc[keep_samples.values.ravel()]
+
+    onehot = recode(annotations, 'chip_id')
 
     result = []
     for chunk in pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', index_col=0, chunksize=100):
@@ -2184,42 +2211,95 @@
       if chunk.empty:
         continue
       for k, x in chunk.iterrows():
-        result.append(diagnostic_test(x, log_mu.loc[k], log_phi.loc[k], logodds.loc[k], annotations['mol_hs'], onehot))
-      break
+        stat, p = diagnostic_test(x, log_mu.loc[k], log_phi.loc[k], logodds.loc[k], annotations['mol_hs'], onehot)
+        result.append((k, stat, p))
+    pd.DataFrame(result).set_index(0).to_csv('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/diagnostic.txt.gz', compression='gzip', sep='\t')
+  #+END_SRC
+
+  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation
+    sbatch --partition=broadwl --job-name="tf-diagnostic" --mem=8G --time=8:00:00
+    #!/bin/bash
+    source activate scqtl
+    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-diagnostic.py
+  #+END_SRC
+
+  #+RESULTS:
+  : Submitted batch job 54080417
+
+  Look at randomized quantile residuals for the gene with least departure from
+  ZINB.
+
+  #+BEGIN_SRC ipython
+    diagnostic_results = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/diagnostic.txt.gz', index_col=0)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[61]:
+  # Out[5]:
   :END:
 
-  Try and generate new data from the estimated parameters, and compare it to
-  the real data.
+  #+CALL: recode-impl()
 
-  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/ppc.png
-    def sample(log_mu, log_phi, logodds, size, onehot):
-      n = onehot.dot(np.exp(-log_phi))
-      p = 1 / (1 + (annotations['mol_hs'] * onehot.dot(np.exp(log_mu + log_phi))))
-      res = st.nbinom(n=n, p=p).rvs(size=onehot.shape[0])
-      pi0 = onehot.dot(sp.expit(logodds))
-      y = np.random.uniform(size=onehot.shape[0]) < pi0
-      res[y] = 0
-      return res
+  #+RESULTS:
+  :RESULTS:
+  # Out[9]:
+  :END:
 
-    k = 'ENSG00000005486'
+  #+BEGIN_SRC ipython
+    log_mu = pd.read_table("/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-log-mu.txt.gz", index_col=0, sep=' ')
+    log_phi = pd.read_table("/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-log-phi.txt.gz", index_col=0, sep=' ')
+    logodds = pd.read_table("/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-logodds.txt.gz", index_col=0, sep=' ')
 
-    plt.clf()
-    plt.gcf().set_size_inches(3, 3)
-    plt.hist(chunk.loc[k], histtype='step', lw=3, color='black', bins=chunk.loc[k].max())
-    for _ in range(5):
-      plt.hist(sample(log_mu.loc[k], log_phi.loc[k], logodds.loc[k], annotations['mol_hs'], onehot), histtype='step', bins=chunk.loc[k].max())
-    plt.xlabel('UMI count')
-    _ = plt.ylabel('Number of cells')
+    keep_samples = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
+    annotations = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
+    annotations = annotations.loc[keep_samples.values.ravel()]
+
+    onehot = recode(annotations, 'chip_id')
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[69]:
-  [[file:figure/zinb.org/ppc.png]]
+  # Out[10]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    k = diagnostic_results['2'].idxmax()
+    for chunk in pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', index_col=0, chunksize=100):
+      chunk = chunk.loc[:,keep_samples.values.ravel()].filter(items=[k], axis='index')
+      if not chunk.empty:
+        break
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[18]:
+  :END:
+
+  #+CALL: get-gene-info()
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[126]:
+  :END:
+
+  Look at the QQ plot of the randomized residuals.
+
+  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/rqrs.png
+    Z = rpp(chunk.loc[k], log_mu.loc[k], log_phi.loc[k], logodds.loc[k], annotations['mol_hs'], onehot, n_samples=10)
+    plt.clf()
+    plt.gcf().set_size_inches(3, 3)
+    plt.plot(sorted(Z.ravel()), np.linspace(0, 1, np.prod(Z.shape)), c='k')
+    plt.plot([0, 1], [0, 1], c='r', ls='--')
+    plt.text(.05, .92, 'ks = {:.2g}'.format(st.kstest(Z.ravel(), 'uniform')[1]), transform=plt.gca().transAxes)
+    plt.title(gene_info.loc[k, 'name'])
+    plt.xlabel('Theoretical quantiles')
+    plt.ylabel('Observed quantiles')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[131]:
+  : Text(0,0.5,'Observed quantiles')
+  [[file:figure/zinb.org/rqrs.png]]
   :END:
 
