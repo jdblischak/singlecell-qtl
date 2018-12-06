@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-12-04 Tue 11:31 -->
+<!-- 2018-12-06 Thu 15:14 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mean/dispersion estimation</title>
@@ -273,7 +273,7 @@ Here, we solve (1).
 <ol class="org-ol">
 <li><a href="#orgd9442d4">We implement GPU-based ML estimation</a> of a zero-inflated negative binomial
 model</li>
-<li><a href="#orgf59637d">We show in simulation</a> that the estimates are unbiased</li>
+<li><a href="#orgf020b0c">We show in simulation</a> that the estimates are unbiased</li>
 <li><a href="#org7ae35b9">We compare ZINB estimates of mean expression</a> against sample-based estimates</li>
 <li><a href="#org17af587">We implement a test for goodness of fit</a> for the ZINB model</li>
 </ol>
@@ -362,237 +362,22 @@ the mixture components) are also equal.
 <h2 id="orgd9442d4">Tensorflow implementation</h2>
 <div class="outline-text-2" id="text-orgd9442d4">
 <p>
-We optimize all of the parameters together, using one-hot encoding to map
-parameters to data points. This makes inference more amenable to running on
-the GPU.
+Use <code>tensorflow</code> to optimize all of the parameters together using one-hot
+encoding to map parameters to data points. This makes inference more amenable
+to running on the GPU.
 </p>
 
 <p>
-Use <code>tensorflow</code> to automatically differentiate the negative log likelihood and
-perform gradient descent.
+The method is implemented in the Python package <code>scqtl</code>.
 </p>
-
-<div class="org-src-container">
-<pre class="src src-ipython" id="orgdf074d4"><span class="org-keyword">def</span> <span class="org-function-name">nb_llik</span>(x, mean, inv_disp):
-  <span class="org-doc">"""Log likelihood of x distributed as NB</span>
-
-<span class="org-doc">  See Hilbe 2012, eq. 8.10</span>
-
-<span class="org-doc">  mean - mean (&gt; 0)</span>
-<span class="org-doc">  inv_disp - inverse dispersion (&gt; 0)</span>
-
-<span class="org-doc">  """</span>
-  <span class="org-keyword">return</span> (x * tf.log(mean / inv_disp) -
-          x * tf.log(1 + mean / inv_disp) -
-          inv_disp * tf.log(1 + mean / inv_disp) +
-          tf.lgamma(x + inv_disp) -
-          tf.lgamma(inv_disp) -
-          tf.lgamma(x + 1))
-
-<span class="org-keyword">def</span> <span class="org-function-name">zinb_llik</span>(x, mean, inv_disp, logodds):
-  <span class="org-doc">"""Log likelihood of x distributed as ZINB</span>
-
-<span class="org-doc">  See Hilbe 2012, eq. 11.12, 11.13</span>
-
-<span class="org-doc">  mean - mean (&gt; 0)</span>
-<span class="org-doc">  inv_disp - inverse dispersion (&gt; 0)</span>
-<span class="org-doc">  logodds - logit proportion of excess zeros</span>
-
-<span class="org-doc">  """</span>
-  <span class="org-comment-delimiter"># </span><span class="org-comment">Important identities:</span>
-  <span class="org-comment-delimiter"># </span><span class="org-comment">log(x + y) = log(x) + softplus(y - x)</span>
-  <span class="org-comment-delimiter"># </span><span class="org-comment">log(sigmoid(x)) = -softplus(-x)</span>
-  <span class="org-variable-name">case_zero</span> = -tf.nn.softplus(-logodds) + tf.nn.softplus(nb_llik(x, mean, inv_disp) + tf.nn.softplus(-logodds))
-  <span class="org-variable-name">case_non_zero</span> = -tf.nn.softplus(logodds) + nb_llik(x, mean, inv_disp)
-  <span class="org-keyword">return</span> tf.where(tf.less(x, 1), case_zero, case_non_zero)
-
-<span class="org-comment-delimiter"># </span><span class="org-comment">https://github.com/junfengwen/AMSGrad/blob/a00e3f4bcb3ba16b2fe67c75dd8643670bded0c9/optimizers.py</span>
-
-<span class="org-keyword">from</span> tensorflow.python.framework <span class="org-keyword">import</span> ops
-<span class="org-keyword">from</span> tensorflow.python.ops <span class="org-keyword">import</span> control_flow_ops
-<span class="org-keyword">from</span> tensorflow.python.ops <span class="org-keyword">import</span> math_ops
-<span class="org-keyword">from</span> tensorflow.python.ops <span class="org-keyword">import</span> gen_math_ops
-<span class="org-keyword">from</span> tensorflow.python.ops <span class="org-keyword">import</span> variable_scope
-<span class="org-keyword">from</span> tensorflow.python.training <span class="org-keyword">import</span> optimizer
-
-<span class="org-keyword">class</span> <span class="org-type">AMSGrad</span>(optimizer.Optimizer):
-  <span class="org-doc">"""The AMSGrad algorithm in the paper</span>
-
-<span class="org-doc">  Reddi, Kale, Kumar, On the Convergence of Adam and Beyond, ICLR 2018</span>
-
-<span class="org-doc">  https://openreview.net/forum?id=ryQu7f-RZ</span>
-
-<span class="org-doc">  """</span>
-  <span class="org-keyword">def</span> <span class="org-function-name">__init__</span>(<span class="org-keyword">self</span>, learning_rate=0.001, beta1=0.9, beta2=0.999,
-               epsilon=1e-8, use_locking=<span class="org-constant">False</span>, name=<span class="org-string">"AMSGrad"</span>):
-    <span class="org-builtin">super</span>(AMSGrad, <span class="org-keyword">self</span>).__init__(use_locking, name)
-    <span class="org-keyword">self</span>._lr = learning_rate
-    <span class="org-keyword">self</span>._beta1 = beta1
-    <span class="org-keyword">self</span>._beta2 = beta2
-    <span class="org-keyword">self</span>._epsilon = epsilon
-
-    <span class="org-keyword">self</span>._lr_t = <span class="org-constant">None</span>
-    <span class="org-keyword">self</span>._beta1_t = <span class="org-constant">None</span>
-    <span class="org-keyword">self</span>._beta2_t = <span class="org-constant">None</span>
-    <span class="org-keyword">self</span>._epsilon_t = <span class="org-constant">None</span>
-
-    <span class="org-keyword">self</span>._beta1_power = <span class="org-constant">None</span>
-    <span class="org-keyword">self</span>._beta2_power = <span class="org-constant">None</span>
-
-  <span class="org-keyword">def</span> <span class="org-function-name">_create_slots</span>(<span class="org-keyword">self</span>, var_list):
-
-    <span class="org-variable-name">first_var</span> = <span class="org-builtin">min</span>(var_list, key=<span class="org-keyword">lambda</span> x: x.name)
-
-    <span class="org-variable-name">create_new</span> = <span class="org-keyword">self</span>._beta1_power <span class="org-keyword">is</span> <span class="org-constant">None</span>
-
-    <span class="org-keyword">if</span> create_new:
-      <span class="org-keyword">with</span> ops.colocate_with(first_var):
-        <span class="org-keyword">self</span>._beta1_power = variable_scope.variable(<span class="org-keyword">self</span>._beta1,
-                                                    name=<span class="org-string">"beta1_power"</span>,
-                                                    trainable=<span class="org-constant">False</span>)
-        <span class="org-keyword">self</span>._beta2_power = variable_scope.variable(<span class="org-keyword">self</span>._beta2,
-                                                    name=<span class="org-string">"beta2_power"</span>,
-                                                    trainable=<span class="org-constant">False</span>)
-    <span class="org-comment-delimiter"># </span><span class="org-comment">Create slots for the first and second moments.</span>
-    <span class="org-keyword">for</span> v <span class="org-keyword">in</span> var_list:
-      <span class="org-comment-delimiter"># </span><span class="org-comment">first moment est</span>
-      <span class="org-keyword">self</span>._zeros_slot(v, <span class="org-string">"first_mom"</span>, <span class="org-keyword">self</span>._name)
-      <span class="org-comment-delimiter"># </span><span class="org-comment">second moment est</span>
-      <span class="org-keyword">self</span>._zeros_slot(v, <span class="org-string">"second_mom"</span>, <span class="org-keyword">self</span>._name)
-      <span class="org-keyword">self</span>._zeros_slot(v, <span class="org-string">"second_mom_max"</span>, <span class="org-keyword">self</span>._name)
-
-  <span class="org-keyword">def</span> <span class="org-function-name">_prepare</span>(<span class="org-keyword">self</span>):
-    <span class="org-keyword">self</span>._lr_t = ops.convert_to_tensor(<span class="org-keyword">self</span>._lr)
-    <span class="org-keyword">self</span>._beta1_t = ops.convert_to_tensor(<span class="org-keyword">self</span>._beta1)
-    <span class="org-keyword">self</span>._beta2_t = ops.convert_to_tensor(<span class="org-keyword">self</span>._beta2)
-    <span class="org-keyword">self</span>._epsilon_t = ops.convert_to_tensor(<span class="org-keyword">self</span>._epsilon)
-    <span class="org-keyword">self</span>._one_minus_beta1 = ops.convert_to_tensor(1. - <span class="org-keyword">self</span>._beta1)
-    <span class="org-keyword">self</span>._one_minus_beta2 = ops.convert_to_tensor(1. - <span class="org-keyword">self</span>._beta2)
-
-  <span class="org-keyword">def</span> <span class="org-function-name">_apply_dense</span>(<span class="org-keyword">self</span>, grad, var):
-    <span class="org-comment-delimiter"># </span><span class="org-comment">bias-corrected learning rate</span>
-    <span class="org-variable-name">lr</span> = <span class="org-keyword">self</span>._lr_t * math_ops.sqrt(1. - <span class="org-keyword">self</span>._beta2_power) / (1. - <span class="org-keyword">self</span>._beta1_power)
-    <span class="org-variable-name">first_mom</span> = <span class="org-keyword">self</span>.get_slot(var, <span class="org-string">"first_mom"</span>)
-    <span class="org-variable-name">second_mom</span> = <span class="org-keyword">self</span>.get_slot(var, <span class="org-string">"second_mom"</span>)
-    <span class="org-variable-name">second_mom_max</span> = <span class="org-keyword">self</span>.get_slot(var, <span class="org-string">"second_mom_max"</span>)
-    <span class="org-variable-name">first_update</span> = first_mom.assign(<span class="org-keyword">self</span>._beta1_t * first_mom +
-                                    <span class="org-keyword">self</span>._one_minus_beta1 * grad,
-                                    use_locking=<span class="org-keyword">self</span>._use_locking)
-    <span class="org-variable-name">second_update</span> = second_mom.assign(<span class="org-keyword">self</span>._beta2_t * second_mom +
-                                      <span class="org-keyword">self</span>._one_minus_beta2 * math_ops.square(grad),
-                                      use_locking=<span class="org-keyword">self</span>._use_locking)
-    <span class="org-comment-delimiter"># </span><span class="org-comment">AMSGrad compared to ADAM</span>
-    <span class="org-variable-name">second_max_update</span> = second_mom_max.assign(gen_math_ops.maximum(second_mom_max,
-                                                                   second_update))
-    <span class="org-variable-name">var_update</span> = var.assign_sub(lr * first_update / (math_ops.sqrt(second_max_update) +
-                                                     <span class="org-keyword">self</span>._epsilon_t),
-                                use_locking=<span class="org-keyword">self</span>._use_locking)
-    <span class="org-keyword">return</span> control_flow_ops.group(*[var_update, first_update,
-                                    second_update, second_max_update])
-
-  <span class="org-keyword">def</span> <span class="org-function-name">_apply_sparse</span>(<span class="org-keyword">self</span>, grad, var):
-    <span class="org-comment-delimiter"># </span><span class="org-comment">just a copy of the dense case, not properly implemented yet</span>
-    <span class="org-keyword">return</span> <span class="org-keyword">self</span>._apply_dense(grad, var)
-
-  <span class="org-keyword">def</span> <span class="org-function-name">_finish</span>(<span class="org-keyword">self</span>, update_ops, name_scope):
-    <span class="org-comment-delimiter"># </span><span class="org-comment">Update the power accumulators.</span>
-    <span class="org-keyword">with</span> ops.control_dependencies(update_ops):
-      <span class="org-keyword">with</span> ops.colocate_with(<span class="org-keyword">self</span>._beta1_power):
-        <span class="org-variable-name">update_beta1</span> = <span class="org-keyword">self</span>._beta1_power.assign(
-          <span class="org-keyword">self</span>._beta1_power * <span class="org-keyword">self</span>._beta1,
-          use_locking=<span class="org-keyword">self</span>._use_locking)
-        <span class="org-variable-name">update_beta2</span> = <span class="org-keyword">self</span>._beta2_power.assign(
-          <span class="org-keyword">self</span>._beta2_power * <span class="org-keyword">self</span>._beta2_t,
-          use_locking=<span class="org-keyword">self</span>._use_locking)
-    <span class="org-keyword">return</span> control_flow_ops.group(*update_ops + [update_beta1, update_beta2],
-                                  name=name_scope)
-
-<span class="org-keyword">def</span> <span class="org-function-name">fit</span>(umi, onehot, size_factor, design, learning_rate=1e-2, max_epochs=1000,
-        fit_null=<span class="org-constant">False</span>, return_llik=<span class="org-constant">False</span>, return_beta=<span class="org-constant">False</span>, warm_start=<span class="org-constant">None</span>):
-  <span class="org-doc">"""Return estimated log mean and log dispersion. </span>
-
-<span class="org-doc">  umi - count matrix (n x p; float32)</span>
-<span class="org-doc">  onehot - mapping of individuals to cells (m x n; float32)</span>
-<span class="org-doc">  size_factor - size factor vector (n x 1; float32)</span>
-<span class="org-doc">  design - confounder matrix (n x q; float32)</span>
-<span class="org-doc">  fit_null - whether to fit the null model (common dispersion)</span>
-<span class="org-doc">  return_llik - whether to return the log likelihood matrix</span>
-<span class="org-doc">  warm_start - tuple of (log_mean, log_disp, logodds)</span>
-
-<span class="org-doc">  Returns:</span>
-
-<span class="org-doc">  log_mean - log mean parameter (m x p)</span>
-<span class="org-doc">  log_disp - log dispersion parameter (m x p)</span>
-<span class="org-doc">  logodds - logit proportion of excess zeros (m x p)</span>
-<span class="org-doc">  llik - if return_llik, log likelihood per gene (p)</span>
-
-<span class="org-doc">  """</span>
-  <span class="org-variable-name">n</span>, <span class="org-variable-name">p</span> = umi.shape
-  <span class="org-variable-name">_</span>, <span class="org-variable-name">m</span> = onehot.shape
-  <span class="org-variable-name">_</span>, <span class="org-variable-name">k</span> = design.shape
-
-  <span class="org-variable-name">params</span> = <span class="org-builtin">locals</span>()
-  <span class="org-variable-name">graph</span> = tf.Graph()
-  <span class="org-keyword">with</span> graph.as_default(), graph.device(<span class="org-string">'/gpu:*'</span>):
-    <span class="org-variable-name">size_factor</span> = tf.Variable(size_factor, trainable=<span class="org-constant">False</span>)
-    <span class="org-variable-name">umi</span> = tf.Variable(umi, trainable=<span class="org-constant">False</span>)
-    <span class="org-variable-name">onehot</span> = tf.Variable(onehot, trainable=<span class="org-constant">False</span>)
-    <span class="org-variable-name">design</span> = tf.Variable(design, trainable=<span class="org-constant">False</span>)
-
-    <span class="org-keyword">if</span> warm_start <span class="org-keyword">is</span> <span class="org-keyword">not</span> <span class="org-constant">None</span>:
-      <span class="org-variable-name">log_mean</span>, <span class="org-variable-name">log_disp</span>, <span class="org-variable-name">logodds</span> = warm_start
-      <span class="org-keyword">assert</span> log_mean.shape == (m, p)
-      <span class="org-keyword">assert</span> log_disp.shape == (m, p)
-      <span class="org-keyword">assert</span> logodds.shape == (m, p)
-      <span class="org-variable-name">mean</span> = tf.exp(tf.Variable(log_mean))
-      <span class="org-variable-name">inv_disp</span> = tf.exp(tf.Variable(-log_disp))
-      <span class="org-variable-name">logodds</span> = tf.Variable(logodds)
-    <span class="org-keyword">else</span>:
-      <span class="org-variable-name">mean</span> = tf.exp(tf.Variable(tf.zeros([m, p])))
-      <span class="org-keyword">if</span> fit_null:
-        <span class="org-variable-name">inv_disp</span> = tf.exp(tf.Variable(tf.zeros([1, p])))
-      <span class="org-keyword">else</span>:
-        <span class="org-variable-name">inv_disp</span> = tf.exp(tf.Variable(tf.zeros([m, p])))
-      <span class="org-variable-name">logodds</span> = tf.Variable(tf.zeros([m, p]))
-    <span class="org-variable-name">beta</span> = tf.Variable(tf.zeros([k, p]))
-
-    <span class="org-keyword">if</span> fit_null:
-      <span class="org-variable-name">llik</span> = zinb_llik(umi, size_factor * tf.matmul(onehot, mean) * tf.exp(tf.matmul(design, beta)),
-                       inv_disp, tf.matmul(onehot, logodds))
-    <span class="org-keyword">else</span>:
-      <span class="org-variable-name">llik</span> = zinb_llik(umi, size_factor * tf.matmul(onehot, mean) * tf.exp(tf.matmul(design, beta)),
-                       tf.matmul(onehot, inv_disp), tf.matmul(onehot, logodds))
-
-    <span class="org-variable-name">loss</span> = -tf.reduce_mean(llik)
-    <span class="org-variable-name">train</span> = AMSGrad(learning_rate=learning_rate).minimize(loss)
-    <span class="org-variable-name">opt</span> = [tf.log(mean), -tf.log(inv_disp), logodds]
-    <span class="org-keyword">if</span> return_llik:
-      opt.append(tf.reduce_sum(llik, axis=0))
-    <span class="org-keyword">if</span> return_beta:
-      opt.append(beta)
-    <span class="org-variable-name">curr</span> = <span class="org-builtin">float</span>(<span class="org-string">'-inf'</span>)
-    <span class="org-keyword">with</span> tf.Session() <span class="org-keyword">as</span> sess:
-      sess.run(tf.global_variables_initializer())
-      <span class="org-keyword">for</span> i <span class="org-keyword">in</span> <span class="org-builtin">range</span>(max_epochs):
-        <span class="org-variable-name">_</span>, <span class="org-variable-name">update</span> = sess.run([train, loss])
-        <span class="org-keyword">if</span> <span class="org-keyword">not</span> np.isfinite(update):
-          <span class="org-keyword">raise</span> tf.train.NanLossDuringTrainingError
-        <span class="org-keyword">if</span> <span class="org-keyword">not</span> i % 500:
-          <span class="org-keyword">print</span>(i, update)
-      <span class="org-keyword">return</span> sess.run(opt)
-</pre>
-</div>
 </div>
 
-<div id="outline-container-orgf59637d" class="outline-3">
-<h3 id="orgf59637d">Simulation</h3>
-<div class="outline-text-3" id="text-orgf59637d">
+<div id="outline-container-orgf020b0c" class="outline-3">
+<h3 id="orgf020b0c">Simulation</h3>
+<div class="outline-text-3" id="text-orgf020b0c">
 <div class="org-src-container">
 <pre class="src src-ipython" id="org6a724dd">&lt;&lt;zinb-imports&gt;&gt;
 &lt;&lt;tf-imports&gt;&gt;
-&lt;&lt;sim-impl&gt;&gt;
-&lt;&lt;tf-zinb-impl&gt;&gt;
-&lt;&lt;zinb-diagnostic&gt;&gt;
 
 <span class="org-keyword">def</span> <span class="org-function-name">evaluate</span>(num_samples, num_mols, num_trials=10):
   <span class="org-comment-delimiter"># </span><span class="org-comment">This will be reset inside the simulation to generate counts, but we need to</span>
@@ -605,17 +390,17 @@ perform gradient descent.
           <span class="org-keyword">for</span> log_mu <span class="org-keyword">in</span> np.linspace(-12, -6, 7)
           <span class="org-keyword">for</span> log_phi <span class="org-keyword">in</span> np.linspace(-4, 0, 5)
           <span class="org-keyword">for</span> logodds <span class="org-keyword">in</span> np.linspace(-3, 3, 7)]
-  <span class="org-variable-name">umi</span> = np.concatenate([simulate(*a)[0][:,:1] <span class="org-keyword">for</span> a <span class="org-keyword">in</span> args], axis=1)
+  <span class="org-variable-name">umi</span> = np.concatenate([scqtl.simulation.simulate(*a)[0][:,:1] <span class="org-keyword">for</span> a <span class="org-keyword">in</span> args], axis=1)
   <span class="org-variable-name">onehot</span> = np.zeros((num_samples * num_trials, num_trials))
   onehot[np.arange(onehot.shape[0]), np.arange(onehot.shape[0]) // num_samples] = 1
 
-  <span class="org-variable-name">log_mu</span>, <span class="org-variable-name">log_phi</span>, <span class="org-variable-name">logodds</span> = fit(
+  <span class="org-variable-name">log_mu</span>, <span class="org-variable-name">log_phi</span>, <span class="org-variable-name">logodds</span> = scqtl.tf.fit(
     umi=umi.astype(np.float32),
     onehot=onehot.astype(np.float32),
     design=design.astype(np.float32),
     size_factor=(num_mols * np.ones((num_samples * num_trials, 1))).astype(np.float32),
-    learning_rate=5e-2,
-    max_epochs=20000)
+    learning_rate=7e-2,
+    max_epochs=50000)
   <span class="org-variable-name">result</span> = pd.DataFrame(
     [(a[0] // num_trials, <span class="org-builtin">int</span>(a[1]), <span class="org-builtin">int</span>(a[2]), <span class="org-builtin">int</span>(a[3]), <span class="org-builtin">int</span>(a[4]), a[-1], trial)
      <span class="org-keyword">for</span> a <span class="org-keyword">in</span> args
@@ -631,21 +416,15 @@ perform gradient descent.
   <span class="org-variable-name">result</span>[<span class="org-string">'mean_log_cpm'</span>] = log_cpm.mean(axis=1).ravel(order=<span class="org-string">'F'</span>)
   <span class="org-variable-name">result</span>[<span class="org-string">'var_log_cpm'</span>] = log_cpm.var(axis=1).ravel(order=<span class="org-string">'F'</span>)
 
-  <span class="org-variable-name">diagnostic</span> = []
-  <span class="org-keyword">for</span> i <span class="org-keyword">in</span> <span class="org-builtin">range</span>(umi.shape[1]):
-    <span class="org-keyword">for</span> j <span class="org-keyword">in</span> <span class="org-builtin">range</span>(onehot.shape[1]):
-      <span class="org-variable-name">idx</span> = onehot[:,j].astype(<span class="org-builtin">bool</span>)
-      diagnostic.append(diagnostic_test(umi[idx,i], log_mu[j,i], log_phi[j,i], -logodds[j,i], num_mols, np.ones((num_samples, 1)))[1])
-  <span class="org-variable-name">result</span>[<span class="org-string">'diagnostic'</span>] = diagnostic
   <span class="org-keyword">return</span> result
 
-<span class="org-variable-name">res</span> = evaluate(num_samples=95, num_mols=114026, num_trials=50)
+<span class="org-variable-name">res</span> = evaluate(num_samples=95, num_mols=114026, num_trials=1)
 res.to_csv(<span class="org-string">'simulation.txt.gz'</span>, compression=<span class="org-string">'gzip'</span>, sep=<span class="org-string">'\t'</span>)
 </pre>
 </div>
 
 <div class="org-src-container">
-<pre class="src src-sh">sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --time=1:00:00 --job-name=tf-sim --output=sim.out
+<pre class="src src-sh">sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --time=1:00:00 --job-name=tf-sim --output=tf-sim.out
 <span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
 <span class="org-builtin">source</span> activate scqtl
 python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-sim.py
@@ -653,7 +432,7 @@ python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-sim.py
 </div>
 
 <pre class="example">
-Submitted batch job 54674786
+Submitted batch job 55018908
 
 </pre>
 
@@ -896,7 +675,7 @@ parser.add_argument(<span class="org-string">'--design'</span>, <span class="org
   design=designs[args.design].astype(np.float32),
   size_factor=annotations[<span class="org-string">'mol_hs'</span>].astype(np.float32).values.reshape(-1, 1),
   learning_rate=5e-2,
-  max_epochs=4000,
+  max_epochs=20000,
   return_beta=<span class="org-constant">True</span>,
 )
 pd.DataFrame(log_mu.T, index=index, columns=header).to_csv(<span class="org-string">'zi2-log-mu.txt.gz'</span>, sep=<span class="org-string">' '</span>, compression=<span class="org-string">'gzip'</span>)
@@ -907,7 +686,7 @@ pd.DataFrame(beta.T, index=index).to_csv(<span class="org-string">'beta.txt.gz'<
 </div>
 
 <div class="org-src-container">
-<pre class="src src-sh" id="orgab32e4c">sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --time=240 --job-name=tf-zinb --output=zinb2.out
+<pre class="src src-sh" id="orgab32e4c">sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --time=6:00:00 --job-name=tf-zinb --output=zinb2.out
 <span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
 <span class="org-builtin">source</span> activate scqtl
 mkdir -p design{0,1}
@@ -921,7 +700,7 @@ python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb.py --de
 </div>
 
 <pre class="example">
-Submitted batch job 53395778
+Submitted batch job 54919259
 
 </pre>
 
@@ -1551,8 +1330,8 @@ Implement the diagnostic test.
 </div>
 </div>
 
-<div id="outline-container-orgf020b0c" class="outline-3">
-<h3 id="diagnostic-sim"><a id="orgf020b0c"></a>Simulation</h3>
+<div id="outline-container-org85d3679" class="outline-3">
+<h3 id="diagnostic-sim"><a id="org85d3679"></a>Simulation</h3>
 <div class="outline-text-3" id="text-diagnostic-sim">
 <p>
 Look at randomized residuals for some simulated data. Use the CPU
@@ -1710,7 +1489,6 @@ pi0  trial        ks        sw
 </pre>
 </div>
 </div>
-
 
 <div id="outline-container-orgdd93ccf" class="outline-3">
 <h3 id="orgdd93ccf">Real data</h3>
@@ -1888,8 +1666,9 @@ Look at one of the genes, and the estimated average density.
 <span class="org-variable-name">pi0</span> = onehot.dot(sp.expit(logodds.loc[k]))
 <span class="org-variable-name">p</span> = 1 / (1 + (annotations[<span class="org-string">'mol_hs'</span>] * onehot.dot(np.exp(log_mu.loc[k] + log_mu.loc[k]))))
 
+<span class="org-variable-name">grid</span> = np.arange(data.loc[k].<span class="org-builtin">max</span>())
 <span class="org-variable-name">pmf</span> = []
-<span class="org-keyword">for</span> value <span class="org-keyword">in</span> np.arange(data.loc[k].<span class="org-builtin">max</span>()):
+<span class="org-keyword">for</span> value <span class="org-keyword">in</span> grid:
   <span class="org-variable-name">pmf_value</span> = st.nbinom(n=n, p=p).pmf(value).mean()
   pmf.append(pmf_value)
 <span class="org-variable-name">pmf</span> = np.array(pmf)
@@ -1913,13 +1692,77 @@ Text(0,0.5,'Number of cells')
 <p><img src="figure/zinb.org/endov.png" alt="endov.png">
 </p>
 </div>
+
+<p>
+For comparison, look at randomized quantiles for the CPU-based solution.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">endov_res</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/density-estimation/np/result-21.txt.gz'</span>, compression=<span class="org-string">'gzip'</span>, header=<span class="org-constant">None</span>)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">Z</span> = rpp(data.loc[<span class="org-string">'ENSG00000173818'</span>], endov_res[2], endov_res[3], -endov_res[4], annotations[<span class="org-string">'mol_hs'</span>], onehot, n_samples=10)
+
+plt.clf()
+plt.gcf().set_size_inches(3, 3)
+plt.hist(Z.ravel(), density=<span class="org-constant">True</span>, bins=10)
+plt.axhline(y=1, ls=<span class="org-string">':'</span>, c=<span class="org-string">'k'</span>)
+plt.xlabel(<span class="org-string">'Randomized quantile'</span>)
+plt.ylabel(<span class="org-string">'Density'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0,0.5,'Density')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/zinb.org/np-endov.png" alt="np-endov.png">
+</p>
+</div>
+
+<p>
+Compare the CPU solution to the GPU solution.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+<span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(1, 3)
+fig.set_size_inches(8, 3)
+ax[0].scatter(log_mu.loc[<span class="org-string">'ENSG00000173818'</span>], endov_res[2], c=<span class="org-string">'k'</span>, s=1)
+ax[0].plot([-13,-10], [-13,-10], c=<span class="org-string">'r'</span>, ls=<span class="org-string">':'</span>)
+ax[0].set_xlabel(<span class="org-string">'GPU estimated $\ln\mu$'</span>)
+ax[0].set_ylabel(<span class="org-string">'CPU estiamted $\ln\mu$'</span>)
+
+ax[1].scatter(log_phi.loc[<span class="org-string">'ENSG00000173818'</span>], endov_res[3], c=<span class="org-string">'k'</span>, s=1)
+ax[1].plot([-8,2.5], [-8,2.5], c=<span class="org-string">'r'</span>, ls=<span class="org-string">':'</span>)
+ax[1].set_xlabel(<span class="org-string">'GPU estimated $\ln\phi$'</span>)
+ax[1].set_ylabel(<span class="org-string">'CPU estiamted $\ln\phi$'</span>)
+
+ax[2].scatter(logodds.loc[<span class="org-string">'ENSG00000173818'</span>], endov_res[4], c=<span class="org-string">'k'</span>, s=1)
+ax[2].plot([-8,1], [-8,1], c=<span class="org-string">'r'</span>, ls=<span class="org-string">':'</span>)
+ax[2].set_xlabel(<span class="org-string">'GPU estimated log odds'</span>)
+ax[2].set_ylabel(<span class="org-string">'CPU estimated log odds'</span>)
+
+fig.tight_layout()
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/zinb.org/cpu-gpu-endov.png" alt="cpu-gpu-endov.png">
+</p>
+</div>
 </div>
 </div>
 </div>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-12-04 Tue 11:31</p>
+<p class="date">Created: 2018-12-06 Thu 15:14</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>

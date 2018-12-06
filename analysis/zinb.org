@@ -67,7 +67,7 @@
   #+END_SRC
 
   #+RESULTS:
-  : 3
+  : 20
 
   #+CALL: ipython3(memory="16G",venv="scqtl",partition="mstephens") :dir /scratch/midway2/aksarkar/singlecell
 
@@ -81,7 +81,6 @@
     import scipy.optimize as so
     import scipy.stats as st
     import scipy.special as sp
-    import scqtl
     import sqlite3
   #+END_SRC
 
@@ -105,6 +104,7 @@
 
   #+NAME: tf-imports
   #+BEGIN_SRC ipython :eval never
+    import scqtl
     import tensorflow as tf
   #+END_SRC
 
@@ -135,227 +135,11 @@
 
 * Tensorflow implementation
 
-  We optimize all of the parameters together, using one-hot encoding to map
-  parameters to data points. This makes inference more amenable to running on
-  the GPU.
+  Use ~tensorflow~ to optimize all of the parameters together using one-hot
+  encoding to map parameters to data points. This makes inference more amenable
+  to running on the GPU.
 
-  Use ~tensorflow~ to automatically differentiate the negative log likelihood and
-  perform gradient descent.
-
-  #+NAME: tf-zinb-impl
-  #+BEGIN_SRC ipython :eval never
-    def nb_llik(x, mean, inv_disp):
-      """Log likelihood of x distributed as NB
-
-      See Hilbe 2012, eq. 8.10
-
-      mean - mean (> 0)
-      inv_disp - inverse dispersion (> 0)
-
-      """
-      return (x * tf.log(mean / inv_disp) -
-              x * tf.log(1 + mean / inv_disp) -
-              inv_disp * tf.log(1 + mean / inv_disp) +
-              tf.lgamma(x + inv_disp) -
-              tf.lgamma(inv_disp) -
-              tf.lgamma(x + 1))
-
-    def zinb_llik(x, mean, inv_disp, logodds):
-      """Log likelihood of x distributed as ZINB
-
-      See Hilbe 2012, eq. 11.12, 11.13
-
-      mean - mean (> 0)
-      inv_disp - inverse dispersion (> 0)
-      logodds - logit proportion of excess zeros
-
-      """
-      # Important identities:
-      # log(x + y) = log(x) + softplus(y - x)
-      # log(sigmoid(x)) = -softplus(-x)
-      case_zero = -tf.nn.softplus(-logodds) + tf.nn.softplus(nb_llik(x, mean, inv_disp) + tf.nn.softplus(-logodds))
-      case_non_zero = -tf.nn.softplus(logodds) + nb_llik(x, mean, inv_disp)
-      return tf.where(tf.less(x, 1), case_zero, case_non_zero)
-
-    # https://github.com/junfengwen/AMSGrad/blob/a00e3f4bcb3ba16b2fe67c75dd8643670bded0c9/optimizers.py
-
-    from tensorflow.python.framework import ops
-    from tensorflow.python.ops import control_flow_ops
-    from tensorflow.python.ops import math_ops
-    from tensorflow.python.ops import gen_math_ops
-    from tensorflow.python.ops import variable_scope
-    from tensorflow.python.training import optimizer
-
-    class AMSGrad(optimizer.Optimizer):
-      """The AMSGrad algorithm in the paper
-
-      Reddi, Kale, Kumar, On the Convergence of Adam and Beyond, ICLR 2018
-
-      https://openreview.net/forum?id=ryQu7f-RZ
-
-      """
-      def __init__(self, learning_rate=0.001, beta1=0.9, beta2=0.999,
-                   epsilon=1e-8, use_locking=False, name="AMSGrad"):
-        super(AMSGrad, self).__init__(use_locking, name)
-        self._lr = learning_rate
-        self._beta1 = beta1
-        self._beta2 = beta2
-        self._epsilon = epsilon
-
-        self._lr_t = None
-        self._beta1_t = None
-        self._beta2_t = None
-        self._epsilon_t = None
-
-        self._beta1_power = None
-        self._beta2_power = None
-
-      def _create_slots(self, var_list):
-
-        first_var = min(var_list, key=lambda x: x.name)
-
-        create_new = self._beta1_power is None
-
-        if create_new:
-          with ops.colocate_with(first_var):
-            self._beta1_power = variable_scope.variable(self._beta1,
-                                                        name="beta1_power",
-                                                        trainable=False)
-            self._beta2_power = variable_scope.variable(self._beta2,
-                                                        name="beta2_power",
-                                                        trainable=False)
-        # Create slots for the first and second moments.
-        for v in var_list:
-          # first moment est
-          self._zeros_slot(v, "first_mom", self._name)
-          # second moment est
-          self._zeros_slot(v, "second_mom", self._name)
-          self._zeros_slot(v, "second_mom_max", self._name)
-
-      def _prepare(self):
-        self._lr_t = ops.convert_to_tensor(self._lr)
-        self._beta1_t = ops.convert_to_tensor(self._beta1)
-        self._beta2_t = ops.convert_to_tensor(self._beta2)
-        self._epsilon_t = ops.convert_to_tensor(self._epsilon)
-        self._one_minus_beta1 = ops.convert_to_tensor(1. - self._beta1)
-        self._one_minus_beta2 = ops.convert_to_tensor(1. - self._beta2)
-
-      def _apply_dense(self, grad, var):
-        # bias-corrected learning rate
-        lr = self._lr_t * math_ops.sqrt(1. - self._beta2_power) / (1. - self._beta1_power)
-        first_mom = self.get_slot(var, "first_mom")
-        second_mom = self.get_slot(var, "second_mom")
-        second_mom_max = self.get_slot(var, "second_mom_max")
-        first_update = first_mom.assign(self._beta1_t * first_mom +
-                                        self._one_minus_beta1 * grad,
-                                        use_locking=self._use_locking)
-        second_update = second_mom.assign(self._beta2_t * second_mom +
-                                          self._one_minus_beta2 * math_ops.square(grad),
-                                          use_locking=self._use_locking)
-        # AMSGrad compared to ADAM
-        second_max_update = second_mom_max.assign(gen_math_ops.maximum(second_mom_max,
-                                                                       second_update))
-        var_update = var.assign_sub(lr * first_update / (math_ops.sqrt(second_max_update) +
-                                                         self._epsilon_t),
-                                    use_locking=self._use_locking)
-        return control_flow_ops.group(*[var_update, first_update,
-                                        second_update, second_max_update])
-
-      def _apply_sparse(self, grad, var):
-        # just a copy of the dense case, not properly implemented yet
-        return self._apply_dense(grad, var)
-
-      def _finish(self, update_ops, name_scope):
-        # Update the power accumulators.
-        with ops.control_dependencies(update_ops):
-          with ops.colocate_with(self._beta1_power):
-            update_beta1 = self._beta1_power.assign(
-              self._beta1_power * self._beta1,
-              use_locking=self._use_locking)
-            update_beta2 = self._beta2_power.assign(
-              self._beta2_power * self._beta2_t,
-              use_locking=self._use_locking)
-        return control_flow_ops.group(*update_ops + [update_beta1, update_beta2],
-                                      name=name_scope)
-
-    def fit(umi, onehot, size_factor, design, learning_rate=1e-2, max_epochs=1000,
-            fit_null=False, return_llik=False, return_beta=False, warm_start=None):
-      """Return estimated log mean and log dispersion. 
-
-      umi - count matrix (n x p; float32)
-      onehot - mapping of individuals to cells (m x n; float32)
-      size_factor - size factor vector (n x 1; float32)
-      design - confounder matrix (n x q; float32)
-      fit_null - whether to fit the null model (common dispersion)
-      return_llik - whether to return the log likelihood matrix
-      warm_start - tuple of (log_mean, log_disp, logodds)
-
-      Returns:
-
-      log_mean - log mean parameter (m x p)
-      log_disp - log dispersion parameter (m x p)
-      logodds - logit proportion of excess zeros (m x p)
-      llik - if return_llik, log likelihood per gene (p)
-
-      """
-      n, p = umi.shape
-      _, m = onehot.shape
-      _, k = design.shape
-
-      params = locals()
-      graph = tf.Graph()
-      with graph.as_default(), graph.device('/gpu:*'):
-        size_factor = tf.Variable(size_factor, trainable=False)
-        umi = tf.Variable(umi, trainable=False)
-        onehot = tf.Variable(onehot, trainable=False)
-        design = tf.Variable(design, trainable=False)
-
-        if warm_start is not None:
-          log_mean, log_disp, logodds = warm_start
-          assert log_mean.shape == (m, p)
-          assert log_disp.shape == (m, p)
-          assert logodds.shape == (m, p)
-          mean = tf.exp(tf.Variable(log_mean))
-          inv_disp = tf.exp(tf.Variable(-log_disp))
-          logodds = tf.Variable(logodds)
-        else:
-          mean = tf.exp(tf.Variable(tf.zeros([m, p])))
-          if fit_null:
-            inv_disp = tf.exp(tf.Variable(tf.zeros([1, p])))
-          else:
-            inv_disp = tf.exp(tf.Variable(tf.zeros([m, p])))
-          logodds = tf.Variable(tf.zeros([m, p]))
-        beta = tf.Variable(tf.zeros([k, p]))
-
-        if fit_null:
-          llik = zinb_llik(umi, size_factor * tf.matmul(onehot, mean) * tf.exp(tf.matmul(design, beta)),
-                           inv_disp, tf.matmul(onehot, logodds))
-        else:
-          llik = zinb_llik(umi, size_factor * tf.matmul(onehot, mean) * tf.exp(tf.matmul(design, beta)),
-                           tf.matmul(onehot, inv_disp), tf.matmul(onehot, logodds))
-
-        loss = -tf.reduce_mean(llik)
-        train = AMSGrad(learning_rate=learning_rate).minimize(loss)
-        opt = [tf.log(mean), -tf.log(inv_disp), logodds]
-        if return_llik:
-          opt.append(tf.reduce_sum(llik, axis=0))
-        if return_beta:
-          opt.append(beta)
-        curr = float('-inf')
-        with tf.Session() as sess:
-          sess.run(tf.global_variables_initializer())
-          for i in range(max_epochs):
-            _, update = sess.run([train, loss])
-            if not np.isfinite(update):
-              raise tf.train.NanLossDuringTrainingError
-            if not i % 500:
-              print(i, update)
-          return sess.run(opt)
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  :END:
+  The method is implemented in the Python package ~scqtl~.
 
 ** Simulation
 
@@ -363,9 +147,6 @@
    #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-sim.py
      <<zinb-imports>>
      <<tf-imports>>
-     <<sim-impl>>
-     <<tf-zinb-impl>>
-     <<zinb-diagnostic>>
 
      def evaluate(num_samples, num_mols, num_trials=10):
        # This will be reset inside the simulation to generate counts, but we need to
@@ -378,17 +159,17 @@
                for log_mu in np.linspace(-12, -6, 7)
                for log_phi in np.linspace(-4, 0, 5)
                for logodds in np.linspace(-3, 3, 7)]
-       umi = np.concatenate([simulate(*a)[0][:,:1] for a in args], axis=1)
+       umi = np.concatenate([scqtl.simulation.simulate(*a)[0][:,:1] for a in args], axis=1)
        onehot = np.zeros((num_samples * num_trials, num_trials))
        onehot[np.arange(onehot.shape[0]), np.arange(onehot.shape[0]) // num_samples] = 1
 
-       log_mu, log_phi, logodds = fit(
+       log_mu, log_phi, logodds = scqtl.tf.fit(
          umi=umi.astype(np.float32),
          onehot=onehot.astype(np.float32),
          design=design.astype(np.float32),
          size_factor=(num_mols * np.ones((num_samples * num_trials, 1))).astype(np.float32),
-         learning_rate=5e-2,
-         max_epochs=20000)
+         learning_rate=7e-2,
+         max_epochs=50000)
        result = pd.DataFrame(
          [(a[0] // num_trials, int(a[1]), int(a[2]), int(a[3]), int(a[4]), a[-1], trial)
           for a in args
@@ -404,27 +185,21 @@
        result['mean_log_cpm'] = log_cpm.mean(axis=1).ravel(order='F')
        result['var_log_cpm'] = log_cpm.var(axis=1).ravel(order='F')
 
-       diagnostic = []
-       for i in range(umi.shape[1]):
-         for j in range(onehot.shape[1]):
-           idx = onehot[:,j].astype(bool)
-           diagnostic.append(diagnostic_test(umi[idx,i], log_mu[j,i], log_phi[j,i], -logodds[j,i], num_mols, np.ones((num_samples, 1)))[1])
-       result['diagnostic'] = diagnostic
        return result
 
-     res = evaluate(num_samples=95, num_mols=114026, num_trials=50)
+     res = evaluate(num_samples=95, num_mols=114026, num_trials=1)
      res.to_csv('simulation.txt.gz', compression='gzip', sep='\t')
    #+END_SRC
 
    #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation/
-     sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --time=1:00:00 --job-name=tf-sim --output=sim.out
+     sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --time=1:00:00 --job-name=tf-sim --output=tf-sim.out
      #!/bin/bash
      source activate scqtl
      python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-sim.py
    #+END_SRC
 
    #+RESULTS:
-   : Submitted batch job 54674786
+   : Submitted batch job 55018908
 
    Read the results.
 
@@ -1219,8 +994,8 @@
     <<np-eval-impl>>
     <<zinb-diagnostic>>
     args = [(num_samples, num_mols, log_mu, log_phi, logodds, fold, trial)
-            for num_samples in np.linspace(100, 1000, 5).astype(int)
-            for num_mols in 1e3 * np.linspace(100, 1000, 5).astype(int)
+            for num_samples in (95,)
+            for num_mols in (114026,)
             for log_mu in np.linspace(-12, -6, 7)
             for log_phi in np.linspace(-6, 0, 7)
             for logodds in np.linspace(-3, 3, 7)
@@ -1239,7 +1014,7 @@
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 54793377
+  : Submitted batch job 55019237
 
   #+BEGIN_SRC sh :exports none
     sacct -j 54793377 -o Elapsed
