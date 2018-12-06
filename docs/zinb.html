@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-11-27 Tue 14:52 -->
+<!-- 2018-12-04 Tue 11:31 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mean/dispersion estimation</title>
@@ -179,7 +179,7 @@
   /*]]>*/-->
 </style>
 <link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
-<link rel="stylesheet" type="text/css" href="https://www.pirilampo.org/styles/readtheorg/css/htmlize.css"/>
+<link rel="stylesheet" type="text/css" href="site_libs/htmlize.css"/>
 <style type="text/css">body {width: 60em; margin:auto} pre.src {overflow:auto}</style>
 <script type="text/javascript">
 /*
@@ -254,9 +254,9 @@ for the JavaScript code in this tag.
 <div id="content">
 <h1 class="title">Mean/dispersion estimation</h1>
 
-<div id="outline-container-orgca93ba7" class="outline-2">
-<h2 id="orgca93ba7">Introduction</h2>
-<div class="outline-text-2" id="text-orgca93ba7">
+<div id="outline-container-org49d326f" class="outline-2">
+<h2 id="org49d326f">Introduction</h2>
+<div class="outline-text-2" id="text-org49d326f">
 <p>
 We take a modular approach to call QTLs:
 </p>
@@ -271,19 +271,18 @@ Here, we solve (1).
 </p>
 
 <ol class="org-ol">
-<li><a href="#orga5e4ee6">We implement GPU-based ML estimation</a> of a zero-inflated negative binomial
+<li><a href="#orgd9442d4">We implement GPU-based ML estimation</a> of a zero-inflated negative binomial
 model</li>
-<li><a href="#org7f7b292">We show in simulation</a> that the estimates are unbisaed</li>
-<li><a href="#org35609ea">We compare ZINB estimates of mean expression</a> against sample-based estimates</li>
-<li><a href="#orgf2511d8">We estimate Fano factors</a> accounting for different depths across samples
-and different means across individuals</li>
+<li><a href="#orgf59637d">We show in simulation</a> that the estimates are unbiased</li>
+<li><a href="#org7ae35b9">We compare ZINB estimates of mean expression</a> against sample-based estimates</li>
+<li><a href="#org17af587">We implement a test for goodness of fit</a> for the ZINB model</li>
 </ol>
 </div>
 </div>
 
-<div id="outline-container-org0a78734" class="outline-2">
-<h2 id="org0a78734">Model specification</h2>
-<div class="outline-text-2" id="text-org0a78734">
+<div id="outline-container-orgc376b56" class="outline-2">
+<h2 id="orgc376b56">Model specification</h2>
+<div class="outline-text-2" id="text-orgc376b56">
 <p>
 Let \(r_{ijk}\) denote the number of molecules for individual \(i\), cell
 \(j\), gene \(k\). Let \(R_{ij}\) denote a size factor for each cell.
@@ -359,9 +358,9 @@ the mixture components) are also equal.
 </div>
 </div>
 
-<div id="outline-container-orga5e4ee6" class="outline-2">
-<h2 id="orga5e4ee6">Tensorflow implementation</h2>
-<div class="outline-text-2" id="text-orga5e4ee6">
+<div id="outline-container-orgd9442d4" class="outline-2">
+<h2 id="orgd9442d4">Tensorflow implementation</h2>
+<div class="outline-text-2" id="text-orgd9442d4">
 <p>
 We optimize all of the parameters together, using one-hot encoding to map
 parameters to data points. This makes inference more amenable to running on
@@ -374,7 +373,7 @@ perform gradient descent.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="orgb25f6b1"><span class="org-keyword">def</span> <span class="org-function-name">nb_llik</span>(x, mean, inv_disp):
+<pre class="src src-ipython" id="orgdf074d4"><span class="org-keyword">def</span> <span class="org-function-name">nb_llik</span>(x, mean, inv_disp):
   <span class="org-doc">"""Log likelihood of x distributed as NB</span>
 
 <span class="org-doc">  See Hilbe 2012, eq. 8.10</span>
@@ -585,11 +584,11 @@ perform gradient descent.
 </div>
 </div>
 
-<div id="outline-container-org7f7b292" class="outline-3">
-<h3 id="org7f7b292">Simulation</h3>
-<div class="outline-text-3" id="text-org7f7b292">
+<div id="outline-container-orgf59637d" class="outline-3">
+<h3 id="orgf59637d">Simulation</h3>
+<div class="outline-text-3" id="text-orgf59637d">
 <div class="org-src-container">
-<pre class="src src-ipython">&lt;&lt;zinb-imports&gt;&gt;
+<pre class="src src-ipython" id="org6a724dd">&lt;&lt;zinb-imports&gt;&gt;
 &lt;&lt;tf-imports&gt;&gt;
 &lt;&lt;sim-impl&gt;&gt;
 &lt;&lt;tf-zinb-impl&gt;&gt;
@@ -616,7 +615,7 @@ perform gradient descent.
     design=design.astype(np.float32),
     size_factor=(num_mols * np.ones((num_samples * num_trials, 1))).astype(np.float32),
     learning_rate=5e-2,
-    max_epochs=8000)
+    max_epochs=20000)
   <span class="org-variable-name">result</span> = pd.DataFrame(
     [(a[0] // num_trials, <span class="org-builtin">int</span>(a[1]), <span class="org-builtin">int</span>(a[2]), <span class="org-builtin">int</span>(a[3]), <span class="org-builtin">int</span>(a[4]), a[-1], trial)
      <span class="org-keyword">for</span> a <span class="org-keyword">in</span> args
@@ -633,18 +632,20 @@ perform gradient descent.
   <span class="org-variable-name">result</span>[<span class="org-string">'var_log_cpm'</span>] = log_cpm.var(axis=1).ravel(order=<span class="org-string">'F'</span>)
 
   <span class="org-variable-name">diagnostic</span> = []
-  <span class="org-keyword">for</span> k, x <span class="org-keyword">in</span> umi.iterrows():
-    diagnostic.append(diagnostic_test(x, log_mu.loc[k], log_phi.loc[k], logodds.loc[k], annotations[<span class="org-string">'mol_hs'</span>], onehot))
+  <span class="org-keyword">for</span> i <span class="org-keyword">in</span> <span class="org-builtin">range</span>(umi.shape[1]):
+    <span class="org-keyword">for</span> j <span class="org-keyword">in</span> <span class="org-builtin">range</span>(onehot.shape[1]):
+      <span class="org-variable-name">idx</span> = onehot[:,j].astype(<span class="org-builtin">bool</span>)
+      diagnostic.append(diagnostic_test(umi[idx,i], log_mu[j,i], log_phi[j,i], -logodds[j,i], num_mols, np.ones((num_samples, 1)))[1])
   <span class="org-variable-name">result</span>[<span class="org-string">'diagnostic'</span>] = diagnostic
   <span class="org-keyword">return</span> result
 
-<span class="org-variable-name">res</span> = evaluate(num_samples=95, num_mols=114026)
+<span class="org-variable-name">res</span> = evaluate(num_samples=95, num_mols=114026, num_trials=50)
 res.to_csv(<span class="org-string">'simulation.txt.gz'</span>, compression=<span class="org-string">'gzip'</span>, sep=<span class="org-string">'\t'</span>)
 </pre>
 </div>
 
 <div class="org-src-container">
-<pre class="src src-sh">sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --time=240 --job-name=tf-sim --output=sim.out
+<pre class="src src-sh">sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --time=1:00:00 --job-name=tf-sim --output=sim.out
 <span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
 <span class="org-builtin">source</span> activate scqtl
 python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-sim.py
@@ -652,7 +653,7 @@ python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-sim.py
 </div>
 
 <pre class="example">
-Submitted batch job 53610363
+Submitted batch job 54674786
 
 </pre>
 
@@ -820,15 +821,15 @@ fig.tight_layout()
 </div>
 </div>
 
-<div id="outline-container-orgecf0144" class="outline-3">
-<h3 id="orgecf0144">Fit ZINB2</h3>
-<div class="outline-text-3" id="text-orgecf0144">
+<div id="outline-container-orgb7df54b" class="outline-3">
+<h3 id="orgb7df54b">Fit ZINB2</h3>
+<div class="outline-text-3" id="text-orgb7df54b">
 <p>
 Read the data.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org60116d0"><span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
+<pre class="src src-ipython" id="org7a5399c"><span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
 <span class="org-variable-name">keep_genes</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
 <span class="org-variable-name">annotations</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
 <span class="org-variable-name">annotations</span> = annotations.loc[keep_samples.values.ravel()]
@@ -843,7 +844,7 @@ Prepare the design matrix of covariates.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="orgc927afe"><span class="org-variable-name">onehot</span> = recode(annotations, <span class="org-string">'chip_id'</span>)
+<pre class="src src-ipython" id="orgd5e1fe2"><span class="org-variable-name">onehot</span> = recode(annotations, <span class="org-string">'chip_id'</span>)
 
 <span class="org-variable-name">designs</span> = []
 
@@ -878,7 +879,7 @@ individual and gene.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org08cf7fc">&lt;&lt;zinb-imports&gt;&gt;
+<pre class="src src-ipython" id="orgc8dfe3f">&lt;&lt;zinb-imports&gt;&gt;
 &lt;&lt;tf-imports&gt;&gt;
 <span class="org-keyword">import</span> argparse
 &lt;&lt;tf-zinb-impl&gt;&gt;
@@ -906,16 +907,16 @@ pd.DataFrame(beta.T, index=index).to_csv(<span class="org-string">'beta.txt.gz'<
 </div>
 
 <div class="org-src-container">
-<pre class="src src-sh" id="org8a8944d">sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --time=240 --job-name=tf-zinb --output=zinb2.out
+<pre class="src src-sh" id="orgab32e4c">sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --time=240 --job-name=tf-zinb --output=zinb2.out
 <span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
 <span class="org-builtin">source</span> activate scqtl
-mkdir -p design{0,1,2,3}
+mkdir -p design{0,1}
 <span class="org-builtin">pushd</span> design0
 python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb.py --design 0
 <span class="org-builtin">popd</span>
-<span class="org-builtin">pushd</span> design1
-python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb.py --design 1
-<span class="org-builtin">popd</span>
+<span class="org-comment-delimiter"># </span><span class="org-comment">pushd design1</span>
+<span class="org-comment-delimiter"># </span><span class="org-comment">python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb.py --design 1</span>
+<span class="org-comment-delimiter"># </span><span class="org-comment">popd</span>
 </pre>
 </div>
 
@@ -925,7 +926,7 @@ Submitted batch job 53395778
 </pre>
 
 <div class="org-src-container">
-<pre class="src src-sh" id="orga92c0a6">sbatch --partition=broadwl
+<pre class="src src-sh" id="org245007b">sbatch --partition=broadwl
 <span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
 cat &gt;.rsync-filter &lt;&lt;EOF
 <span class="org-sh-heredoc">+ */</span>
@@ -944,9 +945,9 @@ Submitted batch job 53397616
 </div>
 </div>
 
-<div id="outline-container-orgac1f6dc" class="outline-2">
-<h2 id="orgac1f6dc">Parameter distributions</h2>
-<div class="outline-text-2" id="text-orgac1f6dc">
+<div id="outline-container-org6a48a5a" class="outline-2">
+<h2 id="org6a48a5a">Parameter distributions</h2>
+<div class="outline-text-2" id="text-org6a48a5a">
 <p>
 The simulation reveals the method has undesirable behavior when the
 proportion of zeros is too large and mean is too small.
@@ -1018,9 +1019,9 @@ fig.tight_layout()
 </div>
 </div>
 
-<div id="outline-container-org0d99396" class="outline-2">
-<h2 id="org0d99396">Effect of confounding</h2>
-<div class="outline-text-2" id="text-org0d99396">
+<div id="outline-container-org71cecf6" class="outline-2">
+<h2 id="org71cecf6">Effect of confounding</h2>
+<div class="outline-text-2" id="text-org71cecf6">
 <p>
 Estimate proportion of variance explained by confounders by estimating the
 average reduction in heterogeneity (residual variance).
@@ -1071,13 +1072,13 @@ Name: mean, dtype: float64
 </div>
 </div>
 
-<div id="outline-container-org29ad688" class="outline-2">
-<h2 id="org29ad688">Comparison with sample moment-based estimators</h2>
-<div class="outline-text-2" id="text-org29ad688">
+<div id="outline-container-orgf0b1cab" class="outline-2">
+<h2 id="orgf0b1cab">Comparison with sample moment-based estimators</h2>
+<div class="outline-text-2" id="text-orgf0b1cab">
 </div>
-<div id="outline-container-org35609ea" class="outline-3">
-<h3 id="org35609ea">Mean expression</h3>
-<div class="outline-text-3" id="text-org35609ea">
+<div id="outline-container-org7ae35b9" class="outline-3">
+<h3 id="org7ae35b9">Mean expression</h3>
+<div class="outline-text-3" id="text-org7ae35b9">
 <p>
 Compute pseudobulk relative abundance. <b>Important:</b> keep the \(\infty\) around.
 </p>
@@ -1169,9 +1170,9 @@ fig.tight_layout()
 </div>
 </div>
 
-<div id="outline-container-orge9f826b" class="outline-3">
-<h3 id="orge9f826b">Expression noise</h3>
-<div class="outline-text-3" id="text-orge9f826b">
+<div id="outline-container-orga360af8" class="outline-3">
+<h3 id="orga360af8">Expression noise</h3>
+<div class="outline-text-3" id="text-orga360af8">
 <p>
 Read the data.
 </p>
@@ -1208,7 +1209,7 @@ Look at Fano vs. mean, following <a href="https://www.ncbi.nlm.nih.gov/pmc/artic
 </div>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org8f44c5c"><span class="org-keyword">def</span> <span class="org-function-name">plot_fano_vs_mean</span>(mean, var, ax, title, method, ref=<span class="org-constant">True</span>):
+<pre class="src src-ipython" id="orgd9fb17f"><span class="org-keyword">def</span> <span class="org-function-name">plot_fano_vs_mean</span>(mean, var, ax, title, method, ref=<span class="org-constant">True</span>):
   ax.semilogx()
   ax.semilogy()
   ax.scatter(mean, var / mean, c=<span class="org-string">'k'</span>, s=2, zorder=0, alpha=0.25)
@@ -1245,9 +1246,9 @@ fig.tight_layout()
 </div>
 </div>
 
-<div id="outline-container-orgf2511d8" class="outline-2">
-<h2 id="orgf2511d8">ZINB estimates of expression noise</h2>
-<div class="outline-text-2" id="text-orgf2511d8">
+<div id="outline-container-org20777e4" class="outline-2">
+<h2 id="org20777e4">ZINB estimates of expression noise</h2>
+<div class="outline-text-2" id="text-org20777e4">
 <p>
 Read the estimated parameters.
 </p>
@@ -1289,7 +1290,7 @@ Fixing individual \(i\), cell \(j\), gene \(k\), we have:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org3768aa8"><span class="org-variable-name">mean_by_sample</span> = (annotations[<span class="org-string">'mol_hs'</span>].values.reshape(-1, 1) * onehot).dot(np.exp(log_mu - np.log1p(np.exp(logodds))).T)
+<pre class="src src-ipython" id="orgb416e2f"><span class="org-variable-name">mean_by_sample</span> = (annotations[<span class="org-string">'mol_hs'</span>].values.reshape(-1, 1) * onehot).dot(np.exp(log_mu - np.log1p(np.exp(logodds))).T)
 <span class="org-comment-delimiter"># </span><span class="org-comment">Nonzero component</span>
 <span class="org-variable-name">var_by_sample</span> = mean_by_sample + np.square(mean_by_sample) * np.exp(onehot.dot(log_phi.values.T))
 <span class="org-variable-name">var_by_sample</span> *= onehot.dot(sp.expit(-logodds.T))
@@ -1336,7 +1337,7 @@ and variance (<a href="http://www.springer.com/us/book/9780387329093">Frühwirth
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="orgc991661"><span class="org-variable-name">mean_by_ind</span> = onehot.T.dot(mean_by_sample) / onehot.T.<span class="org-builtin">sum</span>(axis=1, keepdims=<span class="org-constant">True</span>)
+<pre class="src src-ipython" id="orgdc5f3b3"><span class="org-variable-name">mean_by_ind</span> = onehot.T.dot(mean_by_sample) / onehot.T.<span class="org-builtin">sum</span>(axis=1, keepdims=<span class="org-constant">True</span>)
 <span class="org-variable-name">var_by_ind</span> = onehot.T.dot(np.square(mean_by_sample - onehot.dot(mean_by_ind)) + var_by_sample) / onehot.T.<span class="org-builtin">sum</span>(axis=1, keepdims=<span class="org-constant">True</span>)
 <span class="org-variable-name">overall_mean</span> = mean_by_sample.mean(axis=0)
 <span class="org-variable-name">overall_var</span> = (np.square(mean_by_sample - overall_mean.reshape(1, -1)) + var_by_sample).mean(axis=0)
@@ -1428,9 +1429,9 @@ Text(0,0.5,'Sample Fano factor')
 </div>
 </div>
 </div>
-<div id="outline-container-org0a1b716" class="outline-2">
-<h2 id="org0a1b716">Examples</h2>
-<div class="outline-text-2" id="text-org0a1b716">
+<div id="outline-container-org761b474" class="outline-2">
+<h2 id="org761b474">Examples</h2>
+<div class="outline-text-2" id="text-org761b474">
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
 <span class="org-variable-name">log_phi</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-phi.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
@@ -1481,9 +1482,9 @@ Sorry, your browser does not support SVG.</object>
 </div>
 </div>
 
-<div id="outline-container-org92a80c6" class="outline-2">
-<h2 id="org92a80c6">Evaluating goodness of fit</h2>
-<div class="outline-text-2" id="text-org92a80c6">
+<div id="outline-container-org17af587" class="outline-2">
+<h2 id="org17af587">Evaluating goodness of fit</h2>
+<div class="outline-text-2" id="text-org17af587">
 <p>
 To test whether the model actually fit the data, we can use a simple fact: if
 </p>
@@ -1524,7 +1525,130 @@ Smyth 1996</a>, <a href="https://arxiv.org/abs/1708.08527">Feng et al. 2017</a>)
 </p>
 
 <p>
-Simulate small examples.
+Implement the diagnostic test.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython" id="orgf9fa352"><span class="org-keyword">def</span> <span class="org-function-name">rpp</span>(x, log_mu, log_phi, logodds, size, onehot, n_samples=100):
+  <span class="org-variable-name">n</span> = onehot.dot(np.exp(-log_phi))
+  <span class="org-variable-name">pi0</span> = onehot.dot(sp.expit(-logodds))
+  <span class="org-variable-name">p</span> = 1 / (1 + (size * onehot.dot(np.exp(log_mu + log_phi))))
+
+  <span class="org-variable-name">cdf</span> = st.nbinom(n=n, p=p).cdf(x - 1)
+  <span class="org-comment-delimiter"># </span><span class="org-comment">Important: this excludes the right endpoint, so we need to special case x =</span>
+  <span class="org-comment-delimiter"># </span><span class="org-comment">0</span>
+  <span class="org-variable-name">cdf</span> = np.where(x &gt; 0, pi0 + (1 - pi0) * cdf, cdf)
+  <span class="org-variable-name">pmf</span> = st.nbinom(n=n, p=p).pmf(x)
+  <span class="org-variable-name">pmf</span> *= (1 - pi0)
+  <span class="org-variable-name">pmf</span>[x == 0] += pi0[x == 0]
+  <span class="org-variable-name">rpp</span> = cdf + np.random.uniform(size=(n_samples, x.shape[0])) * pmf
+  <span class="org-keyword">return</span> rpp
+
+<span class="org-keyword">def</span> <span class="org-function-name">diagnostic_test</span>(x, log_mu, log_phi, logodds, size, onehot, n_samples=100):
+  <span class="org-variable-name">vals</span> = rpp(x, log_mu, log_phi, logodds, size, onehot, n_samples)
+  <span class="org-keyword">return</span> st.kstest(vals.ravel(), <span class="org-string">'uniform'</span>)
+</pre>
+</div>
+</div>
+
+<div id="outline-container-orgf020b0c" class="outline-3">
+<h3 id="diagnostic-sim"><a id="orgf020b0c"></a>Simulation</h3>
+<div class="outline-text-3" id="text-diagnostic-sim">
+<p>
+Look at randomized residuals for some simulated data. Use the CPU
+implementation of ZINB for convenience.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">X</span>, <span class="org-variable-name">design</span> = simulate(num_samples=100, size=1e5, log_mu=-9, log_phi=-6, logodds=-3, seed=3, design=<span class="org-constant">None</span>, fold=<span class="org-constant">None</span>)
+<span class="org-variable-name">res</span> = _fit_gene(X, np.ones((X.shape[0], 1)), design)
+</pre>
+</div>
+
+<p>
+Plot the simulated data and estimated density.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">n</span> = np.exp(-res[1])
+<span class="org-variable-name">pi0</span> = sp.expit(res[2])
+<span class="org-variable-name">p</span> = 1 / (1 + (1e5 * np.exp(res[0] + res[1])))
+
+<span class="org-variable-name">grid</span> = np.arange(X[:,0].<span class="org-builtin">max</span>())
+<span class="org-variable-name">pmf</span> = st.nbinom(n=n, p=p).pmf(grid)
+<span class="org-variable-name">pmf</span> *= (1 - pi0)
+<span class="org-variable-name">pmf</span>[0] += pi0
+
+plt.clf()
+plt.gcf().set_size_inches(3, 3)
+plt.hist(X[:,0], color=<span class="org-string">'k'</span>, bins=grid)
+plt.plot(.5 + grid, X.shape[0] * pmf, c=<span class="org-string">'r'</span>, lw=1)
+plt.xlabel(<span class="org-string">'UMI count'</span>)
+<span class="org-variable-name">_</span> = plt.ylabel(<span class="org-string">'Number of cells'</span>)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figure/zinb.org/simulated-zinb.png" alt="simulated-zinb.png">
+</p>
+</div>
+
+<p>
+Plot the QQ plot using randomized quantiles.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">Z</span> = rpp(X[:,0], res[0], res[1], -res[2], 1e5, np.ones((X.shape[0], 1)), n_samples=50)
+plt.clf()
+plt.gcf().set_size_inches(3, 3)
+plt.plot(<span class="org-builtin">sorted</span>(Z.ravel()), np.linspace(0, 1, np.prod(Z.shape)), c=<span class="org-string">'k'</span>)
+plt.text(.05, .92, <span class="org-string">'ks = {:.2g}'</span>.<span class="org-builtin">format</span>(st.kstest(Z.ravel(), <span class="org-string">'uniform'</span>)[1]), transform=plt.gca().transAxes)
+plt.text(.05, .82, r<span class="org-string">'$\ln\phi = -3$'</span>, transform=plt.gca().transAxes)
+plt.text(.05, .72, r<span class="org-string">'$\ln\hat\phi = {:.2g}$'</span>.<span class="org-builtin">format</span>(res[1][0]), transform=plt.gca().transAxes)
+plt.xlabel(<span class="org-string">'Theoretical quantiles'</span>)
+plt.ylabel(<span class="org-string">'Observed quantiles'</span>)
+plt.plot([0, 1], [0, 1], c=<span class="org-string">'r'</span>, ls=<span class="org-string">'--'</span>)
+</pre>
+</div>
+
+<pre class="example">
+[&lt;matplotlib.lines.Line2D at 0x7fb5d5be35c0&gt;]
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/zinb.org/simulated-rqrs.png" alt="simulated-rqrs.png">
+</p>
+</div>
+
+<p>
+Plot the histogram of randomized quantiles.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">Z</span> = rpp(X[:,0], res[0], res[1], -res[2], 1e5, np.ones((X.shape[0], 1)), n_samples=50)
+plt.clf()
+plt.gcf().set_size_inches(3, 3)
+plt.hist(Z.ravel(), density=<span class="org-constant">True</span>, bins=25, color=<span class="org-string">'.7'</span>)
+plt.axhline(y=1, c=<span class="org-string">'k'</span>, ls=<span class="org-string">':'</span>)
+plt.xlabel(<span class="org-string">'Randomized quantile'</span>)
+plt.ylabel(<span class="org-string">'Density'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0,0.5,'Density')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/zinb.org/simulated-rqrs-hist.png" alt="simulated-rqrs-hist.png">
+</p>
+</div>
+
+<p>
+See how the randomized quantiles work as \(\pi_0\) changes.
 </p>
 
 <div class="org-src-container">
@@ -1584,65 +1708,31 @@ pi0  trial        ks        sw
 28  0.10      8  0.661486  0.359344
 29  0.10      9  0.984754  0.085754
 </pre>
+</div>
+</div>
 
+
+<div id="outline-container-orgdd93ccf" class="outline-3">
+<h3 id="orgdd93ccf">Real data</h3>
+<div class="outline-text-3" id="text-orgdd93ccf">
 <p>
-Read the estimated parameters.
+Run the diagnostic on the estimated parameters.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">"/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-log-mu.txt.gz"</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<pre class="src src-ipython">&lt;&lt;zinb-imports&gt;&gt;
+&lt;&lt;recode-impl&gt;&gt;
+&lt;&lt;zinb-diagnostic&gt;&gt;
+
+<span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">"/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-log-mu.txt.gz"</span>, index_col=0, sep=<span class="org-string">' '</span>)
 <span class="org-variable-name">log_phi</span> = pd.read_table(<span class="org-string">"/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-log-phi.txt.gz"</span>, index_col=0, sep=<span class="org-string">' '</span>)
 <span class="org-variable-name">logodds</span> = pd.read_table(<span class="org-string">"/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-logodds.txt.gz"</span>, index_col=0, sep=<span class="org-string">' '</span>)
-</pre>
-</div>
 
-<p>
-Read the annotations.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
+<span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
 <span class="org-variable-name">annotations</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
 <span class="org-variable-name">annotations</span> = annotations.loc[keep_samples.values.ravel()]
-</pre>
-</div>
 
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">onehot</span> = recode(annotations, <span class="org-string">'chip_id'</span>)
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">chip</span> = recode(annotations, <span class="org-string">'experiment'</span>)
-<span class="org-variable-name">chip</span> -= chip.mean(axis=0)
-</pre>
-</div>
-
-<p>
-Implement the diagnostic test.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython" id="org8d13f94"><span class="org-keyword">def</span> <span class="org-function-name">diagnostic_test</span>(x, log_mu, log_phi, logodds, size, onehot):
-  <span class="org-variable-name">n</span> = onehot.dot(np.exp(-log_phi))
-  <span class="org-variable-name">pi0</span> = onehot.dot(sp.expit(-logodds))
-  <span class="org-variable-name">p</span> = 1 / (1 + (annotations[<span class="org-string">'mol_hs'</span>] * onehot.dot(np.exp(log_mu + log_phi))))
-
-  <span class="org-variable-name">cdf</span> = st.nbinom(n=n, p=p).cdf(x - 1)
-  <span class="org-comment-delimiter"># </span><span class="org-comment">Important: this excludes the right endpoint, so we need to special case x =</span>
-  <span class="org-comment-delimiter"># </span><span class="org-comment">0</span>
-  <span class="org-variable-name">cdf</span> = np.where(x &gt; 0, pi0 + (1 - pi0) * cdf, cdf)
-  <span class="org-variable-name">pmf</span> = st.nbinom(n=n, p=p).pmf(x)
-  <span class="org-variable-name">pmf</span> *= (1 - pi0)
-  <span class="org-variable-name">pmf</span>[x == 0] += pi0[x == 0]
-  <span class="org-variable-name">rpp</span> = cdf + np.random.uniform(size=x.shape[0]) * pmf
-  <span class="org-variable-name">nrpp</span> = st.norm().ppf(rpp)
-  <span class="org-keyword">return</span> st.shapiro(nrpp)
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">keep_genes</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
+<span class="org-variable-name">onehot</span> = recode(annotations, <span class="org-string">'chip_id'</span>)
 
 <span class="org-variable-name">result</span> = []
 <span class="org-keyword">for</span> chunk <span class="org-keyword">in</span> pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>, index_col=0, chunksize=100):
@@ -1650,49 +1740,186 @@ Implement the diagnostic test.
   <span class="org-keyword">if</span> chunk.empty:
     <span class="org-keyword">continue</span>
   <span class="org-keyword">for</span> k, x <span class="org-keyword">in</span> chunk.iterrows():
-    result.append(diagnostic_test(x, log_mu.loc[k], log_phi.loc[k], logodds.loc[k], annotations[<span class="org-string">'mol_hs'</span>], onehot))
-  <span class="org-keyword">break</span>
+    <span class="org-variable-name">stat</span>, <span class="org-variable-name">p</span> = diagnostic_test(x, log_mu.loc[k], log_phi.loc[k], logodds.loc[k], annotations[<span class="org-string">'mol_hs'</span>], onehot)
+    result.append((k, stat, p))
+pd.DataFrame(result).set_index(0).to_csv(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/diagnostic.txt.gz'</span>, compression=<span class="org-string">'gzip'</span>, sep=<span class="org-string">'\t'</span>)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-sh">sbatch --partition=broadwl --job-name=<span class="org-string">"tf-diagnostic"</span> --mem=8G --time=2:00:00
+<span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
+<span class="org-builtin">source</span> activate scqtl
+python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-diagnostic.py
+</pre>
+</div>
+
+<pre class="example">
+Submitted batch job 54080417
+
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-sh">sacct -j 54080417 -o Elapsed
+</pre>
+</div>
+
+<pre class="example">
+   Elapsed 
+---------- 
+  01:20:10 
+  01:20:10 
+  01:20:10 
+
+</pre>
+
+<p>
+Look at randomized quantile residuals for the genes with least departure from
+ZINB.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">diagnostic_results</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/diagnostic.txt.gz'</span>, index_col=0)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">query</span> = diagnostic_results.sort_values(<span class="org-string">'2'</span>, ascending=<span class="org-constant">False</span>).merge(gene_info, left_index=<span class="org-constant">True</span>, right_index=<span class="org-constant">True</span>)[[<span class="org-string">'name'</span>, <span class="org-string">'1'</span>, <span class="org-string">'2'</span>]].head(n=5)
+query
+</pre>
+</div>
+
+<pre class="example">
+name         1             2
+ENSG00000173818   ENDOV  0.026892  6.100999e-04
+ENSG00000196724  ZNF418  0.034138  4.320665e-06
+ENSG00000129007  CALML4  0.034768  2.657392e-06
+ENSG00000166016   ABTB2  0.039756  4.142249e-08
+ENSG00000173480  ZNF417  0.040310  2.521349e-08
+</pre>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">"/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-log-mu.txt.gz"</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">log_phi</span> = pd.read_table(<span class="org-string">"/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-log-phi.txt.gz"</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">logodds</span> = pd.read_table(<span class="org-string">"/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-logodds.txt.gz"</span>, index_col=0, sep=<span class="org-string">' '</span>)
+
+<span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
+<span class="org-variable-name">annotations</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
+<span class="org-variable-name">annotations</span> = annotations.loc[keep_samples.values.ravel()]
+
+<span class="org-variable-name">onehot</span> = recode(annotations, <span class="org-string">'chip_id'</span>)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">data</span> = []
+<span class="org-keyword">for</span> chunk <span class="org-keyword">in</span> pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>, index_col=0, chunksize=100):
+  <span class="org-variable-name">chunk</span> = chunk.loc[:,keep_samples.values.ravel()].<span class="org-builtin">filter</span>(items=query.index, axis=<span class="org-string">'index'</span>)
+  <span class="org-keyword">if</span> <span class="org-keyword">not</span> chunk.empty:
+    data.append(chunk)
+<span class="org-variable-name">data</span> = pd.concat(data)
 </pre>
 </div>
 
 <p>
-Try and generate new data from the estimated parameters, and compare it to
-the real data.
+Look at the histogram of randomized quantiles.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-keyword">def</span> <span class="org-function-name">sample</span>(log_mu, log_phi, logodds, size, onehot):
-  <span class="org-variable-name">n</span> = onehot.dot(np.exp(-log_phi))
-  <span class="org-variable-name">p</span> = 1 / (1 + (annotations[<span class="org-string">'mol_hs'</span>] * onehot.dot(np.exp(log_mu + log_phi))))
-  <span class="org-variable-name">res</span> = st.nbinom(n=n, p=p).rvs(size=onehot.shape[0])
-  <span class="org-variable-name">pi0</span> = onehot.dot(sp.expit(logodds))
-  <span class="org-variable-name">y</span> = np.random.uniform(size=onehot.shape[0]) &lt; pi0
-  <span class="org-variable-name">res</span>[y] = 0
-  <span class="org-keyword">return</span> res
-
-<span class="org-variable-name">k</span> = <span class="org-string">'ENSG00000005486'</span>
-
-plt.clf()
+<pre class="src src-ipython">plt.clf()
 plt.gcf().set_size_inches(3, 3)
-plt.hist(chunk.loc[k], histtype=<span class="org-string">'step'</span>, lw=3, color=<span class="org-string">'black'</span>, bins=chunk.loc[k].<span class="org-builtin">max</span>())
-<span class="org-keyword">for</span> _ <span class="org-keyword">in</span> <span class="org-builtin">range</span>(5):
-  plt.hist(sample(log_mu.loc[k], log_phi.loc[k], logodds.loc[k], annotations[<span class="org-string">'mol_hs'</span>], onehot), histtype=<span class="org-string">'step'</span>, bins=chunk.loc[k].<span class="org-builtin">max</span>())
-plt.xlabel(<span class="org-string">'UMI count'</span>)
-<span class="org-variable-name">_</span> = plt.ylabel(<span class="org-string">'Number of cells'</span>)
+plt.set_cmap(<span class="org-string">'Set2'</span>)
+<span class="org-variable-name">grid</span> = np.linspace(0, 1, 100)
+<span class="org-keyword">for</span> k, row <span class="org-keyword">in</span> data.iterrows():
+  <span class="org-variable-name">Z</span> = rpp(row, log_mu.loc[k], log_phi.loc[k], logodds.loc[k], annotations[<span class="org-string">'mol_hs'</span>], onehot, n_samples=1)
+  plt.hist(Z.ravel(), histtype=<span class="org-string">'step'</span>, density=<span class="org-constant">True</span>, bins=10, label=gene_info.loc[k, <span class="org-string">'name'</span>])
+plt.axhline(y=1, ls=<span class="org-string">':'</span>, c=<span class="org-string">'k'</span>)
+plt.legend(frameon=<span class="org-constant">False</span>, loc=<span class="org-string">'center left'</span>, bbox_to_anchor=(1, .5))
+plt.xlabel(<span class="org-string">'Randomized quantile'</span>)
+plt.ylabel(<span class="org-string">'Density'</span>)
 </pre>
 </div>
 
+<pre class="example">
+Text(0,0.5,'Density')
+
+</pre>
 
 <div class="figure">
-<p><img src="figure/zinb.org/ppc.png" alt="ppc.png">
+<p><img src="figure/zinb.org/hist-rqrs.png" alt="hist-rqrs.png">
 </p>
+</div>
+
+<p>
+Look at the QQ plot of the randomized quantiles.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">plt.clf()
+plt.gcf().set_size_inches(3, 3)
+plt.set_cmap(<span class="org-string">'Set2'</span>)
+<span class="org-keyword">for</span> k, row <span class="org-keyword">in</span> data.iterrows():
+  <span class="org-variable-name">Z</span> = rpp(row, log_mu.loc[k], log_phi.loc[k], logodds.loc[k], annotations[<span class="org-string">'mol_hs'</span>], onehot, n_samples=10)
+  plt.plot(<span class="org-builtin">sorted</span>(Z.ravel()), np.linspace(0, 1, np.prod(Z.shape)), label=gene_info.loc[k, <span class="org-string">'name'</span>])
+plt.plot([0, 1], [0, 1], c=<span class="org-string">'r'</span>, ls=<span class="org-string">'--'</span>)
+plt.legend(frameon=<span class="org-constant">False</span>, loc=<span class="org-string">'center left'</span>, bbox_to_anchor=(1, .5))
+plt.xlabel(<span class="org-string">'Theoretical quantiles'</span>)
+plt.ylabel(<span class="org-string">'Observed quantiles'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0,0.5,'Observed quantiles')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/zinb.org/rqrs.png" alt="rqrs.png">
+</p>
+</div>
+
+<p>
+Look at one of the genes, and the estimated average density.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython"><span class="org-variable-name">k</span> = <span class="org-string">'ENSG00000173818'</span>
+<span class="org-variable-name">n</span> = onehot.dot(np.exp(-log_phi.loc[k]))
+<span class="org-variable-name">pi0</span> = onehot.dot(sp.expit(logodds.loc[k]))
+<span class="org-variable-name">p</span> = 1 / (1 + (annotations[<span class="org-string">'mol_hs'</span>] * onehot.dot(np.exp(log_mu.loc[k] + log_mu.loc[k]))))
+
+<span class="org-variable-name">pmf</span> = []
+<span class="org-keyword">for</span> value <span class="org-keyword">in</span> np.arange(data.loc[k].<span class="org-builtin">max</span>()):
+  <span class="org-variable-name">pmf_value</span> = st.nbinom(n=n, p=p).pmf(value).mean()
+  pmf.append(pmf_value)
+<span class="org-variable-name">pmf</span> = np.array(pmf)
+<span class="org-comment-delimiter"># </span><span class="org-comment">pmf[0] += pi0.mean()</span>
+
+plt.clf()
+plt.gcf().set_size_inches(3, 3)
+plt.hist(data.loc[k], color=<span class="org-string">'k'</span>, bins=grid)
+plt.plot(.5 + grid, data.shape[1] * pmf, c=<span class="org-string">'r'</span>, lw=1)
+plt.xlabel(<span class="org-string">'UMI count'</span>)
+plt.ylabel(<span class="org-string">'Number of cells'</span>)
+</pre>
+</div>
+
+<pre class="example">
+Text(0,0.5,'Number of cells')
+
+</pre>
+
+<div class="figure">
+<p><img src="figure/zinb.org/endov.png" alt="endov.png">
+</p>
+</div>
 </div>
 </div>
 </div>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-11-27 Tue 14:52</p>
+<p class="date">Created: 2018-12-04 Tue 11:31</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
