@@ -12,10 +12,9 @@
 
   1. [[*Tensorflow implementation][We implement GPU-based ML estimation]] of a zero-inflated negative binomial
      model
-  2. [[*Simulation][We show in simulation]] that the estimates are unbisaed
+  2. [[*Simulation][We show in simulation]] that the estimates are unbiased
   3. [[*Mean expression][We compare ZINB estimates of mean expression]] against sample-based estimates
-  4. [[*ZINB estimates of expression noise][We estimate Fano factors]] accounting for different depths across samples
-     and different means across individuals
+  4. [[*Evaluating goodness of fit][We implement a test for goodness of fit]] for the ZINB model
 
 * Model specification
 
@@ -70,10 +69,10 @@
   #+RESULTS:
   : 3
 
-  #+CALL: ipython3(memory="16G",venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
+  #+CALL: ipython3(memory="16G",venv="scqtl",partition="mstephens") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 54477665
+  : Submitted batch job 55010340
 
   #+NAME: zinb-imports
   #+BEGIN_SRC ipython
@@ -82,12 +81,13 @@
     import scipy.optimize as so
     import scipy.stats as st
     import scipy.special as sp
+    import scqtl
     import sqlite3
   #+END_SRC
 
   #+RESULTS: zinb-imports
   :RESULTS:
-  # Out[2]:
+  # Out[1]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -100,7 +100,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[3]:
+  # Out[2]:
   :END:
 
   #+NAME: tf-imports
@@ -388,7 +388,7 @@
          design=design.astype(np.float32),
          size_factor=(num_mols * np.ones((num_samples * num_trials, 1))).astype(np.float32),
          learning_rate=5e-2,
-         max_epochs=4000)
+         max_epochs=20000)
        result = pd.DataFrame(
          [(a[0] // num_trials, int(a[1]), int(a[2]), int(a[3]), int(a[4]), a[-1], trial)
           for a in args
@@ -417,14 +417,14 @@
    #+END_SRC
 
    #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation/
-     sbatch --partition=gpu --gres=gpu:1 --mem=16G --time=30 --job-name=tf-sim --output=sim.out
+     sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --time=1:00:00 --job-name=tf-sim --output=sim.out
      #!/bin/bash
      source activate scqtl
      python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-sim.py
    #+END_SRC
 
    #+RESULTS:
-   : Submitted batch job 54073346
+   : Submitted batch job 54674786
 
    Read the results.
 
@@ -669,7 +669,7 @@
        design=designs[args.design].astype(np.float32),
        size_factor=annotations['mol_hs'].astype(np.float32).values.reshape(-1, 1),
        learning_rate=5e-2,
-       max_epochs=4000,
+       max_epochs=20000,
        return_beta=True,
      )
      pd.DataFrame(log_mu.T, index=index, columns=header).to_csv('zi2-log-mu.txt.gz', sep=' ', compression='gzip')
@@ -680,20 +680,20 @@
 
    #+NAME: run-tf-zinb
    #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation/
-     sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --time=240 --job-name=tf-zinb --output=zinb2.out
+     sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --time=6:00:00 --job-name=tf-zinb --output=zinb2.out
      #!/bin/bash
      source activate scqtl
-     mkdir -p design{0,1,2,3}
+     mkdir -p design{0,1}
      pushd design0
      python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb.py --design 0
      popd
-     pushd design1
-     python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb.py --design 1
-     popd
+     # pushd design1
+     # python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb.py --design 1
+     # popd
    #+END_SRC
 
    #+RESULTS: run-tf-zinb
-   : Submitted batch job 53395778
+   : Submitted batch job 54919259
 
    #+NAME: rsync
    #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation/
@@ -903,7 +903,7 @@
   # Out[4]:
   :END:
 
-  #+NAME: numpy-eval-impl
+  #+NAME: np-eval-impl
   #+BEGIN_SRC ipython
     def batch_design_matrix(num_samples, num_batches):
       """Return a matrix of binary indicators representing batch assignment"""
@@ -921,12 +921,26 @@
       result = [num_samples, num_mols, log_mu, log_phi, logodds, trial, fold] + [param[0] for param in _fit_gene(x, onehot, design)]
       result = {k: v for k, v in zip(keys, result)}
       eps = .5 / num_mols
-      log_cpm = (np.log(np.ma.masked_values(x[:,0], 0) + eps) - np.log(x[:,1] + 2 * eps) + 6 * np.log(10)).compressed()
+      log_cpm = (np.log(np.ma.masked_values(x[:,0], 0) + eps) -
+                 np.log(x[:,1] + 2 * eps) +
+                 6 * np.log(10)).compressed()
       result['mean_log_cpm'] = log_cpm.mean()
       result['var_log_cpm'] = log_cpm.var()
+      d, p = diagnostic_test(x[:,0],
+                             np.atleast_1d(result['log_mu_hat']),
+                             np.atleast_1d(result['log_phi_hat']),
+                             np.atleast_1d(-result['logodds_hat']),
+                             num_mols,
+                             onehot)
+      result['ks_d'] = d
+      result['ks_p'] = p
       return result
-
   #+END_SRC
+
+  #+RESULTS: np-eval-impl
+  :RESULTS:
+  # Out[26]:
+  :END:
 
   Check the implementation actually worked.
 
@@ -1138,27 +1152,29 @@
   Check the end-to-end evaluation.
 
   #+BEGIN_SRC ipython
-    evaluate(num_samples=100, num_mols=1e5, log_mu=-8, log_phi=-6, logodds=-3, fold=1.1, trial=0)
+    evaluate(num_samples=500, num_mols=1e5, log_mu=-8, log_phi=-6, logodds=-3, fold=None, trial=1)
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[32]:
+  # Out[173]:
   #+BEGIN_EXAMPLE
-    {'fold': 1.1,
+    {'fold': None,
+    'ks_d': 0.02216464461580947,
+    'ks_p': 9.23381354739375e-22,
     'log_mu': -8,
-    'log_mu_hat': -7.980952099176061,
+    'log_mu_hat': -7.995410361780751,
     'log_phi': -6,
-    'log_phi_hat': -5.681342153408702,
+    'log_phi_hat': -6.032810431842001,
     'logodds': -3,
-    'logodds_hat': -2.7515411255776483,
-    'mean': 34.19137317124226,
-    'mean_log_cpm': 5.8224834413816415,
+    'logodds_hat': -2.9873654919335273,
+    'mean': 33.700581863533316,
+    'mean_log_cpm': 5.803550886989237,
     'num_mols': 100000.0,
-    'num_samples': 100,
-    'trial': 0,
-    'var': 38.1766412350187,
-    'var_log_cpm': 0.23075096605184894}
+    'num_samples': 500,
+    'trial': 1,
+    'var': 36.42490436676706,
+    'var_log_cpm': 0.03387162521847725}
   #+END_EXAMPLE
   :END:
 
@@ -1193,13 +1209,15 @@
 
   Run the simulation on 28 CPUs.
 
+  #+NAME: np-sim.py
   #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/sim.py
     <<zinb-imports>>
     import multiprocessing as mp
     import sqlite3
-    <<np-zinb-impl2>>
+    <<np-zinb-impl>>
     <<sim-impl>>
     <<np-eval-impl>>
+    <<zinb-diagnostic>>
     args = [(num_samples, num_mols, log_mu, log_phi, logodds, fold, trial)
             for num_samples in np.linspace(100, 1000, 5).astype(int)
             for num_mols in 1e3 * np.linspace(100, 1000, 5).astype(int)
@@ -1210,36 +1228,31 @@
             for trial in range(10)]
     with mp.Pool() as pool:
       result = pd.DataFrame.from_dict(pool.starmap(evaluate, args))
-    with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
-      result.to_sql(name='simulation', con=conn, index=False, if_exists='replace')
-      conn.execute('create index ix_simulation on simulation(num_samples, num_mols);')
+    result.to_csv('np-simulation.txt.gz', compression='gzip', sep='\t')
   #+END_SRC
 
   #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation/
-    sbatch --partition=broadwl --mem=8G --job-name sim -n1 -c28 --exclusive --out sim.out
+    sbatch --partition=mstephens --mem=8G --job-name sim -n1 -c16 --time=1:00:00 --out np-sim.out
     #!/bin/bash
     source activate scqtl
     python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/sim.py
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 45559291
+  : Submitted batch job 54793377
 
-  Use this to check the parameter estimation for a particular gene/individual.
-
-  #+BEGIN_SRC ipython
-    def extract_data(ind, gene):
-      with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
-        umi = pd.read_sql("""select umi.value, annotation.size from umi, annotation 
-        where annotation.chip_id == ? and gene == ? and 
-        umi.sample == annotation.sample;""", con=conn, params=(ind, gene))
-        return umi
+  #+BEGIN_SRC sh :exports none
+    sacct -j 54793377 -o Elapsed
   #+END_SRC
 
   #+RESULTS:
-  :RESULTS:
-  # Out[25]:
-  :END:
+  :    Elapsed 
+  : ---------- 
+  :   00:57:39 
+  :   00:57:39 
+  :   00:57:39 
+
+** Fit ZINB
 
   Shard the data to parallelize over nodes. During this pass, write the data
   out to the database. 
@@ -1330,36 +1343,35 @@
 
   #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/shard.py
     <<zinb-imports>>
-    <<write-annotation-impl>>
+    keep_samples = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
+    annotations = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
+    annotations['sample'] = annotations.apply(lambda x: '{chip_id}.{experiment:08d}.{well}'.format(**dict(x)), axis=1)
+    annotations['size'] = annotations['mol_hs']
+    annotations = annotations.loc[keep_samples.values.ravel(), ['sample', 'chip_id', 'size']]
     i = 0
-    with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
-      conn.execute('drop table if exists umi;')
-      for chunk in pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', index_col=0, chunksize=1000):
-        print('Processing chunk {}'.format(i))
+    for chunk in pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', index_col=0, chunksize=1000):
+      print('Processing chunk {}'.format(i))
+      chunk = (chunk
+               .loc[:,keep_samples.values.ravel()])
+      if not chunk.empty:
         chunk = (chunk
-                 .loc[:,keep_samples.values.ravel()])
-        if not chunk.empty:
-          chunk = (chunk
-                   .reset_index()
-                   .melt(id_vars='gene', var_name='sample')
-                   .merge(annotations, on='sample')
-                   .sort_values(['gene', 'chip_id', 'sample']))
-          chunk.to_csv('/scratch/midway2/aksarkar/singlecell/density-estimation/chunk-{}.txt.gz'.format(i), columns=['gene', 'chip_id', 'sample', 'value', 'size'], compression='gzip', sep='\t')
-          chunk[['gene', 'sample', 'value']].to_sql(name='umi', con=conn, index=False, if_exists='append')
-          i += 1
-        del chunk
-      conn.execute('create index ix_umi on umi(gene, sample);')
+                 .reset_index()
+                 .melt(id_vars='gene', var_name='sample')
+                 .merge(annotations, on='sample')
+                 .sort_values(['gene', 'chip_id', 'sample']))
+        chunk.to_csv('/scratch/midway2/aksarkar/singlecell/density-estimation/np/chunk-{}.txt.gz'.format(i), columns=['gene', 'chip_id', 'sample', 'value', 'size'], compression='gzip', sep='\t')
+        i += 1
   #+END_SRC
 
   #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation/
-    sbatch --partition=broadwl --mem=8G --job-name shard --out shard.out
+    sbatch --partition=mstephens --mem=8G --job-name shard --out shard.out
     #!/bin/bash
     source activate scqtl
     python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/shard.py
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 45561618
+  : Submitted batch job 54802689
 
   Process each chunk in parallel.
 
@@ -1405,7 +1417,7 @@
     design = np.concatenate([recode(annotations, k) for k in ('batch', 'experiment')], axis=1)
 
     with mp.Pool() as pool:
-      chunk = pd.read_table('/scratch/midway2/aksarkar/singlecell/density-estimation/chunk-{}.txt.gz'.format(os.getenv('SLURM_ARRAY_TASK_ID')))
+      chunk = pd.read_table('/scratch/midway2/aksarkar/singlecell/density-estimation/np/chunk-{}.txt.gz'.format(os.getenv('SLURM_ARRAY_TASK_ID')))
       breaks = compute_breaks(chunk)
       res = pool.starmap(
         _fit_gene,
@@ -1413,7 +1425,7 @@
             (onehot for b in breaks),
             (design for b in breaks)))
 
-    with gzip.open('/scratch/midway2/aksarkar/singlecell/density-estimation/result-{}.txt.gz'.format(os.getenv('SLURM_ARRAY_TASK_ID')), 'wt') as f:
+    with gzip.open('/scratch/midway2/aksarkar/singlecell/density-estimation/np/result-{}.txt.gz'.format(os.getenv('SLURM_ARRAY_TASK_ID')), 'wt') as f:
       for b, est in zip(breaks, res):
         gene = chunk.iloc[b - 1]['gene']
         for ind, record in zip(sorted(set(annotations['chip_id'])), zip(*est)):
@@ -1421,14 +1433,25 @@
   #+END_SRC
 
   #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation
-    sbatch --partition=broadwl --job-name="np-zinb" --mem=8G -a 0-20 -n1 -c28 --exclusive
+    sbatch --partition=broadwl --job-name="np-zinb" --mem=8G --time=60 -a 21 -n1 -c28 --exclusive
     #!/bin/bash
     source activate scqtl
     python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/zinb.py
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 45588176
+  : Submitted batch job 54910745
+
+  #+BEGIN_SRC sh :exports none
+    sacct -j 54910745 -o Elapsed
+  #+END_SRC
+
+  #+RESULTS:
+  :    Elapsed 
+  : ---------- 
+  :   00:16:03 
+  :   00:16:03 
+  :   00:16:05 
 
   Populate the database.
 
@@ -1445,6 +1468,22 @@
   #+RESULTS:
   :RESULTS:
   # Out[3]:
+  :END:
+
+  Use this to check the parameter estimation for a particular gene/individual.
+
+  #+BEGIN_SRC ipython
+    def extract_data(ind, gene):
+      with sqlite3.connect('/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db') as conn:
+        umi = pd.read_sql("""select umi.value, annotation.size from umi, annotation 
+        where annotation.chip_id == ? and gene == ? and 
+        umi.sample == annotation.sample;""", con=conn, params=(ind, gene))
+        return umi
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[25]:
   :END:
 
 * Parameter distributions
@@ -2037,8 +2076,136 @@
 
   \[ u_{ijk} \sim \mathrm{Uniform}(a_{ijk}, b_{ijk}) \]
 
-  Simulate small examples.
-  
+  Implement the diagnostic test.
+
+  #+NAME: zinb-diagnostic
+  #+BEGIN_SRC ipython
+    def rpp(x, log_mu, log_phi, logodds, size, onehot, n_samples=100):
+      n = onehot.dot(np.exp(-log_phi))
+      pi0 = onehot.dot(sp.expit(-logodds))
+      p = 1 / (1 + (size * onehot.dot(np.exp(log_mu + log_phi))))
+
+      cdf = st.nbinom(n=n, p=p).cdf(x - 1)
+      # Important: this excludes the right endpoint, so we need to special case x =
+      # 0
+      cdf = np.where(x > 0, pi0 + (1 - pi0) * cdf, cdf)
+      pmf = st.nbinom(n=n, p=p).pmf(x)
+      pmf *= (1 - pi0)
+      pmf[x == 0] += pi0[x == 0]
+      rpp = cdf + np.random.uniform(size=(n_samples, x.shape[0])) * pmf
+      return rpp
+
+    def diagnostic_test(x, log_mu, log_phi, logodds, size, onehot, n_samples=100):
+      vals = rpp(x, log_mu, log_phi, logodds, size, onehot, n_samples)
+      return st.kstest(vals.ravel(), 'uniform')
+  #+END_SRC
+
+  #+RESULTS: zinb-diagnostic
+  :RESULTS:
+  # Out[3]:
+  :END:
+
+** Simulation
+   :PROPERTIES:
+   :CUSTOM_ID: diagnostic-sim
+   :END:
+
+  Look at randomized residuals for some simulated data. Use the CPU
+  implementation of ZINB for convenience.
+
+  #+CALL: np-zinb-impl()
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[5]:
+  :END:
+
+  #+CALL: sim-impl()
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[6]:
+  :END:
+
+  #+BEGIN_SRC ipython
+    X, design = simulate(num_samples=100, size=1e5, log_mu=-9, log_phi=-6, logodds=-3, seed=3, design=None, fold=None)
+    res = _fit_gene(X, np.ones((X.shape[0], 1)), design)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[60]:
+  :END:
+
+  Plot the simulated data and estimated density.
+
+  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/simulated-zinb.png
+    n = np.exp(-res[1])
+    pi0 = sp.expit(res[2])
+    p = 1 / (1 + (1e5 * np.exp(res[0] + res[1])))
+
+    grid = np.arange(X[:,0].max())
+    pmf = st.nbinom(n=n, p=p).pmf(grid)
+    pmf *= (1 - pi0)
+    pmf[0] += pi0
+
+    plt.clf()
+    plt.gcf().set_size_inches(3, 3)
+    plt.hist(X[:,0], color='k', bins=grid)
+    plt.plot(.5 + grid, X.shape[0] * pmf, c='r', lw=1)
+    plt.xlabel('UMI count')
+    _ = plt.ylabel('Number of cells')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[61]:
+  [[file:figure/zinb.org/simulated-zinb.png]]
+  :END:
+
+  Plot the QQ plot using randomized quantiles.
+
+  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/simulated-rqrs.png
+    Z = rpp(X[:,0], res[0], res[1], -res[2], 1e5, np.ones((X.shape[0], 1)), n_samples=50)
+    plt.clf()
+    plt.gcf().set_size_inches(3, 3)
+    plt.plot(sorted(Z.ravel()), np.linspace(0, 1, np.prod(Z.shape)), c='k')
+    plt.text(.05, .92, 'ks = {:.2g}'.format(st.kstest(Z.ravel(), 'uniform')[1]), transform=plt.gca().transAxes)
+    plt.text(.05, .82, r'$\ln\phi = -3$', transform=plt.gca().transAxes)
+    plt.text(.05, .72, r'$\ln\hat\phi = {:.2g}$'.format(res[1][0]), transform=plt.gca().transAxes)
+    plt.xlabel('Theoretical quantiles')
+    plt.ylabel('Observed quantiles')
+    plt.plot([0, 1], [0, 1], c='r', ls='--')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[62]:
+  : [<matplotlib.lines.Line2D at 0x7fb5d5be35c0>]
+  [[file:figure/zinb.org/simulated-rqrs.png]]
+  :END:
+
+  Plot the histogram of randomized quantiles.
+
+  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/simulated-rqrs-hist.png
+    Z = rpp(X[:,0], res[0], res[1], -res[2], 1e5, np.ones((X.shape[0], 1)), n_samples=50)
+    plt.clf()
+    plt.gcf().set_size_inches(3, 3)
+    plt.hist(Z.ravel(), density=True, bins=25, color='.7')
+    plt.axhline(y=1, c='k', ls=':')
+    plt.xlabel('Randomized quantile')
+    plt.ylabel('Density')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[63]:
+  : Text(0,0.5,'Density')
+  [[file:figure/zinb.org/simulated-rqrs-hist.png]]
+  :END:
+
+  See how the randomized quantiles work as \(\pi_0\) changes.
+
   #+BEGIN_SRC ipython
     def simulate_nb_diagnostic(pi0=None, seed=0):
       np.random.seed(seed)
@@ -2100,109 +2267,7 @@
   #+END_EXAMPLE
   :END:
 
-  Implement the diagnostic test.
-
-  #+NAME: zinb-diagnostic
-  #+BEGIN_SRC ipython
-    def rpp(x, log_mu, log_phi, logodds, size, onehot, n_samples=1):
-      n = onehot.dot(np.exp(-log_phi))
-      pi0 = onehot.dot(sp.expit(-logodds))
-      p = 1 / (1 + (size * onehot.dot(np.exp(log_mu + log_phi))))
-
-      cdf = st.nbinom(n=n, p=p).cdf(x - 1)
-      # Important: this excludes the right endpoint, so we need to special case x =
-      # 0
-      cdf = np.where(x > 0, pi0 + (1 - pi0) * cdf, cdf)
-      pmf = st.nbinom(n=n, p=p).pmf(x)
-      pmf *= (1 - pi0)
-      pmf[x == 0] += pi0[x == 0]
-      rpp = cdf + np.random.uniform(size=(n_samples, x.shape[0])) * pmf
-      return rpp
-
-    def diagnostic_test(x, log_mu, log_phi, logodds, size, onehot):
-      rpp = rpp(x, log_mu, log_phi, logodds, size, onehot)
-      return st.kstest(rpp, 'uniform')
-  #+END_SRC
-
-  #+RESULTS: zinb-diagnostic
-  :RESULTS:
-  # Out[3]:
-  :END:
-
-  Look at randomized residuals for some simulated data. Use the CPU
-  implementation for convenience.
-
-  #+CALL: np-zinb-impl()
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[5]:
-  :END:
-
-  #+CALL: sim-impl()
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[6]:
-  :END:
-
-  #+BEGIN_SRC ipython
-    X, design = simulate(num_samples=5000, size=1e5, log_mu=-12, log_phi=-.5, logodds=0, seed=0, design=None, fold=None)
-    res = _fit_gene(X, np.ones((X.shape[0], 1)), design)
-    Z = rpp(X[:,0], res[0], res[1], -res[2], 1e5, np.ones((X.shape[0], 1)), n_samples=50)
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[109]:
-  :END:
-
-  Plot the simulated data and estimated density.
-
-  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/simulated-zinb.png
-    n = np.exp(-res[1])
-    pi0 = sp.expit(res[2])
-    p = 1 / (1 + (1e5 * np.exp(res[0] + res[1])))
-
-    grid = np.arange(X[:,0].max())
-    pmf = st.nbinom(n=n, p=p).pmf(grid)
-    pmf *= (1 - pi0)
-    pmf[0] += pi0
-
-    plt.clf()
-    plt.gcf().set_size_inches(3, 3)
-    plt.hist(X[:,0], color='k', bins=grid)
-    plt.plot(.5 + grid, X.shape[0] * pmf, c='r', lw=1)
-    plt.xlabel('UMI count')
-    _ = plt.ylabel('Number of cells')
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[111]:
-  [[file:figure/zinb.org/simulated-zinb.png]]
-  :END:
-
-  Plot the QQ plot using randomized quantiles.
-
-  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/simulated-rqrs.png
-    plt.clf()
-    plt.gcf().set_size_inches(3, 3)
-    plt.plot(sorted(Z.ravel()), np.linspace(0, 1, np.prod(Z.shape)), c='k')
-    plt.text(.05, .92, 'ks = {:.2g}'.format(st.kstest(Z.ravel(), 'uniform')[1]), transform=plt.gca().transAxes)
-    plt.text(.05, .82, r'$\ln\phi = -3$', transform=plt.gca().transAxes)
-    plt.text(.05, .72, r'$\ln\hat\phi = {:.2g}$'.format(res[1][0]), transform=plt.gca().transAxes)
-    plt.xlabel('Theoretical quantiles')
-    plt.ylabel('Observed quantiles')
-    plt.plot([0, 1], [0, 1], c='r', ls='--')
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[104]:
-  : [<matplotlib.lines.Line2D at 0x7eff8c5d4710>]
-  [[file:figure/zinb.org/simulated-rqrs.png]]
-  :END:
+** Real data
 
   Run the diagnostic on the estimated parameters.
 
@@ -2262,14 +2327,14 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[52]:
+  # Out[5]:
   :END:
 
   #+CALL: get-gene-info()
 
   #+RESULTS:
   :RESULTS:
-  # Out[63]:
+  # Out[4]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -2279,7 +2344,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[74]:
+  # Out[9]:
   #+BEGIN_EXAMPLE
     name         1             2
     ENSG00000173818   ENDOV  0.026892  6.100999e-04
@@ -2294,7 +2359,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[53]:
+  # Out[6]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -2311,7 +2376,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[54]:
+  # Out[7]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -2325,10 +2390,33 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[76]:
+  # Out[10]:
   :END:
 
-  Look at the QQ plot of the randomized residuals.
+  Look at the histogram of randomized quantiles.
+
+  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/hist-rqrs.png
+    plt.clf()
+    plt.gcf().set_size_inches(3, 3)
+    plt.set_cmap('Set2')
+    grid = np.linspace(0, 1, 100)
+    for k, row in data.iterrows():
+      Z = rpp(row, log_mu.loc[k], log_phi.loc[k], logodds.loc[k], annotations['mol_hs'], onehot, n_samples=1)
+      plt.hist(Z.ravel(), histtype='step', density=True, bins=10, label=gene_info.loc[k, 'name'])
+    plt.axhline(y=1, ls=':', c='k')
+    plt.legend(frameon=False, loc='center left', bbox_to_anchor=(1, .5))
+    plt.xlabel('Randomized quantile')
+    plt.ylabel('Density')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[15]:
+  : Text(0,0.5,'Density')
+  [[file:figure/zinb.org/hist-rqrs.png]]
+  :END:
+
+  Look at the QQ plot of the randomized quantiles.
 
   #+BEGIN_SRC ipython :ipyfile figure/zinb.org/rqrs.png
     plt.clf()
@@ -2345,7 +2433,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[81]:
+  # Out[16]:
   : Text(0,0.5,'Observed quantiles')
   [[file:figure/zinb.org/rqrs.png]]
   :END:
@@ -2358,8 +2446,9 @@
     pi0 = onehot.dot(sp.expit(logodds.loc[k]))
     p = 1 / (1 + (annotations['mol_hs'] * onehot.dot(np.exp(log_mu.loc[k] + log_mu.loc[k]))))
 
+    grid = np.arange(data.loc[k].max())
     pmf = []
-    for value in np.arange(data.loc[k].max()):
+    for value in grid:
       pmf_value = st.nbinom(n=n, p=p).pmf(value).mean()
       pmf.append(pmf_value)
     pmf = np.array(pmf)
@@ -2375,7 +2464,66 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[95]:
+  # Out[12]:
   : Text(0,0.5,'Number of cells')
   [[file:figure/zinb.org/endov.png]]
+  :END:
+
+  For comparison, look at randomized quantiles for the CPU-based solution.
+
+  #+BEGIN_SRC ipython
+    endov_res = pd.read_table('/scratch/midway2/aksarkar/singlecell/density-estimation/np/result-21.txt.gz', compression='gzip', header=None)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[17]:
+  :END:
+
+  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/np-endov.png
+    Z = rpp(data.loc['ENSG00000173818'], endov_res[2], endov_res[3], -endov_res[4], annotations['mol_hs'], onehot, n_samples=10)
+
+    plt.clf()
+    plt.gcf().set_size_inches(3, 3)
+    plt.hist(Z.ravel(), density=True, bins=10)
+    plt.axhline(y=1, ls=':', c='k')
+    plt.xlabel('Randomized quantile')
+    plt.ylabel('Density')
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[26]:
+  : Text(0,0.5,'Density')
+  [[file:figure/zinb.org/np-endov.png]]
+  :END:
+
+  Compare the CPU solution to the GPU solution.
+
+  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/cpu-gpu-endov.png
+    plt.clf()
+    fig, ax = plt.subplots(1, 3)
+    fig.set_size_inches(8, 3)
+    ax[0].scatter(log_mu.loc['ENSG00000173818'], endov_res[2], c='k', s=1)
+    ax[0].plot([-13,-10], [-13,-10], c='r', ls=':')
+    ax[0].set_xlabel('GPU estimated $\ln\mu$')
+    ax[0].set_ylabel('CPU estiamted $\ln\mu$')
+
+    ax[1].scatter(log_phi.loc['ENSG00000173818'], endov_res[3], c='k', s=1)
+    ax[1].plot([-8,2.5], [-8,2.5], c='r', ls=':')
+    ax[1].set_xlabel('GPU estimated $\ln\phi$')
+    ax[1].set_ylabel('CPU estiamted $\ln\phi$')
+
+    ax[2].scatter(logodds.loc['ENSG00000173818'], endov_res[4], c='k', s=1)
+    ax[2].plot([-8,1], [-8,1], c='r', ls=':')
+    ax[2].set_xlabel('GPU estimated log odds')
+    ax[2].set_ylabel('CPU estimated log odds')
+
+    fig.tight_layout()
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[19]:
+  [[file:figure/zinb.org/cpu-gpu-endov.png]]
   :END:
