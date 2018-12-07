@@ -168,13 +168,14 @@
          onehot=onehot.astype(np.float32),
          design=design.astype(np.float32),
          size_factor=(num_mols * np.ones((num_samples * num_trials, 1))).astype(np.float32),
-         learning_rate=7e-2,
-         max_epochs=50000)
+         learning_rate=5e-2,
+         max_epochs=40000,
+         verbose=True)
        result = pd.DataFrame(
-         [(a[0] // num_trials, int(a[1]), int(a[2]), int(a[3]), int(a[4]), a[-1], trial)
+         [('rmsprop', a[0] // num_trials, int(a[1]), int(a[2]), int(a[3]), int(a[4]), a[-1], trial)
           for a in args
           for trial in range(num_trials)],
-         columns=['num_samples', 'num_mols', 'log_mu', 'log_phi', 'logodds', 'fold', 'trial'])
+         columns=['method', 'num_samples', 'num_mols', 'log_mu', 'log_phi', 'logodds', 'fold', 'trial'])
        # Important: the results need to be transposed before flattening
        result['log_mu_hat'] = log_mu.ravel(order='F')
        result['log_phi_hat'] = log_phi.ravel(order='F')
@@ -187,8 +188,20 @@
 
        return result
 
-     res = evaluate(num_samples=95, num_mols=114026, num_trials=1)
-     res.to_csv('simulation.txt.gz', compression='gzip', sep='\t')
+     res = evaluate(num_samples=95, num_mols=114026, num_trials=10)
+     res.to_csv('tf-simulation.txt.gz', compression='gzip', sep='\t')
+   #+END_SRC
+
+   Compute the oracle log likelihood for the simulated data.
+
+   #+BEGIN_SRC ipython
+     if 1:
+       l = 0
+       for log_mu in np.linspace(-12, -6, 7):
+         for log_phi in np.linspace(-4, 0, 5):
+           for logodds in np.linspace(-3, 3, 7):
+             x, design = scqtl.simulation.simulate(95, 114026, log_mu, log_phi, logodds)
+             l += scqtl.np.nb(np.array([logodds, log_mu, log_phi, 0]), x[:,0], x[:,1], np.ones((95, 1)), design)
    #+END_SRC
 
    #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation/
@@ -199,7 +212,7 @@
    #+END_SRC
 
    #+RESULTS:
-   : Submitted batch job 55018908
+   : Submitted batch job 55033764
 
    Read the results.
 
@@ -1014,7 +1027,7 @@
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 55019237
+  : Submitted batch job 55019435
 
   #+BEGIN_SRC sh :exports none
     sacct -j 54793377 -o Elapsed
