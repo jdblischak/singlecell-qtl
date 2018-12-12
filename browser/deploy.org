@@ -13,28 +13,27 @@
   #+END_SRC
 
   #+RESULTS:
-  : 
-  : cd /project2/mstephens/aksarkar/projects/singlecell-qtl/browser/
-  : cd  /project2/mstephens/aksarkar/projects/singlecell-qtl/browser/
-  : sou rce activate scqtl
+  : srun -n1 --partition=broadwl --pty ba sh
+  : cd /project2/mstephens/aksarkar/projects/sing lecell-qtl/browser/
+  : source activate scqtl
 
   (Re)start the browser
 
   #+BEGIN_SRC sh :session midway2
     pkill -u aksarkar bokeh
-    bokeh serve qtls --address $(hostname -i) --allow-websocket-origin=$(hostname -i):5006 &
+    bokeh serve qtls simulation --address $(hostname -i) --allow-websocket-origin=$(hostname -i):5006 &
     echo "http://$(hostname -i):5006"
   #+END_SRC
 
   #+RESULTS:
-  : pkill -u aksarkar bokeh
+  : pkill -u aksarkar bokeh
   : Received signal 15, shutting down
   : (hostname -i) --allow-websocket-origin=$(hostname -i):5006
-  : bokeh serve qtls --address $(hostname -i) --allow-websocket-origin=$(hostname -i ):5006 &
-  : [24] 46077
-  : echo "http://$(hostname -i):5006"
-  : echo 'org_babel_sh_eoe'
-  : http://10.50.221.29:5006
+  : bokeh serve qtls simulation --address  $(hostname -i) --allow-websocket-origin=$(hostname -i):5006 &
+  : [5] 54282
+  : echo "http://$(hostname -i):5006"
+  : echo 'org_babel_sh_eoe'
+  : http://10.50.222.82:5006
 
 * Production environment
 

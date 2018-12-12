@@ -10,6 +10,7 @@ import scipy.special as sp
 import sqlite3
 
 db = '/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser.db'
+method = 'lbfgs'
 
 sim_data = bokeh.models.ColumnDataSource(pd.DataFrame(columns=[
   'log_mu',
@@ -63,22 +64,24 @@ log_mu_slider = bokeh.models.widgets.RangeSlider(title='log(μ)', value=(-12, -6
 log_phi_slider = bokeh.models.widgets.RangeSlider(title='log(φ)', value=(-6, -6), start=-6, end=0, step=1)
 logodds_slider = bokeh.models.widgets.RangeSlider(title='logit(π)', value=(-3, -3), start=-3, end=3, step=1)
 fold_slider = bokeh.models.widgets.Slider(title='Expected fold change by confounding', value=1, start=1, end=1.25, step=0.05)
-algorithm = bokeh.models.widgets.RadioButtonGroup(labels=['BFGS', 'AMSGrad'], active=0)
+algorithm = bokeh.models.widgets.RadioButtonGroup(labels=['L-BFGS', 'RMSProp'], active=0)
 controls = [num_samples_slider, num_mols_slider, log_mu_slider, log_phi_slider, logodds_slider, fold_slider]
 
 def update(attr, old, new):
   global sim_data
-  args = [x.value for x in controls[:2]] + [round(endpoint) for x in controls[2:-1] for endpoint in x.value] + [controls[-1].value, controls[-1].value]
+  args = ([method] +
+          [round(endpoint) for x in controls[2:-1] for endpoint in x.value]
+          )
   with sqlite3.connect(db) as conn:
     params = pd.read_sql(
       """select * from simulation 
-      where num_samples == ? and num_mols == ? and 
+      where method == ? and num_samples == 95 and num_mols == 114026 and 
       log_mu >= ? and log_mu <= ? and 
       log_phi >= ? and log_phi <= ? and 
-      logodds >= ? and logodds <= ?
-      and fold >= ? - 1e-8 and fold <= ? + 1e-8""",
+      logodds >= ? and logodds <= ?""",
       conn,
       params=args)
+    assert not params.empty
     params['true_mean'] = params['num_mols'] * np.exp(params['log_mu'])
     params['true_var'] = params['true_mean'] + np.square(params['true_mean']) * np.exp(params['log_phi'])
     params['fano'] = params['var'] / params['mean']
@@ -113,11 +116,10 @@ for c in controls:
   c.on_change('value', update)
 
 def update_algo(attr):
-  global db
-  keys = ['', '2']
+  global method
   selected = algorithm.active
   if selected is not None:
-    db = '/project2/mstephens/aksarkar/projects/singlecell-qtl/browser/browser{}.db'.format(keys[selected])
+    method = ['lbfgs', 'rmsprop'][selected]
     update(None, None, None)
 
 algorithm.on_click(update_algo)
