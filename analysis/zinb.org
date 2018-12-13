@@ -72,7 +72,7 @@
   #+CALL: ipython3(memory="16G",venv="scqtl",partition="mstephens") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 55708362
+  : Submitted batch job 55715182
 
   #+NAME: zinb-imports
   #+BEGIN_SRC ipython
@@ -2157,6 +2157,128 @@
   [[file:figure/zinb.org/sim-ks-d.png]]
   :END:
 
+** Using the data twice
+   :PROPERTIES:
+   :CUSTOM_ID: double-use
+   :END:
+
+   Investigate what the KS test does when the reference distribution is
+   estimated from the same data which is going to be tested for departure from
+   the reference.
+
+   First simulate the simplest case: 
+
+   \[ x_i \sim N(0, 1) \]
+
+   Estimate the MLE \(\hat\mu, \hat{\sigma^2}\), then test for departure from
+   the maximum likelihood solution.
+
+   #+BEGIN_SRC ipython
+     def trial(seed, N=1000):
+       np.random.seed(seed)
+       x = np.random.normal(size=N)
+       mu = x.mean()
+       sigma = x.std()
+       q = st.norm(loc=mu, scale=sigma).cdf(x)
+       return st.kstest(q, 'uniform')
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[35]:
+   :END:
+
+   Plot the histogram of \(p\)-values, varying the sample size \(n\).
+
+   #+BEGIN_SRC ipython :ipyfile figure/zinb.org/ks-test-double-use.png
+     plt.clf()
+     fig, ax = plt.subplots(1, 3, sharey=True)
+     fig.set_size_inches(8, 3)
+     for n, a in zip([100, 1000, 5000], ax):
+       S = pd.DataFrame([trial(seed, N=n) for seed in range(100)])
+       a.hist(S['pvalue'], color='.7', density=True, bins=10)
+       a.axhline(y=1, c='k', ls='--')
+       a.set_xlabel('KS test $p$-value')
+       a.set_title('n={}'.format(n))
+     ax[0].set_ylabel('Density')
+     fig.tight_layout()
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[36]:
+   [[file:figure/zinb.org/ks-test-double-use.png]]
+   :END:
+
+   In the continuous case, the diagnostic reflects the fact that the MLE is the
+   best description of the observed data, and therefore \(p\)-values are
+   concentrated around 1.
+
+   Next, simulate a simple discrete case:
+
+   \[ x_i \sim \mathrm{Poisson}(10) \]
+
+   #+BEGIN_SRC ipython
+     def pois_trial(seed, N=1000, n_samples=1):
+       np.random.seed(seed)
+       x = np.random.poisson(lam=10, size=N)
+       lamhat = x.mean()
+       fhat = st.poisson(mu=lamhat)
+       u = np.random.uniform(size=(n_samples, N))
+       q = fhat.cdf(x - 1) + u * fhat.pmf(x)
+       return st.kstest(q.ravel(), 'uniform')
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[53]:
+   :END:
+
+   Plot the analogous histogram just varying the sample size \(n\).
+
+   #+BEGIN_SRC ipython :ipyfile figure/zinb.org/ks-test-double-use-pois.png
+     plt.clf()
+     fig, ax = plt.subplots(1, 3, sharey=True)
+     fig.set_size_inches(8, 3)
+     for n, a in zip([100, 1000, 5000], ax):
+       S = pd.DataFrame([pois_trial(seed, N=n) for seed in range(100)])
+       a.hist(S['pvalue'], color='.7', density=True, bins=10)
+       a.axhline(y=1, c='k', ls='--')
+       a.set_xlabel('KS test $p$-value')
+       a.set_title('n={}'.format(n))
+     ax[0].set_ylabel('Density')
+     fig.tight_layout()
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[52]:
+   [[file:figure/zinb.org/ks-test-double-use-pois.png]]
+   :END:
+
+   Now fix the sample size \(n=100\) and vary the number of randomized
+   quantiles drawn per observation \(m\).
+
+   #+BEGIN_SRC ipython :ipyfile figure/zinb.org/ks-test-double-use-pois-m.png
+     plt.clf()
+     fig, ax = plt.subplots(1, 3)
+     fig.set_size_inches(8, 3)
+     for m, a in zip([1, 2, 5], ax):
+       S = pd.DataFrame([pois_trial(seed, N=100, n_samples=m) for seed in range(100)])
+       a.hist(S['pvalue'], color='.7', density=True, bins=10)
+       a.axhline(y=1, c='k', ls='--')
+       a.set_xlabel('KS test $p$-value')
+       a.set_title('m={}'.format(m))
+     ax[0].set_ylabel('Density')
+     fig.tight_layout()
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[59]:
+   [[file:figure/zinb.org/ks-test-double-use-pois-m.png]]
+   :END:
+
 ** Real data
 
   Run the diagnostic on the estimated parameters.
@@ -2174,18 +2296,21 @@
         if not chunk.empty:
           yield chunk
 
-    def process_chunk(chunk, log_mu, log_phi, logodds, size, onehot):
+    def process_chunk(chunk, log_mu, log_phi, logodds, size, onehot, n_samples):
       result = []
       for k, x in chunk.iterrows():
-        d, p = scqtl.diagnostic.diagnostic_test(
-          x,
-          log_mu.loc[k],
-          log_phi.loc[k],
-          -logodds.loc[k],
-          size,
-          onehot,
-          n_samples=1)
-        result.append((k, d, p))
+        for j in range(onehot.shape[1]):
+          idx = onehot[:,j].astype(bool)
+          col = log_mu.columns[j]
+          d, p = scqtl.diagnostic.diagnostic_test(
+            x.loc[idx].values.reshape(-1, 1),
+            log_mu.loc[k, col],
+            log_phi.loc[k,col],
+            -logodds.loc[k,col],
+            size[idx].values.reshape(-1, 1),
+            np.ones((int(idx.sum()), 1)),
+            n_samples=n_samples)
+          result.append((k, j, d, p))
       return pd.DataFrame(result)
 
     with mp.Pool() as pool:
@@ -2205,7 +2330,8 @@
         log_phi=log_phi,
         logodds=logodds,
         size=annotations['mol_hs'],
-        onehot=onehot)
+        onehot=onehot,
+        n_samples=4)
 
       result = pd.concat(pool.map(
         process_chunk_,
@@ -2215,41 +2341,22 @@
   #+END_SRC
 
   #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation
-    sbatch --partition=broadwl --job-name="tf-diagnostic" --mem=8G -n1 -c28 --exclusive --time=2:00:00
+    sbatch --partition=broadwl --job-name="tf-diagnostic" --mem=8G -n1 -c28 --exclusive --time=60:00
     #!/bin/bash
     source activate scqtl
     python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-diagnostic.py
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 55707402
-
-  #+BEGIN_SRC sh :exports none
-    sacct -j 55707402 -o Elapsed
-  #+END_SRC
-
-  #+RESULTS:
-  :    Elapsed 
-  : ---------- 
-  :   00:06:04 
-  :   00:06:04 
-  :   00:06:04 
+  : Submitted batch job 55713822
 
   Look at the histogram of KS-test p-values across all genes.
 
-  #+BEGIN_SRC ipython
-    diagnostic_results = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/diagnostic.txt.gz', index_col=0)
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[3]:
-  :END:
-
   #+BEGIN_SRC ipython :ipyfile figure/zinb.org/design-0-ks.png
+    diagnostic_results = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/diagnostic.txt.gz', index_col=0)
     plt.clf()
     plt.gcf().set_size_inches(3, 3)
-    plt.hist(diagnostic_results['2'], density=True, color='.7', bins=10)
+    plt.hist(diagnostic_results['3'], density=True, color='.7', bins=10)
     plt.axhline(y=1, c='k', ls='--')
     plt.xlabel('KS test $p$-value')
     plt.ylabel('Density')
@@ -2257,7 +2364,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[10]:
+  # Out[3]:
   : Text(0,0.5,'Density')
   [[file:figure/zinb.org/design-0-ks.png]]
   :END:
