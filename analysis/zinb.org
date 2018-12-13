@@ -72,7 +72,7 @@
   #+CALL: ipython3(memory="16G",venv="scqtl",partition="mstephens") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 55715182
+  : Submitted batch job 55723817
 
   #+NAME: zinb-imports
   #+BEGIN_SRC ipython
@@ -2279,301 +2279,95 @@
    [[file:figure/zinb.org/ks-test-double-use-pois-m.png]]
    :END:
 
+   The results suggest that the diagnostic is only valid for \(m = 1\), because
+   for \(m > 1\) the randomized quantiles are no longer iid. For the case where
+   \(m = 1\), the skew in the \(p\)-values suggests the test is conservative.
+
 ** Real data
 
-  Run the diagnostic on the estimated parameters.
+   Run the diagnostic on the estimated parameters.
 
-  #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-diagnostic.py
-    <<zinb-imports>>
-    import multiprocessing as mp
-    import scqtl
-    import functools
-    <<recode-impl>>
+   #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-diagnostic.py
+     <<zinb-imports>>
+     import multiprocessing as mp
+     import scqtl
+     import functools
+     <<recode-impl>>
 
-    def shard(counts, keep_samples, log_mu):
-      for chunk in pd.read_table(counts, index_col=0, chunksize=100):
-        chunk = chunk.loc[:,keep_samples.values.ravel()].filter(items=log_mu.index, axis='index')
-        if not chunk.empty:
-          yield chunk
+     def shard(counts, keep_samples, log_mu):
+       for chunk in pd.read_table(counts, index_col=0, chunksize=100):
+         chunk = chunk.loc[:,keep_samples.values.ravel()].filter(items=log_mu.index, axis='index')
+         if not chunk.empty:
+           yield chunk
 
-    def process_chunk(chunk, log_mu, log_phi, logodds, size, onehot, n_samples):
-      result = []
-      for k, x in chunk.iterrows():
-        for j in range(onehot.shape[1]):
-          idx = onehot[:,j].astype(bool)
-          col = log_mu.columns[j]
-          d, p = scqtl.diagnostic.diagnostic_test(
-            x.loc[idx].values.reshape(-1, 1),
-            log_mu.loc[k, col],
-            log_phi.loc[k,col],
-            -logodds.loc[k,col],
-            size[idx].values.reshape(-1, 1),
-            np.ones((int(idx.sum()), 1)),
-            n_samples=n_samples)
-          result.append((k, j, d, p))
-      return pd.DataFrame(result)
+     def process_chunk(chunk, log_mu, log_phi, logodds, size, onehot, n_samples):
+       result = []
+       for k, x in chunk.iterrows():
+         for j in range(onehot.shape[1]):
+           idx = onehot[:,j].astype(bool)
+           col = log_mu.columns[j]
+           d, p = scqtl.diagnostic.diagnostic_test(
+             x.loc[idx].values.reshape(-1, 1),
+             log_mu.loc[k, col],
+             log_phi.loc[k,col],
+             -logodds.loc[k,col],
+             size[idx].values.reshape(-1, 1),
+             np.ones((int(idx.sum()), 1)),
+             n_samples=n_samples)
+           result.append((k, j, d, p))
+       return pd.DataFrame(result)
 
-    with mp.Pool() as pool:
-      log_mu = pd.read_table("/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-log-mu.txt.gz", index_col=0, sep=' ')
-      log_phi = pd.read_table("/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-log-phi.txt.gz", index_col=0, sep=' ')
-      logodds = pd.read_table("/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-logodds.txt.gz", index_col=0, sep=' ')
+     with mp.Pool() as pool:
+       log_mu = pd.read_table("/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-log-mu.txt.gz", index_col=0, sep=' ')
+       log_phi = pd.read_table("/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-log-phi.txt.gz", index_col=0, sep=' ')
+       logodds = pd.read_table("/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-logodds.txt.gz", index_col=0, sep=' ')
 
-      keep_samples = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
-      annotations = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
-      annotations = annotations.loc[keep_samples.values.ravel()]
+       keep_samples = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
+       annotations = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
+       annotations = annotations.loc[keep_samples.values.ravel()]
 
-      onehot = recode(annotations, 'chip_id')
+       onehot = recode(annotations, 'chip_id')
 
-      process_chunk_ = functools.partial(
-        process_chunk,
-        log_mu=log_mu,
-        log_phi=log_phi,
-        logodds=logodds,
-        size=annotations['mol_hs'],
-        onehot=onehot,
-        n_samples=4)
+       process_chunk_ = functools.partial(
+         process_chunk,
+         log_mu=log_mu,
+         log_phi=log_phi,
+         logodds=logodds,
+         size=annotations['mol_hs'],
+         onehot=onehot,
+         n_samples=1)
 
-      result = pd.concat(pool.map(
-        process_chunk_,
-        shard('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', keep_samples, log_mu),
-      ))
-      result.set_index(0).to_csv('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/diagnostic.txt.gz', compression='gzip', sep='\t')
-  #+END_SRC
+       result = pd.concat(pool.map(
+         process_chunk_,
+         shard('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', keep_samples, log_mu),
+       ))
+       result.set_index(0).to_csv('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/diagnostic.txt.gz', compression='gzip', sep='\t')
+   #+END_SRC
 
-  #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation
-    sbatch --partition=broadwl --job-name="tf-diagnostic" --mem=8G -n1 -c28 --exclusive --time=60:00
-    #!/bin/bash
-    source activate scqtl
-    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-diagnostic.py
-  #+END_SRC
+   #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation
+     sbatch --partition=broadwl --job-name="tf-diagnostic" --mem=8G -n1 -c28 --exclusive --time=10:00
+     #!/bin/bash
+     source activate scqtl
+     python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-diagnostic.py
+   #+END_SRC
 
-  #+RESULTS:
-  : Submitted batch job 55713822
+   #+RESULTS:
+   : Submitted batch job 55723712
 
-  Look at the histogram of KS-test p-values across all genes.
+   Look at the histogram of KS-test p-values across all genes.
 
-  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/design-0-ks.png
-    diagnostic_results = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/diagnostic.txt.gz', index_col=0)
-    plt.clf()
-    plt.gcf().set_size_inches(3, 3)
-    plt.hist(diagnostic_results['3'], density=True, color='.7', bins=10)
-    plt.axhline(y=1, c='k', ls='--')
-    plt.xlabel('KS test $p$-value')
-    plt.ylabel('Density')
-  #+END_SRC
+   #+BEGIN_SRC ipython :ipyfile figure/zinb.org/design-0-ks.png
+     diagnostic_results = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/diagnostic.txt.gz', index_col=0)
+     plt.clf()
+     plt.gcf().set_size_inches(3, 3)
+     plt.hist(diagnostic_results['3'], density=True, color='.7', bins=10)
+     plt.axhline(y=1, c='k', ls='--')
+     plt.xlabel('KS test $p$-value')
+     _ = plt.ylabel('Density')
+   #+END_SRC
 
-  #+RESULTS:
-  :RESULTS:
-  # Out[3]:
-  : Text(0,0.5,'Density')
-  [[file:figure/zinb.org/design-0-ks.png]]
-  :END:
-
-  Look at randomized quantile residuals for the genes with least departure from
-  ZINB.
-
-  #+BEGIN_SRC ipython
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[5]:
-  :END:
-
-  #+CALL: get-gene-info()
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[4]:
-  :END:
-
-  #+BEGIN_SRC ipython
-    query = diagnostic_results.sort_values('2', ascending=False).merge(gene_info, left_index=True, right_index=True)[['name', '1', '2']].head(n=5)
-    query
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[9]:
-  #+BEGIN_EXAMPLE
-    name         1             2
-    ENSG00000173818   ENDOV  0.026892  6.100999e-04
-    ENSG00000196724  ZNF418  0.034138  4.320665e-06
-    ENSG00000129007  CALML4  0.034768  2.657392e-06
-    ENSG00000166016   ABTB2  0.039756  4.142249e-08
-    ENSG00000173480  ZNF417  0.040310  2.521349e-08
-  #+END_EXAMPLE
-  :END:
-
-  #+CALL: recode-impl()
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[6]:
-  :END:
-
-  #+BEGIN_SRC ipython
-    log_mu = pd.read_table("/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-log-mu.txt.gz", index_col=0, sep=' ')
-    log_phi = pd.read_table("/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-log-phi.txt.gz", index_col=0, sep=' ')
-    logodds = pd.read_table("/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design0/zi2-logodds.txt.gz", index_col=0, sep=' ')
-
-    keep_samples = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt', index_col=0, header=None)
-    annotations = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt')
-    annotations = annotations.loc[keep_samples.values.ravel()]
-
-    onehot = recode(annotations, 'chip_id')
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[7]:
-  :END:
-
-  #+BEGIN_SRC ipython
-    data = []
-    for chunk in pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz', index_col=0, chunksize=100):
-      chunk = chunk.loc[:,keep_samples.values.ravel()].filter(items=query.index, axis='index')
-      if not chunk.empty:
-        data.append(chunk)
-    data = pd.concat(data)
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[10]:
-  :END:
-
-  Look at the histogram of randomized quantiles.
-
-  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/hist-rqrs.png
-    plt.clf()
-    plt.gcf().set_size_inches(3, 3)
-    plt.set_cmap('Set2')
-    grid = np.linspace(0, 1, 100)
-    for k, row in data.iterrows():
-      Z = rpp(row, log_mu.loc[k], log_phi.loc[k], logodds.loc[k], annotations['mol_hs'], onehot, n_samples=1)
-      plt.hist(Z.ravel(), histtype='step', density=True, bins=10, label=gene_info.loc[k, 'name'])
-    plt.axhline(y=1, ls=':', c='k')
-    plt.legend(frameon=False, loc='center left', bbox_to_anchor=(1, .5))
-    plt.xlabel('Randomized quantile')
-    plt.ylabel('Density')
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[15]:
-  : Text(0,0.5,'Density')
-  [[file:figure/zinb.org/hist-rqrs.png]]
-  :END:
-
-  Look at the QQ plot of the randomized quantiles.
-
-  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/rqrs.png
-    plt.clf()
-    plt.gcf().set_size_inches(3, 3)
-    plt.set_cmap('Set2')
-    for k, row in data.iterrows():
-      Z = rpp(row, log_mu.loc[k], log_phi.loc[k], logodds.loc[k], annotations['mol_hs'], onehot, n_samples=10)
-      plt.plot(sorted(Z.ravel()), np.linspace(0, 1, np.prod(Z.shape)), label=gene_info.loc[k, 'name'])
-    plt.plot([0, 1], [0, 1], c='r', ls='--')
-    plt.legend(frameon=False, loc='center left', bbox_to_anchor=(1, .5))
-    plt.xlabel('Theoretical quantiles')
-    plt.ylabel('Observed quantiles')
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[16]:
-  : Text(0,0.5,'Observed quantiles')
-  [[file:figure/zinb.org/rqrs.png]]
-  :END:
-
-  Look at one of the genes, and the estimated average density.
-
-  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/endov.png
-    k = 'ENSG00000173818'
-    n = onehot.dot(np.exp(-log_phi.loc[k]))
-    pi0 = onehot.dot(sp.expit(logodds.loc[k]))
-    p = 1 / (1 + (annotations['mol_hs'] * onehot.dot(np.exp(log_mu.loc[k] + log_mu.loc[k]))))
-
-    grid = np.arange(data.loc[k].max())
-    pmf = []
-    for value in grid:
-      pmf_value = st.nbinom(n=n, p=p).pmf(value).mean()
-      pmf.append(pmf_value)
-    pmf = np.array(pmf)
-    # pmf[0] += pi0.mean()
-
-    plt.clf()
-    plt.gcf().set_size_inches(3, 3)
-    plt.hist(data.loc[k], color='k', bins=grid)
-    plt.plot(.5 + grid, data.shape[1] * pmf, c='r', lw=1)
-    plt.xlabel('UMI count')
-    plt.ylabel('Number of cells')
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[12]:
-  : Text(0,0.5,'Number of cells')
-  [[file:figure/zinb.org/endov.png]]
-  :END:
-
-  For comparison, look at randomized quantiles for the CPU-based solution.
-
-  #+BEGIN_SRC ipython
-    endov_res = pd.read_table('/scratch/midway2/aksarkar/singlecell/density-estimation/np/result-21.txt.gz', compression='gzip', header=None)
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[17]:
-  :END:
-
-  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/np-endov.png
-    Z = rpp(data.loc['ENSG00000173818'], endov_res[2], endov_res[3], -endov_res[4], annotations['mol_hs'], onehot, n_samples=10)
-
-    plt.clf()
-    plt.gcf().set_size_inches(3, 3)
-    plt.hist(Z.ravel(), density=True, bins=10)
-    plt.axhline(y=1, ls=':', c='k')
-    plt.xlabel('Randomized quantile')
-    plt.ylabel('Density')
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[26]:
-  : Text(0,0.5,'Density')
-  [[file:figure/zinb.org/np-endov.png]]
-  :END:
-
-  Compare the CPU solution to the GPU solution.
-
-  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/cpu-gpu-endov.png
-    plt.clf()
-    fig, ax = plt.subplots(1, 3)
-    fig.set_size_inches(8, 3)
-    ax[0].scatter(log_mu.loc['ENSG00000173818'], endov_res[2], c='k', s=1)
-    ax[0].plot([-13,-10], [-13,-10], c='r', ls=':')
-    ax[0].set_xlabel('GPU estimated $\ln\mu$')
-    ax[0].set_ylabel('CPU estiamted $\ln\mu$')
-
-    ax[1].scatter(log_phi.loc['ENSG00000173818'], endov_res[3], c='k', s=1)
-    ax[1].plot([-8,2.5], [-8,2.5], c='r', ls=':')
-    ax[1].set_xlabel('GPU estimated $\ln\phi$')
-    ax[1].set_ylabel('CPU estiamted $\ln\phi$')
-
-    ax[2].scatter(logodds.loc['ENSG00000173818'], endov_res[4], c='k', s=1)
-    ax[2].plot([-8,1], [-8,1], c='r', ls=':')
-    ax[2].set_xlabel('GPU estimated log odds')
-    ax[2].set_ylabel('CPU estimated log odds')
-
-    fig.tight_layout()
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[19]:
-  [[file:figure/zinb.org/cpu-gpu-endov.png]]
-  :END:
+   #+RESULTS:
+   :RESULTS:
+   # Out[4]:
+   [[file:figure/zinb.org/design-0-ks.png]]
+   :END:
