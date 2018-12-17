@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-12-13 Thu 10:46 -->
+<!-- 2018-12-17 Mon 11:34 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mean/dispersion estimation</title>
@@ -273,7 +273,7 @@ Here, we solve (1).
 <ol class="org-ol">
 <li><a href="#orgd9442d4">We implement GPU-based ML estimation</a> of a zero-inflated negative binomial
 model</li>
-<li><a href="#org5529cbf">We show in simulation</a> that the estimates are unbiased</li>
+<li><a href="#orgca44e7f">We show in simulation</a> that the estimates are unbiased</li>
 <li><a href="#org7ae35b9">We compare ZINB estimates of mean expression</a> against sample-based estimates</li>
 <li><a href="#org17af587">We implement a test for goodness of fit</a> for the ZINB model</li>
 </ol>
@@ -372,9 +372,9 @@ The method is implemented in the Python package <code>scqtl</code>.
 </p>
 </div>
 
-<div id="outline-container-org5529cbf" class="outline-3">
-<h3 id="org5529cbf">Simulation</h3>
-<div class="outline-text-3" id="text-org5529cbf">
+<div id="outline-container-orgca44e7f" class="outline-3">
+<h3 id="orgca44e7f">Simulation</h3>
+<div class="outline-text-3" id="text-orgca44e7f">
 <div class="org-src-container">
 <pre class="src src-ipython" id="org6a724dd">&lt;&lt;zinb-imports&gt;&gt;
 &lt;&lt;tf-imports&gt;&gt;
@@ -458,7 +458,7 @@ python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-sim.py
 </div>
 
 <pre class="example">
-Submitted batch job 55509074
+Submitted batch job 55767347
 
 </pre>
 
@@ -756,7 +756,7 @@ pd.DataFrame(beta.T, index=index).to_csv(<span class="org-string">'beta.txt.gz'<
 </div>
 
 <div class="org-src-container">
-<pre class="src src-sh" id="orgab32e4c">sbatch --partition=gpu --gres=gpu:1 --mem=16G --time=12:00:00 -a 0 --job-name=tf-zinb --output=zinb2.out
+<pre class="src src-sh" id="orgab32e4c">sbatch --partition=gpu --gres=gpu:1 --mem=16G --time=7:00:00 -a 1 --job-name=tf-zinb --output=zinb2.out
 <span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
 <span class="org-builtin">source</span> activate scqtl
 mkdir -p design$<span class="org-variable-name">SLURM_ARRAY_TASK_ID</span>
@@ -766,7 +766,7 @@ python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb.py --de
 </div>
 
 <pre class="example">
-Submitted batch job 55692205
+Submitted batch job 55727034
 
 </pre>
 
@@ -783,7 +783,7 @@ rsync -FFau --delete . /project2/mstephens/aksarkar/projects/singlecell-qtl/data
 </div>
 
 <pre class="example">
-Submitted batch job 55704136
+Submitted batch job 55767365
 
 </pre>
 </div>
@@ -921,9 +921,9 @@ Computing analytic SE runs into numerical problems.
 </div>
 </div>
 
-<div id="outline-container-orgd78f895" class="outline-3">
-<h3 id="orgd78f895">Simulation</h3>
-<div class="outline-text-3" id="text-orgd78f895">
+<div id="outline-container-org23377ab" class="outline-3">
+<h3 id="org23377ab">Simulation</h3>
+<div class="outline-text-3" id="text-org23377ab">
 <p>
 Check the parameter estimation on simulated data.
 </p>
@@ -1339,13 +1339,13 @@ J.head()
 </div>
 
 <pre class="example">
-log_mu   log_phi   logodds
+log_mu   log_phi    logodds
 0
-ENSG00000000003  -9.462848 -2.740221 -7.077608
-ENSG00000000419  -9.933007 -3.115943 -6.635574
-ENSG00000000457 -12.046886 -1.583684  0.290843
-ENSG00000000460 -11.072902 -2.532334 -3.202983
-ENSG00000001036 -11.083558 -2.455776 -2.901292
+ENSG00000000003  -9.548541 -2.684409 -16.055537
+ENSG00000000419  -9.940811 -3.439683 -14.967152
+ENSG00000000457 -12.600461 -2.165913  -7.902089
+ENSG00000000460 -11.135371 -3.090537 -10.376486
+ENSG00000001036 -11.127939 -2.941718  -9.684571
 </pre>
 
 <div class="org-src-container">
@@ -1399,7 +1399,7 @@ average reduction in heterogeneity (residual variance).
 </div>
 
 <pre class="example">
-0.1567919392443754
+-1.90349049788247
 
 </pre>
 
@@ -1420,13 +1420,13 @@ Estimate how much the mean changes due to confounding.
 
 <pre class="example">
 count    54.000000
-mean      0.984503
-std       0.037119
-min       0.896817
-25%       0.963595
-50%       0.983739
-75%       1.005902
-max       1.065907
+mean      1.008531
+std       0.171844
+min       0.894419
+25%       0.964850
+50%       0.987312
+75%       1.008456
+max       2.213495
 Name: mean, dtype: float64
 </pre>
 </div>
@@ -1482,8 +1482,8 @@ CPM is proportional to relative abundance, so normalize.
 </div>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">zinb_log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design3/zi2-log-mu.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
-<span class="org-variable-name">zinb_logodds</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design3/zi2-logodds.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
+<pre class="src src-ipython"><span class="org-variable-name">zinb_log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
+<span class="org-variable-name">zinb_logodds</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-logodds.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
 <span class="org-comment-delimiter"># </span><span class="org-comment">Important: log(sigmoid(x)) = -softplus(-x)</span>
 <span class="org-variable-name">zinb_log_mu</span> -= np.log1p(np.exp(zinb_logodds))
 <span class="org-variable-name">zinb_log_rho</span> = zinb_log_mu - sp.logsumexp(zinb_log_mu, axis=0)
@@ -1577,7 +1577,7 @@ Look at Fano vs. mean, following <a href="https://www.ncbi.nlm.nih.gov/pmc/artic
   <span class="org-variable-name">grid</span> = np.geomspace(lim[0], lim[1], 200)
   <span class="org-keyword">for</span> phi <span class="org-keyword">in</span> np.linspace(.2, 1, 5):
     <span class="org-keyword">if</span> ref:
-      ax.plot(grid, 1 + phi * np.array(grid), lw=1, c=colorcet.cm[<span class="org-string">'inferno'</span>](phi), zorder=1, label=<span class="org-string">'{:.2g}'</span>.<span class="org-builtin">format</span>(phi))
+      ax.plot(grid, 1 + phi * np.array(grid), lw=1, c=colorcet.cm[<span class="org-string">'bmy'</span>](phi), zorder=1, label=<span class="org-string">'{:.2g}'</span>.<span class="org-builtin">format</span>(phi))
   ax.set_xlim(lim)
   ax.set_ylim(1, 300)
   ax.set_xlabel(<span class="org-string">'{} mean'</span>.<span class="org-builtin">format</span>(method))
@@ -1614,9 +1614,9 @@ Read the estimated parameters.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">"/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-log-mu.txt.gz"</span>, index_col=0, sep=<span class="org-string">' '</span>)
-<span class="org-variable-name">log_phi</span> = pd.read_table(<span class="org-string">"/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-log-phi.txt.gz"</span>, index_col=0, sep=<span class="org-string">' '</span>)
-<span class="org-variable-name">logodds</span> = pd.read_table(<span class="org-string">"/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-logodds.txt.gz"</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<pre class="src src-ipython"><span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">"/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz"</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">log_phi</span> = pd.read_table(<span class="org-string">"/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-phi.txt.gz"</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">logodds</span> = pd.read_table(<span class="org-string">"/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-logodds.txt.gz"</span>, index_col=0, sep=<span class="org-string">' '</span>)
 </pre>
 </div>
 
@@ -1727,11 +1727,20 @@ J[J[<span class="org-string">'var'</span>] / J[<span class="org-string">'mean'</
 </div>
 
 <pre class="example">
-mean          var       name
+mean          var      name
 gene
-ENSG00000110713  37.781379  6810.161703      NUP98
-ENSG00000163046   0.454326    71.162462  ANKRD30BL
-ENSG00000173214   0.397816    71.219849   KIAA1919
+ENSG00000110713  37.779102  9160.566673     NUP98
+ENSG00000053438   2.454245  1119.916885      NNAT
+ENSG00000173401   0.692929   327.169561  GLIPR1L1
+ENSG00000213380   0.630846   323.477680      COG8
+ENSG00000120690   0.559411   324.580801      ELF1
+ENSG00000137502   0.500265   760.557951     RAB30
+ENSG00000127080   0.415653   467.467892      IPPK
+ENSG00000000457   0.403754   777.369613     SCYL3
+ENSG00000185818   0.394969   465.957390     NAT8L
+ENSG00000145016   0.391726   772.221129  KIAA0226
+ENSG00000099617   0.388581   751.477815     EFNA2
+ENSG00000112357   0.353050   746.942494      PEX7
 </pre>
 
 <p>
@@ -1911,8 +1920,8 @@ Implement the diagnostic test.
 </div>
 </div>
 
-<div id="outline-container-org0e1e03a" class="outline-3">
-<h3 id="diagnostic-sim"><a id="org0e1e03a"></a>Simulation</h3>
+<div id="outline-container-orgc5779a4" class="outline-3">
+<h3 id="diagnostic-sim"><a id="orgc5779a4"></a>Simulation</h3>
 <div class="outline-text-3" id="text-diagnostic-sim">
 <p>
 Look at randomized residuals for some simulated data. Use the CPU
@@ -2092,29 +2101,6 @@ Text(0,0.5,'Density')
 
 <div class="figure">
 <p><img src="figure/zinb.org/sim-ks.png" alt="sim-ks.png">
-</p>
-</div>
-
-<p>
-Look at the distribution of test statistics.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-ipython">plt.clf()
-plt.gcf().set_size_inches(3, 3)
-plt.hist(tf_res[<span class="org-string">'ks_d'</span>], color=<span class="org-string">'.7'</span>, bins=20, density=<span class="org-constant">True</span>)
-plt.xlabel(<span class="org-string">'KS $D$'</span>)
-plt.ylabel(<span class="org-string">'Density'</span>)
-</pre>
-</div>
-
-<pre class="example">
-Text(0,0.5,'Density')
-
-</pre>
-
-<div class="figure">
-<p><img src="figure/zinb.org/sim-ks-d.png" alt="sim-ks-d.png">
 </p>
 </div>
 </div>
@@ -2297,7 +2283,7 @@ Run the diagnostic on the estimated parameters.
         size[idx].values.reshape(-1, 1),
         np.ones((<span class="org-builtin">int</span>(idx.<span class="org-builtin">sum</span>()), 1)),
         n_samples=n_samples)
-      result.append((k, j, d, p))
+      result.append((k, col, d, p))
   <span class="org-keyword">return</span> pd.DataFrame(result)
 
 <span class="org-keyword">with</span> mp.Pool() <span class="org-keyword">as</span> pool:
@@ -2337,7 +2323,7 @@ python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-diagnostic.p
 </div>
 
 <pre class="example">
-Submitted batch job 55723712
+Submitted batch job 55767376
 
 </pre>
 
@@ -2361,13 +2347,27 @@ plt.xlabel(<span class="org-string">'KS test $p$-value'</span>)
 <p><img src="figure/zinb.org/design-0-ks.png" alt="design-0-ks.png">
 </p>
 </div>
+
+<p>
+Find genes for which we can reject the null (after Bonferroni correction).
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ipython">diagnostic_results[diagnostic_results[<span class="org-string">'3'</span>] &lt; .05 / diagnostic_results.shape[0]].shape[0]
+</pre>
+</div>
+
+<pre class="example">
+60
+
+</pre>
 </div>
 </div>
 </div>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-12-13 Thu 10:46</p>
+<p class="date">Created: 2018-12-17 Mon 11:34</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
