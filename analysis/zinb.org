@@ -86,7 +86,7 @@
 
   #+RESULTS: zinb-imports
   :RESULTS:
-  # Out[1]:
+  # Out[4]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -99,7 +99,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[2]:
+  # Out[5]:
   :END:
 
   #+NAME: tf-imports
@@ -225,7 +225,7 @@
    #+END_SRC
 
    #+RESULTS:
-   : Submitted batch job 55509074
+   : Submitted batch job 55767347
 
    Read the results.
 
@@ -235,7 +235,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[3]:
+   # Out[63]:
    :END:
 
    Get the latent mean and variance.
@@ -249,7 +249,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[66]:
+   # Out[59]:
    :END:
 
    Plot the accuracy of the estimated parameters and derived quantities, fixing
@@ -302,7 +302,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[69]:
+   # Out[60]:
    [[file:figure/zinb.org/sim.png]]
    :END:
 
@@ -526,7 +526,7 @@
 
    #+NAME: run-tf-zinb
    #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation/
-     sbatch --partition=gpu --gres=gpu:1 --mem=16G --time=12:00:00 -a 0 --job-name=tf-zinb --output=zinb2.out
+     sbatch --partition=gpu --gres=gpu:1 --mem=16G --time=7:00:00 -a 1 --job-name=tf-zinb --output=zinb2.out
      #!/bin/bash
      source activate scqtl
      mkdir -p design$SLURM_ARRAY_TASK_ID
@@ -535,18 +535,18 @@
    #+END_SRC
 
    #+RESULTS: run-tf-zinb
-   : Submitted batch job 55692205
+   : Submitted batch job 55727034
 
    #+BEGIN_SRC sh :exports none
-     sacct -j 55692205 -o Elapsed
+     sacct -j 55727034 -o Elapsed
    #+END_SRC
 
    #+RESULTS:
    :    Elapsed 
    : ---------- 
-   :   06:19:09 
-   :   06:19:09 
-   :   06:19:09 
+   :   06:35:53 
+   :   06:35:53 
+   :   06:35:53 
 
    #+NAME: rsync
    #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/density-estimation/
@@ -561,7 +561,7 @@
    #+END_SRC
 
    #+RESULTS: rsync
-   : Submitted batch job 55704136
+   : Submitted batch job 55767365
 
 * numpy/scipy implementation
 
@@ -1354,7 +1354,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[46]:
+  # Out[3]:
   :END:
 
   Look at the joint distribution.
@@ -1370,15 +1370,15 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[47]:
+  # Out[6]:
   #+BEGIN_EXAMPLE
-    log_mu   log_phi   logodds
+    log_mu   log_phi    logodds
     0
-    ENSG00000000003  -9.462848 -2.740221 -7.077608
-    ENSG00000000419  -9.933007 -3.115943 -6.635574
-    ENSG00000000457 -12.046886 -1.583684  0.290843
-    ENSG00000000460 -11.072902 -2.532334 -3.202983
-    ENSG00000001036 -11.083558 -2.455776 -2.901292
+    ENSG00000000003  -9.548541 -2.684409 -16.055537
+    ENSG00000000419  -9.940811 -3.439683 -14.967152
+    ENSG00000000457 -12.600461 -2.165913  -7.902089
+    ENSG00000000460 -11.135371 -3.090537 -10.376486
+    ENSG00000001036 -11.127939 -2.941718  -9.684571
   #+END_EXAMPLE
   :END:
 
@@ -1406,7 +1406,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[58]:
+  # Out[7]:
   [[file:figure/zinb.org/joint-distribution.png]]
   :END:
 
@@ -1422,7 +1422,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[128]:
+  # Out[8]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -1431,8 +1431,8 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[129]:
-  : 0.1567919392443754
+  # Out[9]:
+  : -1.90349049788247
   :END:
 
   Estimate how much the mean changes due to confounding.
@@ -1444,7 +1444,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[131]:
+  # Out[10]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -1453,16 +1453,16 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[132]:
+  # Out[11]:
   #+BEGIN_EXAMPLE
     count    54.000000
-    mean      0.984503
-    std       0.037119
-    min       0.896817
-    25%       0.963595
-    50%       0.983739
-    75%       1.005902
-    max       1.065907
+    mean      1.008531
+    std       0.171844
+    min       0.894419
+    25%       0.964850
+    50%       0.987312
+    75%       1.008456
+    max       2.213495
     Name: mean, dtype: float64
   #+END_EXAMPLE
   :END:
@@ -1476,7 +1476,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[13]:
+  # Out[25]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -1486,7 +1486,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[14]:
+  # Out[26]:
   :END:
 
   To first order,
@@ -1502,7 +1502,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[15]:
+  # Out[27]:
   :END:
 
   CPM is proportional to relative abundance, so normalize.
@@ -1514,7 +1514,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[16]:
+  # Out[28]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -1524,12 +1524,12 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[17]:
+  # Out[29]:
   :END:
 
   #+BEGIN_SRC ipython
-    zinb_log_mu = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design3/zi2-log-mu.txt.gz', sep=' ', index_col=0)
-    zinb_logodds = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design3/zi2-logodds.txt.gz', sep=' ', index_col=0)
+    zinb_log_mu = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz', sep=' ', index_col=0)
+    zinb_logodds = pd.read_table('/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-logodds.txt.gz', sep=' ', index_col=0)
     # Important: log(sigmoid(x)) = -softplus(-x)
     zinb_log_mu -= np.log1p(np.exp(zinb_logodds))
     zinb_log_rho = zinb_log_mu - sp.logsumexp(zinb_log_mu, axis=0)
@@ -1537,7 +1537,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[18]:
+  # Out[30]:
   :END:
 
   Construct a DataFrame for convenience.
@@ -1551,7 +1551,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[19]:
+  # Out[31]:
   :END:
 
   #+BEGIN_SRC ipython :ipyfile figure/zinb.org/cpm-estimator-mu.png
@@ -1575,7 +1575,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[20]:
+  # Out[32]:
   [[file:figure/zinb.org/cpm-estimator-mu.png]]
   :END:
 
@@ -1605,7 +1605,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[22]:
+   # Out[33]:
    :END:
 
    Look at Fano vs. mean, following [[https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3358231/][Munsky et al 2013]].
@@ -1619,7 +1619,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[23]:
+   # Out[34]:
    :END:
 
    #+NAME: plot-fano-vs-mean-def
@@ -1632,7 +1632,7 @@
        grid = np.geomspace(lim[0], lim[1], 200)
        for phi in np.linspace(.2, 1, 5):
          if ref:
-           ax.plot(grid, 1 + phi * np.array(grid), lw=1, c=colorcet.cm['inferno'](phi), zorder=1, label='{:.2g}'.format(phi))
+           ax.plot(grid, 1 + phi * np.array(grid), lw=1, c=colorcet.cm['bmy'](phi), zorder=1, label='{:.2g}'.format(phi))
        ax.set_xlim(lim)
        ax.set_ylim(1, 300)
        ax.set_xlabel('{} mean'.format(method))
@@ -1642,7 +1642,7 @@
 
    #+RESULTS: plot-fano-vs-mean-def
    :RESULTS:
-   # Out[24]:
+   # Out[40]:
    :END:
 
    #+BEGIN_SRC ipython :ipyfile figure/zinb.org/count-fano-vs-count-mean.png
@@ -1657,7 +1657,7 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[25]:
+   # Out[41]:
    [[file:figure/zinb.org/count-fano-vs-count-mean.png]]
    :END:
 
@@ -1666,14 +1666,14 @@
   Read the estimated parameters.
 
   #+BEGIN_SRC ipython
-    log_mu = pd.read_table("/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-log-mu.txt.gz", index_col=0, sep=' ')
-    log_phi = pd.read_table("/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-log-phi.txt.gz", index_col=0, sep=' ')
-    logodds = pd.read_table("/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-logodds.txt.gz", index_col=0, sep=' ')
+    log_mu = pd.read_table("/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz", index_col=0, sep=' ')
+    log_phi = pd.read_table("/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-phi.txt.gz", index_col=0, sep=' ')
+    logodds = pd.read_table("/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-logodds.txt.gz", index_col=0, sep=' ')
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  # Out[26]:
+  # Out[45]:
   :END:
 
   Read the annotations.
@@ -1686,14 +1686,14 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[27]:
+  # Out[46]:
   :END:
 
   #+CALL: recode-impl()
 
   #+RESULTS:
   :RESULTS:
-  # Out[28]:
+  # Out[47]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -1702,7 +1702,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[29]:
+  # Out[48]:
   :END:
 
   Fixing individual \(i\), cell \(j\), gene \(k\), we have:
@@ -1723,7 +1723,7 @@
 
   #+RESULTS: zinb-moments
   :RESULTS:
-  # Out[30]:
+  # Out[49]:
   :END:
 
   The index of dispersion for observed data \(r_{ijk}\) at gene \(k\) is:
@@ -1756,7 +1756,7 @@
 
   #+RESULTS: zinb-mix-moments
   :RESULTS:
-  # Out[31]:
+  # Out[50]:
   :END:
 
   #+RESULTS:
@@ -1777,7 +1777,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[32]:
+  # Out[51]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -1789,13 +1789,22 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[33]:
+  # Out[52]:
   #+BEGIN_EXAMPLE
-    mean          var       name
+    mean          var      name
     gene
-    ENSG00000110713  37.781379  6810.161703      NUP98
-    ENSG00000163046   0.454326    71.162462  ANKRD30BL
-    ENSG00000173214   0.397816    71.219849   KIAA1919
+    ENSG00000110713  37.779102  9160.566673     NUP98
+    ENSG00000053438   2.454245  1119.916885      NNAT
+    ENSG00000173401   0.692929   327.169561  GLIPR1L1
+    ENSG00000213380   0.630846   323.477680      COG8
+    ENSG00000120690   0.559411   324.580801      ELF1
+    ENSG00000137502   0.500265   760.557951     RAB30
+    ENSG00000127080   0.415653   467.467892      IPPK
+    ENSG00000000457   0.403754   777.369613     SCYL3
+    ENSG00000185818   0.394969   465.957390     NAT8L
+    ENSG00000145016   0.391726   772.221129  KIAA0226
+    ENSG00000099617   0.388581   751.477815     EFNA2
+    ENSG00000112357   0.353050   746.942494      PEX7
   #+END_EXAMPLE
   :END:
 
@@ -1805,7 +1814,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[34]:
+  # Out[53]:
   :END:
 
   #+BEGIN_SRC ipython :ipyfile figure/zinb.org/zinb-fano-vs-zinb-mean.png
@@ -1822,7 +1831,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[35]:
+  # Out[54]:
   [[file:figure/zinb.org/zinb-fano-vs-zinb-mean.png]]
   :END:
 
@@ -2135,26 +2144,9 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[21]:
+  # Out[66]:
   : Text(0,0.5,'Density')
   [[file:figure/zinb.org/sim-ks.png]]
-  :END:
-
-  Look at the distribution of test statistics.
-
-  #+BEGIN_SRC ipython :ipyfile figure/zinb.org/sim-ks-d.png
-    plt.clf()
-    plt.gcf().set_size_inches(3, 3)
-    plt.hist(tf_res['ks_d'], color='.7', bins=20, density=True)
-    plt.xlabel('KS $D$')
-    plt.ylabel('Density')
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[24]:
-  : Text(0,0.5,'Density')
-  [[file:figure/zinb.org/sim-ks-d.png]]
   :END:
 
 ** Using the data twice
@@ -2314,7 +2306,7 @@
              size[idx].values.reshape(-1, 1),
              np.ones((int(idx.sum()), 1)),
              n_samples=n_samples)
-           result.append((k, j, d, p))
+           result.append((k, col, d, p))
        return pd.DataFrame(result)
 
      with mp.Pool() as pool:
@@ -2352,7 +2344,7 @@
    #+END_SRC
 
    #+RESULTS:
-   : Submitted batch job 55723712
+   : Submitted batch job 55767376
 
    Look at the histogram of KS-test p-values across all genes.
 
@@ -2368,6 +2360,18 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[4]:
+   # Out[73]:
    [[file:figure/zinb.org/design-0-ks.png]]
+   :END:
+
+   Find genes for which we can reject the null (after Bonferroni correction).
+
+   #+BEGIN_SRC ipython
+     diagnostic_results[diagnostic_results['3'] < .05 / diagnostic_results.shape[0]].shape[0]
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   # Out[75]:
+   : 60
    :END:
