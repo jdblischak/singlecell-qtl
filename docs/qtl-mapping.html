@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-12-17 Mon 16:02 -->
+<!-- 2018-12-18 Tue 10:25 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>QTL mapping pipeline</title>
@@ -1417,15 +1417,15 @@ phenotypes is to use the sample means/variances of the counts.
 </p>
 </div>
 
-<div id="outline-container-org6d9d149" class="outline-3">
-<h3 id="org6d9d149">Call eQTLs from pooled scRNA-Seq</h3>
-<div class="outline-text-3" id="text-org6d9d149">
+<div id="outline-container-org1e40348" class="outline-3">
+<h3 id="org1e40348">Call eQTLs from pooled scRNA-Seq</h3>
+<div class="outline-text-3" id="text-org1e40348">
 <p>
 Read the QC filters.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="orgc8d13a5"><span class="org-variable-name">annotation</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
+<pre class="src src-ipython" id="orge34b9ab"><span class="org-variable-name">annotation</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
 <span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
 <span class="org-variable-name">keep_genes</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
 <span class="org-variable-name">annotation</span> = annotation.loc[keep_samples.values.ravel()]
@@ -1552,15 +1552,15 @@ Take QTLs with \(\mathrm{FDR} < 0.1\).
 </div>
 </div>
 
-<div id="outline-container-orgb53bc0d" class="outline-3">
-<h3 id="orgb53bc0d">Call mean-QTLs</h3>
-<div class="outline-text-3" id="text-orgb53bc0d">
+<div id="outline-container-orgc6d4a8c" class="outline-3">
+<h3 id="orgc6d4a8c">Call mean-QTLs</h3>
+<div class="outline-text-3" id="text-orgc6d4a8c">
 <p>
 Read the count matrix.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="orge8d2847"><span class="org-variable-name">umi</span> = pd.concat(
+<pre class="src src-ipython" id="orgbaa030a"><span class="org-variable-name">umi</span> = pd.concat(
   [(chunk
     .<span class="org-builtin">filter</span>(items=keep_genes[keep_genes.values].index, axis=<span class="org-string">'index'</span>)
     <span class="org-comment-delimiter"># </span><span class="org-comment">Important: this can't be done by filter because sample names are</span>
@@ -1683,9 +1683,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-orgbe34702" class="outline-3">
-<h3 id="orgbe34702">Call variance-QTLs</h3>
-<div class="outline-text-3" id="text-orgbe34702">
+<div id="outline-container-orga0a6e81" class="outline-3">
+<h3 id="orga0a6e81">Call variance-QTLs</h3>
+<div class="outline-text-3" id="text-orga0a6e81">
 <p>
 Read the UMI matrix.
 </p>
@@ -1797,9 +1797,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-orge845494" class="outline-3">
-<h3 id="orge845494">Call CV-QTLs</h3>
-<div class="outline-text-3" id="text-orge845494">
+<div id="outline-container-org9272ecc" class="outline-3">
+<h3 id="org9272ecc">Call CV-QTLs</h3>
+<div class="outline-text-3" id="text-org9272ecc">
 <p>
 Compute the sample CV per individual per gene, then normalize.
 </p>
@@ -1896,9 +1896,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-orga00324e" class="outline-3">
-<h3 id="orga00324e">Call Fano-QTLs</h3>
-<div class="outline-text-3" id="text-orga00324e">
+<div id="outline-container-orgc1c6439" class="outline-3">
+<h3 id="orgc1c6439">Call Fano-QTLs</h3>
+<div class="outline-text-3" id="text-orgc1c6439">
 <p>
 Read the UMI matrix.
 </p>
@@ -2046,15 +2046,15 @@ second-order, then take expectations over cells:
 </p>
 </div>
 
-<div id="outline-container-orgd6615f4" class="outline-3">
-<h3 id="orgd6615f4">Call eQTLs from pooled scRNA-Seq</h3>
-<div class="outline-text-3" id="text-orgd6615f4">
+<div id="outline-container-org3e27a23" class="outline-3">
+<h3 id="org3e27a23">Call eQTLs from pooled scRNA-Seq</h3>
+<div class="outline-text-3" id="text-org3e27a23">
 <p>
 Read the QC filters.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org051e46f"><span class="org-variable-name">annotation</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
+<pre class="src src-ipython" id="orgd06b584"><span class="org-variable-name">annotation</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
 <span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
 <span class="org-variable-name">keep_genes</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/genes-pass-filter.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
 <span class="org-variable-name">annotation</span> = annotation.loc[keep_samples.values.ravel()]
@@ -2181,9 +2181,9 @@ Take QTLs with \(\mathrm{FDR} < 0.1\).
 </div>
 </div>
 
-<div id="outline-container-org874aca1" class="outline-3">
-<h3 id="org874aca1">Call mean-QTLs</h3>
-<div class="outline-text-3" id="text-org874aca1">
+<div id="outline-container-orgf414a21" class="outline-3">
+<h3 id="orgf414a21">Call mean-QTLs</h3>
+<div class="outline-text-3" id="text-orgf414a21">
 <p>
 Throw out individuals with fewer than 50 cells.
 </p>
@@ -2193,7 +2193,7 @@ Read the count matrix.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org3ef4b59"><span class="org-variable-name">umi</span> = pd.concat(
+<pre class="src src-ipython" id="org1ac3664"><span class="org-variable-name">umi</span> = pd.concat(
   [(chunk
     .<span class="org-builtin">filter</span>(items=keep_genes[keep_genes.values].index, axis=<span class="org-string">'index'</span>)
     <span class="org-comment-delimiter"># </span><span class="org-comment">Important: this can't be done by filter because sample names are</span>
@@ -2354,9 +2354,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-org0f8b9ee" class="outline-3">
-<h3 id="org0f8b9ee">Call variance-QTLs</h3>
-<div class="outline-text-3" id="text-org0f8b9ee">
+<div id="outline-container-org7b5422f" class="outline-3">
+<h3 id="org7b5422f">Call variance-QTLs</h3>
+<div class="outline-text-3" id="text-org7b5422f">
 <p>
 Throw out individuals with fewer than 50 cells.
 </p>
@@ -2474,9 +2474,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-org81a7a21" class="outline-3">
-<h3 id="org81a7a21">Call CV-QTLs</h3>
-<div class="outline-text-3" id="text-org81a7a21">
+<div id="outline-container-orga316a86" class="outline-3">
+<h3 id="orga316a86">Call CV-QTLs</h3>
+<div class="outline-text-3" id="text-orga316a86">
 <p>
 Throw out individuals with fewer than 50 cells.
 </p>
@@ -2583,9 +2583,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-org8b0024b" class="outline-3">
-<h3 id="org8b0024b">Call Fano-QTLs</h3>
-<div class="outline-text-3" id="text-org8b0024b">
+<div id="outline-container-org51712b9" class="outline-3">
+<h3 id="org51712b9">Call Fano-QTLs</h3>
+<div class="outline-text-3" id="text-org51712b9">
 <p>
 Throw out individuals with fewer than 50 cells.
 </p>
@@ -2731,7 +2731,7 @@ Estimate the moments of latent gene expression. We have:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org825f73b"><span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<pre class="src src-ipython" id="org5a1b8ba"><span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
 <span class="org-variable-name">log_phi</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-phi.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
 <span class="org-variable-name">logodds</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-logodds.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
 <span class="org-keyword">for</span> x <span class="org-keyword">in</span> (log_mu, log_phi, logodds):
@@ -2865,7 +2865,7 @@ Estimate the moments of latent gene expression. We have:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org1387d13"><span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<pre class="src src-ipython" id="orge4739dc"><span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
 <span class="org-variable-name">log_phi</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-phi.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
 <span class="org-variable-name">logodds</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-logodds.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
 <span class="org-keyword">for</span> x <span class="org-keyword">in</span> (log_mu, log_phi, logodds):
@@ -3076,9 +3076,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-orgfc78240" class="outline-3">
-<h3 id="orgfc78240">Call variance-QTLs</h3>
-<div class="outline-text-3" id="text-orgfc78240">
+<div id="outline-container-orgf831642" class="outline-3">
+<h3 id="orgf831642">Call variance-QTLs</h3>
+<div class="outline-text-3" id="text-orgf831642">
 <p>
 Normalize the variance matrix.
 </p>
@@ -3183,9 +3183,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-orgee87e7e" class="outline-3">
-<h3 id="orgee87e7e">Call CV-QTLs</h3>
-<div class="outline-text-3" id="text-orgee87e7e">
+<div id="outline-container-org416a231" class="outline-3">
+<h3 id="org416a231">Call CV-QTLs</h3>
+<div class="outline-text-3" id="text-org416a231">
 <p>
 Estimate the coefficient of variation.
 </p>
@@ -3287,9 +3287,9 @@ Take QTLs at FDR 10%.
 </div>
 </div>
 
-<div id="outline-container-org199128a" class="outline-3">
-<h3 id="org199128a">Call Fano-QTLs</h3>
-<div class="outline-text-3" id="text-org199128a">
+<div id="outline-container-orgaa26c5a" class="outline-3">
+<h3 id="orgaa26c5a">Call Fano-QTLs</h3>
+<div class="outline-text-3" id="text-orgaa26c5a">
 <p>
 Estimate the coefficient of variation.
 </p>
@@ -3396,9 +3396,9 @@ Take QTLs at FDR 10%.
 <h2 id="orga31f8af">Explain away variance QTLs</h2>
 <div class="outline-text-2" id="text-orga31f8af">
 </div>
-<div id="outline-container-org3f29dda" class="outline-3">
-<h3 id="org3f29dda">Call variance-QTLs</h3>
-<div class="outline-text-3" id="text-org3f29dda">
+<div id="outline-container-orgdcaa8be" class="outline-3">
+<h3 id="orgdcaa8be">Call variance-QTLs</h3>
+<div class="outline-text-3" id="text-orgdcaa8be">
 <p>
 Regress out mean from variance.
 </p>
@@ -3527,7 +3527,7 @@ cp bulk-covars.txt bulk.txt.gz /project2/mstephens/aksarkar/projects/singlecell-
 </div>
 
 <div class="org-src-container">
-<pre class="src src-sh">sbatch --partition=broadwl
+<pre class="src src-sh">sbatch --partition=mstephens
 <span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
 cat &gt;.rsync-filter &lt;&lt;EOF
 <span class="org-sh-heredoc">+ */</span>
@@ -3536,15 +3536,19 @@ cat &gt;.rsync-filter &lt;&lt;EOF
 <span class="org-sh-heredoc">+ *covars*</span>
 <span class="org-sh-heredoc">- *</span>
 <span class="org-sh-heredoc">EOF</span>
-<span class="org-keyword">function</span> <span class="org-function-name">z</span> { <span class="org-builtin">test</span> $<span class="org-variable-name">1</span>-qtl.1.txt -nt $<span class="org-variable-name">1</span>.txt.gz &amp;&amp; cat $<span class="org-variable-name">1</span>-qtl.*.txt | awk <span class="org-string">'BEGIN {print "gene", "chr", "start", "end", "strand", "num_vars", "distance", "id", "var_chr", "var_start", "var_end", "df", "dummy", "a", "b", "p_nominal", "beta", "p_empirical", "p_beta"} {print}'</span> | gzip &gt;$<span class="org-variable-name">1</span>.txt.gz; }
+<span class="org-keyword">function</span> <span class="org-function-name">z</span> {
+    <span class="org-variable-name">pheno</span>=$(<span class="org-sh-quoted-exec">basename</span> $<span class="org-variable-name">1</span> -qtl.1.txt)
+    <span class="org-variable-name">dir</span>=$(<span class="org-sh-quoted-exec">dirname</span> $(<span class="org-sh-quoted-exec">readlink</span> -f $<span class="org-variable-name">1</span>))
+    <span class="org-builtin">test</span> $<span class="org-variable-name">1</span> -nt $<span class="org-variable-name">dir</span>/$<span class="org-variable-name">pheno</span>.txt.gz &amp;&amp; cat $<span class="org-variable-name">dir</span>/$<span class="org-variable-name">pheno</span>-qtl.*.txt | awk <span class="org-string">'BEGIN {print "gene", "chr", "start", "end", "strand", "num_vars", "distance", "id", "var_chr", "var_start", "var_end", "df", "dummy", "a", "b", "p_nominal", "beta", "p_empirical", "p_beta"} {print}'</span> | gzip &gt;$<span class="org-variable-name">dir</span>/$<span class="org-variable-name">pheno</span>.txt.gz;
+}
 <span class="org-builtin">export</span> -f z
-parallel -j1 z ::: cv fano mean log_phi multmean variance resid cv_resid
+find -name <span class="org-string">"*-qtl.1.txt"</span> | parallel -j1 z
 rsync -FFau . /project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/
 </pre>
 </div>
 
 <pre class="example">
-Submitted batch job 49699529
+Submitted batch job 55776894
 
 </pre>
 </div>
@@ -3751,7 +3755,7 @@ Read the QTLs and normalized expression matrices.
 <pre class="src src-ipython"><span class="org-variable-name">prefix</span> = <span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/'</span>
 <span class="org-variable-name">qtls</span> = {pheno: [pd.read_table(<span class="org-string">'{}/{}.txt.gz'</span>.<span class="org-builtin">format</span>(prefix, pheno), sep=<span class="org-string">' '</span>),
                 pd.read_table(<span class="org-string">'{}/{}.bed.gz'</span>.<span class="org-builtin">format</span>(prefix, pheno)).set_index(<span class="org-string">'pid'</span>).<span class="org-builtin">filter</span>(like=<span class="org-string">'NA'</span>, axis=<span class="org-string">'columns'</span>)]
-        <span class="org-keyword">for</span> pheno <span class="org-keyword">in</span> [<span class="org-string">'bulk'</span>, <span class="org-string">'mean'</span>, <span class="org-string">'multmean'</span>, <span class="org-string">'variance'</span>, <span class="org-string">'cv'</span>, <span class="org-string">'fano'</span>]}
+        <span class="org-keyword">for</span> pheno <span class="org-keyword">in</span> [<span class="org-string">'bulk'</span>, <span class="org-string">'zinb/mean'</span>, <span class="org-string">'zinb/multmean'</span>, <span class="org-string">'zinb/variance'</span>, <span class="org-string">'zinb/cv'</span>, <span class="org-string">'zinb/fano'</span>]}
 </pre>
 </div>
 
@@ -3762,7 +3766,7 @@ Read covariates.
 <div class="org-src-container">
 <pre class="src src-ipython"><span class="org-variable-name">base</span> = pathlib.Path(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/'</span>)
 <span class="org-variable-name">covars</span> = [pd.read_table(base / <span class="org-string">'{}-covars.txt'</span>.<span class="org-builtin">format</span>(f), sep=<span class="org-string">'\s+'</span>, engine=<span class="org-string">'python'</span>, index_col=0)
-          <span class="org-keyword">for</span> f <span class="org-keyword">in</span> (<span class="org-string">'bulk'</span>, <span class="org-string">'mean'</span>, <span class="org-string">'multmean'</span>, <span class="org-string">'variance'</span>)]
+          <span class="org-keyword">for</span> f <span class="org-keyword">in</span> (<span class="org-string">'bulk'</span>, <span class="org-string">'zinb/mean'</span>, <span class="org-string">'zinb/multmean'</span>, <span class="org-string">'zinb/variance'</span>)]
 </pre>
 </div>
 
@@ -3794,7 +3798,7 @@ Estimate replication rates for mean QTLs.
 <pre class="src src-ipython"><span class="org-variable-name">pd.options.display.float_format</span> = <span class="org-string">'{:.3g}'</span>.<span class="org-builtin">format</span>
 pairwise_replication(
   qtls,
-  phenos=[<span class="org-string">'bulk'</span>, <span class="org-string">'mean'</span>, <span class="org-string">'multmean'</span>],
+  phenos=[<span class="org-string">'bulk'</span>, <span class="org-string">'zinb/mean'</span>, <span class="org-string">'zinb/multmean'</span>],
   ticks=[<span class="org-string">'Bulk'</span>, <span class="org-string">'Mean'</span>, <span class="org-string">'log mean'</span>],
   covars=covars[:3])
 </pre>
@@ -3802,9 +3806,9 @@ pairwise_replication(
 
 <pre class="example">
 Bulk  Mean  log mean
-Bulk       100    80      79.4
-Mean        82   100       100
-log mean  83.5   100       100
+Bulk       100    79      78.9
+Mean      80.4   100       100
+log mean    82   100       100
 </pre>
 
 <p>
@@ -3813,18 +3817,18 @@ Estimate the rate at which variance QTLs replicate as mean QTLs (and vice versa)
 
 <div class="org-src-container">
 <pre class="src src-ipython">pairwise_replication(qtls,
-                     phenos=[<span class="org-string">'log_mu'</span>, <span class="org-string">'variance'</span>, <span class="org-string">'cv'</span>, <span class="org-string">'fano'</span>],
-                     ticks=[<span class="org-string">'$(1 - \pi)\mu$'</span>, <span class="org-string">'Variance'</span>, <span class="org-string">'CV'</span>, <span class="org-string">'Fano'</span>],
-                     covars=[covars[2], covars[4], <span class="org-constant">None</span>, <span class="org-constant">None</span>])
+                     phenos=[<span class="org-string">'zinb/mean'</span>, <span class="org-string">'zinb/variance'</span>, <span class="org-string">'zinb/cv'</span>, <span class="org-string">'zinb/fano'</span>],
+                     ticks=[<span class="org-string">'Mean'</span>, <span class="org-string">'Variance'</span>, <span class="org-string">'CV'</span>, <span class="org-string">'Fano'</span>],
+                     covars=[covars[1], covars[3], <span class="org-constant">None</span>, <span class="org-constant">None</span>])
 </pre>
 </div>
 
 <pre class="example">
-$(1 - \pi)\mu$  Variance   CV  Fano
-$(1 - \pi)\mu$             100      99.6 78.6    91
-Variance                   100       100 73.5   100
-CV                         100       100  100   100
-Fano                       100       100 64.3   100
+Mean  Variance   CV  Fano
+Mean       100      85.1 42.6  66.4
+Variance   100       100  100   100
+CV         100       100  100   100
+Fano       100       100  100   100
 </pre>
 </div>
 </div>
@@ -3837,8 +3841,8 @@ Compute relative abundance per individual.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
-<span class="org-variable-name">logodds</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design2/zi2-logodds.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<pre class="src src-ipython"><span class="org-variable-name">log_mu</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-log-mu.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
+<span class="org-variable-name">logodds</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/density-estimation/design1/zi2-logodds.txt.gz'</span>, index_col=0, sep=<span class="org-string">' '</span>)
 
 <span class="org-variable-name">abundance</span> = log_mu - np.log1p(np.exp(logodds))
 <span class="org-variable-name">abundance</span> -= sp.logsumexp(abundance, axis=0)
@@ -3852,7 +3856,7 @@ abundance.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">variance_qtls</span> = qtls[<span class="org-string">'variance'</span>][0]
+<pre class="src src-ipython"><span class="org-variable-name">variance_qtls</span> = qtls[<span class="org-string">'zinb/variance'</span>][0]
 <span class="org-variable-name">thresh_pass</span> = variance_qtls[<span class="org-string">'p_beta'</span>] &lt; 1e-2
 <span class="org-variable-name">var_qtl_abundance</span>, <span class="org-variable-name">var_qtl_stats</span> = abundance.align(variance_qtls[thresh_pass].set_index(<span class="org-string">'gene'</span>), axis=<span class="org-string">'index'</span>, join=<span class="org-string">'inner'</span>)
 <span class="org-variable-name">fdr_pass</span> = var_qtl_stats[<span class="org-string">'fdr_pass'</span>]
@@ -3869,7 +3873,7 @@ Count how many variance QTLs have \(p < 10^{-2}\)
 </div>
 
 <pre class="example">
-301
+121
 
 </pre>
 
@@ -3895,7 +3899,7 @@ Make sure our effect sizes match <code>qtltools</code>.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">variance</span> = qtls[<span class="org-string">'variance'</span>][1]
+<pre class="src src-ipython"><span class="org-variable-name">variance</span> = qtls[<span class="org-string">'zinb/variance'</span>][1]
 <span class="org-variable-name">Xv</span>, <span class="org-variable-name">Yv</span> = extract_qtl_gene_pair(variance_qtls[thresh_pass], variance, dosages=<span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz'</span>)
 <span class="org-variable-name">Cv</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/variance-covars.txt'</span>, index_col=0)
 <span class="org-variable-name">Cv</span> = Cv.align(Xv, axis=<span class="org-string">'columns'</span>, join=<span class="org-string">'inner'</span>)[0]
@@ -3905,14 +3909,14 @@ my_var_qtl_stats.merge(variance_qtls, on=<span class="org-string">'gene'</span>)
 </div>
 
 <pre class="example">
-count        301
-mean      0.0766
-std       0.0711
-min     0.000178
-25%       0.0234
-50%       0.0543
-75%        0.102
-max        0.377
+count       121
+mean     0.0904
+std       0.105
+min     0.00246
+25%      0.0255
+50%      0.0601
+75%       0.132
+max       0.867
 dtype: float64
 </pre>
 
@@ -3926,11 +3930,11 @@ Look at the gene with max difference in estimated effect size.
 </div>
 
 <pre class="example">
-beta              -1.12
-gene    ENSG00000145425
-p              1.38e-18
-se                0.127
-Name: 230, dtype: object
+beta               20.3
+gene    ENSG00000079102
+p                 0.157
+se                 14.4
+Name: 116, dtype: object
 </pre>
 
 <p>
@@ -3953,14 +3957,14 @@ Investigate whether analytic SEs are reasonable:
 </div>
 
 <pre class="example">
-count      301
-mean    0.0521
-std     0.0344
-min     0.0137
-25%     0.0271
-50%     0.0405
-75%     0.0669
-max      0.186
+count       121
+mean       0.18
+std         1.3
+min     0.00832
+25%      0.0311
+50%      0.0447
+75%       0.078
+max        14.4
 Name: se, dtype: float64
 </pre>
 
@@ -3970,14 +3974,14 @@ Name: se, dtype: float64
 </div>
 
 <pre class="example">
-count      301
-mean     0.225
-std     0.0848
-min      0.113
-25%       0.17
-50%      0.203
-75%      0.253
-max      0.628
+count      121
+mean      1.22
+std       9.12
+min     0.0995
+25%      0.178
+50%      0.217
+75%      0.285
+max        100
 Name: bootstrap_se, dtype: float64
 </pre>
 
@@ -4103,8 +4107,8 @@ Investigate whether variance QTL \(z\)-scores are correlated with mean QTL
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">Xm</span>, <span class="org-variable-name">Ym</span> = extract_qtl_gene_pair(variance_qtls[thresh_pass], qtls[<span class="org-string">'log_mu'</span>][1], dosages=<span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz'</span>)
-<span class="org-variable-name">Cm</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/log_mu-covars.txt'</span>)
+<pre class="src src-ipython"><span class="org-variable-name">Xm</span>, <span class="org-variable-name">Ym</span> = extract_qtl_gene_pair(variance_qtls[thresh_pass], qtls[<span class="org-string">'zinb/mean'</span>][1], dosages=<span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz'</span>)
+<span class="org-variable-name">Cm</span> = covars[1]
 <span class="org-variable-name">Cm</span> = Cm.align(Xm, axis=<span class="org-string">'columns'</span>, join=<span class="org-string">'inner'</span>)[0]
 <span class="org-variable-name">var_qtl_stats</span>[<span class="org-string">'mean_beta'</span>] = replication_tests(Xm, Ym, Cm).set_index(<span class="org-string">'gene'</span>)[<span class="org-string">'beta'</span>]
 <span class="org-variable-name">var_qtl_stats</span>[<span class="org-string">'mean_z'</span>] = var_qtl_stats[<span class="org-string">'mean_beta'</span>] / bootstrap_se(Xm, Ym, Cm)
@@ -4143,12 +4147,12 @@ Compute the same in the other direction.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">mean_qtl_stats</span> = qtls[<span class="org-string">'log_mu'</span>][0]
+<pre class="src src-ipython"><span class="org-variable-name">mean_qtl_stats</span> = qtls[<span class="org-string">'zinb/mean'</span>][0]
 <span class="org-variable-name">mean_qtl_stats</span> = mean_qtl_stats[mean_qtl_stats[<span class="org-string">'fdr_pass'</span>]].copy()
-<span class="org-variable-name">X</span>, <span class="org-variable-name">Y</span> = extract_qtl_gene_pair(mean_qtl_stats, qtls[<span class="org-string">'log_mu'</span>][1], dosages=<span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz'</span>)
+<span class="org-variable-name">X</span>, <span class="org-variable-name">Y</span> = extract_qtl_gene_pair(mean_qtl_stats, qtls[<span class="org-string">'zinb/mean'</span>][1], dosages=<span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz'</span>)
 <span class="org-variable-name">z</span> = mean_qtl_stats.set_index(<span class="org-string">'gene'</span>)[<span class="org-string">'beta'</span>] / bootstrap_se(X, Y, Cm)
 
-<span class="org-variable-name">X</span>, <span class="org-variable-name">Y</span> = extract_qtl_gene_pair(mean_qtl_stats, qtls[<span class="org-string">'variance'</span>][1], dosages=<span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz'</span>)
+<span class="org-variable-name">X</span>, <span class="org-variable-name">Y</span> = extract_qtl_gene_pair(mean_qtl_stats, qtls[<span class="org-string">'zinb/variance'</span>][1], dosages=<span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz'</span>)
 <span class="org-variable-name">vz</span> = replication_tests(X, Y, Cv).set_index(<span class="org-string">'gene'</span>)[<span class="org-string">'beta'</span>] / bootstrap_se(X, Y, Cv)
 
 <span class="org-variable-name">Xb</span>, <span class="org-variable-name">Yb</span> = extract_qtl_gene_pair(mean_qtl_stats, qtls[<span class="org-string">'bulk'</span>][1], dosages=<span class="org-string">'/scratch/midway2/aksarkar/singlecell/scqtl-mapping/yri-120-dosages.vcf.gz'</span>)
@@ -4160,7 +4164,7 @@ Compute the same in the other direction.
 <span class="org-variable-name">mean_qtl_stats</span>[<span class="org-string">'z'</span>] = z
 <span class="org-variable-name">mean_qtl_stats</span>[<span class="org-string">'var_z'</span>] = vz
 <span class="org-variable-name">mean_qtl_stats</span>[<span class="org-string">'bulk_z'</span>] = bulk_z
-<span class="org-variable-name">mean_qtl_stats</span>[<span class="org-string">'var_fdr_pass'</span>] = mean_qtl_stats.index.isin(var_qtl_stats[<span class="org-string">'fdr_pass'</span>].index)
+<span class="org-variable-name">mean_qtl_stats</span>[<span class="org-string">'var_fdr_pass'</span>] = mean_qtl_stats.index.isin(fdr_pass[fdr_pass].index)
 </pre>
 </div>
 
@@ -4555,7 +4559,7 @@ ENSG00000108528   SLC25A11
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-12-17 Mon 16:02</p>
+<p class="date">Created: 2018-12-18 Tue 10:25</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
