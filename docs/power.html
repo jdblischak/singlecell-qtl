@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2018-11-27 Tue 14:53 -->
+<!-- 2018-12-19 Wed 10:47 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Power to detect QTLs in single cell data</title>
@@ -179,7 +179,7 @@
   /*]]>*/-->
 </style>
 <link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
-<link rel="stylesheet" type="text/css" href="https://www.pirilampo.org/styles/readtheorg/css/htmlize.css"/>
+<link rel="stylesheet" type="text/css" href="site_libs/htmlize.css"/>
 <style type="text/css">body {width: 60em; margin:auto} pre.src {overflow:auto}</style>
 <script type="text/javascript">
 /*
@@ -254,9 +254,9 @@ for the JavaScript code in this tag.
 <div id="content">
 <h1 class="title">Power to detect QTLs in single cell data</h1>
 
-<div id="outline-container-orga42ca73" class="outline-2">
-<h2 id="orga42ca73">Introduction</h2>
-<div class="outline-text-2" id="text-orga42ca73">
+<div id="outline-container-orgc18a41c" class="outline-2">
+<h2 id="orgc18a41c">Introduction</h2>
+<div class="outline-text-2" id="text-orgc18a41c">
 <p>
 We <a href="qtl-mapping.html">previously found</a> that our study lost power to detect eQTLs, and was
 underpowered to directly detect dQTLs.
@@ -278,13 +278,13 @@ strongest dQTLs</li>
 </div>
 </div>
 
-<div id="outline-container-org7629be6" class="outline-2">
-<h2 id="org7629be6">Empirical power calculation</h2>
-<div class="outline-text-2" id="text-org7629be6">
+<div id="outline-container-orge691f24" class="outline-2">
+<h2 id="orge691f24">Empirical power calculation</h2>
+<div class="outline-text-2" id="text-orge691f24">
 </div>
-<div id="outline-container-orge517b0e" class="outline-3">
-<h3 id="orge517b0e">Differential dispersion</h3>
-<div class="outline-text-3" id="text-orge517b0e">
+<div id="outline-container-orgfbf3c4e" class="outline-3">
+<h3 id="orgfbf3c4e">Differential dispersion</h3>
+<div class="outline-text-3" id="text-orgfbf3c4e">
 <p>
 Perform a nested model comparison for each gene \(k\), comparing the model:
 </p>
@@ -302,7 +302,7 @@ against the model:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="orgca0b48e"><span class="org-keyword">def</span> <span class="org-function-name">lrt</span>(umi, onehot, design, size_factor):
+<pre class="src src-ipython" id="orgc9750a2"><span class="org-keyword">def</span> <span class="org-function-name">lrt</span>(umi, onehot, design, size_factor):
   <span class="org-variable-name">_</span>, <span class="org-variable-name">_</span>, <span class="org-variable-name">_</span>, <span class="org-variable-name">llik0</span> = fit(
     umi=umi.values.T.astype(np.float32),
     onehot=onehot.astype(np.float32),
@@ -327,9 +327,9 @@ against the model:
 </div>
 </div>
 
-<div id="outline-container-org5ec82fa" class="outline-3">
-<h3 id="org5ec82fa">Null calibration via parametric bootstrap</h3>
-<div class="outline-text-3" id="text-org5ec82fa">
+<div id="outline-container-orgdea73f5" class="outline-3">
+<h3 id="orgdea73f5">Null calibration via parametric bootstrap</h3>
+<div class="outline-text-3" id="text-orgdea73f5">
 <p>
 Sample null data from the model, using empirical estimates of the parameters
 in the observed data.
@@ -436,9 +436,9 @@ plt.xlabel(<span class="org-string">'Expected $\chi^2$ statistic'</span>)
 </div>
 </div>
 
-<div id="outline-container-org3d39f55" class="outline-3">
-<h3 id="org3d39f55">Power</h3>
-<div class="outline-text-3" id="text-org3d39f55">
+<div id="outline-container-org391fda6" class="outline-3">
+<h3 id="org391fda6">Power</h3>
+<div class="outline-text-3" id="text-org391fda6">
 <p>
 Sample from the assumed model.
 </p>
@@ -585,9 +585,9 @@ fig.tight_layout()
 </div>
 </div>
 
-<div id="outline-container-org601cded" class="outline-3">
-<h3 id="org601cded">QTL discovery</h3>
-<div class="outline-text-3" id="text-org601cded">
+<div id="outline-container-orgfb935b9" class="outline-3">
+<h3 id="orgfb935b9">QTL discovery</h3>
+<div class="outline-text-3" id="text-orgfb935b9">
 <p>
 We assume the phenotype is generated from \(m\) causal effects (out of \(p\)
 variants) following a linear model:
@@ -610,7 +610,7 @@ variants) following a linear model:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="orgb735633"><span class="org-keyword">def</span> <span class="org-function-name">read_dosage</span>(vcf, row, window=100000):
+<pre class="src src-ipython" id="org66d44d1"><span class="org-keyword">def</span> <span class="org-function-name">read_dosage</span>(vcf, row, window=100000):
   <span class="org-variable-name">records</span> = <span class="org-builtin">list</span>(vcf.query(row[<span class="org-string">'#Chr'</span>], row[<span class="org-string">'start'</span>] - window, row[<span class="org-string">'start'</span>] + window))
   <span class="org-keyword">if</span> records:
     <span class="org-variable-name">x</span> = np.array([record[9:] <span class="org-keyword">for</span> record <span class="org-keyword">in</span> records]).astype(np.<span class="org-builtin">float</span>).T
@@ -843,16 +843,16 @@ fig.tight_layout()
 </div>
 </div>
 
-<div id="outline-container-org2e0a082" class="outline-3">
-<h3 id="org2e0a082">Distribution of effect sizes.</h3>
-<div class="outline-text-3" id="text-org2e0a082">
+<div id="outline-container-orgcfb166e" class="outline-3">
+<h3 id="orgcfb166e">Distribution of effect sizes.</h3>
+<div class="outline-text-3" id="text-orgcfb166e">
 <p>
 Use <code>ash</code> to estimate the distribution of true effect sizes across all
 genes. We need to compute regression standard errors ourselves.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org2bfad5a"><span class="org-keyword">def</span> <span class="org-function-name">run_nominal_pass</span>(vcf, pheno, header, std=<span class="org-constant">True</span>, cov=<span class="org-constant">None</span>):
+<pre class="src src-ipython" id="org196b897"><span class="org-keyword">def</span> <span class="org-function-name">run_nominal_pass</span>(vcf, pheno, header, std=<span class="org-constant">True</span>, cov=<span class="org-constant">None</span>):
   <span class="org-comment-delimiter"># </span><span class="org-comment">Annihilator matrix I - X X^+</span>
   <span class="org-variable-name">M</span> = <span class="org-constant">None</span>
   <span class="org-variable-name">result</span> = []
@@ -881,7 +881,7 @@ genes. We need to compute regression standard errors ourselves.
 </div>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org029be3f">&lt;&lt;power-imports&gt;&gt;
+<pre class="src src-ipython" id="org2495507">&lt;&lt;power-imports&gt;&gt;
 <span class="org-keyword">import</span> argparse
 &lt;&lt;eqtl-sim-impl&gt;&gt;
 &lt;&lt;nominal-<span class="org-keyword">pass</span>-<span class="org-keyword">def</span>&gt;&gt;
@@ -1139,7 +1139,7 @@ problem easier.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org226c372"><span class="org-keyword">def</span> <span class="org-function-name">downsample</span>(x, n):
+<pre class="src src-ipython" id="org7d18f54"><span class="org-keyword">def</span> <span class="org-function-name">downsample</span>(x, n):
   <span class="org-keyword">assert</span> n &gt;= 0
   <span class="org-keyword">if</span> x.shape[0] &gt;= n:
     <span class="org-keyword">return</span> x.loc[np.random.choice(x.index, n, replace=<span class="org-constant">False</span>)]
@@ -1299,9 +1299,9 @@ CV         94.2       97.4      97.1  97.2  100
 </div>
 </div>
 
-<div id="outline-container-orga31b1a2" class="outline-3">
-<h3 id="orga31b1a2">Compare experimental variance to biological variance</h3>
-<div class="outline-text-3" id="text-orga31b1a2">
+<div id="outline-container-orgfb4be50" class="outline-3">
+<h3 id="orgfb4be50">Compare experimental variance to biological variance</h3>
+<div class="outline-text-3" id="text-orgfb4be50">
 <p>
 Let \hat{\theta}<sub>i</sub> be an estimate of some phenotype \(\theta_i\). Assume:
 </p>
@@ -1325,7 +1325,7 @@ Extract the genotypes and UMI counts.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="orgf2dba7f"><span class="org-keyword">def</span> <span class="org-function-name">parse_vcf_dosage</span>(record):
+<pre class="src src-ipython" id="org76233c4"><span class="org-keyword">def</span> <span class="org-function-name">parse_vcf_dosage</span>(record):
   <span class="org-variable-name">geno</span> = [<span class="org-builtin">float</span>(g) <span class="org-keyword">for</span> g <span class="org-keyword">in</span> record[9:]]
   <span class="org-keyword">return</span> pd.Series(geno)
 
@@ -1357,7 +1357,7 @@ Read the data.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="orgf094377"><span class="org-variable-name">qtls</span> = (pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/mean.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
+<pre class="src src-ipython" id="org66aae0f"><span class="org-variable-name">qtls</span> = (pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-mapping/mean.txt.gz'</span>, sep=<span class="org-string">' '</span>, index_col=0)
         .sample(n=200, random_state=1))
 <span class="org-variable-name">annotations</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-annotation.txt'</span>)
 <span class="org-variable-name">keep_samples</span> = pd.read_table(<span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/quality-single-cells.txt'</span>, index_col=0, header=<span class="org-constant">None</span>)
@@ -1369,7 +1369,7 @@ Extract the subset we want.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org84d626d"><span class="org-variable-name">counts</span> = extract_counts(qtls, <span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>)
+<pre class="src src-ipython" id="orgb0cc2c5"><span class="org-variable-name">counts</span> = extract_counts(qtls, <span class="org-string">'/project2/mstephens/aksarkar/projects/singlecell-qtl/data/scqtl-counts.txt.gz'</span>)
 <span class="org-variable-name">annotations</span> = annotations.loc[keep_samples.values.ravel()].reset_index(drop=<span class="org-constant">True</span>)
 <span class="org-variable-name">counts</span> = counts.loc[:,keep_samples.values.ravel()]
 </pre>
@@ -1380,7 +1380,7 @@ Bootstrap the subset.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="orgb66e856"><span class="org-keyword">def</span> <span class="org-function-name">bootstrap</span>(counts, annotations):
+<pre class="src src-ipython" id="org3cb5daf"><span class="org-keyword">def</span> <span class="org-function-name">bootstrap</span>(counts, annotations):
   <span class="org-variable-name">idx</span> = np.hstack({k: np.random.choice(g, size=<span class="org-builtin">len</span>(g))
                    <span class="org-keyword">for</span> k, g <span class="org-keyword">in</span> annotations.groupby(<span class="org-string">'chip_id'</span>).groups.items()}.values())
   <span class="org-keyword">return</span> counts.iloc[:,idx], annotations.iloc[idx]
@@ -1509,12 +1509,11 @@ Estimate bootstrap SEs on a GPU.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org0e4883b">&lt;&lt;zinb-imports&gt;&gt;
+<pre class="src src-ipython" id="org65a1bf8">&lt;&lt;zinb-imports&gt;&gt;
 &lt;&lt;tf-imports&gt;&gt;
-<span class="org-keyword">import</span> tabix
 <span class="org-keyword">import</span> scipy.linalg <span class="org-keyword">as</span> sl
+<span class="org-keyword">import</span> tabix
 
-&lt;&lt;tf-zinb-impl&gt;&gt;
 &lt;&lt;recode-impl&gt;&gt;
 &lt;&lt;extract-impl&gt;&gt;
 &lt;&lt;bootstrap-impl&gt;&gt;
@@ -1533,14 +1532,16 @@ Estimate bootstrap SEs on a GPU.
   <span class="org-variable-name">chip</span> = recode(annotations, <span class="org-string">'experiment'</span>)
   <span class="org-variable-name">chip</span> -= chip.mean(axis=0)
 
-  results.append(fit(
+  results.append(scqtl.tf.fit(
     umi=C.values.T.astype(np.float32),
     onehot=onehot.astype(np.float32),
     design=chip.astype(np.float32),
-    size_factor=annotations[<span class="org-string">'mol_hs'</span>].astype(np.float32).values.reshape(-1, 1),
+    size_factor=A[<span class="org-string">'mol_hs'</span>].astype(np.float32).values.reshape(-1, 1),
     warm_start=(log_mu.values.T.astype(np.float32), log_phi.values.T.astype(np.float32), logodds.values.T.astype(np.float32)),
-    learning_rate=5e-2,
-    max_epochs=1000))
+    learning_rate=1e-3,
+    max_epochs=30000,
+    verbose=<span class="org-constant">True</span>,
+  ))
 
 <span class="org-variable-name">estimates</span> = {
   <span class="org-string">'mean'</span>: np.array([np.exp(r[0] - np.log1p(np.exp(r[2]))) <span class="org-keyword">for</span> r <span class="org-keyword">in</span> results]),
@@ -1686,9 +1687,9 @@ dtype: float64
 </div>
 </div>
 
-<div id="outline-container-org2be57fa" class="outline-3">
-<h3 id="org2be57fa">Distribution of PVE</h3>
-<div class="outline-text-3" id="text-org2be57fa">
+<div id="outline-container-org573fda6" class="outline-3">
+<h3 id="org573fda6">Distribution of PVE</h3>
+<div class="outline-text-3" id="text-org573fda6">
 <p>
 We can use shrunk marginal effect size estimates to bound the proportion of
 phenotypic variance explained. We claim:
@@ -1727,7 +1728,7 @@ this is still a lower bound
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython" id="org6e9810c"><span class="org-keyword">def</span> <span class="org-function-name">get_pve</span>(summary_stats, ash_result):
+<pre class="src src-ipython" id="org3b891f8"><span class="org-keyword">def</span> <span class="org-function-name">get_pve</span>(summary_stats, ash_result):
   <span class="org-variable-name">res</span> = ashr.ash(summary_stats[<span class="org-string">'beta'</span>], summary_stats[<span class="org-string">'se'</span>], fixg=<span class="org-constant">True</span>,
                  g=ash_result.rx2(<span class="org-string">'fitted_g'</span>))
   <span class="org-variable-name">pve</span> = np.square(pd.Series(np.square(ashr.get_psd(res)) + ashr.get_pm(res),
@@ -2043,9 +2044,9 @@ num_individuals  num_causal         0
 </div>
 </div>
 
-<div id="outline-container-orge4a450a" class="outline-3">
-<h3 id="orge4a450a">Estimate the error variance</h3>
-<div class="outline-text-3" id="text-orge4a450a">
+<div id="outline-container-org96324ef" class="outline-3">
+<h3 id="org96324ef">Estimate the error variance</h3>
+<div class="outline-text-3" id="text-org96324ef">
 <p>
 The single cell experiment size determines the standard error of the
 estimator, which can be thought of as measurement error.
@@ -2305,7 +2306,7 @@ python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/nominal-log-fc.
 </div>
 
 <pre class="example">
-Submitted batch job 49000296
+Submitted batch job 55777035
 
 </pre>
 
@@ -2357,7 +2358,7 @@ plt.legend(frameon=<span class="org-constant">False</span>, loc=<span class="org
 </div>
 
 <pre class="example">
-&lt;matplotlib.legend.Legend at 0x7f104f95c2b0&gt;
+&lt;matplotlib.legend.Legend at 0x7f483d809c88&gt;
 
 </pre>
 
@@ -2409,7 +2410,7 @@ mean_effect
 </div>
 
 <pre class="example">
-0.022772772772772787
+0.022272272272272242
 
 </pre>
 
@@ -2420,7 +2421,7 @@ disp_effect
 </div>
 
 <pre class="example">
-0.08533533533533533
+0.09034034034034033
 
 </pre>
 </div>
@@ -2440,7 +2441,7 @@ for 200 randomly chosen genes.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sh">sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --job-name=tf-zinb-se --out=tf-zinb-se.out
+<pre class="src src-sh">sbatch --partition=gpu2 --gres=gpu:1 --time=12:00:00 --mem=16G --job-name=tf-zinb-se --out=tf-zinb-se.out
 <span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/bash</span>
 <span class="org-builtin">source</span> activate scqtl
 python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb-se.py
@@ -2448,7 +2449,7 @@ python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb-se.py
 </div>
 
 <pre class="example">
-Submitted batch job 49278176
+Submitted batch job 55782356
 
 </pre>
 
@@ -2457,8 +2458,8 @@ Read the results.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython"><span class="org-variable-name">log_mean_sampling_var</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/log_mean-se.txt.gz'</span>, index_col=0)
-<span class="org-variable-name">disp_sampling_var</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/disp-se.txt.gz'</span>, index_col=0)
+<pre class="src src-ipython"><span class="org-variable-name">log_mean_sampling_var</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/log_mean-se.txt.gz'</span>, index_col=0).<span class="org-builtin">filter</span>(items=log_mu.columns, axis=<span class="org-string">'columns'</span>)
+<span class="org-variable-name">disp_sampling_var</span> = pd.read_table(<span class="org-string">'/scratch/midway2/aksarkar/singlecell/power/disp-se.txt.gz'</span>, index_col=0).<span class="org-builtin">filter</span>(items=log_mu.columns, axis=<span class="org-string">'columns'</span>)
 </pre>
 </div>
 </div>
@@ -2469,7 +2470,7 @@ Read the results.
 <p>
 Assuming that \(\hat\sigma^2_{mi}\) is unbiased, \(\hat\sigma^2_r =
     \frac{1}{n - 1}\sum_i (\tilde{y}_i - \bar{y})^2 - \frac{1}{n}\sum_i
-    \hat\sigma^2_{mi}\) is also unbiased (Buonaccorsi 2010, Eq. 10.1).
+    \hat\sigma^2_{mi}\) is also unbiased (<a href="https://www.crcpress.com/Measurement-Error-Models-Methods-and-Applications/Buonaccorsi/p/book/9781420066562">Buonaccorsi 2010</a>, Eq. 10.1).
 </p>
 
 <p>
@@ -2485,7 +2486,7 @@ sigma2_m_mean_naive, sigma2_r_mean_naive
 </div>
 
 <pre class="example">
-(0.01676837475, 0.0038333371434518104)
+(0.012516903499999999, 0.005998688831110887)
 
 </pre>
 
@@ -2497,7 +2498,7 @@ sigma2_m_disp_naive, sigma2_r_disp_naive
 </div>
 
 <pre class="example">
-(0.34478114000000004, 0.10712427518144693)
+(3.0812910999999996, 0.6719321678084191)
 
 </pre>
 
@@ -2511,7 +2512,7 @@ Compare the phenotypic standard deviations.
 </div>
 
 <pre class="example">
-5.286344229674782
+10.583627575927432
 
 </pre>
 
@@ -2527,7 +2528,7 @@ delta_mean_naive, delta_disp_naive
 </div>
 
 <pre class="example">
-(4.374354282571805, 3.218515499087488)
+(2.086606565602106, 4.585717498910597)
 
 </pre>
 </div>
@@ -2650,7 +2651,7 @@ sigma2_m_mean_deconv, sigma2_r_mean_deconv
 </div>
 
 <pre class="example">
-(0.04015464910541205, 0.010743676492444657)
+(0.030414726107298628, 0.008992095681497215)
 
 </pre>
 
@@ -2661,7 +2662,7 @@ sigma2_m_disp_deconv, sigma2_r_disp_deconv
 </div>
 
 <pre class="example">
-(0.4100403252289386, 0.24894528053223766)
+(2.1619294225792225, 1.805227380090225)
 
 </pre>
 
@@ -2695,7 +2696,7 @@ Compare the phenotypic standard deviations.
 </div>
 
 <pre class="example">
-4.813660837867881
+14.16887915444257
 
 </pre>
 
@@ -2711,7 +2712,7 @@ delta_mean_deconv, delta_disp_deconv
 </div>
 
 <pre class="example">
-(3.737514726327645, 1.647110257934131)
+(3.3823846169566636, 1.1975939687282882)
 
 </pre>
 </div>
@@ -2750,7 +2751,7 @@ sigma2_m_mean_hybrid, sigma2_r_mean_hybrid
 </div>
 
 <pre class="example">
-(0.01676837475, 0.01137813811552999)
+(0.012516903499999999, 0.009395909348799603)
 
 </pre>
 
@@ -2762,7 +2763,7 @@ sigma2_m_disp_hybrid, sigma2_r_disp_hybrid
 </div>
 
 <pre class="example">
-(0.34478114000000004, 0.2536911997171098)
+(3.0812910999999996, 1.8152649700895214)
 
 </pre>
 
@@ -2776,7 +2777,7 @@ Compare the phenotypic standard deviations.
 </div>
 
 <pre class="example">
-4.721903426280433
+13.899545657433398
 
 </pre>
 
@@ -2792,7 +2793,7 @@ delta_mean_hybrid, delta_disp_hybrid
 </div>
 
 <pre class="example">
-(1.473736263327028, 1.3590583370036655)
+(1.3321652045950323, 1.6974332401996624)
 
 </pre>
 </div>
@@ -2841,7 +2842,7 @@ plt.xlabel(r<span class="org-string">'Measurement error variance $\sigma^2_{mik}
 
 <p>
 Then look at the distribution of estimated per-gene measurement error
-variances. For reference, put both the `vash` estimate and the naive estimate.
+variances. For reference, put both the <code>vash</code> estimate and the naive estimate.
 </p>
 
 <div class="org-src-container">
@@ -3013,18 +3014,18 @@ noise ratio across genes.
 <pre class="example">
 disp        mean
 count  200.000000  200.000000
-mean    11.393293   29.474566
-std     17.313263   67.153341
-min      0.096128    0.057511
-25%      0.666287    2.611135
-50%      3.022650    8.044202
-75%     15.724494   23.450818
-max     88.924335  561.853524
+mean     6.636096    8.827861
+std     14.956849   12.738245
+min      0.015321    0.118135
+25%      0.530682    1.712591
+50%      2.989148    4.177426
+75%      6.443527    9.904404
+max    147.443103   70.368543
 </pre>
 
 <p>
 Plot the distribution of estimated residual variances. For reference,
-compare the median of the posterior means (dashed line) against the `ash`
+compare the median of the posterior means (dashed line) against the <code>ash</code>
 prior estimate (dotted line).
 </p>
 
@@ -3095,7 +3096,7 @@ parameterized by mean \(m\) and size \(k\).
 
 <p>
 \[ \ln p(r) = r \ln (X) + k \ln(1 - X) + \ln \Gamma(k + r) - \ln \Gamma(k) -
-  \ln \Gamma(r + 1) \]
+   \ln \Gamma(r + 1) \]
 </p>
 
 <p>
@@ -3173,7 +3174,7 @@ pow_53
 </div>
 
 <pre class="example">
-0.00015266330287561262
+1.0510141592463543e-05
 
 </pre>
 
@@ -3190,7 +3191,7 @@ n_80
 </div>
 
 <pre class="example">
-1702
+16015
 
 </pre>
 
@@ -3205,7 +3206,7 @@ m_80
 </div>
 
 <pre class="example">
-424
+4015
 
 </pre>
 
@@ -3216,7 +3217,7 @@ achieved to detect effects of that size.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-ipython">plt.clf()
+<pre class="src src-ipython" id="org0ba0bd9">plt.clf()
 <span class="org-variable-name">fig</span>, <span class="org-variable-name">ax</span> = plt.subplots(1, 3, sharey=<span class="org-constant">True</span>)
 fig.set_size_inches(7, 3)
 <span class="org-variable-name">grid</span> = np.logspace(-2, 0, 100)
@@ -3256,7 +3257,7 @@ fig.tight_layout()
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Abhishek Sarkar</p>
-<p class="date">Created: 2018-11-27 Tue 14:53</p>
+<p class="date">Created: 2018-12-19 Wed 10:47</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>

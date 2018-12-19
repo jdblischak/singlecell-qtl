@@ -27,12 +27,12 @@
   #+END_SRC
 
   #+RESULTS:
-  : 18
+  : 19
 
   #+CALL: ipython3(memory="4G", venv="scqtl") :dir /scratch/midway2/aksarkar/singlecell
 
   #+RESULTS:
-  : Submitted batch job 49863897
+  : Submitted batch job 55789737
 
   #+BEGIN_SRC ipython
     %matplotlib inline
@@ -982,7 +982,7 @@
 
   #+RESULTS: downsample-impl
   :RESULTS:
-  # Out[47]:
+  # Out[64]:
   :END:
 
   Fit ~ash~.
@@ -1372,10 +1372,9 @@
   #+BEGIN_SRC ipython :eval never :noweb tangle :tangle /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb-se.py
     <<zinb-imports>>
     <<tf-imports>>
-    import tabix
     import scipy.linalg as sl
+    import tabix
 
-    <<tf-zinb-impl>>
     <<recode-impl>>
     <<extract-impl>>
     <<bootstrap-impl>>
@@ -1394,14 +1393,16 @@
       chip = recode(annotations, 'experiment')
       chip -= chip.mean(axis=0)
 
-      results.append(fit(
+      results.append(scqtl.tf.fit(
         umi=C.values.T.astype(np.float32),
         onehot=onehot.astype(np.float32),
         design=chip.astype(np.float32),
-        size_factor=annotations['mol_hs'].astype(np.float32).values.reshape(-1, 1),
+        size_factor=A['mol_hs'].astype(np.float32).values.reshape(-1, 1),
         warm_start=(log_mu.values.T.astype(np.float32), log_phi.values.T.astype(np.float32), logodds.values.T.astype(np.float32)),
-        learning_rate=5e-2,
-        max_epochs=1000))
+        learning_rate=1e-3,
+        max_epochs=30000,
+        verbose=True,
+      ))
 
     estimates = {
       'mean': np.array([np.exp(r[0] - np.log1p(np.exp(r[2]))) for r in results]),
@@ -2033,7 +2034,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[3]:
+  # Out[46]:
   :END:
 
   Now, we need to answer the following questions: 
@@ -2081,9 +2082,16 @@
   #+END_SRC
 
   #+RESULTS:
-  : Submitted batch job 49000296
+  : Submitted batch job 55777035
 
   Fit ~ash~.
+
+  #+CALL: downsample-impl()
+
+  #+RESULTS:
+  :RESULTS:
+  # Out[4]:
+  :END:
 
   #+BEGIN_SRC ipython :async t
     ash_results = {x: fit_ash('/scratch/midway2/aksarkar/singlecell/power/analytic/{}.txt.gz'.format(x))
@@ -2092,7 +2100,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[48]:
+  # Out[5]:
   :END:
 
   Serialize the results.
@@ -2104,7 +2112,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[49]:
+  # Out[6]:
   :END:
 
   Read the results.
@@ -2116,7 +2124,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[50]:
+  # Out[40]:
   :END:
 
   Look at the fitted \(g\).
@@ -2135,8 +2143,8 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[11]:
-  : <matplotlib.legend.Legend at 0x7f104f95c2b0>
+  # Out[7]:
+  : <matplotlib.legend.Legend at 0x7f483d809c88>
   [[file:figure/power.org/log-fc-ash-g.png]]
   :END:
 
@@ -2158,7 +2166,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[66]:
+  # Out[8]:
   [[file:figure/power.org/log-fc-ash-g-inset.png]]
   :END:
 
@@ -2172,7 +2180,7 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[51]:
+  # Out[42]:
   :END:
 
   #+BEGIN_SRC ipython
@@ -2182,8 +2190,8 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[52]:
-  : 0.022772772772772787
+  # Out[10]:
+  : 0.022272272272272242
   :END:
 
   #+BEGIN_SRC ipython
@@ -2193,8 +2201,8 @@
 
   #+RESULTS:
   :RESULTS:
-  # Out[53]:
-  : 0.08533533533533533
+  # Out[43]:
+  : 0.09034034034034033
   :END:
 
 ** Estimating the noise ratio
@@ -2206,14 +2214,14 @@
    for 200 randomly chosen genes.
 
    #+BEGIN_SRC sh :dir /scratch/midway2/aksarkar/singlecell/power
-    sbatch --partition=gpu2 --gres=gpu:1 --mem=16G --job-name=tf-zinb-se --out=tf-zinb-se.out
-    #!/bin/bash
-    source activate scqtl
-    python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb-se.py
+     sbatch --partition=gpu2 --gres=gpu:1 --time=12:00:00 --mem=16G --job-name=tf-zinb-se --out=tf-zinb-se.out
+     #!/bin/bash
+     source activate scqtl
+     python /project2/mstephens/aksarkar/projects/singlecell-qtl/code/tf-zinb-se.py
    #+END_SRC
 
    #+RESULTS:
-   : Submitted batch job 49278176
+   : Submitted batch job 55782356
 
    Read the results.
 
@@ -2221,76 +2229,76 @@
 
    #+RESULTS:
    :RESULTS:
-   # Out[4]:
+   # Out[3]:
    :END:
 
    #+BEGIN_SRC ipython
-    log_mean_sampling_var = pd.read_table('/scratch/midway2/aksarkar/singlecell/power/log_mean-se.txt.gz', index_col=0)
-    disp_sampling_var = pd.read_table('/scratch/midway2/aksarkar/singlecell/power/disp-se.txt.gz', index_col=0)
+     log_mean_sampling_var = pd.read_table('/scratch/midway2/aksarkar/singlecell/power/log_mean-se.txt.gz', index_col=0).filter(items=log_mu.columns, axis='columns')
+     disp_sampling_var = pd.read_table('/scratch/midway2/aksarkar/singlecell/power/disp-se.txt.gz', index_col=0).filter(items=log_mu.columns, axis='columns')
    #+END_SRC
 
    #+RESULTS:
    :RESULTS:
-   # Out[5]:
+   # Out[9]:
    :END:
 
 *** Naive approach
 
     Assuming that \(\hat\sigma^2_{mi}\) is unbiased, \(\hat\sigma^2_r =
     \frac{1}{n - 1}\sum_i (\tilde{y}_i - \bar{y})^2 - \frac{1}{n}\sum_i
-    \hat\sigma^2_{mi}\) is also unbiased (Buonaccorsi 2010, Eq. 10.1).
+    \hat\sigma^2_{mi}\) is also unbiased ([[https://www.crcpress.com/Measurement-Error-Models-Methods-and-Applications/Buonaccorsi/p/book/9781420066562][Buonaccorsi 2010]], Eq. 10.1).
 
     However, it can happen that \(\hat\sigma^2_r \leq 0\). We need the ratio
     \(\hat\sigma^2_m / \hat\sigma^2_r\) so this strategy may not work in general.
 
     #+BEGIN_SRC ipython
-    sigma2_m_mean_naive = log_mean_sampling_var.median(axis=1).median()
-    sigma2_r_mean_naive = (np.log(mean_by_ind).var(axis=1) - log_mean_sampling_var.median(axis=1)).median()
-    sigma2_m_mean_naive, sigma2_r_mean_naive
+      sigma2_m_mean_naive = log_mean_sampling_var.median(axis=1).median()
+      sigma2_r_mean_naive = (np.log(mean_by_ind).var(axis=1) - log_mean_sampling_var.median(axis=1)).median()
+      sigma2_m_mean_naive, sigma2_r_mean_naive
     #+END_SRC
 
     #+RESULTS:
     :RESULTS:
-    # Out[6]:
-    : (0.01676837475, 0.0038333371434518104)
+    # Out[12]:
+    : (0.012516903499999999, 0.005998688831110887)
     :END:
 
     #+BEGIN_SRC ipython
-    sigma2_m_disp_naive = disp_sampling_var.median(axis=1).median()
-    sigma2_r_disp_naive = (log_phi.var(axis=1) - disp_sampling_var.median(axis=1)).median()
-    sigma2_m_disp_naive, sigma2_r_disp_naive
+      sigma2_m_disp_naive = disp_sampling_var.median(axis=1).median()
+      sigma2_r_disp_naive = (log_phi.var(axis=1) - disp_sampling_var.median(axis=1)).median()
+      sigma2_m_disp_naive, sigma2_r_disp_naive
     #+END_SRC
 
     #+RESULTS:
     :RESULTS:
-    # Out[7]:
-    : (0.34478114000000004, 0.10712427518144693)
+    # Out[13]:
+    : (3.0812910999999996, 0.6719321678084191)
     :END:
 
     Compare the phenotypic standard deviations.
 
     #+BEGIN_SRC ipython
-    np.sqrt(sigma2_r_disp_naive) / np.sqrt(sigma2_r_mean_naive)
+      np.sqrt(sigma2_r_disp_naive) / np.sqrt(sigma2_r_mean_naive)
     #+END_SRC
 
     #+RESULTS:
     :RESULTS:
-    # Out[8]:
-    : 5.286344229674782
+    # Out[17]:
+    : 10.583627575927432
     :END:
 
     Estimate the typical noise ratios.
 
     #+BEGIN_SRC ipython
-    delta_mean_naive = sigma2_m_mean_naive / sigma2_r_mean_naive
-    delta_disp_naive = sigma2_m_disp_naive / sigma2_r_disp_naive
-    delta_mean_naive, delta_disp_naive
+      delta_mean_naive = sigma2_m_mean_naive / sigma2_r_mean_naive
+      delta_disp_naive = sigma2_m_disp_naive / sigma2_r_disp_naive
+      delta_mean_naive, delta_disp_naive
     #+END_SRC
 
     #+RESULTS:
     :RESULTS:
-    # Out[9]:
-    : (4.374354282571805, 3.218515499087488)
+    # Out[18]:
+    : (2.086606565602106, 4.585717498910597)
     :END:
 
 *** Full deconvolution approach
@@ -2345,68 +2353,68 @@
     \[ \hat\sigma^2_m = 1 / E_h[\sigma^{-2}_{mi}] \]
 
     #+BEGIN_SRC ipython
-    def estimate_variances(y, se):
-      y, se = y.align(se, join='inner')
-      vash_res = vashr.vash(se.melt()['value'], df=y.shape[1] - 1, unimodal='precision')
-      h = vash_res.rx2('fitted.g')
-      pi = np.array(h.rx2('pi'))
-      sigma2_m = pi.dot(ashr.comp_mean(h))
-      # The observed df is equal for all observations, so the posterior mean df
-      # will also be equal for all observations (Lu and Stephens 2016, eq. 13)
-      df = 2 * np.array(vash_res.rx2('PosteriorShape')).dot(pi)[0]
+      def estimate_variances(y, se):
+        y, se = y.align(se, join='inner')
+        vash_res = vashr.vash(se.melt()['value'], df=y.shape[1] - 1, unimodal='precision')
+        h = vash_res.rx2('fitted.g')
+        pi = np.array(h.rx2('pi'))
+        sigma2_m = pi.dot(ashr.comp_mean(h))
+        # The observed df is equal for all observations, so the posterior mean df
+        # will also be equal for all observations (Lu and Stephens 2016, eq. 13)
+        df = 2 * np.array(vash_res.rx2('PosteriorShape')).dot(pi)[0]
 
-      y = y.transform(lambda x: x - x.mean(), axis=1)
-      lik = ashr.lik_t(df)
-      res = ashr.ash(y.melt()['value'], vash_res.rx2('sd.post'), method='shrink', mixcompdist='uniform', lik=lik)
-      g = res.rx2('fitted_g')
-      sigma2_r = np.array(g.rx2('pi')).dot(np.square(np.array(g.rx2('b')) - np.array(g.rx2('a'))) / 12)
-      return sigma2_m, sigma2_r
+        y = y.transform(lambda x: x - x.mean(), axis=1)
+        lik = ashr.lik_t(df)
+        res = ashr.ash(y.melt()['value'], vash_res.rx2('sd.post'), method='shrink', mixcompdist='uniform', lik=lik)
+        g = res.rx2('fitted_g')
+        sigma2_r = np.array(g.rx2('pi')).dot(np.square(np.array(g.rx2('b')) - np.array(g.rx2('a'))) / 12)
+        return sigma2_m, sigma2_r
     #+END_SRC
 
     #+RESULTS:
     :RESULTS:
-    # Out[8]:
+    # Out[19]:
     :END:
 
     #+BEGIN_SRC ipython :async t
-    sigma2_m_mean_deconv, sigma2_r_mean_deconv = estimate_variances(np.log(mean_by_ind), np.sqrt(log_mean_sampling_var))
-    sigma2_m_mean_deconv, sigma2_r_mean_deconv
+      sigma2_m_mean_deconv, sigma2_r_mean_deconv = estimate_variances(np.log(mean_by_ind), np.sqrt(log_mean_sampling_var))
+      sigma2_m_mean_deconv, sigma2_r_mean_deconv
     #+END_SRC
 
     #+RESULTS:
     :RESULTS:
-    # Out[10]:
-    : (0.04015464910541205, 0.010743676492444657)
+    # Out[20]:
+    : (0.030414726107298628, 0.008992095681497215)
     :END:
 
     #+BEGIN_SRC ipython :async t
-    sigma2_m_disp_deconv, sigma2_r_disp_deconv = estimate_variances(log_phi, np.sqrt(disp_sampling_var))
-    sigma2_m_disp_deconv, sigma2_r_disp_deconv
+      sigma2_m_disp_deconv, sigma2_r_disp_deconv = estimate_variances(log_phi, np.sqrt(disp_sampling_var))
+      sigma2_m_disp_deconv, sigma2_r_disp_deconv
     #+END_SRC
 
     #+RESULTS:
     :RESULTS:
-    # Out[11]:
-    : (0.4100403252289386, 0.24894528053223766)
+    # Out[21]:
+    : (2.1619294225792225, 1.805227380090225)
     :END:
 
     Serialize the results.
 
     #+BEGIN_SRC ipython
-    with open('deconvolution-results.pkl', 'wb') as f:
-      pickle.dump((sigma2_m_mean_deconv, sigma2_r_mean_deconv, sigma2_m_disp_deconv, sigma2_r_disp_deconv), f)
+      with open('deconvolution-results.pkl', 'wb') as f:
+        pickle.dump((sigma2_m_mean_deconv, sigma2_r_mean_deconv, sigma2_m_disp_deconv, sigma2_r_disp_deconv), f)
     #+END_SRC
 
     #+RESULTS:
     :RESULTS:
-    # Out[28]:
+    # Out[22]:
     :END:
 
     Read the results.
 
     #+BEGIN_SRC ipython
-    with open('deconvolution-results.pkl', 'rb') as f:
-      sigma2_m_mean_deconv, sigma2_r_mean_deconv, sigma2_m_disp_deconv, sigma2_r_disp_deconv = pickle.load(f)
+      with open('deconvolution-results.pkl', 'rb') as f:
+        sigma2_m_mean_deconv, sigma2_r_mean_deconv, sigma2_m_disp_deconv, sigma2_r_disp_deconv = pickle.load(f)
     #+END_SRC
 
     #+RESULTS:
@@ -2417,27 +2425,27 @@
     Compare the phenotypic standard deviations.
 
     #+BEGIN_SRC ipython
-    np.sqrt(sigma2_r_disp_deconv) / np.sqrt(sigma2_r_mean_deconv)
+      np.sqrt(sigma2_r_disp_deconv) / np.sqrt(sigma2_r_mean_deconv)
     #+END_SRC
 
     #+RESULTS:
     :RESULTS:
-    # Out[11]:
-    : 4.813660837867881
+    # Out[23]:
+    : 14.16887915444257
     :END:
 
     Finally, get the typical noise ratios.
   
     #+BEGIN_SRC ipython
-    delta_mean_deconv = sigma2_m_mean_deconv / sigma2_r_mean_deconv
-    delta_disp_deconv = sigma2_m_disp_deconv / sigma2_r_disp_deconv
-    delta_mean_deconv, delta_disp_deconv
+      delta_mean_deconv = sigma2_m_mean_deconv / sigma2_r_mean_deconv
+      delta_disp_deconv = sigma2_m_disp_deconv / sigma2_r_disp_deconv
+      delta_mean_deconv, delta_disp_deconv
     #+END_SRC
 
     #+RESULTS:
     :RESULTS:
-    # Out[12]:
-    : (3.737514726327645, 1.647110257934131)
+    # Out[24]:
+    : (3.3823846169566636, 1.1975939687282882)
     :END:
 
 *** Hybrid approach
@@ -2450,68 +2458,68 @@
     applying ~ash~ as in Cordy and Thomas 1997.
 
     #+BEGIN_SRC ipython
-    def estimate_sigma2_r(y, se):
-      y, se = y.align(se, join='inner')
-      y = y.transform(lambda x: x - x.mean(), axis=1)
-      res = ashr.ash(y.melt()['value'], se.melt()['value'], method='shrink', mixcompdist='uniform')
-      g = res.rx2('fitted_g')
-      sigma2_r = np.array(g.rx2('pi')).dot(np.square(np.array(g.rx2('b')) - np.array(g.rx2('a'))) / 12)
-      return sigma2_r
+      def estimate_sigma2_r(y, se):
+        y, se = y.align(se, join='inner')
+        y = y.transform(lambda x: x - x.mean(), axis=1)
+        res = ashr.ash(y.melt()['value'], se.melt()['value'], method='shrink', mixcompdist='uniform')
+        g = res.rx2('fitted_g')
+        sigma2_r = np.array(g.rx2('pi')).dot(np.square(np.array(g.rx2('b')) - np.array(g.rx2('a'))) / 12)
+        return sigma2_r
     #+END_SRC
 
     #+RESULTS:
     :RESULTS:
-    # Out[13]:
+    # Out[25]:
     :END:
 
     #+BEGIN_SRC ipython
-    sigma2_m_mean_hybrid = log_mean_sampling_var.median(axis=1).median()
-    sigma2_r_mean_hybrid = estimate_sigma2_r(np.log(mean_by_ind), np.sqrt(log_mean_sampling_var))
-    sigma2_m_mean_hybrid, sigma2_r_mean_hybrid
+      sigma2_m_mean_hybrid = log_mean_sampling_var.median(axis=1).median()
+      sigma2_r_mean_hybrid = estimate_sigma2_r(np.log(mean_by_ind), np.sqrt(log_mean_sampling_var))
+      sigma2_m_mean_hybrid, sigma2_r_mean_hybrid
     #+END_SRC
 
     #+RESULTS:
     :RESULTS:
-    # Out[14]:
-    : (0.01676837475, 0.01137813811552999)
+    # Out[26]:
+    : (0.012516903499999999, 0.009395909348799603)
     :END:
 
     #+BEGIN_SRC ipython
-    sigma2_m_disp_hybrid = disp_sampling_var.median(axis=1).median()
-    sigma2_r_disp_hybrid = estimate_sigma2_r(log_phi, np.sqrt(disp_sampling_var))
-    sigma2_m_disp_hybrid, sigma2_r_disp_hybrid
+      sigma2_m_disp_hybrid = disp_sampling_var.median(axis=1).median()
+      sigma2_r_disp_hybrid = estimate_sigma2_r(log_phi, np.sqrt(disp_sampling_var))
+      sigma2_m_disp_hybrid, sigma2_r_disp_hybrid
     #+END_SRC
 
     #+RESULTS:
     :RESULTS:
-    # Out[15]:
-    : (0.34478114000000004, 0.2536911997171098)
+    # Out[27]:
+    : (3.0812910999999996, 1.8152649700895214)
     :END:
 
     Compare the phenotypic standard deviations.
 
     #+BEGIN_SRC ipython
-    np.sqrt(sigma2_r_disp_hybrid) / np.sqrt(sigma2_r_mean_hybrid)
+      np.sqrt(sigma2_r_disp_hybrid) / np.sqrt(sigma2_r_mean_hybrid)
     #+END_SRC
 
     #+RESULTS:
     :RESULTS:
-    # Out[16]:
-    : 4.721903426280433
+    # Out[28]:
+    : 13.899545657433398
     :END:
 
     Finally, get the typical noise ratios.
   
     #+BEGIN_SRC ipython
-    delta_mean_hybrid = sigma2_m_mean_hybrid / sigma2_r_mean_hybrid
-    delta_disp_hybrid = sigma2_m_disp_hybrid / sigma2_r_disp_hybrid
-    delta_mean_hybrid, delta_disp_hybrid
+      delta_mean_hybrid = sigma2_m_mean_hybrid / sigma2_r_mean_hybrid
+      delta_disp_hybrid = sigma2_m_disp_hybrid / sigma2_r_disp_hybrid
+      delta_mean_hybrid, delta_disp_hybrid
     #+END_SRC
 
     #+RESULTS:
     :RESULTS:
-    # Out[17]:
-    : (1.473736263327028, 1.3590583370036655)
+    # Out[29]:
+    : (1.3321652045950323, 1.6974332401996624)
     :END:
 
 *** Comparison of the approaches
@@ -2521,101 +2529,101 @@
     the `vash` estimates on this plot.
 
     #+BEGIN_SRC ipython :ipyfile figure/power.org/sigma-mik-hist.png
-    plt.clf()
-    plt.gcf().set_size_inches(3, 3)
-    plt.semilogx()
-    grid = np.logspace(-2, 2, 100)
+      plt.clf()
+      plt.gcf().set_size_inches(3, 3)
+      plt.semilogx()
+      grid = np.logspace(-2, 2, 100)
 
-    f = st.gaussian_kde(log_mean_sampling_var.values.ravel())
-    y = f(grid)
-    plt.plot(grid, y, lw=1, c='k', label=r'$\ln(\mathrm{mean})$')
-    plt.fill_between(grid, y, lw=1, color='k', alpha=0.1)
-    plt.axvline(x=sigma2_m_mean_deconv, lw=1, c='k', ls='--')
+      f = st.gaussian_kde(log_mean_sampling_var.values.ravel())
+      y = f(grid)
+      plt.plot(grid, y, lw=1, c='k', label=r'$\ln(\mathrm{mean})$')
+      plt.fill_between(grid, y, lw=1, color='k', alpha=0.1)
+      plt.axvline(x=sigma2_m_mean_deconv, lw=1, c='k', ls='--')
 
-    f = st.gaussian_kde(disp_sampling_var.values.ravel())
-    y = f(grid)
-    plt.plot(grid, y, lw=1, c='r', label=r'$\ln(\phi)$')
-    plt.fill_between(grid, y, lw=1, color='r', alpha=0.1)
-    plt.axvline(x=sigma2_m_disp_deconv, lw=1, c='r', ls='--')
+      f = st.gaussian_kde(disp_sampling_var.values.ravel())
+      y = f(grid)
+      plt.plot(grid, y, lw=1, c='r', label=r'$\ln(\phi)$')
+      plt.fill_between(grid, y, lw=1, color='r', alpha=0.1)
+      plt.axvline(x=sigma2_m_disp_deconv, lw=1, c='r', ls='--')
 
-    plt.legend(frameon=False)
+      plt.legend(frameon=False)
 
-    plt.ylim(0, plt.ylim()[1])
-    plt.xlabel(r'Measurement error variance $\sigma^2_{mik}$')
-    _ = plt.ylabel('Density')
+      plt.ylim(0, plt.ylim()[1])
+      plt.xlabel(r'Measurement error variance $\sigma^2_{mik}$')
+      _ = plt.ylabel('Density')
     #+END_SRC
 
     #+RESULTS:
     :RESULTS:
-    # Out[18]:
+    # Out[30]:
     [[file:figure/power.org/sigma-mik-hist.png]]
     :END:
 
     Then look at the distribution of estimated per-gene measurement error
-    variances. For reference, put both the `vash` estimate and the naive estimate.
+    variances. For reference, put both the ~vash~ estimate and the naive estimate.
 
     #+BEGIN_SRC ipython :ipyfile figure/power.org/sigma-mk.png
-    plt.clf()
-    plt.gcf().set_size_inches(3, 3)
-    plt.semilogx()
-    grid = np.logspace(-2, 2, 100)
+      plt.clf()
+      plt.gcf().set_size_inches(3, 3)
+      plt.semilogx()
+      grid = np.logspace(-2, 2, 100)
 
-    f = st.gaussian_kde(log_mean_sampling_var.median(axis=1))
-    y = f(grid)
-    plt.plot(grid, y, lw=1, c='k', label='$\ln(\\mathrm{mean})$')
-    plt.fill_between(grid, y, lw=1, color='k', alpha=0.1)
-    plt.axvline(x=sigma2_m_mean_naive, lw=1, c='k', ls=':')
-    plt.axvline(x=sigma2_m_mean_deconv, lw=1, c='k', ls='--')
+      f = st.gaussian_kde(log_mean_sampling_var.median(axis=1))
+      y = f(grid)
+      plt.plot(grid, y, lw=1, c='k', label='$\ln(\\mathrm{mean})$')
+      plt.fill_between(grid, y, lw=1, color='k', alpha=0.1)
+      plt.axvline(x=sigma2_m_mean_naive, lw=1, c='k', ls=':')
+      plt.axvline(x=sigma2_m_mean_deconv, lw=1, c='k', ls='--')
 
-    f = st.gaussian_kde(disp_sampling_var.median(axis=1))
-    y = f(grid)
-    plt.plot(grid, y, lw=1, c='r', label='$\ln(\phi)$')
-    plt.fill_between(grid, y, lw=1, color='r', alpha=0.1)
-    plt.axvline(x=sigma2_m_disp_naive, lw=1, c='r', ls=':')
-    plt.axvline(x=sigma2_m_disp_deconv, lw=1, c='r', ls='--')
+      f = st.gaussian_kde(disp_sampling_var.median(axis=1))
+      y = f(grid)
+      plt.plot(grid, y, lw=1, c='r', label='$\ln(\phi)$')
+      plt.fill_between(grid, y, lw=1, color='r', alpha=0.1)
+      plt.axvline(x=sigma2_m_disp_naive, lw=1, c='r', ls=':')
+      plt.axvline(x=sigma2_m_disp_deconv, lw=1, c='r', ls='--')
 
-    plt.legend(frameon=False)
+      plt.legend(frameon=False)
 
-    plt.ylim(0, plt.ylim()[1])
-    plt.xlabel(r'Measurement error variance $\sigma^2_{mk}$')
-    _ = plt.ylabel('Density')
+      plt.ylim(0, plt.ylim()[1])
+      plt.xlabel(r'Measurement error variance $\sigma^2_{mk}$')
+      _ = plt.ylabel('Density')
     #+END_SRC
 
     #+RESULTS:
     :RESULTS:
-    # Out[19]:
+    # Out[31]:
     [[file:figure/power.org/sigma-mk.png]]
     :END:
 
     Look at the distribution of naive residual variance estimates.
 
     #+BEGIN_SRC ipython :ipyfile figure/power.org/sigma-rk-naive.png
-    plt.clf()
-    plt.gcf().set_size_inches(3, 3)
-    plt.xscale('symlog', linthresh=1e-2)
-    grid = np.linspace(-10, 10, 100)
+      plt.clf()
+      plt.gcf().set_size_inches(3, 3)
+      plt.xscale('symlog', linthresh=1e-2)
+      grid = np.linspace(-10, 10, 100)
 
-    sigma2_rk_mean_naive = (np.log(mean_by_ind).var(axis=1) - log_mean_sampling_var.median(axis=1)).dropna()
-    f = st.gaussian_kde(sigma2_rk_mean_naive)
-    y = f(grid)
-    plt.plot(grid, y, lw=1, c='k', label='$\ln(\\mathrm{mean})$')
-    plt.fill_between(grid, y, lw=1, color='k', alpha=0.1)
+      sigma2_rk_mean_naive = (np.log(mean_by_ind).var(axis=1) - log_mean_sampling_var.median(axis=1)).dropna()
+      f = st.gaussian_kde(sigma2_rk_mean_naive)
+      y = f(grid)
+      plt.plot(grid, y, lw=1, c='k', label='$\ln(\\mathrm{mean})$')
+      plt.fill_between(grid, y, lw=1, color='k', alpha=0.1)
 
-    sigma2_rk_disp_naive = (log_phi.var(axis=1) - disp_sampling_var.median(axis=1)).dropna()
-    f = st.gaussian_kde(sigma2_rk_disp_naive)
-    y = f(grid)
-    plt.plot(grid, y, lw=1, c='r', label='$\ln(\phi)$')
-    plt.fill_between(grid, y, lw=1, color='r', alpha=0.1)
+      sigma2_rk_disp_naive = (log_phi.var(axis=1) - disp_sampling_var.median(axis=1)).dropna()
+      f = st.gaussian_kde(sigma2_rk_disp_naive)
+      y = f(grid)
+      plt.plot(grid, y, lw=1, c='r', label='$\ln(\phi)$')
+      plt.fill_between(grid, y, lw=1, color='r', alpha=0.1)
 
-    plt.legend(frameon=False, loc='center left', bbox_to_anchor=(1, .5))
+      plt.legend(frameon=False, loc='center left', bbox_to_anchor=(1, .5))
 
-    plt.xlabel(r'Naive residual variance $\sigma^2_{rk}$')
-    _ = plt.ylabel('Density')
+      plt.xlabel(r'Naive residual variance $\sigma^2_{rk}$')
+      _ = plt.ylabel('Density')
     #+END_SRC
 
     #+RESULTS:
     :RESULTS:
-    # Out[20]:
+    # Out[32]:
     [[file:figure/power.org/sigma-rk-naive.png]]
     :END:
 
@@ -2644,7 +2652,7 @@
 
     #+RESULTS:
     :RESULTS:
-    # Out[27]:
+    # Out[33]:
     :END:
 
     Estimate the noise ratios for the mean.
@@ -2656,7 +2664,7 @@
 
     #+RESULTS:
     :RESULTS:
-    # Out[36]:
+    # Out[34]:
     :END:
 
     Estimate the noise ratios for the dispersion.
@@ -2668,7 +2676,7 @@
 
     #+RESULTS:
     :RESULTS:
-    # Out[37]:
+    # Out[35]:
     :END:
 
     Plot the distribution of noise ratios.
@@ -2700,7 +2708,7 @@
 
     #+RESULTS:
     :RESULTS:
-    # Out[44]:
+    # Out[36]:
     [[file:figure/power.org/noise-ratios-dist.png]]
     :END:
 
@@ -2713,22 +2721,22 @@
 
     #+RESULTS:
     :RESULTS:
-    # Out[45]:
+    # Out[37]:
     #+BEGIN_EXAMPLE
       disp        mean
       count  200.000000  200.000000
-      mean    11.393293   29.474566
-      std     17.313263   67.153341
-      min      0.096128    0.057511
-      25%      0.666287    2.611135
-      50%      3.022650    8.044202
-      75%     15.724494   23.450818
-      max     88.924335  561.853524
+      mean     6.636096    8.827861
+      std     14.956849   12.738245
+      min      0.015321    0.118135
+      25%      0.530682    1.712591
+      50%      2.989148    4.177426
+      75%      6.443527    9.904404
+      max    147.443103   70.368543
     #+END_EXAMPLE
     :END:
 
     Plot the distribution of estimated residual variances. For reference,
-    compare the median of the posterior means (dashed line) against the `ash`
+    compare the median of the posterior means (dashed line) against the ~ash~
     prior estimate (dotted line).
 
     #+BEGIN_SRC ipython :ipyfile figure/power.org/sigma-rk-deconv.png
@@ -2760,7 +2768,7 @@
 
     #+RESULTS:
     :RESULTS:
-    # Out[70]:
+    # Out[38]:
     [[file:figure/power.org/sigma-rk-deconv.png]]
     :END:
 
@@ -2778,169 +2786,145 @@
 
 ** Dependence of measurement error on experiment size
 
-  To answer (3), we need to develop sampling theory of the ZINB
-  distribution. As a first pass, assume that the sampling distributions of the
-  mean and dispersion of the NB component remain unchanged.
+   To answer (3), we need to develop sampling theory of the ZINB
+   distribution. As a first pass, assume that the sampling distributions of the
+   mean and dispersion of the NB component remain unchanged.
 
-  [[http://dx.doi.org/10.1093/biomet/37.3-4.358][Anscombe 1953]] develops the sampling theory of the NB distribution,
-  parameterized by mean \(m\) and size \(k\).
+   [[http://dx.doi.org/10.1093/biomet/37.3-4.358][Anscombe 1953]] develops the sampling theory of the NB distribution,
+   parameterized by mean \(m\) and size \(k\).
 
-  \[ \ln p(r) = r \ln (X) + k \ln(1 - X) + \ln \Gamma(k + r) - \ln \Gamma(k) -
-  \ln \Gamma(r + 1) \]
+   \[ \ln p(r) = r \ln (X) + k \ln(1 - X) + \ln \Gamma(k + r) - \ln \Gamma(k) -
+   \ln \Gamma(r + 1) \]
 
-  where \(X = \frac{m}{m + k}\).
+   where \(X = \frac{m}{m + k}\).
 
-  In our parameterization, we have \(m = R \mu\), \(k = \phi^{-1}\).
+   In our parameterization, we have \(m = R \mu\), \(k = \phi^{-1}\).
 
-  The MLE of \(m\) is \(\bar{r}\) where \(\bar{r}\) is the sample mean. Its
-  sampling variance is:
+   The MLE of \(m\) is \(\bar{r}\) where \(\bar{r}\) is the sample mean. Its
+   sampling variance is:
 
-  \[ V[\hat{m}] = \frac{1}{N}\left(m + \frac{m^2}{k}\right) \]
+   \[ V[\hat{m}] = \frac{1}{N}\left(m + \frac{m^2}{k}\right) \]
 
-  which follows from properties of the sample mean.
+   which follows from properties of the sample mean.
 
-  The MLE of \(k\) is non-trivial, and its sampling variance is:
+   The MLE of \(k\) is non-trivial, and its sampling variance is:
 
-  \[ V[\hat{k}] = \frac{2 k (k + 1)}{N X^2} \cdot \mathrm{const} \]
+   \[ V[\hat{k}] = \frac{2 k (k + 1)}{N X^2} \cdot \mathrm{const} \]
 
-  where \(N\) is the number of samples, and the constant does not depend on
-  \(N\).
+   where \(N\) is the number of samples, and the constant does not depend on
+   \(N\).
 
-  By the delta method,
+   By the delta method,
 
-  \[ V[\ln(\hat\phi)] = V[-\ln(\hat{k})] = \frac{2 (k + 1)}{k N X^2} \cdot \mathrm{const} \]
+   \[ V[\ln(\hat\phi)] = V[-\ln(\hat{k})] = \frac{2 (k + 1)}{k N X^2} \cdot \mathrm{const} \]
 
-  where the constant remains unchanged.
+   where the constant remains unchanged.
 
-  Therefore, the sampling variance of \(\ln\phi\) also goes down linearly in
-  the number of samples. Further, holding \(\sigma_r^2\) fixed, the noise ratio
-  goes down linearly in the number of cells.
+   Therefore, the sampling variance of \(\ln\phi\) also goes down linearly in
+   the number of samples. Further, holding \(\sigma_r^2\) fixed, the noise ratio
+   goes down linearly in the number of cells.
 
 ** Power curves
 
-  Fixing \(\lambda, \alpha, \delta\), we can estimate the power achieved by the
-  current study.
+   Fixing \(\lambda, \alpha, \delta\), we can estimate the power achieved by the
+   current study.
 
-  #+BEGIN_SRC ipython
-    rel_effect = disp_effect / np.sqrt(sigma2_rk_disp_deconv.median())
-    alpha = 5e-6
-  #+END_SRC
+   #+BEGIN_SRC ipython
+     rel_effect = disp_effect / np.sqrt(sigma2_rk_disp_deconv.median())
+     alpha = 5e-6
+   #+END_SRC
 
-  #+RESULTS:
-  :RESULTS:
-  # Out[55]:
-  :END:
+   #+RESULTS:
+   :RESULTS:
+   # Out[44]:
+   :END:
 
-  #+BEGIN_SRC ipython
-    pow_53 = power(rel_effect, 53, delta_disp.median(), alpha)
-    pow_53
-  #+END_SRC
+   #+BEGIN_SRC ipython
+     pow_53 = power(rel_effect, 53, delta_disp.median(), alpha)
+     pow_53
+   #+END_SRC
 
-  #+RESULTS:
-  :RESULTS:
-  # Out[56]:
-  : 0.00015266330287561262
-  :END:
+   #+RESULTS:
+   :RESULTS:
+   # Out[47]:
+   : 1.0510141592463543e-05
+   :END:
 
-  We can solve analytically for the sample size \(n\) required to achieve 80%
-  power, fixing the single cell experiment size (number of cell, number of
-  molecules).
+   We can solve analytically for the sample size \(n\) required to achieve 80%
+   power, fixing the single cell experiment size (number of cell, number of
+   molecules).
 
-  #+BEGIN_SRC ipython
-    n_80 = int(np.ceil(np.square(N.ppf(.8) - N.ppf(alpha / 2)) * (1 + delta_disp.median()) / np.square(rel_effect)))
-    n_80
-  #+END_SRC
+   #+BEGIN_SRC ipython
+     n_80 = int(np.ceil(np.square(N.ppf(.8) - N.ppf(alpha / 2)) * (1 + delta_disp.median()) / np.square(rel_effect)))
+     n_80
+   #+END_SRC
 
-  #+RESULTS:
-  :RESULTS:
-  # Out[58]:
-  : 1702
-  :END:
+   #+RESULTS:
+   :RESULTS:
+   # Out[48]:
+   : 16015
+   :END:
 
-  We can lower bound \(n\) by taking \(\delta \rightarrow 0\).
+   We can lower bound \(n\) by taking \(\delta \rightarrow 0\).
 
-  #+BEGIN_SRC ipython
-    m_80 = int(np.ceil(np.square(N.ppf(.8) - N.ppf(alpha / 2)) * 1 / np.square(rel_effect)))
-    m_80
-  #+END_SRC
+   #+BEGIN_SRC ipython
+     m_80 = int(np.ceil(np.square(N.ppf(.8) - N.ppf(alpha / 2)) * 1 / np.square(rel_effect)))
+     m_80
+   #+END_SRC
 
-  #+RESULTS:
-  :RESULTS:
-  # Out[59]:
-  : 424
-  :END:
+   #+RESULTS:
+   :RESULTS:
+   # Out[49]:
+   : 4015
+   :END:
 
-  Now, plot the power function varying \(n, \delta\). Include reference points
-  for the 99th percentile effect size relative to \(\sigma_r\), and the power
-  achieved to detect effects of that size.
+   Now, plot the power function varying \(n, \delta\). Include reference points
+   for the 99th percentile effect size relative to \(\sigma_r\), and the power
+   achieved to detect effects of that size.
 
-  #+BEGIN_SRC ipython :ipyfile figure/power.org/analytic-power.png
-    plt.clf()
-    fig, ax = plt.subplots(1, 3, sharey=True)
-    fig.set_size_inches(7, 3)
-    grid = np.logspace(-2, 0, 100)
-    for i, n in enumerate([53, n_80, m_80]):
-      for ratio in np.linspace(0, 4, 5):
-        scale = np.sqrt((1 + ratio) / n)
-        power_ = N.cdf(N.ppf(alpha / 2) + grid / scale)
-        color = colorcet.cm['fire_r']((ratio + .75) / 5)
-        ax[i].set_xscale('log')
-        ax[i].plot(grid, power_, lw=1, color=color, label='{:.2g}'.format(ratio))
+   #+NAME: plot-power-curves
+   #+BEGIN_SRC ipython :ipyfile figure/power.org/analytic-power.png
+     plt.clf()
+     fig, ax = plt.subplots(1, 3, sharey=True)
+     fig.set_size_inches(7, 3)
+     grid = np.logspace(-2, 0, 100)
+     for i, n in enumerate([53, n_80, m_80]):
+       for ratio in np.linspace(0, 4, 5):
+         scale = np.sqrt((1 + ratio) / n)
+         power_ = N.cdf(N.ppf(alpha / 2) + grid / scale)
+         color = colorcet.cm['fire_r']((ratio + .75) / 5)
+         ax[i].set_xscale('log')
+         ax[i].plot(grid, power_, lw=1, color=color, label='{:.2g}'.format(ratio))
 
-        ax[i].axvline(x=rel_effect, c='.75', lw=1, ls='--')
-        if i == 2:
-          realized_scale = np.sqrt(1 / n)
-        else:
-          realized_scale = np.sqrt((1 + delta_disp.median()) / n)
-        realized_power = N.cdf(N.ppf(alpha / 2) + rel_effect / realized_scale)
-        ax[i].axhline(y=realized_power, c='.75', lw=1, ls='--')
+         ax[i].axvline(x=rel_effect, c='.75', lw=1, ls='--')
+         if i == 2:
+           realized_scale = np.sqrt(1 / n)
+         else:
+           realized_scale = np.sqrt((1 + delta_disp.median()) / n)
+         realized_power = N.cdf(N.ppf(alpha / 2) + rel_effect / realized_scale)
+         ax[i].axhline(y=realized_power, c='.75', lw=1, ls='--')
 
-        ax[i].set_ylim(0, 1)
-        ax[i].set_title('n = {}'.format(n))
-        ax[i].set_xlabel('Relative effect size')
-    ax[-1].legend(title='Noise ratio', frameon=False, bbox_to_anchor=(1, .5), loc='center left')
-    _ = ax[0].set_ylabel(r'Power at level $5 \times 10^{-6}$')
-    fig.tight_layout()
-  #+END_SRC
+         ax[i].set_ylim(0, 1)
+         ax[i].set_title('n = {}'.format(n))
+         ax[i].set_xlabel('Relative effect size')
+     ax[-1].legend(title='Noise ratio', frameon=False, bbox_to_anchor=(1, .5), loc='center left')
+     _ = ax[0].set_ylabel(r'Power at level $5 \times 10^{-6}$')
+     fig.tight_layout()
+   #+END_SRC
 
-  #+RESULTS:
-  :RESULTS:
-  # Out[72]:
-  [[file:figure/power.org/analytic-power.png]]
-  :END:
+   #+RESULTS:
+   :RESULTS:
+   # Out[50]:
+   [[file:figure/power.org/analytic-power.png]]
+   :END:
 
-  #+BEGIN_SRC ipython :ipyfile figure/power.org/analytic-power.svg :exports none
-    %config InlineBackend.figure_formats = set(['svg'])
-    plt.clf()
-    fig, ax = plt.subplots(1, 3, sharey=True)
-    fig.set_size_inches(7, 3)
-    grid = np.logspace(-2, 0, 100)
-    for i, n in enumerate([53, n_80, m_80]):
-      for ratio in np.linspace(0, 4, 5):
-        scale = np.sqrt((1 + ratio) / n)
-        power_ = N.cdf(N.ppf(alpha / 2) + grid / scale)
-        color = colorcet.cm['fire_r']((ratio + .75) / 5)
-        ax[i].set_xscale('log')
-        ax[i].plot(grid, power_, lw=1, color=color, label='{:.2g}'.format(ratio))
+   #+BEGIN_SRC ipython :tangle eval :ipyfile figure/power.org/analytic-power.svg :exports none
+     %config InlineBackend.figure_formats = set(['svg'])
+     <<plot-power-curves>>
+   #+END_SRC
 
-        ax[i].axvline(x=rel_effect, c='.75', lw=1, ls='--')
-        if i == 2:
-          realized_scale = np.sqrt(1 / n)
-        else:
-          realized_scale = np.sqrt((1 + delta_disp.median()) / n)
-        realized_power = N.cdf(N.ppf(alpha / 2) + rel_effect / realized_scale)
-        ax[i].axhline(y=realized_power, c='.75', lw=1, ls='--')
-
-        ax[i].set_ylim(0, 1)
-        ax[i].set_title('n = {}'.format(n))
-        ax[i].set_xlabel('Relative effect size')
-    ax[-1].legend(title='Noise ratio', frameon=False, bbox_to_anchor=(1, .5), loc='center left')
-    _ = ax[0].set_ylabel(r'Power at level $5 \times 10^{-6}$')
-    fig.tight_layout()
-  #+END_SRC
-
-  #+RESULTS:
-  :RESULTS:
-  # Out[73]:
-  [[file:figure/power.org/analytic-power.svg]]
-  :END:
+   #+RESULTS:
+   :RESULTS:
+   # Out[73]:
+   [[file:figure/power.org/analytic-power.svg]]
+   :END:
