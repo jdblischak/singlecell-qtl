@@ -2,6 +2,12 @@
 
 A [workflowr][] project.
 
+Now published in
+
+> Sarkar AK, Tung PY, Blischak JD, Burnett JE, Li YI, et al. (2019) Discovery
+> and characterization of variance QTLs in human induced pluripotent stem cells.
+> PLOS Genetics 15(4): e1008045. https://doi.org/10.1371/journal.pgen.1008045
+
 ## Setup
 
 To ensure all contributors are using the same computational environment, we use
